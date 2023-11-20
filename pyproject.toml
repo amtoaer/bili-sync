@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "bili-sync"
+version = "0.1.0"
+description = ""
+authors = ["amtoaer <amtoaer@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+bilibili-api-python = {git = "https://github.com/amtoaer/bilibili-api.git", rev = "dev"}
+dataclasses-json = "0.6.2"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "23.11.0"
+ruff = "0.1.6"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
