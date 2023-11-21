@@ -1,2 +1,4 @@
 .ruff_cache
 __pycache__
+debug.py
+videos
