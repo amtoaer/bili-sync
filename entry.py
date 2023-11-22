@@ -1,6 +1,7 @@
-from processor import process
-import sys
 import asyncio
+import sys
+
+from processor import process
 from settings import settings
 
 

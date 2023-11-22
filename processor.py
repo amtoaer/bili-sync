@@ -1,15 +1,17 @@
-from constants import FFMPEG_COMMAND, MediaType
-from nfo import Actor, EpisodeInfo
-from settings import settings
-from credential import credential
-from bilibili_api import favorite_list, video, HEADERS
-from pathlib import Path
-import httpx
-from asyncio import create_subprocess_exec
-from asyncio.subprocess import DEVNULL
-from loguru import logger
 import asyncio
 import datetime
+from asyncio import create_subprocess_exec
+from asyncio.subprocess import DEVNULL
+from pathlib import Path
+
+import httpx
+from bilibili_api import HEADERS, favorite_list, video
+from loguru import logger
+
+from constants import FFMPEG_COMMAND, MediaType
+from credential import credential
+from nfo import Actor, EpisodeInfo
+from settings import settings
 
 anchor = datetime.datetime.today()
 
@@ -38,7 +40,9 @@ async def process():
             return
     for favorite_id in settings.favorite_ids:
         if favorite_id not in settings.path_mapper:
-            logger.warning(f"Favorite {favorite_id} not in path mapper, ignored.")
+            logger.warning(
+                f"Favorite {favorite_id} not in path mapper, ignored."
+            )
             continue
         await process_favorite(favorite_id)
 
@@ -48,8 +52,10 @@ async def process_favorite(favorite_id: int) -> None:
     save_path.mkdir(parents=True, exist_ok=True)
     page = 1
     while True:
-        favorite_video_list = await favorite_list.get_video_favorite_list_content(
-            favorite_id, page=page, credential=credential
+        favorite_video_list = (
+            await favorite_list.get_video_favorite_list_content(
+                favorite_id, page=page, credential=credential
+            )
         )
         if page == 1:
             logger.info(
@@ -64,7 +70,9 @@ async def process_favorite(favorite_id: int) -> None:
             for idx, result in enumerate(video_result):
                 if isinstance(result, Exception):
                     logger.error(
-                        "Failed to process video {}: {}", medias[idx]["title"], result
+                        "Failed to process video {}: {}",
+                        medias[idx]["title"],
+                        result,
                     )
         if not favorite_video_list["has_more"]:
             return

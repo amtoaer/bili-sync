@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field, fields
-from dataclasses_json import DataClassJsonMixin
 from pathlib import Path
 from typing import Self
+
+from dataclasses_json import DataClassJsonMixin
 
 from constants import DEFAULT_CONFIG_PATH
 
@@ -46,11 +47,15 @@ class Config(DataClassJsonMixin):
 
 
 def init_settings() -> Config:
-    if DEFAULT_CONFIG_PATH.exists():
-        conf = Config.load(DEFAULT_CONFIG_PATH)
-    else:
-        conf = Config()
-    return conf.save(DEFAULT_CONFIG_PATH).validate()
+    return (
+        (
+            Config.load(DEFAULT_CONFIG_PATH)
+            if DEFAULT_CONFIG_PATH.exists()
+            else Config()
+        )
+        .save(DEFAULT_CONFIG_PATH)
+        .validate()
+    )
 
 
 settings = init_settings()
