@@ -1,10 +1,4 @@
-import asyncio
-from processor import process
-
-
-async def main() -> None:
-    await process()
-
+from entry import start
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    start()
