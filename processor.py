@@ -76,6 +76,7 @@ async def process_video(save_path: Path, media: dict) -> None:
     if final_path.exists():
         logger.info(f"{final_path} already exists, skipped.")
         return
+    # 写入 nfo
     nfo_path = save_path / f"{title}.nfo"
     EpisodeInfo(
         title=title,
@@ -84,6 +85,10 @@ async def process_video(save_path: Path, media: dict) -> None:
         bvid=media["bvid"],
         aired=datetime.datetime.fromtimestamp(media["ctime"]),
     ).write_nfo(nfo_path)
+    # 写入 poster
+    cover_path = save_path / f"{title}-poster.jpg"
+    await download_content(media["cover"], cover_path)
+    # 开始处理视频内容
     v = video.Video(media["bvid"], credential=credential)
     detector = video.VideoDownloadURLDataDetecter(
         await v.get_download_url(page_index=0)
