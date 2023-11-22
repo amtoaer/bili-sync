@@ -81,16 +81,17 @@ async def process_favorite(favorite_id: int) -> None:
 
 async def process_video(save_path: Path, media: dict) -> None:
     title = media["title"]
+    safe_title = media["title"].replace("/", "_")
     logger.info("start to process video {}", title)
     if media["type"] != MediaType.VIDEO:
         logger.warning("Media {} is not a video, skipped.", title)
         return
-    final_path = save_path / f"{title}.mp4"
+    final_path = save_path / f"{safe_title}.mp4"
     if final_path.exists():
         logger.info(f"{final_path} already exists, skipped.")
         return
     # 写入 nfo
-    nfo_path = save_path / f"{title}.nfo"
+    nfo_path = save_path / f"{safe_title}.nfo"
     EpisodeInfo(
         title=title,
         plot=media["intro"],
@@ -99,7 +100,7 @@ async def process_video(save_path: Path, media: dict) -> None:
         aired=datetime.datetime.fromtimestamp(media["ctime"]),
     ).write_nfo(nfo_path)
     # 写入 poster
-    cover_path = save_path / f"{title}-poster.jpg"
+    cover_path = save_path / f"{safe_title}-poster.jpg"
     await download_content(media["cover"], cover_path)
     # 开始处理视频内容
     v = video.Video(media["bvid"], credential=credential)
@@ -108,7 +109,7 @@ async def process_video(save_path: Path, media: dict) -> None:
     )
     streams = detector.detect_best_streams()
     if detector.check_flv_stream():
-        tmp_path = save_path / f"{title}.flv"
+        tmp_path = save_path / f"{safe_title}.flv"
         await download_content(streams[0].url, tmp_path)
         process = await create_subprocess_exec(
             FFMPEG_COMMAND,
@@ -122,8 +123,8 @@ async def process_video(save_path: Path, media: dict) -> None:
         tmp_path.unlink()
     else:
         tmp_video_path, tmp_audio_path = (
-            save_path / f"{title}_video.m4s",
-            save_path / f"{title}_audio.m4s",
+            save_path / f"{safe_title}_video.m4s",
+            save_path / f"{safe_title}_audio.m4s",
         )
         await asyncio.gather(
             download_content(streams[0].url, tmp_video_path),
@@ -144,4 +145,4 @@ async def process_video(save_path: Path, media: dict) -> None:
         await process.communicate()
         tmp_video_path.unlink()
         tmp_audio_path.unlink()
-    logger.info(f"{final_path} downloaded successfully.")
+    logger.info(f"{title} downloaded successfully.")
