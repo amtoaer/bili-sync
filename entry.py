@@ -10,7 +10,7 @@ async def entry() -> None:
         await process()
     while True:
         await process()
-        await asyncio.sleep(settings.interval)
+        await asyncio.sleep(settings.interval * 60)
 
 
 def start() -> None:
