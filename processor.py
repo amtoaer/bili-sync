@@ -36,42 +36,47 @@ async def process():
         except Exception:
             logger.exception("Failed to refresh credential.")
             return
-    favorite_ids, tasks = [], []
     for favorite_id in settings.favorite_ids:
         if favorite_id not in settings.path_mapper:
             logger.warning(f"Favorite {favorite_id} not in path mapper, ignored.")
             continue
-        favorite_ids.append(favorite_id)
-        tasks.append(process_favorite(favorite_id))
-    favorite_result = await asyncio.gather(*tasks, return_exceptions=True)
-    for idx, result in enumerate(favorite_result):
-        if isinstance(result, Exception):
-            logger.error("Failed to process favorite {}: {}", favorite_ids[idx], result)
-            continue
-        logger.info("Favorite {} processed successfully.", favorite_ids[idx])
+        await process_favorite(favorite_id)
 
 
 async def process_favorite(favorite_id: int) -> None:
     save_path = Path(settings.path_mapper[favorite_id])
     save_path.mkdir(parents=True, exist_ok=True)
-    favorite_video_list = await favorite_list.get_video_favorite_list_content(
-        favorite_id, credential=credential
-    )
-    logger.info("start to process favorite {}", favorite_video_list["info"]["title"])
-    medias = favorite_video_list["medias"][:4]
-    tasks = [process_video(save_path, media) for media in medias]
-    video_result = await asyncio.gather(*tasks, return_exceptions=True)
-    for idx, result in enumerate(video_result):
-        if isinstance(result, Exception):
-            logger.error("Failed to process video {}: {}", medias[idx]["title"], result)
+    page = 1
+    while True:
+        favorite_video_list = await favorite_list.get_video_favorite_list_content(
+            favorite_id, page=page, credential=credential
+        )
+        if page == 1:
+            logger.info(
+                "start to process favorite {}: {}",
+                favorite_id,
+                favorite_video_list["info"]["title"],
+            )
+        for i in range(0, len(favorite_video_list["medias"]), 4):
+            medias = favorite_video_list["medias"][i : i + 4]
+            tasks = [process_video(save_path, media) for media in medias]
+            video_result = await asyncio.gather(*tasks, return_exceptions=True)
+            for idx, result in enumerate(video_result):
+                if isinstance(result, Exception):
+                    logger.error(
+                        "Failed to process video {}: {}", medias[idx]["title"], result
+                    )
+        if not favorite_video_list["has_more"]:
+            return
+        page += 1
 
 
 async def process_video(save_path: Path, media: dict) -> None:
     title = media["title"]
+    logger.info("start to process video {}", title)
     if media["type"] != MediaType.VIDEO:
         logger.warning("Media {} is not a video, skipped.", title)
         return
-    logger.info("start to process video {}", title)
     final_path = save_path / f"{title}.mp4"
     if final_path.exists():
         logger.info(f"{final_path} already exists, skipped.")
