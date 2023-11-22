@@ -1,4 +1,5 @@
-from constants import FFMPEG_COMMAND
+from constants import FFMPEG_COMMAND, MediaType
+from nfo import Actor, EpisodeInfo
 from settings import settings
 from credential import credential
 from bilibili_api import favorite_list, video, HEADERS
@@ -57,7 +58,7 @@ async def process_favorite(favorite_id: int) -> None:
         favorite_id, credential=credential
     )
     logger.info("start to process favorite {}", favorite_video_list["info"]["title"])
-    medias = favorite_video_list["medias"][:12]
+    medias = favorite_video_list["medias"][:4]
     tasks = [process_video(save_path, media) for media in medias]
     video_result = await asyncio.gather(*tasks, return_exceptions=True)
     for idx, result in enumerate(video_result):
@@ -67,11 +68,22 @@ async def process_favorite(favorite_id: int) -> None:
 
 async def process_video(save_path: Path, media: dict) -> None:
     title = media["title"]
+    if media["type"] != MediaType.VIDEO:
+        logger.warning("Media {} is not a video, skipped.", title)
+        return
     logger.info("start to process video {}", title)
     final_path = save_path / f"{title}.mp4"
     if final_path.exists():
         logger.info(f"{final_path} already exists, skipped.")
         return
+    nfo_path = save_path / f"{title}.nfo"
+    EpisodeInfo(
+        title=title,
+        plot=media["intro"],
+        actor=[Actor(f"{media['upper']['mid']} - {media['upper']['name']}")],
+        bvid=media["bvid"],
+        aired=datetime.datetime.fromtimestamp(media["ctime"]),
+    ).write_nfo(nfo_path)
     v = video.Video(media["bvid"], credential=credential)
     detector = video.VideoDownloadURLDataDetecter(
         await v.get_download_url(page_index=0)
