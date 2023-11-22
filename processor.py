@@ -30,7 +30,7 @@ async def process():
     ).days >= 1 and await credential.check_refresh():
         try:
             credential.refresh()
-            anchor += datetime.timedelta(days=1)
+            anchor = datetime.datetime.today()
             logger.info("Credential refreshed.")
         except Exception:
             logger.exception("Failed to refresh credential.")
