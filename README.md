@@ -9,7 +9,9 @@
 
 ## 工作截图
 
-![](asset/run.png)
+![下载视频](asset/run.png)
+
+![EMBY 识别](asset/emby.png)
 
 ## 路线图
 
