@@ -44,10 +44,10 @@ async def process_favorite(favorite_id: int) -> None:
         favorite_id, credential=credential
     )
     logger.info("start to process favorite {}", favorite_video_list["info"]["title"])
-    medias = favorite_video_list["medias"][:10]
+    medias = favorite_video_list["medias"][:12]
     tasks = [process_video(save_path, media) for media in medias]
-    asyncio.gather(*tasks, return_exceptions=True)
-    for idx, result in enumerate(await asyncio.gather(*tasks, return_exceptions=True)):
+    video_result = await asyncio.gather(*tasks, return_exceptions=True)
+    for idx, result in enumerate(video_result):
         if isinstance(result, Exception):
             logger.error("Failed to process video {}: {}", medias[idx]["title"], result)
 
@@ -82,8 +82,10 @@ async def process_video(save_path: Path, media: dict) -> None:
             save_path / f"{title}_video.m4s",
             save_path / f"{title}_audio.m4s",
         )
-        await download_content(streams[0].url, tmp_video_path)
-        await download_content(streams[1].url, tmp_audio_path)
+        await asyncio.gather(
+            download_content(streams[0].url, tmp_video_path),
+            download_content(streams[1].url, tmp_audio_path),
+        )
         process = await create_subprocess_exec(
             FFMPEG_COMMAND,
             "-i",
