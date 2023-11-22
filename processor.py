@@ -8,6 +8,9 @@ from asyncio import create_subprocess_exec
 from asyncio.subprocess import DEVNULL
 from loguru import logger
 import asyncio
+import datetime
+
+anchor = datetime.datetime.today()
 
 
 async def download_content(url: str, path: Path):
@@ -21,8 +24,18 @@ async def download_content(url: str, path: Path):
 
 
 async def process():
+    global anchor
+    if (
+        datetime.datetime.now() - anchor
+    ).days >= 1 and await credential.check_refresh():
+        try:
+            credential.refresh()
+            anchor += datetime.timedelta(days=1)
+            logger.info("Credential refreshed.")
+        except Exception:
+            logger.exception("Failed to refresh credential.")
+            return
     favorite_ids, tasks = [], []
-
     for favorite_id in settings.favorite_ids:
         if favorite_id not in settings.path_mapper:
             logger.warning(f"Favorite {favorite_id} not in path mapper, ignored.")
