@@ -1,13 +1,18 @@
 import asyncio
 import sys
 
+import uvloop
 from loguru import logger
 
+from models import init_model
 from processor import process
 from settings import settings
 
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+
 
 async def entry() -> None:
+    await init_model()
     if any("once" in _ for _ in sys.argv):
         # 单次运行
         logger.info("Running once...")

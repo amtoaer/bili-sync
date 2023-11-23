@@ -8,6 +8,12 @@ DEFAULT_CONFIG_PATH = (
     else Path(__file__).parent / "config.test.json"
 )
 
+DEFAULT_DATABASE_PATH = (
+    Path(__file__).parent / "database.db"
+    if not os.getenv("TESTING")
+    else Path(__file__).parent / "database.test.db"
+)
+
 FFMPEG_COMMAND = "ffmpeg"
 
 

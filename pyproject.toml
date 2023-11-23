@@ -12,6 +12,7 @@ bilibili-api-python = {git = "https://github.com/amtoaer/bilibili-api.git", rev 
 dataclasses-json = "0.6.2"
 tortoise-orm = "0.20.0"
 loguru = "0.7.2"
+uvloop = "0.19.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -47,6 +48,10 @@ select = [
   # "PL",  # https://beta.ruff.rs/docs/rules/#pylint-pl
   "NPY",    # https://beta.ruff.rs/docs/rules/#numpy-specific-rules-npy
   "RUF100", # https://beta.ruff.rs/docs/configuration/#automatic-noqa-management
+]
+
+ignore = [
+  "A003",  # Class attribute `id` is shadowing a Python builtin
 ]
 
 [build-system]
