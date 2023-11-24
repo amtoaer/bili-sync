@@ -8,13 +8,13 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.11"
-bilibili-api-python = {git = "https://github.com/amtoaer/bilibili-api.git", rev = "dev"}
+bilibili-api-python = { git = "https://github.com/amtoaer/bilibili-api.git", rev = "dev" }
 dataclasses-json = "0.6.2"
 tortoise-orm = "0.20.0"
 loguru = "0.7.2"
 uvloop = "0.19.0"
 aiofiles = "23.2.1"
-
+aerich = "0.7.2"
 
 [tool.poetry.group.dev.dependencies]
 black = "23.11.0"
@@ -50,12 +50,16 @@ select = [
   "NPY",    # https://beta.ruff.rs/docs/rules/#numpy-specific-rules-npy
   "RUF100", # https://beta.ruff.rs/docs/configuration/#automatic-noqa-management
 ]
-
 ignore = [
-  "A003",  # Class attribute `id` is shadowing a Python builtin
+  "A003", # Class attribute `id` is shadowing a Python builtin
 ]
+exclude = ["migrations"]
+
+[tool.aerich]
+tortoise_orm = "constants.TORTOISE_ORM"
+location = "./migrations"
+src_folder = "./."
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
-

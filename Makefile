@@ -14,3 +14,12 @@ start-daemon:
 
 start-once:
 	@poetry run python entry.py --once
+
+db-init:
+	@poetry run aerich init-db
+
+db-migrate:
+	@poetry run aerich migrate
+
+db-upgrade:
+	@poetry run aerich upgrade

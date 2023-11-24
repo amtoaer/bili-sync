@@ -6,11 +6,15 @@ from pathlib import Path
 @dataclass
 class Actor:
     name: str
+    role: str
+    thumb: Path
 
     def to_xml(self) -> str:
         return f"""
     <actor>
         <name>{self.name}</name>
+        <role>{self.role}</role>
+        <thumb>{self.thumb.resolve()}</thumb>
     </actor>
 """.strip(
             "\n"
