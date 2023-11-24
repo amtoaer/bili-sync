@@ -141,38 +141,26 @@ async def process_favorite(favorite_id: int) -> None:
             favorite_list=fav_list,
             bvid__in=[media["bvid"] for media in favorite_video_list["medias"]],
         )
-        logger.info("len of existed_items: {}", len(existed_items))
         # 记录一下获得的列表中的 bvid 和 fav_time
         media_info = {
             (media["bvid"], media["fav_time"])
             for media in favorite_video_list["medias"]
         }
-        logger.error("media_info: {}", media_info)
-        logger.error(
-            "existed_items: {}",
-            {
-                (item.bvid, int(item.fav_time.timestamp()))
-                for item in existed_items
-            },
-        )
         # 如果有 bvid 和 fav_time 都相同的记录，说明已经到达了上次处理到的位置
         continue_flag = not media_info & {
             (item.bvid, int(item.fav_time.timestamp()))
             for item in existed_items
         }
-        if not continue_flag:
-            logger.info("已经处理到上次的位置，跳过。")
         await manage_model(favorite_video_list["medias"], fav_list)
         if not (continue_flag and favorite_video_list["has_more"]):
             break
     all_unprocessed_items = await FavoriteItem.filter(
         favorite_list=fav_list, downloaded=False
     ).prefetch_related("upper")
-    result = await asyncio.gather(
+    await asyncio.gather(
         *[process_video(item) for item in list(all_unprocessed_items)[:5]],
         return_exceptions=True,
     )
-    logger.error(result)
 
 
 @concurrent_decorator(4)
