@@ -4,6 +4,7 @@ from asyncio import Semaphore, create_subprocess_exec
 from asyncio.subprocess import DEVNULL
 from pathlib import Path
 
+import aiofiles
 import httpx
 from bilibili_api import HEADERS, favorite_list, video
 from loguru import logger
@@ -14,6 +15,12 @@ from nfo import Actor, EpisodeInfo
 from settings import settings
 
 anchor = datetime.datetime.today()
+
+client = httpx.AsyncClient(headers=HEADERS)
+
+
+async def cleanup() -> None:
+    await client.aclose()
 
 
 def concurrent_decorator(concurrency: int) -> callable:
@@ -30,13 +37,13 @@ def concurrent_decorator(concurrency: int) -> callable:
 
 
 async def download_content(url: str, path: Path):
-    async with httpx.AsyncClient(headers=HEADERS) as sess:
-        resp = await sess.get(url)
-        with path.open("wb") as f:
-            for chunk in resp.iter_bytes(1024):
-                if not chunk:
-                    break
-                f.write(chunk)
+    async with client.stream("GET", url) as resp, aiofiles.open(
+        path, "wb"
+    ) as f:
+        async for chunk in resp.aiter_bytes(40960):
+            if not chunk:
+                return
+            await f.write(chunk)
 
 
 async def process():

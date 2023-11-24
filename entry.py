@@ -5,7 +5,7 @@ import uvloop
 from loguru import logger
 
 from models import init_model
-from processor import process
+from processor import cleanup, process
 from settings import settings
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
@@ -25,4 +25,8 @@ async def entry() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(entry())
+    with asyncio.Runner() as runner:
+        try:
+            runner.run(entry())
+        finally:
+            runner.run(cleanup())
