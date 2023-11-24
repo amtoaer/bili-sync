@@ -158,7 +158,7 @@ async def process_favorite(favorite_id: int) -> None:
         favorite_list=fav_list, downloaded=False
     ).prefetch_related("upper")
     await asyncio.gather(
-        *[process_video(item) for item in list(all_unprocessed_items)[:5]],
+        *[process_video(item) for item in all_unprocessed_items],
         return_exceptions=True,
     )
 
