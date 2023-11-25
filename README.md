@@ -55,6 +55,7 @@ services:
   bili-sync:
     image: amtoaer/bili-sync:latest
     user: 1000:1000  # 此处可以指定以哪个用户的权限运行，不填写的话默认 root，推荐填写。
+    tty: true  # 加上这一行可以让日志变成彩色
     volumes:
       - /home/amtoaer/Videos/Bilibilis/:/Videos/Bilibilis/  # 视频文件
       - /home/amtoaer/.config/nas/bili-sync/config/:/app/config/  # 配置文件
