@@ -4,8 +4,6 @@ on:
     push:
         tags:
             - '*'
-        branches:
-            - main
 
 jobs:
     build:
@@ -29,4 +27,4 @@ jobs:
                     push: true
                     tags: 
                         ${{ secrets.DOCKERHUB_USERNAME }}/bili-sync:${{ github.ref_name }}
-                        ${{ secrets.DOCKERHUB_USERNAME }}/amtoaer/bili-sync:latest
+                        ${{ secrets.DOCKERHUB_USERNAME }}/bili-sync:latest
