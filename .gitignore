@@ -6,3 +6,6 @@ config.test.json
 database.test.db*
 example.json
 thumbs.test
+config
+data
+thumb

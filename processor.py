@@ -7,10 +7,11 @@ from pathlib import Path
 import aiofiles
 import httpx
 from bilibili_api import HEADERS, favorite_list, video
+from bilibili_api.exceptions import ResponseCodeException
 from loguru import logger
 from tortoise import Tortoise
 
-from constants import FFMPEG_COMMAND, MediaType
+from constants import FFMPEG_COMMAND, MediaStatus, MediaType
 from credential import credential
 from models import FavoriteItem, FavoriteList, Upper
 from nfo import Actor, EpisodeInfo
@@ -154,7 +155,7 @@ async def process_favorite(favorite_id: int) -> None:
         if not (continue_flag and favorite_video_list["has_more"]):
             break
     all_unprocessed_items = await FavoriteItem.filter(
-        favorite_list=fav_list, downloaded=False
+        favorite_list=fav_list, status=MediaStatus.NORMAL, downloaded=False
     ).prefetch_related("upper")
     await asyncio.gather(
         *[process_video(item) for item in all_unprocessed_items],
@@ -240,5 +241,28 @@ async def process_video(fav_item: FavoriteItem) -> None:
         logger.info(
             "{} {} processed successfully.", fav_item.bvid, fav_item.name
         )
+    except ResponseCodeException as e:
+        match e.code:
+            case 62002:
+                fav_item.status = MediaStatus.INVISIBLE
+            case -404:
+                fav_item.status = MediaStatus.DELETED
+            case _:
+                logger.exception(
+                    "Failed to process video {} {}, error_code: {}",
+                    fav_item.bvid,
+                    fav_item.name,
+                    e.code,
+                )
+                return
+        await fav_item.save()
+        logger.error(
+            "Video {} {} is not available, marked as {}",
+            fav_item.bvid,
+            fav_item.name,
+            fav_item.status.text,
+        )
     except Exception:
-        logger.exception("Failed to process video {}", fav_item.name)
+        logger.exception(
+            "Failed to process video {} {}", fav_item.bvid, fav_item.name
+        )

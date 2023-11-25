@@ -9,6 +9,7 @@ from constants import (
     DEFAULT_THUMB_PATH,
     MIGRATE_COMMAND,
     TORTOISE_ORM,
+    MediaStatus,
     MediaType,
 )
 from settings import settings
@@ -47,6 +48,9 @@ class FavoriteItem(Model):
     id = fields.IntField(pk=True)
     name = fields.CharField(max_length=255)
     type = fields.IntEnumField(enum_type=MediaType)
+    status = fields.IntEnumField(
+        enum_type=MediaStatus, default=MediaStatus.NORMAL
+    )
     bvid = fields.CharField(max_length=255)
     desc = fields.TextField()
     cover = fields.TextField()

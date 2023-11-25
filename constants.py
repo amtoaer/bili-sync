@@ -30,6 +30,20 @@ class MediaType(IntEnum):
     VIDEO_COLLECTION = 21
 
 
+class MediaStatus(IntEnum):
+    NORMAL = 1  # 正常稿件
+    INVISIBLE = 2  # 不可见稿件
+    DELETED = 3  # 已失效视频
+
+    @property
+    def text(self) -> str:
+        return {
+            MediaStatus.NORMAL: "normal",
+            MediaStatus.INVISIBLE: "invisible",
+            MediaStatus.DELETED: "deleted",
+        }[self]
+
+
 TORTOISE_ORM = {
     "connections": {"default": f"sqlite://{DEFAULT_DATABASE_PATH}"},
     "apps": {
