@@ -1,9 +1,9 @@
 [tool.poetry]
 name = "bili-sync"
-version = "1.0.0"
+version = "1.0.1"
 description = ""
 authors = ["amtoaer <amtoaer@gmail.com>"]
-license = "MIT"
+license = "GPL-3.0"
 readme = "README.md"
 
 [tool.poetry.dependencies]

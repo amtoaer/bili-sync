@@ -118,10 +118,11 @@ async def process_favorite(favorite_id: int) -> None:
     favorite_video_list = await favorite_list.get_video_favorite_list_content(
         favorite_id, page=1, credential=credential
     )
+    title = favorite_video_list["info"]["title"]
     logger.info(
         "Start to process favorite {}: {}",
         favorite_id,
-        favorite_video_list["info"]["title"],
+        title,
     )
     fav_list, _ = await FavoriteList.get_or_create(
         id=favorite_id, defaults={"name": favorite_video_list["info"]["title"]}
@@ -164,6 +165,7 @@ async def process_favorite(favorite_id: int) -> None:
         *[process_video(item) for item in all_unprocessed_items],
         return_exceptions=True,
     )
+    logger.info("Favorite {} {} processed successfully.", favorite_id, title)
 
 
 @concurrent_decorator(4)
