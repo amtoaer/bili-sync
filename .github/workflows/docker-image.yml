@@ -28,5 +28,5 @@ jobs:
                     file: ./Dockerfile
                     push: true
                     tags: 
-                        amtoaer/bili-sync:${{ github.ref_name }}
-                        amtoaer/bili-sync:latest
+                        ${{ secrets.DOCKERHUB_USERNAME }}/bili-sync:${{ github.ref_name }}
+                        ${{ secrets.DOCKERHUB_USERNAME }}/amtoaer/bili-sync:latest
