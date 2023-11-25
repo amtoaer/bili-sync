@@ -2,23 +2,22 @@ import os
 from enum import IntEnum
 from pathlib import Path
 
-DEFAULT_CONFIG_PATH = (
-    Path(__file__).parent / "config.json"
-    if not os.getenv("TESTING")
-    else Path(__file__).parent / "config.test.json"
-)
 
-DEFAULT_DATABASE_PATH = (
-    Path(__file__).parent / "database.db"
-    if not os.getenv("TESTING")
-    else Path(__file__).parent / "database.test.db"
-)
+def get_base(dir_name: str) -> Path:
+    path = (
+        Path(base)
+        if (base := os.getenv(f"{dir_name.upper()}_PATH"))
+        else Path(__file__).parent / dir_name
+    )
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
-DEFAULT_THUMB_PATH = (
-    Path(__file__).parent / "thumbs"
-    if not os.getenv("TESTING")
-    else Path(__file__).parent / "thumbs.test"
-)
+
+DEFAULT_CONFIG_PATH = get_base("config") / "config.json"
+
+DEFAULT_DATABASE_PATH = get_base("data") / "data.db"
+
+DEFAULT_THUMB_PATH = get_base("thumb")
 
 FFMPEG_COMMAND = "ffmpeg"
 

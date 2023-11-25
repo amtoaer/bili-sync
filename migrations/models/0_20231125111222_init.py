@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS "favoriteitem" (
     "pubtime" TIMESTAMP NOT NULL,
     "fav_time" TIMESTAMP NOT NULL,
     "downloaded" INT NOT NULL  DEFAULT 0,
+    "created_at" TIMESTAMP NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP NOT NULL  DEFAULT CURRENT_TIMESTAMP,
     "favorite_list_id" INT NOT NULL REFERENCES "favoritelist" ("id") ON DELETE CASCADE,
     "upper_id" INT NOT NULL REFERENCES "upper" ("mid") ON DELETE CASCADE,
     CONSTRAINT "uid_favoriteite_bvid_d7b8ea" UNIQUE ("bvid", "favorite_list_id")

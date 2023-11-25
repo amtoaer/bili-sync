@@ -1,3 +1,4 @@
+import os
 from asyncio import create_subprocess_exec
 from pathlib import Path
 
@@ -57,6 +58,8 @@ class FavoriteItem(Model):
     pubtime = fields.DatetimeField()
     fav_time = fields.DatetimeField()
     downloaded = fields.BooleanField(default=False)
+    created_at = fields.DatetimeField(auto_now_add=True)
+    updated_at = fields.DatetimeField(auto_now=True)
 
     class Meta:
         unique_together = (("bvid", "favorite_list_id"),)
@@ -103,10 +106,10 @@ class FavoriteItem(Model):
 
 async def init_model() -> None:
     await Tortoise.init(config=TORTOISE_ORM)
-    process = await create_subprocess_exec(
-        "poetry",
-        "run",
-        MIGRATE_COMMAND,
-        "upgrade",
+    migrate_commands = (
+        [MIGRATE_COMMAND, "upgrade"]
+        if os.getenv("BILI_IN_DOCKER")
+        else ["poetry", "run", MIGRATE_COMMAND, "upgrade"]
     )
+    process = await create_subprocess_exec(*migrate_commands)
     await process.communicate()
