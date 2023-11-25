@@ -25,6 +25,6 @@ jobs:
                     context: .
                     file: ./Dockerfile
                     push: true
-                    tags: 
+                    tags: |
                         ${{ secrets.DOCKERHUB_USERNAME }}/bili-sync:${{ github.ref_name }}
                         ${{ secrets.DOCKERHUB_USERNAME }}/bili-sync:latest
