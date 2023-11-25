@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bili-sync"
-version = "0.1.0"
+version = "1.0.0"
 description = ""
 authors = ["amtoaer <amtoaer@gmail.com>"]
 license = "MIT"
