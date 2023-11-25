@@ -40,7 +40,9 @@ class Config(DataClassJsonMixin):
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
             with path.open("w") as f:
-                f.write(Config.schema().dumps(self, indent=4))
+                f.write(
+                    Config.schema().dumps(self, indent=4, ensure_ascii=False)
+                )
             return self
         except Exception as e:
             raise RuntimeError(f"Failed to save config file: {path}") from e
