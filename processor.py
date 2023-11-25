@@ -119,7 +119,7 @@ async def process_favorite(favorite_id: int) -> None:
         favorite_id, page=1, credential=credential
     )
     logger.info(
-        "start to process favorite {}: {}",
+        "Start to process favorite {}: {}",
         favorite_id,
         favorite_video_list["info"]["title"],
     )
@@ -155,7 +155,10 @@ async def process_favorite(favorite_id: int) -> None:
         if not (continue_flag and favorite_video_list["has_more"]):
             break
     all_unprocessed_items = await FavoriteItem.filter(
-        favorite_list=fav_list, status=MediaStatus.NORMAL, downloaded=False
+        favorite_list=fav_list,
+        type=MediaType.VIDEO,
+        status=MediaStatus.NORMAL,
+        downloaded=False,
     ).prefetch_related("upper")
     await asyncio.gather(
         *[process_video(item) for item in all_unprocessed_items],
@@ -165,7 +168,7 @@ async def process_favorite(favorite_id: int) -> None:
 
 @concurrent_decorator(4)
 async def process_video(fav_item: FavoriteItem) -> None:
-    logger.info("start to process video {}", fav_item.name)
+    logger.info("Start to process video {} {}", fav_item.bvid, fav_item.name)
     if fav_item.type != MediaType.VIDEO:
         logger.warning("Media {} is not a video, skipped.", fav_item.name)
         return
