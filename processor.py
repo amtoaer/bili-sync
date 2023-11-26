@@ -17,8 +17,6 @@ from models import FavoriteItem, FavoriteList, Upper
 from nfo import Actor, EpisodeInfo
 from settings import settings
 
-anchor = datetime.datetime.today()
-
 client = httpx.AsyncClient(headers=HEADERS)
 
 
@@ -95,11 +93,12 @@ async def manage_model(medias: list[dict], fav_list: FavoriteList) -> None:
 
 async def process() -> None:
     global anchor
-    if (datetime.datetime.now() - anchor).days >= 3:
-        # 暂定三天刷新一次凭据，具体看情况调整
+    if not await credential.check_valid():
+        logger.error("Credential is invalid, skipped.")
+        return
+    if await credential.check_refresh():
         try:
             credential.refresh()
-            anchor = datetime.datetime.today()
             logger.info("Credential refreshed.")
         except Exception:
             logger.exception("Failed to refresh credential.")
