@@ -4,6 +4,7 @@ import sys
 import uvloop
 from loguru import logger
 
+from commands import recheck
 from models import init_model
 from processor import cleanup, process
 from settings import settings
@@ -17,6 +18,11 @@ async def entry() -> None:
         # 单次运行
         logger.info("Running once...")
         await process()
+        return
+    if any("recheck" in _ for _ in sys.argv):
+        # 重新检查
+        logger.info("Rechecking...")
+        await recheck()
         return
     logger.info("Running daemon...")
     while True:
