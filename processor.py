@@ -98,7 +98,7 @@ async def process() -> None:
         return
     if await credential.check_refresh():
         try:
-            credential.refresh()
+            await credential.refresh()
             logger.info("Credential refreshed.")
         except Exception:
             logger.exception("Failed to refresh credential.")
