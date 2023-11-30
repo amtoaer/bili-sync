@@ -19,6 +19,8 @@ from settings import settings
 
 client = httpx.AsyncClient(headers=HEADERS)
 
+anchor = datetime.datetime.today()
+
 
 async def cleanup() -> None:
     await client.aclose()
@@ -93,12 +95,10 @@ async def manage_model(medias: list[dict], fav_list: FavoriteList) -> None:
 
 async def process() -> None:
     global anchor
-    if not await credential.check_valid():
-        logger.error("Credential is invalid, skipped.")
-        return
-    if await credential.check_refresh():
+    if datetime.datetime.now() > anchor and await credential.check_refresh():
         try:
             await credential.refresh()
+            anchor = datetime.datetime.today() + datetime.timedelta(days=1)
             logger.info("Credential refreshed.")
         except Exception:
             logger.exception("Failed to refresh credential.")
