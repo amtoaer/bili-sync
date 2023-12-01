@@ -24,7 +24,7 @@ async def aexists(path: Path) -> bool:
 
 
 async def amakedirs(path: Path, exist_ok=False) -> None:
-    await makedirs(path, parents=True, exist_ok=exist_ok)
+    await makedirs(path, exist_ok=exist_ok)
 
 
 def aopen(
