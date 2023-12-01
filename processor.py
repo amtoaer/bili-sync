@@ -177,7 +177,7 @@ async def process_video(fav_item: FavoriteItem) -> None:
             await amakedirs(fav_item.upper.thumb_path.parent, exist_ok=True)
             await fav_item.upper.save_metadata()
             await download_content(
-                fav_item.upper.thumb_url, fav_item.upper.thumb_path
+                fav_item.upper.thumb, fav_item.upper.thumb_path
             )
         # 写入 nfo
         await EpisodeInfo(
