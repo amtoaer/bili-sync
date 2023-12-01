@@ -13,6 +13,7 @@ from constants import (
     MediaType,
 )
 from settings import settings
+from utils import aopen
 
 
 class FavoriteList(Model):
@@ -39,7 +40,31 @@ class Upper(Model):
 
     @property
     def thumb_path(self) -> Path:
-        return DEFAULT_THUMB_PATH / f"{self.mid}.jpg"
+        return (
+            DEFAULT_THUMB_PATH / f"{self.mid[0]}" / f"{self.mid}" / "folder.jpg"
+        )
+
+    @property
+    def meta_path(self) -> Path:
+        return (
+            DEFAULT_THUMB_PATH / f"{self.mid[0]}" / f"{self.mid}" / "person.nfo"
+        )
+
+    async def save_metadata(self):
+        async with aopen(self.meta_path, "w") as f:
+            await f.write(
+                f"""
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<person>
+  <plot />
+  <outline />
+  <lockdata>false</lockdata>
+  <dateadded>{self.created_at.strftime("%Y-%m-%d %H:%M:%S")}</dateadded>
+  <title>{self.mid}</title>
+  <sorttitle>{self.mid}</sorttitle>
+</person>
+""".strip()
+            )
 
 
 class FavoriteItem(Model):

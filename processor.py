@@ -2,11 +2,8 @@ import asyncio
 import datetime
 from asyncio import Semaphore, create_subprocess_exec
 from asyncio.subprocess import DEVNULL
-from pathlib import Path
 
-import aiofiles
-import httpx
-from bilibili_api import HEADERS, favorite_list, video
+from bilibili_api import favorite_list, video
 from bilibili_api.exceptions import ResponseCodeException
 from loguru import logger
 from tortoise import Tortoise
@@ -16,8 +13,7 @@ from credential import credential
 from models import FavoriteItem, FavoriteList, Upper
 from nfo import Actor, EpisodeInfo
 from settings import settings
-
-client = httpx.AsyncClient(headers=HEADERS)
+from utils import aexists, amakedirs, client, download_content
 
 anchor = datetime.date.today()
 
@@ -38,16 +34,6 @@ def concurrent_decorator(concurrency: int) -> callable:
         return wrapper
 
     return decorator
-
-
-async def download_content(url: str, path: Path) -> None:
-    async with client.stream("GET", url) as resp, aiofiles.open(
-        path, "wb"
-    ) as f:
-        async for chunk in resp.aiter_bytes(40960):
-            if not chunk:
-                return
-            await f.write(chunk)
 
 
 async def manage_model(medias: list[dict], fav_list: FavoriteList) -> None:
@@ -174,7 +160,7 @@ async def process_video(fav_item: FavoriteItem) -> None:
         logger.warning("Media {} is not a video, skipped.", fav_item.name)
         return
     try:
-        if fav_item.video_path.exists():
+        if await aexists(fav_item.video_path):
             fav_item.downloaded = True
             await fav_item.save()
             logger.info(
@@ -182,19 +168,25 @@ async def process_video(fav_item: FavoriteItem) -> None:
             )
             return
         # 写入 up 主头像
-        if not fav_item.upper.thumb_path.exists():
+        if not all(
+            await asyncio.gather(
+                aexists(fav_item.upper.thumb_path),
+                aexists(fav_item.upper.meta_path),
+            )
+        ):
+            await amakedirs(fav_item.upper.thumb_path.parent, exist_ok=True)
+            await fav_item.upper.save_metadata()
             await download_content(
-                fav_item.upper.thumb, fav_item.upper.thumb_path
+                fav_item.upper.thumb_url, fav_item.upper.thumb_path
             )
         # 写入 nfo
-        EpisodeInfo(
+        await EpisodeInfo(
             title=fav_item.name,
             plot=fav_item.desc,
             actor=[
                 Actor(
                     name=fav_item.upper.mid,
                     role=fav_item.upper.name,
-                    thumb=fav_item.upper.thumb_path,
                 )
             ],
             bvid=fav_item.bvid,

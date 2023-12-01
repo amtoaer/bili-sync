@@ -2,19 +2,19 @@ import datetime
 from dataclasses import dataclass
 from pathlib import Path
 
+from utils import aopen
+
 
 @dataclass
 class Actor:
     name: str
     role: str
-    thumb: Path
 
     def to_xml(self) -> str:
         return f"""
     <actor>
         <name>{self.name}</name>
         <role>{self.role}</role>
-        <thumb>{self.thumb.resolve()}</thumb>
     </actor>
 """.strip(
             "\n"
@@ -29,9 +29,9 @@ class EpisodeInfo:
     bvid: str
     aired: datetime.datetime
 
-    def write_nfo(self, path: Path) -> None:
-        with path.open("w", encoding="utf-8") as f:
-            f.write(self.to_xml())
+    async def write_nfo(self, path: Path) -> None:
+        async with aopen(path, "w", encoding="utf-8") as f:
+            await f.write(self.to_xml())
 
     def to_xml(self) -> str:
         actor = "\n".join(_.to_xml() for _ in self.actor)

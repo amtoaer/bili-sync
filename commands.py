@@ -1,10 +1,11 @@
 import asyncio
 
-from aiofiles.os import path
 from loguru import logger
 
 from constants import MediaStatus, MediaType
-from models import FavoriteItem
+from models import FavoriteItem, Upper
+from processor import download_content
+from utils import aexists, amakedirs
 
 
 async def recheck():
@@ -14,9 +15,7 @@ async def recheck():
         status=MediaStatus.NORMAL,
         downloaded=True,
     )
-    exists = await asyncio.gather(
-        *[path.exists(item.video_path) for item in items]
-    )
+    exists = await asyncio.gather(*[aexists(item.video_path) for item in items])
     for item, exist in zip(items, exists):
         if isinstance(exist, Exception):
             logger.error(
@@ -36,3 +35,25 @@ async def recheck():
     logger.info("Updating database...")
     await FavoriteItem.bulk_update(items, fields=["downloaded"])
     logger.info("Database updated.")
+
+
+async def upper_thumb():
+    makedir_tasks = []
+    other_tasks = []
+    for upper in await Upper.all():
+        if not all(
+            await asyncio.gather(
+                aexists(upper.thumb_path), aexists(upper.meta_path)
+            )
+        ):
+            makedir_tasks.append(
+                amakedirs(upper.thumb_path.parent, exist_ok=True)
+            )
+            other_tasks.extend(
+                [
+                    upper.save_metadata(),
+                    download_content(upper.thumb_url, upper.thumb_path),
+                ]
+            )
+    await asyncio.gather(*makedir_tasks)
+    await asyncio.gather(*other_tasks)
