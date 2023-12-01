@@ -37,15 +37,6 @@ class Config(DataClassJsonMixin):
 
 即：我们可以通过运行一次程序，等程序写入初始配置并提示配置错误终止后编辑 `config.json` 文件，编辑后即可重新运行。
 
-## 关于 UP 头像
-
-目前开放全局的环境变量 `THUMB_PATH` 作为 up 主头像的存储位置。
-
-在下载某条视频时，如果 UP 的头像还不存在，就会将 UP 的头像下载至 `THUMB_PATH`，同时在视频的 NFO 文件中写入 UP 头像的绝对路径。
-
-但实际测试下来，EMBY 似乎无法正常读取 NFO 文件中的本地头像路径，待找到处理办法后再修复。
-
-> 虽然但是，一个基本的逻辑是，如果期望 `bili-sync` 在 NFO 中写入的头像绝对路径能够被 EMBY 读取到，那么两个容器中头像的绝对路径必须完全相同。因此虽然头像还没办法正常加载，但为后续考虑，还是推荐将 THUMB_PATH 填写上，并确保该路径在 `bili-sync` 和 `emby` 两个容器中指向的是相同的文件夹（也就是把一个文件夹同时挂载到 `bili-sync` 和 `emby` 的 THUMB_PATH 下）。
 
 ## Docker 运行示例
 
@@ -60,17 +51,16 @@ services:
       - /home/amtoaer/Videos/Bilibilis/:/Videos/Bilibilis/  # 视频文件
       - /home/amtoaer/.config/nas/bili-sync/config/:/app/config/  # 配置文件
       - /home/amtoaer/.config/nas/bili-sync/data/:/app/data/  # 数据库
+      # 注：如需在 emby 内查看 up 主头像，需要将 emby 的 metadata/people/ 配置目录挂载至容器的 /app/thumb/
+      - /home/amtoaer/.config/nas/emby/metadata/people/:/app/thumb/
     environment:
-      - THUMB_PATH=/Videos/Bilibilis/thumb/  # 将头像放到视频文件的 thumb 文件夹下
+      - TZ=Asia/Shanghai
     restart: always
     network_mode: bridge
     hostname: bili-sync
     container_name: bili-sync
     logging:
-      driver: "json-file"
-      options:
-        max-size: "30m"
-
+      driver: "local"
 ```
 
 对应的配置文件：
@@ -91,10 +81,6 @@ services:
     }
 }
 ```
-
-## 目前的问题
-
-- [ ] 研究一下 NFO，看看怎么正常读取本地的演员头像
 
 ## 路线图
 
