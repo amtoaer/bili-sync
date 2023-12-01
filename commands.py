@@ -41,19 +41,22 @@ async def upper_thumb():
     makedir_tasks = []
     other_tasks = []
     for upper in await Upper.all():
-        if not all(
+        if all(
             await asyncio.gather(
                 aexists(upper.thumb_path), aexists(upper.meta_path)
             )
         ):
-            makedir_tasks.append(
-                amakedirs(upper.thumb_path.parent, exist_ok=True)
-            )
-            other_tasks.extend(
-                [
-                    upper.save_metadata(),
-                    download_content(upper.thumb_url, upper.thumb_path),
-                ]
-            )
+            logger.info("Upper {} {} already exists, skipped.", upper.mid, upper.name)
+        makedir_tasks.append(
+            amakedirs(upper.thumb_path.parent, exist_ok=True)
+        )
+        logger.info("Saving metadata for upper {} {}...", upper.mid, upper.name)
+        other_tasks.extend(
+            [
+                upper.save_metadata(),
+                download_content(upper.thumb_url, upper.thumb_path),
+            ]
+        )
     await asyncio.gather(*makedir_tasks)
     await asyncio.gather(*other_tasks)
+    logger.info("All done.")

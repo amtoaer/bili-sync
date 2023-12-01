@@ -41,13 +41,13 @@ class Upper(Model):
     @property
     def thumb_path(self) -> Path:
         return (
-            DEFAULT_THUMB_PATH / f"{self.mid[0]}" / f"{self.mid}" / "folder.jpg"
+            DEFAULT_THUMB_PATH / str(self.mid)[0] / f"{self.mid}" / "folder.jpg"
         )
 
     @property
     def meta_path(self) -> Path:
         return (
-            DEFAULT_THUMB_PATH / f"{self.mid[0]}" / f"{self.mid}" / "person.nfo"
+            DEFAULT_THUMB_PATH / str(self.mid)[0] / f"{self.mid}" / "person.nfo"
         )
 
     async def save_metadata(self):
