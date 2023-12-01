@@ -54,7 +54,7 @@ async def upper_thumb():
         other_tasks.extend(
             [
                 upper.save_metadata(),
-                download_content(upper.thumb_url, upper.thumb_path),
+                download_content(upper.thumb, upper.thumb_path),
             ]
         )
     await asyncio.gather(*makedir_tasks)

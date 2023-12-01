@@ -81,10 +81,12 @@ async def manage_model(medias: list[dict], fav_list: FavoriteList) -> None:
 
 async def process() -> None:
     global anchor
-    if datetime.date.today() >= anchor and await credential.check_refresh():
+    if (
+        today := datetime.date.today()
+    ) > anchor and await credential.check_refresh():
         try:
             await credential.refresh()
-            anchor = datetime.date.today() + datetime.timedelta(days=1)
+            anchor = today
             logger.info("Credential refreshed.")
         except Exception:
             logger.exception("Failed to refresh credential.")
