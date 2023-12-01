@@ -46,10 +46,10 @@ async def upper_thumb():
                 aexists(upper.thumb_path), aexists(upper.meta_path)
             )
         ):
-            logger.info("Upper {} {} already exists, skipped.", upper.mid, upper.name)
-        makedir_tasks.append(
-            amakedirs(upper.thumb_path.parent, exist_ok=True)
-        )
+            logger.info(
+                "Upper {} {} already exists, skipped.", upper.mid, upper.name
+            )
+        makedir_tasks.append(amakedirs(upper.thumb_path.parent, exist_ok=True))
         logger.info("Saving metadata for upper {} {}...", upper.mid, upper.name)
         other_tasks.extend(
             [
