@@ -1,0 +1,29 @@
+name: Docker Image CI (DEBUG)
+
+on:
+    push:
+        branches:
+            - main
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            -
+                name: Checkout
+                uses: actions/checkout@v3
+            -
+                name: Login to DockerHub
+                uses: docker/login-action@v3
+                with:
+                    username: ${{ secrets.DOCKERHUB_USERNAME }}
+                    password: ${{ secrets.DOCKERHUB_TOKEN }}
+            -
+                name: Build and push images
+                uses: docker/build-push-action@v5
+                with:
+                    context: .
+                    file: ./Dockerfile
+                    push: true
+                    tags: |
+                        ${{ secrets.DOCKERHUB_USERNAME }}/bili-sync:debug
