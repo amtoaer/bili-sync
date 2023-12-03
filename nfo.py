@@ -25,6 +25,7 @@ class Actor:
 class EpisodeInfo:
     title: str
     plot: str
+    tags: list[str]
     actor: list[Actor]
     bvid: str
     aired: datetime.datetime
@@ -35,6 +36,11 @@ class EpisodeInfo:
 
     def to_xml(self) -> str:
         actor = "\n".join(_.to_xml() for _ in self.actor)
+        tags = (
+            "\n".join(f"    <genre>{_}</genre>" for _ in self.tags)
+            if isinstance(self.tags, list)
+            else ""
+        )
         return f"""
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <episodedetails>
@@ -43,6 +49,7 @@ class EpisodeInfo:
     <title>{self.title}</title>
 {actor}
     <year>{self.aired.year}</year>
+{tags}
     <uniqueid type="bilibili">{self.bvid}</uniqueid>
     <aired>{self.aired.strftime("%Y-%m-%d")}</aired>
 </episodedetails>

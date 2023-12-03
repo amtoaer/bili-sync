@@ -79,6 +79,7 @@ class FavoriteItem(Model):
     bvid = fields.CharField(max_length=255)
     desc = fields.TextField()
     cover = fields.TextField()
+    tags = fields.JSONField(null=True)
     favorite_list = fields.ForeignKeyField(
         "models.FavoriteList", related_name="items"
     )

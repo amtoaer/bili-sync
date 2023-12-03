@@ -4,8 +4,8 @@ from loguru import logger
 
 from constants import MediaStatus, MediaType
 from models import FavoriteItem, Upper
-from processor import download_content
-from utils import aexists, amakedirs
+from processor import download_content, process_video
+from utils import aexists, amakedirs, aremove
 
 
 async def recheck():
@@ -38,6 +38,7 @@ async def recheck():
 
 
 async def upper_thumb():
+    """将up主的头像批量写入数据库，从不支持up主头像的版本升级上来后需要手动调用一次"""
     makedir_tasks = []
     other_tasks = []
     for upper in await Upper.all():
@@ -60,3 +61,30 @@ async def upper_thumb():
     await asyncio.gather(*makedir_tasks)
     await asyncio.gather(*other_tasks)
     logger.info("All done.")
+
+
+async def refresh_tags():
+    """刷新已存在的视频的标签，从不支持标签的版本升级上来后需要手动调用一次"""
+    items = await FavoriteItem.filter(
+        type=MediaType.VIDEO,
+        status=MediaStatus.NORMAL,
+        downloaded=True,
+        tags=None,
+    )
+    await asyncio.gather(
+        *[await aremove(item.nfo_path) for item in items],
+        return_exceptions=True,
+    )
+    await asyncio.gather(
+        *[
+            process_video(
+                item,
+                process_poster=False,
+                process_video=False,
+                process_nfo=True,
+                process_upper=False,
+            )
+            for item in items
+        ],
+        return_exceptions=True,
+    )

@@ -3,7 +3,7 @@ from pathlib import Path
 import aiofiles
 import httpx
 from aiofiles.base import AiofilesContextManager
-from aiofiles.os import makedirs
+from aiofiles.os import makedirs, remove
 from aiofiles.ospath import exists
 from aiofiles.threadpool.text import AsyncTextIOWrapper
 from bilibili_api import HEADERS
@@ -31,3 +31,7 @@ def aopen(
     path: Path, mode: str = "r", **kwargs
 ) -> AiofilesContextManager[None, None, AsyncTextIOWrapper]:
     return aiofiles.open(path, mode, **kwargs)
+
+
+async def aremove(path: Path) -> None:
+    await remove(path)

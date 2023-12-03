@@ -156,89 +156,133 @@ async def process_favorite(favorite_id: int) -> None:
 
 
 @concurrent_decorator(4)
-async def process_video(fav_item: FavoriteItem) -> None:
+async def process_video(
+    fav_item: FavoriteItem,
+    process_poster=True,
+    process_video=True,
+    process_nfo=True,
+    process_upper=True,
+) -> None:
     logger.info("Start to process video {} {}", fav_item.bvid, fav_item.name)
     if fav_item.type != MediaType.VIDEO:
         logger.warning("Media {} is not a video, skipped.", fav_item.name)
         return
+    v = video.Video(fav_item.bvid, credential=credential)
     try:
-        if await aexists(fav_item.video_path):
-            fav_item.downloaded = True
-            await fav_item.save()
-            logger.info(
-                "{} {} already exists, skipped.", fav_item.bvid, fav_item.name
-            )
-            return
-        # 写入 up 主头像
-        if not all(
-            await asyncio.gather(
-                aexists(fav_item.upper.thumb_path),
-                aexists(fav_item.upper.meta_path),
-            )
-        ):
-            await amakedirs(fav_item.upper.thumb_path.parent, exist_ok=True)
-            await fav_item.upper.save_metadata()
-            await download_content(
-                fav_item.upper.thumb, fav_item.upper.thumb_path
-            )
-        # 写入 nfo
-        await EpisodeInfo(
-            title=fav_item.name,
-            plot=fav_item.desc,
-            actor=[
-                Actor(
-                    name=fav_item.upper.mid,
-                    role=fav_item.upper.name,
+        if process_upper:
+            # 写入 up 主头像
+            if not all(
+                await asyncio.gather(
+                    aexists(fav_item.upper.thumb_path),
+                    aexists(fav_item.upper.meta_path),
                 )
-            ],
-            bvid=fav_item.bvid,
-            aired=fav_item.ctime,
-        ).write_nfo(fav_item.nfo_path)
-        # 写入 poster
-        await download_content(fav_item.cover, fav_item.poster_path)
-        # 开始处理视频内容
-        v = video.Video(fav_item.bvid, credential=credential)
-        detector = video.VideoDownloadURLDataDetecter(
-            await v.get_download_url(page_index=0)
-        )
-        streams = detector.detect_best_streams()
-        if detector.check_flv_stream():
-            await download_content(streams[0].url, fav_item.tmp_video_path)
-            process = await create_subprocess_exec(
-                FFMPEG_COMMAND,
-                "-i",
-                str(fav_item.tmp_video_path),
-                str(fav_item.video_path),
-                stdout=DEVNULL,
-                stderr=DEVNULL,
-            )
-            await process.communicate()
-            fav_item.tmp_video_path.unlink()
-        else:
-            await asyncio.gather(
-                download_content(streams[0].url, fav_item.tmp_video_path),
-                download_content(streams[1].url, fav_item.tmp_audio_path),
-            )
-            process = await create_subprocess_exec(
-                FFMPEG_COMMAND,
-                "-i",
-                str(fav_item.tmp_video_path),
-                "-i",
-                str(fav_item.tmp_audio_path),
-                "-c",
-                "copy",
-                str(fav_item.video_path),
-                stdout=DEVNULL,
-                stderr=DEVNULL,
-            )
-            await process.communicate()
-            fav_item.tmp_video_path.unlink()
-            fav_item.tmp_audio_path.unlink()
-        fav_item.downloaded = True
-        await fav_item.save()
-        logger.info(
-            "{} {} processed successfully.", fav_item.bvid, fav_item.name
-        )
+            ):
+                await amakedirs(fav_item.upper.thumb_path.parent, exist_ok=True)
+                await asyncio.gather(
+                    fav_item.upper.save_metadata(),
+                    download_content(
+                        fav_item.upper.thumb, fav_item.upper.thumb_path
+                    ),
+                    return_exceptions=True,
+                )
+            else:
+                logger.info(
+                    "Upper {} {} already exists, skipped.",
+                    fav_item.upper.mid,
+                    fav_item.upper.name,
+                )
+        if process_nfo:
+            if not await aexists(fav_item.nfo_path):
+                if fav_item.tags is None:
+                    fav_item.tags = [_["tag_name"] for _ in await v.get_tags()]
+                # 写入 nfo
+                await EpisodeInfo(
+                    title=fav_item.name,
+                    plot=fav_item.desc,
+                    actor=[
+                        Actor(
+                            name=fav_item.upper.mid,
+                            role=fav_item.upper.name,
+                        )
+                    ],
+                    tags=fav_item.tags,
+                    bvid=fav_item.bvid,
+                    aired=fav_item.ctime,
+                ).write_nfo(fav_item.nfo_path)
+            else:
+                logger.info(
+                    "NFO of {} {} already exists, skipped.",
+                    fav_item.bvid,
+                    fav_item.name,
+                )
+        if process_poster:
+            # 写入 poster
+            if not await aexists(fav_item.poster_path):
+                await download_content(fav_item.cover, fav_item.poster_path)
+            else:
+                logger.info(
+                    "Poster of {} {} already exists, skipped.",
+                    fav_item.bvid,
+                    fav_item.name,
+                )
+        if process_video:
+            if await aexists(fav_item.video_path):
+                fav_item.downloaded = True
+                logger.info(
+                    "Video {} {} already exists, skipped.",
+                    fav_item.bvid,
+                    fav_item.name,
+                )
+            else:
+                # 开始处理视频内容
+                detector = video.VideoDownloadURLDataDetecter(
+                    await v.get_download_url(page_index=0)
+                )
+                streams = detector.detect_best_streams()
+                if detector.check_flv_stream():
+                    await download_content(
+                        streams[0].url, fav_item.tmp_video_path
+                    )
+                    process = await create_subprocess_exec(
+                        FFMPEG_COMMAND,
+                        "-i",
+                        str(fav_item.tmp_video_path),
+                        str(fav_item.video_path),
+                        stdout=DEVNULL,
+                        stderr=DEVNULL,
+                    )
+                    await process.communicate()
+                    fav_item.tmp_video_path.unlink()
+                else:
+                    await asyncio.gather(
+                        download_content(
+                            streams[0].url, fav_item.tmp_video_path
+                        ),
+                        download_content(
+                            streams[1].url, fav_item.tmp_audio_path
+                        ),
+                    )
+                    process = await create_subprocess_exec(
+                        FFMPEG_COMMAND,
+                        "-i",
+                        str(fav_item.tmp_video_path),
+                        "-i",
+                        str(fav_item.tmp_audio_path),
+                        "-c",
+                        "copy",
+                        str(fav_item.video_path),
+                        stdout=DEVNULL,
+                        stderr=DEVNULL,
+                    )
+                    await process.communicate()
+                    fav_item.tmp_video_path.unlink()
+                    fav_item.tmp_audio_path.unlink()
+                fav_item.downloaded = True
+                logger.info(
+                    "{} {} processed successfully.",
+                    fav_item.bvid,
+                    fav_item.name,
+                )
     except ResponseCodeException as e:
         match e.code:
             case 62002:
@@ -253,7 +297,6 @@ async def process_video(fav_item: FavoriteItem) -> None:
                     e.code,
                 )
                 return
-        await fav_item.save()
         logger.error(
             "Video {} {} is not available, marked as {}",
             fav_item.bvid,
@@ -264,3 +307,5 @@ async def process_video(fav_item: FavoriteItem) -> None:
         logger.exception(
             "Failed to process video {} {}", fav_item.bvid, fav_item.name
         )
+    finally:
+        await fav_item.save()
