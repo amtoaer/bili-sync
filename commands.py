@@ -72,7 +72,7 @@ async def refresh_tags():
         tags=None,
     )
     await asyncio.gather(
-        *[await aremove(item.nfo_path) for item in items],
+        *[aremove(item.nfo_path) for item in items],
         return_exceptions=True,
     )
     await asyncio.gather(
