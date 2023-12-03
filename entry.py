@@ -4,7 +4,7 @@ import sys
 import uvloop
 from loguru import logger
 
-from commands import recheck, upper_thumb
+from commands import recheck, refresh_tags, upper_thumb
 from models import init_model
 from processor import cleanup, process
 from settings import settings
@@ -18,6 +18,7 @@ async def entry() -> None:
         ("once", process),
         ("recheck", recheck),
         ("upper_thumb", upper_thumb),
+        ("refresh_tags", refresh_tags),
     ]:
         if any(command in _ for _ in sys.argv):
             logger.info("Running {}...", command)
