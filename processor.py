@@ -194,7 +194,16 @@ async def process_video(
         if process_nfo:
             if not await aexists(fav_item.nfo_path):
                 if fav_item.tags is None:
-                    fav_item.tags = [_["tag_name"] for _ in await v.get_tags()]
+                    try:
+                        fav_item.tags = [
+                            _["tag_name"] for _ in await v.get_tags()
+                        ]
+                    except Exception:
+                        logger.exception(
+                            "Failed to get tags of video {} {}",
+                            fav_item.bvid,
+                            fav_item.name,
+                        )
                 # 写入 nfo
                 await EpisodeInfo(
                     title=fav_item.name,

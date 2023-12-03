@@ -66,8 +66,6 @@ async def upper_thumb():
 async def refresh_tags():
     """刷新已存在的视频的标签，从不支持标签的版本升级上来后需要手动调用一次"""
     items = await FavoriteItem.filter(
-        type=MediaType.VIDEO,
-        status=MediaStatus.NORMAL,
         downloaded=True,
         tags=None,
     ).prefetch_related("upper")
