@@ -70,7 +70,7 @@ async def refresh_tags():
         status=MediaStatus.NORMAL,
         downloaded=True,
         tags=None,
-    )
+    ).prefetch_related("upper")
     await asyncio.gather(
         *[aremove(item.nfo_path) for item in items],
         return_exceptions=True,
