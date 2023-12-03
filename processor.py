@@ -287,11 +287,11 @@ async def process_video(
                     fav_item.tmp_video_path.unlink()
                     fav_item.tmp_audio_path.unlink()
                 fav_item.downloaded = True
-                logger.info(
-                    "{} {} processed successfully.",
-                    fav_item.bvid,
-                    fav_item.name,
-                )
+        logger.info(
+            "{} {} processed successfully.",
+            fav_item.bvid,
+            fav_item.name,
+        )
     except ResponseCodeException as e:
         match e.code:
             case 62002:
