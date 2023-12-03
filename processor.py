@@ -81,16 +81,16 @@ async def manage_model(medias: list[dict], fav_list: FavoriteList) -> None:
 
 async def process() -> None:
     global anchor
-    if (
-        today := datetime.date.today()
-    ) > anchor and await credential.check_refresh():
-        try:
-            await credential.refresh()
-            anchor = today
-            logger.info("Credential refreshed.")
-        except Exception:
-            logger.exception("Failed to refresh credential.")
-            return
+    if (today := datetime.date.today()) > anchor:
+        anchor = today
+        logger.info("Check credential.")
+        if await credential.check_refresh():
+            try:
+                await credential.refresh()
+                logger.info("Credential refreshed.")
+            except Exception:
+                logger.exception("Failed to refresh credential.")
+                return
     for favorite_id in settings.favorite_ids:
         if favorite_id not in settings.path_mapper:
             logger.warning(
