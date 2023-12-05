@@ -47,12 +47,15 @@ async def _refresh_favorite_item_info(
     process_nfo: bool = False,
     process_upper: bool = False,
     process_subtitle: bool = False,
+    force: bool = False,
 ):
     items = await FavoriteItem.filter(downloaded=True).prefetch_related("upper")
-    await asyncio.gather(
-        *[aremove(path) for item in items for path in path_getter(item)],
-        return_exceptions=True,
-    )
+    if force:
+        # 如果强制刷新，那么就先把现存的所有内容删除
+        await asyncio.gather(
+            *[aremove(path) for item in items for path in path_getter(item)],
+            return_exceptions=True,
+        )
     await asyncio.gather(
         *[
             process_favorite_item(

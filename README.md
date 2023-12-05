@@ -88,15 +88,29 @@ services:
 
 为满足需要，该应用包含几个单独的命令，可在程序目录下使用 `python entry.py ${command name}` 运行。
 
-1. `once` 
+1. `once`
 
     处理收藏夹，和一般定时任务触发时执行的操作完全相同，但仅运行一次。
 2. `recheck` 
 
     将本地不存在的视频文件标记成未下载，下次定时任务触发时将一并下载。
-3. `upper_thumb`
+3. `refresh_refresh_poster`
 
-    手动触发全量下载 up 主头像，为使用老版本时下载的没有 up 头像的视频添加头像。
+    更新本地视频的封面。
+3. `refresh_upper`
+
+    更新本地up的头像和元数据。
+3. `refresh_nfo`
+
+    更新本地视频的元数据。（如标签、标题等信息）
+3. `refresh_video`
+
+    更新本地的视频源文件。
+3. `refresh_subtitle`
+
+    更新本地的弹幕文件。
+
+**对于以 refresh 开头的命令，均支持 --force 参数，如果有 --force 参数，将全量覆盖对应内容，否则默认仅更新缺失的部分。**
 
 ## 路线图
 

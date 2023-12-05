@@ -21,6 +21,7 @@ asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 async def entry() -> None:
     await init_model()
+    force = any("force" in _ for _ in sys.argv)
     for command, func in (
         ("once", process),
         ("recheck", recheck),
@@ -32,7 +33,10 @@ async def entry() -> None:
     ):
         if any(command in _ for _ in sys.argv):
             logger.info("Running {}...", command)
-            await func()
+            if command.startswith("refresh"):
+                await func(force=force)
+            else:
+                await func()
             return
     logger.info("Running daemon...")
     while True:
