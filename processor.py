@@ -3,7 +3,7 @@ import datetime
 from asyncio import Semaphore, create_subprocess_exec
 from asyncio.subprocess import DEVNULL
 
-from bilibili_api import favorite_list, video
+from bilibili_api import ass, favorite_list, video
 from bilibili_api.exceptions import ResponseCodeException
 from loguru import logger
 from tortoise import Tortoise
@@ -236,18 +236,16 @@ async def process_favorite_item(
                     fav_item.name,
                 )
         if process_subtitle:
-            pass
-            # # 写入字幕，上游库获取字幕有 bug，暂时不做实现
-            # if not await aexists(fav_item.subtitle_path):
-            #     await ass.make_ass_file_danmakus_protobuf(
-            #         v, 0, str(fav_item.subtitle_path.resolve())
-            #     )
-            # else:
-            #     logger.info(
-            #         "Subtitle of {} {} already exists, skipped.",
-            #         fav_item.bvid,
-            #         fav_item.name,
-            #     )
+            if not await aexists(fav_item.subtitle_path):
+                await ass.make_ass_file_danmakus_protobuf(
+                    v, 0, str(fav_item.subtitle_path.resolve())
+                )
+            else:
+                logger.info(
+                    "Subtitle of {} {} already exists, skipped.",
+                    fav_item.bvid,
+                    fav_item.name,
+                )
         if process_video:
             if await aexists(fav_item.video_path):
                 fav_item.downloaded = True
