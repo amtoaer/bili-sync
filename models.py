@@ -133,6 +133,20 @@ class FavoriteItem(Model):
             / f"{self.bvid}-poster.jpg"
         )
 
+    @property
+    def upper_path(self) -> list[Path]:
+        return [
+            self.upper.thumb_path,
+            self.upper.meta_path,
+        ]
+
+    @property
+    def subtitle_path(self) -> Path:
+        return (
+            Path(settings.path_mapper[self.favorite_list_id])
+            / f"{self.bvid}.zh-CN.default.ass"
+        )
+
 
 async def init_model() -> None:
     await Tortoise.init(config=TORTOISE_ORM)

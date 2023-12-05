@@ -1,11 +1,14 @@
 import asyncio
+import functools
+from pathlib import Path
+from typing import Callable
 
 from loguru import logger
 
 from constants import MediaStatus, MediaType
-from models import FavoriteItem, Upper
-from processor import download_content, process_video
-from utils import aexists, amakedirs, aremove
+from models import FavoriteItem
+from processor import process_favorite_item
+from utils import aexists, aremove
 
 
 async def recheck():
@@ -37,52 +40,59 @@ async def recheck():
     logger.info("Database updated.")
 
 
-async def upper_thumb():
-    """将up主的头像批量写入数据库，从不支持up主头像的版本升级上来后需要手动调用一次"""
-    makedir_tasks = []
-    other_tasks = []
-    for upper in await Upper.all():
-        if all(
-            await asyncio.gather(
-                aexists(upper.thumb_path), aexists(upper.meta_path)
-            )
-        ):
-            logger.info(
-                "Upper {} {} already exists, skipped.", upper.mid, upper.name
-            )
-        makedir_tasks.append(amakedirs(upper.thumb_path.parent, exist_ok=True))
-        logger.info("Saving metadata for upper {} {}...", upper.mid, upper.name)
-        other_tasks.extend(
-            [
-                upper.save_metadata(),
-                download_content(upper.thumb, upper.thumb_path),
-            ]
-        )
-    await asyncio.gather(*makedir_tasks)
-    await asyncio.gather(*other_tasks)
-    logger.info("All done.")
-
-
-async def refresh_tags():
-    """刷新已存在的视频的标签，从不支持标签的版本升级上来后需要手动调用一次"""
-    items = await FavoriteItem.filter(
-        downloaded=True,
-        tags=None,
-    ).prefetch_related("upper")
+async def _refresh_favorite_item_info(
+    path_getter: Callable[[FavoriteItem], list[Path]],
+    process_poster: bool = False,
+    process_video: bool = False,
+    process_nfo: bool = False,
+    process_upper: bool = False,
+    process_subtitle: bool = False,
+):
+    items = await FavoriteItem.filter(downloaded=True).prefetch_related("upper")
     await asyncio.gather(
-        *[aremove(item.nfo_path) for item in items],
+        *[aremove(path) for item in items for path in path_getter(item)],
         return_exceptions=True,
     )
     await asyncio.gather(
         *[
-            process_video(
+            process_favorite_item(
                 item,
-                process_poster=False,
-                process_video=False,
-                process_nfo=True,
-                process_upper=False,
+                process_poster=process_poster,
+                process_video=process_video,
+                process_nfo=process_nfo,
+                process_upper=process_upper,
+                process_subtitle=process_subtitle,
             )
             for item in items
         ],
         return_exceptions=True,
     )
+
+
+refresh_nfo = functools.partial(
+    _refresh_favorite_item_info, lambda item: [item.nfo_path], process_nfo=True
+)
+
+refresh_poster = functools.partial(
+    _refresh_favorite_item_info,
+    lambda item: [item.poster_path],
+    process_poster=True,
+)
+
+refresh_video = functools.partial(
+    _refresh_favorite_item_info,
+    lambda item: [item.video_path],
+    process_video=True,
+)
+
+refresh_upper = functools.partial(
+    _refresh_favorite_item_info,
+    lambda item: item.upper_path,
+    process_upper=True,
+)
+
+refresh_subtitle = functools.partial(
+    _refresh_favorite_item_info,
+    lambda item: [item.subtitle_path],
+    process_subtitle=True,
+)

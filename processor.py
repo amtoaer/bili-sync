@@ -149,19 +149,20 @@ async def process_favorite(favorite_id: int) -> None:
         downloaded=False,
     ).prefetch_related("upper")
     await asyncio.gather(
-        *[process_video(item) for item in all_unprocessed_items],
+        *[process_favorite_item(item) for item in all_unprocessed_items],
         return_exceptions=True,
     )
     logger.info("Favorite {} {} processed successfully.", favorite_id, title)
 
 
 @concurrent_decorator(4)
-async def process_video(
+async def process_favorite_item(
     fav_item: FavoriteItem,
     process_poster=True,
     process_video=True,
     process_nfo=True,
     process_upper=True,
+    process_subtitle=True,
 ) -> None:
     logger.info("Start to process video {} {}", fav_item.bvid, fav_item.name)
     if fav_item.type != MediaType.VIDEO:
@@ -234,6 +235,19 @@ async def process_video(
                     fav_item.bvid,
                     fav_item.name,
                 )
+        if process_subtitle:
+            pass
+            # # 写入字幕，上游库获取字幕有 bug，暂时不做实现
+            # if not await aexists(fav_item.subtitle_path):
+            #     await ass.make_ass_file_danmakus_protobuf(
+            #         v, 0, str(fav_item.subtitle_path.resolve())
+            #     )
+            # else:
+            #     logger.info(
+            #         "Subtitle of {} {} already exists, skipped.",
+            #         fav_item.bvid,
+            #         fav_item.name,
+            #     )
         if process_video:
             if await aexists(fav_item.video_path):
                 fav_item.downloaded = True
