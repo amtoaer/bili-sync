@@ -6,7 +6,7 @@ from asyncio.subprocess import DEVNULL
 from bilibili_api import ass, favorite_list, video
 from bilibili_api.exceptions import ResponseCodeException
 from loguru import logger
-from tortoise import Tortoise
+from tortoise.connection import connections
 
 from constants import FFMPEG_COMMAND, MediaStatus, MediaType
 from credential import credential
@@ -20,7 +20,7 @@ anchor = datetime.date.today()
 
 async def cleanup() -> None:
     await client.aclose()
-    await Tortoise.close_connections()
+    await connections.close_all()
 
 
 def concurrent_decorator(concurrency: int) -> callable:
