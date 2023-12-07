@@ -29,7 +29,6 @@ class Config(DataClassJsonMixin):
     dedeuserid: str = ""
     ac_time_value: str = ""
     interval: int = 20    # 任务执行的间隔时间
-    favorite_ids: list[int] = field(default_factory=list)  # 收藏夹的 id
     path_mapper: dict[int, str] = field(default_factory=dict)  # 收藏夹的 id 到存储目录的映射
 ```
 
@@ -75,9 +74,6 @@ services:
     "dedeuserid": "xxxxxxxxxxxxxxxxxx",
     "ac_time_value": "xxxxxxxxxxxxxxxxxx",
     "interval": 20,
-    "favorite_ids": [
-        711322958
-    ],
     "path_mapper": {
         "711322958": "/Videos/Bilibilis/Bilibili-711322958/"
     }

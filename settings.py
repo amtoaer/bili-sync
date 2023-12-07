@@ -15,7 +15,6 @@ class Config(DataClassJsonMixin):
     dedeuserid: str = ""
     ac_time_value: str = ""
     interval: int = 20
-    favorite_ids: list[int] = field(default_factory=list)
     path_mapper: dict[int, str] = field(default_factory=dict)
 
     def validate(self) -> Self:

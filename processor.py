@@ -91,12 +91,7 @@ async def process() -> None:
             except Exception:
                 logger.exception("Failed to refresh credential.")
                 return
-    for favorite_id in settings.favorite_ids:
-        if favorite_id not in settings.path_mapper:
-            logger.warning(
-                f"Favorite {favorite_id} not in path mapper, ignored."
-            )
-            continue
+    for favorite_id in settings.path_mapper:
         await process_favorite(favorite_id)
 
 
@@ -169,9 +164,19 @@ async def process_favorite_item(
         logger.warning("Media {} is not a video, skipped.", fav_item.name)
         return
     v = video.Video(fav_item.bvid, credential=credential)
+    # 如果没有获取过 tags，那么尝试获取一下
     try:
-        if process_upper:
-            # 写入 up 主头像
+        if fav_item.tags is None:
+            fav_item.tags = [_["tag_name"] for _ in await v.get_tags()]
+    except Exception:
+        logger.exception(
+            "Failed to get tags of video {} {}",
+            fav_item.bvid,
+            fav_item.name,
+        )
+
+    if process_upper:
+        try:
             if not all(
                 await asyncio.gather(
                     aexists(fav_item.upper.thumb_path),
@@ -192,20 +197,16 @@ async def process_favorite_item(
                     fav_item.upper.mid,
                     fav_item.upper.name,
                 )
-        if process_nfo:
+        except Exception:
+            logger.exception(
+                "Failed to process upper {} {}",
+                fav_item.upper.mid,
+                fav_item.upper.name,
+            )
+
+    if process_nfo:
+        try:
             if not await aexists(fav_item.nfo_path):
-                if fav_item.tags is None:
-                    try:
-                        fav_item.tags = [
-                            _["tag_name"] for _ in await v.get_tags()
-                        ]
-                    except Exception:
-                        logger.exception(
-                            "Failed to get tags of video {} {}",
-                            fav_item.bvid,
-                            fav_item.name,
-                        )
-                # 写入 nfo
                 await EpisodeInfo(
                     title=fav_item.name,
                     plot=fav_item.desc,
@@ -225,17 +226,39 @@ async def process_favorite_item(
                     fav_item.bvid,
                     fav_item.name,
                 )
-        if process_poster:
-            # 写入 poster
+        except Exception:
+            logger.exception(
+                "Failed to process nfo of video {} {}",
+                fav_item.bvid,
+                fav_item.name,
+            )
+
+    if process_poster:
+        try:
             if not await aexists(fav_item.poster_path):
-                await download_content(fav_item.cover, fav_item.poster_path)
+                try:
+                    await download_content(fav_item.cover, fav_item.poster_path)
+                except Exception:
+                    logger.exception(
+                        "Failed to download poster of video {} {}",
+                        fav_item.bvid,
+                        fav_item.name,
+                    )
             else:
                 logger.info(
                     "Poster of {} {} already exists, skipped.",
                     fav_item.bvid,
                     fav_item.name,
                 )
-        if process_subtitle:
+        except Exception:
+            logger.exception(
+                "Failed to process poster of video {} {}",
+                fav_item.bvid,
+                fav_item.name,
+            )
+
+    if process_subtitle:
+        try:
             if not await aexists(fav_item.subtitle_path):
                 await ass.make_ass_file_danmakus_protobuf(
                     v, 0, str(fav_item.subtitle_path.resolve())
@@ -246,7 +269,14 @@ async def process_favorite_item(
                     fav_item.bvid,
                     fav_item.name,
                 )
-        if process_video:
+        except Exception:
+            logger.exception(
+                "Failed to process subtitle of video {} {}",
+                fav_item.bvid,
+                fav_item.name,
+            )
+    if process_video:
+        try:
             if await aexists(fav_item.video_path):
                 fav_item.downloaded = True
                 logger.info(
@@ -299,34 +329,33 @@ async def process_favorite_item(
                     fav_item.tmp_video_path.unlink()
                     fav_item.tmp_audio_path.unlink()
                 fav_item.downloaded = True
-        logger.info(
-            "{} {} processed successfully.",
-            fav_item.bvid,
-            fav_item.name,
-        )
-    except ResponseCodeException as e:
-        match e.code:
-            case 62002:
-                fav_item.status = MediaStatus.INVISIBLE
-            case -404:
-                fav_item.status = MediaStatus.DELETED
-            case _:
-                logger.exception(
-                    "Failed to process video {} {}, error_code: {}",
+        except ResponseCodeException as e:
+            match e.code:
+                case 62002:
+                    fav_item.status = MediaStatus.INVISIBLE
+                case -404:
+                    fav_item.status = MediaStatus.DELETED
+                case _:
+                    logger.exception(
+                        "Failed to process video {} {}, error_code: {}",
+                        fav_item.bvid,
+                        fav_item.name,
+                        e.code,
+                    )
+            if fav_item.status != MediaStatus.NORMAL:
+                logger.error(
+                    "Video {} {} is not available, marked as {}",
                     fav_item.bvid,
                     fav_item.name,
-                    e.code,
+                    fav_item.status.text,
                 )
-                return
-        logger.error(
-            "Video {} {} is not available, marked as {}",
-            fav_item.bvid,
-            fav_item.name,
-            fav_item.status.text,
-        )
-    except Exception:
-        logger.exception(
-            "Failed to process video {} {}", fav_item.bvid, fav_item.name
-        )
-    finally:
-        await fav_item.save()
+        except Exception:
+            logger.exception(
+                "Failed to process video {} {}", fav_item.bvid, fav_item.name
+            )
+    await fav_item.save()
+    logger.info(
+        "{} {} is processed successfully.",
+        fav_item.bvid,
+        fav_item.name,
+    )
