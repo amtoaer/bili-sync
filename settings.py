@@ -8,6 +8,17 @@ from constants import DEFAULT_CONFIG_PATH
 
 
 @dataclass
+class SubtitleConfig(DataClassJsonMixin):
+    dataclass_json_config = {"undefined": Undefined.EXCLUDE}
+
+    font_name: str = "微软雅黑，黑体"  # 字体
+    font_size: float = 40  # 字号
+    alpha: float = 0.8  # 透明度
+    fly_time: float = 5  # 滚动弹幕持续时间
+    static_time: float = 10  # 静态弹幕持续时间
+
+
+@dataclass
 class Config(DataClassJsonMixin):
     dataclass_json_config = {"undefined": Undefined.EXCLUDE}
 
@@ -18,6 +29,7 @@ class Config(DataClassJsonMixin):
     ac_time_value: str = ""
     interval: int = 20
     path_mapper: dict[int, str] = field(default_factory=dict)
+    subtitle: SubtitleConfig = field(default_factory=SubtitleConfig)
 
     def validate(self) -> Self:
         """所有值必须被设置"""

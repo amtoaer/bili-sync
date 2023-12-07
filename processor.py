@@ -261,7 +261,15 @@ async def process_favorite_item(
         try:
             if not await aexists(fav_item.subtitle_path):
                 await ass.make_ass_file_danmakus_protobuf(
-                    v, 0, str(fav_item.subtitle_path.resolve())
+                    v,
+                    0,
+                    str(fav_item.subtitle_path.resolve()),
+                    credential=credential,
+                    font_name=settings.subtitle.font_name,
+                    font_size=settings.subtitle.font_size,
+                    alpha=settings.subtitle.alpha,
+                    fly_time=settings.subtitle.fly_time,
+                    static_time=settings.subtitle.static_time,
                 )
             else:
                 logger.info(
