@@ -22,6 +22,14 @@
 对于配置文件的前五项，请参考[凭据获取流程](https://nemo2011.github.io/bilibili-api/#/get-credential)。
 
 ```python
+@dataclass
+class SubtitleConfig(DataClassJsonMixin):
+    font_name: str = "微软雅黑，黑体"  # 字体
+    font_size: float = 40  # 字号
+    alpha: float = 0.8  # 透明度
+    fly_time: float = 5  # 滚动弹幕持续时间
+    static_time: float = 10  # 静态弹幕持续时间
+
 class Config(DataClassJsonMixin):
     sessdata: str = ""
     bili_jct: str = ""
@@ -30,6 +38,7 @@ class Config(DataClassJsonMixin):
     ac_time_value: str = ""
     interval: int = 20    # 任务执行的间隔时间
     path_mapper: dict[int, str] = field(default_factory=dict)  # 收藏夹的 id 到存储目录的映射
+    subtitle: SubtitleConfig = field(default_factory=SubtitleConfig)  # 字幕相关设置
 ```
 
 程序默认会将配置文件存储于 `${程序路径}/config/config.json`，数据库文件存储于 `${程序路径}/data/data.db`，如果发现不存在则新建并写入初始配置。
@@ -76,6 +85,13 @@ services:
     "interval": 20,
     "path_mapper": {
         "711322958": "/Videos/Bilibilis/Bilibili-711322958/"
+    },
+    "subtitle": {
+        "font_name": "微软雅黑，黑体",
+        "font_size": 40.0,
+        "alpha": 0.8,
+        "fly_time": 5.0,
+        "static_time": 10.0
     }
 }
 ```
