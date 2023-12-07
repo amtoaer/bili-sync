@@ -2,13 +2,15 @@ from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import Self
 
-from dataclasses_json import DataClassJsonMixin
+from dataclasses_json import DataClassJsonMixin, Undefined
 
 from constants import DEFAULT_CONFIG_PATH
 
 
 @dataclass
 class Config(DataClassJsonMixin):
+    dataclass_json_config = {"undefined": Undefined.EXCLUDE}
+
     sessdata: str = ""
     bili_jct: str = ""
     buvid3: str = ""
