@@ -12,22 +12,39 @@ jobs:
             -
                 name: Checkout
                 uses: actions/checkout@v3
+            - 
+                name: Docker meta
+                id: meta
+                uses: docker/metadata-action@v5
+                with:
+                    images: ${{ secrets.DOCKER_USERNAME }}/bili-sync
+                    tags: |
+                        type=raw,value=${{ github.ref_name }}
+                        type=raw,value=latest
+            - 
+                name: Set Up QEMU
+                uses: docker/setup-qemu-action@v3
+            - 
+                name: Set Up Buildx
+                uses: docker/setup-buildx-action@v3
             -
                 name: Login to DockerHub
                 uses: docker/login-action@v3
                 with:
                     username: ${{ secrets.DOCKERHUB_USERNAME }}
                     password: ${{ secrets.DOCKERHUB_TOKEN }}
-            -
+            - 
                 name: Build and push images
                 uses: docker/build-push-action@v5
                 with:
                     context: .
-                    file: ./Dockerfile
+                    file: Dockerfile
+                    platforms: |
+                        linux/amd64
+                        linux/arm64/v8
                     push: true
-                    tags: |
-                        ${{ secrets.DOCKERHUB_USERNAME }}/bili-sync:${{ github.ref_name }}
-                        ${{ secrets.DOCKERHUB_USERNAME }}/bili-sync:latest
+                    tags: ${{ steps.meta.outputs.tags }}
+                    labels: ${{ steps.meta.outputs.labels }}
             -
                 name: Update DockerHub description
                 uses: peter-evans/dockerhub-description@v3
