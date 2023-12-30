@@ -13,9 +13,9 @@
 
 ## 工作截图
 
-![下载视频](asset/run.png)
+![下载视频](https://raw.githubusercontent.com/amtoaer/bili-sync/main/asset/run.png)
 
-![EMBY 识别](asset/emby.png)
+![EMBY 识别](https://raw.githubusercontent.com/amtoaer/bili-sync/main/asset/emby.png)
 
 ## 配置文件
 
