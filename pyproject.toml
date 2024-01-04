@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bili-sync"
-version = "1.0.1"
+version = "1.1.2"
 description = ""
 authors = ["amtoaer <amtoaer@gmail.com>"]
 license = "GPL-3.0"
@@ -10,7 +10,7 @@ readme = "README.md"
 python = "^3.11"
 aerich = "0.7.2"
 aiofiles = "23.2.1"
-bilibili-api-python = {git = "https://github.com/Nemo2011/bilibili-api", rev = "dev"}
+bilibili-api-python = { git = "https://github.com/Nemo2011/bilibili-api", rev = "dev" }
 dataclasses-json = "0.6.2"
 loguru = "0.7.2"
 tortoise-orm = "0.20.0"
@@ -18,6 +18,7 @@ uvloop = "0.19.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "23.11.0"
+bump-my-version = "0.15.4"
 ipython = "8.17.2"
 ruff = "0.1.6"
 
@@ -59,6 +60,21 @@ exclude = ["migrations"]
 tortoise_orm = "constants.TORTOISE_ORM"
 location = "./migrations"
 src_folder = "./."
+
+[tool.bumpversion]
+commit = false
+message = "chore: bump version from {current_version} to {new_version}"
+tag = false
+tag_name = "{new_version}"
+tag_message = ""
+current_version = "1.1.2"
+parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
+
+[[tool.bumpversion.files]]
+filename = "version.py"
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
 
 [build-system]
 requires = ["poetry-core"]
