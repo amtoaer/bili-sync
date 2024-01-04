@@ -62,9 +62,9 @@ location = "./migrations"
 src_folder = "./."
 
 [tool.bumpversion]
-commit = false
+commit = true
 message = "chore: bump version from {current_version} to {new_version}"
-tag = false
+tag = true
 tag_name = "{new_version}"
 tag_message = ""
 current_version = "1.1.2"
