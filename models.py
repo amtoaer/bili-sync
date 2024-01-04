@@ -14,6 +14,7 @@ from constants import (
 )
 from settings import settings
 from utils import aopen
+from version import VERSION
 
 
 class FavoriteList(Model):
@@ -148,6 +149,11 @@ class FavoriteItem(Model):
         )
 
 
+class Program(Model):
+    id = fields.IntField(pk=True)
+    version = fields.CharField(max_length=20)
+
+
 async def init_model() -> None:
     await Tortoise.init(config=TORTOISE_ORM)
     migrate_commands = (
@@ -157,3 +163,13 @@ async def init_model() -> None:
     )
     process = await create_subprocess_exec(*migrate_commands)
     await process.communicate()
+    program, created = await Program.get_or_create(
+        defaults={
+            "version": VERSION,
+        }
+    )
+    if created or program.version != VERSION:
+        # 把新版本的迁移逻辑写在这里
+        pass
+    program.version = VERSION
+    await program.save()
