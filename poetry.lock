@@ -310,9 +310,9 @@ yarl = ">=1.9.4,<1.10.0"
 
 [package.source]
 type = "git"
-url = "https://github.com/Nemo2011/bilibili-api"
+url = "https://github.com/amtoaer/bilibili-api"
 reference = "dev"
-resolved_reference = "1563f97ce194c8bb55dfb58a49a42743601a126a"
+resolved_reference = "9430934968e3dff34530f5d249405f64fd378714"
 
 [[package]]
 name = "black"
@@ -2192,4 +2192,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "feebb7a35273ecc150539184cb9330cbf76415e07c96ea4257b0e017b8566dd7"
+content-hash = "29158a95aaf890c88940131c298db3199cf6c05254a0af927ee714e67fba2d2f"
