@@ -1,4 +1,6 @@
 import asyncio
+import os
+import signal
 import sys
 
 import uvloop
@@ -45,8 +47,18 @@ async def entry() -> None:
 
 
 if __name__ == "__main__":
+    # 确保 docker 退出时正确触发资源释放
+    signal.signal(
+        signal.SIGTERM, lambda *_: os.kill(os.getpid(), signal.SIGINT)
+    )
     with asyncio.Runner() as runner:
         try:
             runner.run(entry())
+        except Exception:
+            logger.exception("Unexpected error occurred, exiting...")
+        except KeyboardInterrupt:
+            logger.error("Exit Signal Received, exiting...")
         finally:
+            logger.info("Cleaning up resources...")
             runner.run(cleanup())
+            logger.info("Done, exited.")
