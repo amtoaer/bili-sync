@@ -149,6 +149,19 @@ class FavoriteItem(Model):
         )
 
 
+class FavoriteItemPage(Model):
+    """收藏条目的分p"""
+
+    id = fields.IntField(pk=True)
+    favorite_item = fields.ForeignKeyField(
+        "models.FavoriteItem", related_name="pages"
+    )
+    cid = fields.IntField()
+    page = fields.IntField()
+    name = fields.CharField(max_length=255)
+    image = fields.TextField()
+
+
 class Program(Model):
     id = fields.IntField(pk=True)
     version = fields.CharField(max_length=20)
