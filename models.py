@@ -3,6 +3,7 @@ from asyncio import create_subprocess_exec
 from pathlib import Path
 
 from tortoise import Tortoise, fields
+from tortoise.fields import Field
 from tortoise.models import Model
 
 from constants import (
@@ -12,6 +13,7 @@ from constants import (
     MediaStatus,
     MediaType,
 )
+from nfo import UpperInfo
 from settings import settings
 from utils import aopen
 from version import VERSION
@@ -53,19 +55,7 @@ class Upper(Model):
 
     async def save_metadata(self):
         async with aopen(self.meta_path, "w") as f:
-            await f.write(
-                f"""
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<person>
-  <plot />
-  <outline />
-  <lockdata>false</lockdata>
-  <dateadded>{self.created_at.strftime("%Y-%m-%d %H:%M:%S")}</dateadded>
-  <title>{self.mid}</title>
-  <sorttitle>{self.mid}</sorttitle>
-</person>
-""".strip()
-            )
+            await f.write(UpperInfo(self.mid, self.created_at).to_xml())
 
 
 class FavoriteItem(Model):
@@ -81,10 +71,12 @@ class FavoriteItem(Model):
     desc = fields.TextField()
     cover = fields.TextField()
     tags = fields.JSONField(null=True)
-    favorite_list = fields.ForeignKeyField(
+    favorite_list: Field[FavoriteList] = fields.ForeignKeyField(
         "models.FavoriteList", related_name="items"
     )
-    upper = fields.ForeignKeyField("models.Upper", related_name="uploads")
+    upper: Field[Upper] = fields.ForeignKeyField(
+        "models.Upper", related_name="uploads"
+    )
     ctime = fields.DatetimeField()
     pubtime = fields.DatetimeField()
     fav_time = fields.DatetimeField()
@@ -147,6 +139,22 @@ class FavoriteItem(Model):
             Path(settings.path_mapper[self.favorite_list_id])
             / f"{self.bvid}.zh-CN.default.ass"
         )
+
+
+class FavoriteItemPage(Model):
+    """收藏条目的分p"""
+
+    id = fields.IntField(pk=True)
+    favorite_item: Field[FavoriteItem] = fields.ForeignKeyField(
+        "models.FavoriteItem", related_name="pages"
+    )
+    cid = fields.IntField()
+    page = fields.IntField()
+    name = fields.CharField(max_length=255)
+    image = fields.TextField()
+
+    class Meta:
+        unique_together = (("favorite_item_id", "page"),)
 
 
 class Program(Model):
