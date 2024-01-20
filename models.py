@@ -41,15 +41,11 @@ class Upper(Model):
 
     @property
     def thumb_path(self) -> Path:
-        return (
-            DEFAULT_THUMB_PATH / str(self.mid)[0] / f"{self.mid}" / "folder.jpg"
-        )
+        return DEFAULT_THUMB_PATH / str(self.mid)[0] / f"{self.mid}" / "folder.jpg"
 
     @property
     def meta_path(self) -> Path:
-        return (
-            DEFAULT_THUMB_PATH / str(self.mid)[0] / f"{self.mid}" / "person.nfo"
-        )
+        return DEFAULT_THUMB_PATH / str(self.mid)[0] / f"{self.mid}" / "person.nfo"
 
     async def save_metadata(self):
         async with aopen(self.meta_path, "w") as f:
@@ -74,16 +70,12 @@ class FavoriteItem(Model):
     id = fields.IntField(pk=True)
     name = fields.CharField(max_length=255)
     type = fields.IntEnumField(enum_type=MediaType)
-    status = fields.IntEnumField(
-        enum_type=MediaStatus, default=MediaStatus.NORMAL
-    )
+    status = fields.IntEnumField(enum_type=MediaStatus, default=MediaStatus.NORMAL)
     bvid = fields.CharField(max_length=255)
     desc = fields.TextField()
     cover = fields.TextField()
     tags = fields.JSONField(null=True)
-    favorite_list = fields.ForeignKeyField(
-        "models.FavoriteList", related_name="items"
-    )
+    favorite_list = fields.ForeignKeyField("models.FavoriteList", related_name="items")
     upper = fields.ForeignKeyField("models.Upper", related_name="uploads")
     ctime = fields.DatetimeField()
     pubtime = fields.DatetimeField()
@@ -101,38 +93,23 @@ class FavoriteItem(Model):
 
     @property
     def tmp_video_path(self) -> Path:
-        return (
-            Path(settings.path_mapper[self.favorite_list_id])
-            / f"tmp_{self.bvid}_video"
-        )
+        return Path(settings.path_mapper[self.favorite_list_id]) / f"tmp_{self.bvid}_video"
 
     @property
     def tmp_audio_path(self) -> Path:
-        return (
-            Path(settings.path_mapper[self.favorite_list_id])
-            / f"tmp_{self.bvid}_audio"
-        )
+        return Path(settings.path_mapper[self.favorite_list_id]) / f"tmp_{self.bvid}_audio"
 
     @property
     def video_path(self) -> Path:
-        return (
-            Path(settings.path_mapper[self.favorite_list_id])
-            / f"{self.bvid}.mp4"
-        )
+        return Path(settings.path_mapper[self.favorite_list_id]) / f"{self.bvid}.mp4"
 
     @property
     def nfo_path(self) -> Path:
-        return (
-            Path(settings.path_mapper[self.favorite_list_id])
-            / f"{self.bvid}.nfo"
-        )
+        return Path(settings.path_mapper[self.favorite_list_id]) / f"{self.bvid}.nfo"
 
     @property
     def poster_path(self) -> Path:
-        return (
-            Path(settings.path_mapper[self.favorite_list_id])
-            / f"{self.bvid}-poster.jpg"
-        )
+        return Path(settings.path_mapper[self.favorite_list_id]) / f"{self.bvid}-poster.jpg"
 
     @property
     def upper_path(self) -> list[Path]:
@@ -143,10 +120,7 @@ class FavoriteItem(Model):
 
     @property
     def subtitle_path(self) -> Path:
-        return (
-            Path(settings.path_mapper[self.favorite_list_id])
-            / f"{self.bvid}.zh-CN.default.ass"
-        )
+        return Path(settings.path_mapper[self.favorite_list_id]) / f"{self.bvid}.zh-CN.default.ass"
 
 
 class Program(Model):

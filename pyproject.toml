@@ -24,10 +24,10 @@ ipython = "8.17.2"
 ruff = "0.1.6"
 
 [tool.black]
-line-length = 80
+line-length = 100
 
 [tool.ruff]
-line-length = 80
+line-length = 100
 select = [
   "F", # https://beta.ruff.rs/docs/rules/#pyflakes-f
   "E",

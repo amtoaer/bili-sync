@@ -45,9 +45,7 @@ async def manage_model(medias: list[dict], fav_list: FavoriteList) -> None:
         )
         for media in medias
     ]
-    await Upper.bulk_create(
-        uppers, on_conflict=["mid"], update_fields=["name", "thumb"]
-    )
+    await Upper.bulk_create(uppers, on_conflict=["mid"], update_fields=["name", "thumb"])
     items = [
         FavoriteItem(
             name=media["title"],
@@ -114,10 +112,8 @@ async def process_favorite(favorite_id: int) -> None:
     while True:
         page += 1
         if page > 1:
-            favorite_video_list = (
-                await favorite_list.get_video_favorite_list_content(
-                    favorite_id, page=page, credential=credential
-                )
+            favorite_video_list = await favorite_list.get_video_favorite_list_content(
+                favorite_id, page=page, credential=credential
             )
         # 先看看对应 bvid 的记录是否存在
         existed_items = await FavoriteItem.filter(
@@ -125,14 +121,10 @@ async def process_favorite(favorite_id: int) -> None:
             bvid__in=[media["bvid"] for media in favorite_video_list["medias"]],
         )
         # 记录一下获得的列表中的 bvid 和 fav_time
-        media_info = {
-            (media["bvid"], media["fav_time"])
-            for media in favorite_video_list["medias"]
-        }
+        media_info = {(media["bvid"], media["fav_time"]) for media in favorite_video_list["medias"]}
         # 如果有 bvid 和 fav_time 都相同的记录，说明已经到达了上次处理到的位置
         continue_flag = not media_info & {
-            (item.bvid, int(item.fav_time.timestamp()))
-            for item in existed_items
+            (item.bvid, int(item.fav_time.timestamp())) for item in existed_items
         }
         await manage_model(favorite_video_list["medias"], fav_list)
         if not (continue_flag and favorite_video_list["has_more"]):
@@ -186,9 +178,7 @@ async def process_favorite_item(
                 await amakedirs(fav_item.upper.thumb_path.parent, exist_ok=True)
                 await asyncio.gather(
                     fav_item.upper.save_metadata(),
-                    download_content(
-                        fav_item.upper.thumb, fav_item.upper.thumb_path
-                    ),
+                    download_content(fav_item.upper.thumb, fav_item.upper.thumb_path),
                     return_exceptions=True,
                 )
             else:
@@ -299,9 +289,7 @@ async def process_favorite_item(
                 )
                 streams = detector.detect_best_streams(codecs=settings.codec)
                 if detector.check_flv_stream():
-                    await download_content(
-                        streams[0].url, fav_item.tmp_video_path
-                    )
+                    await download_content(streams[0].url, fav_item.tmp_video_path)
                     process = await create_subprocess_exec(
                         FFMPEG_COMMAND,
                         "-i",
@@ -314,12 +302,8 @@ async def process_favorite_item(
                     fav_item.tmp_video_path.unlink()
                 else:
                     await asyncio.gather(
-                        download_content(
-                            streams[0].url, fav_item.tmp_video_path
-                        ),
-                        download_content(
-                            streams[1].url, fav_item.tmp_audio_path
-                        ),
+                        download_content(streams[0].url, fav_item.tmp_video_path),
+                        download_content(streams[1].url, fav_item.tmp_audio_path),
                     )
                     process = await create_subprocess_exec(
                         FFMPEG_COMMAND,
@@ -358,9 +342,7 @@ async def process_favorite_item(
                     fav_item.status.text,
                 )
         except Exception:
-            logger.exception(
-                "Failed to process video {} {}", fav_item.bvid, fav_item.name
-            )
+            logger.exception("Failed to process video {} {}", fav_item.bvid, fav_item.name)
     await fav_item.save()
     logger.info(
         "{} {} is processed successfully.",
