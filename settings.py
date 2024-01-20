@@ -1,16 +1,15 @@
-from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import Self
 
-from dataclasses_json import DataClassJsonMixin, Undefined
+from bilibili_api.video import VideoCodecs
+from pydantic import BaseModel, Field, field_validator
+from pydantic_core import PydanticCustomError
+from typing_extensions import Annotated
 
 from constants import DEFAULT_CONFIG_PATH
 
 
-@dataclass
-class SubtitleConfig(DataClassJsonMixin):
-    dataclass_json_config = {"undefined": Undefined.EXCLUDE}
-
+class SubtitleConfig(BaseModel):
     font_name: str = "微软雅黑，黑体"  # 字体
     font_size: float = 40  # 字号
     alpha: float = 0.8  # 透明度
@@ -18,24 +17,29 @@ class SubtitleConfig(DataClassJsonMixin):
     static_time: float = 10  # 静态弹幕持续时间
 
 
-@dataclass
-class Config(DataClassJsonMixin):
-    dataclass_json_config = {"undefined": Undefined.EXCLUDE}
-
-    sessdata: str = ""
-    bili_jct: str = ""
-    buvid3: str = ""
-    dedeuserid: str = ""
-    ac_time_value: str = ""
+class Config(BaseModel):
+    sessdata: Annotated[str, Field(min_length=1)] = ""
+    bili_jct: Annotated[str, Field(min_length=1)] = ""
+    buvid3: Annotated[str, Field(min_length=1)] = ""
+    dedeuserid: Annotated[str, Field(min_length=1)] = ""
+    ac_time_value: Annotated[str, Field(min_length=1)] = ""
     interval: int = 20
-    path_mapper: dict[int, str] = field(default_factory=dict)
-    subtitle: SubtitleConfig = field(default_factory=SubtitleConfig)
+    path_mapper: dict[int, str] = Field(default_factory=dict)
+    subtitle: SubtitleConfig = Field(default_factory=SubtitleConfig)
+    codec: list[VideoCodecs] = Field(
+        default_factory=lambda: [
+            VideoCodecs.AV1,
+            VideoCodecs.AVC,
+            VideoCodecs.HEV,
+        ],
+        min_length=1,
+    )
 
-    def validate(self) -> Self:
-        """所有值必须被设置"""
-        if not all(getattr(self, f.name) for f in fields(self)):
-            raise ValueError("Some config values are not set.")
-        return self
+    @field_validator("codec", mode="after")
+    def codec_validator(cls, codecs: list[VideoCodecs]) -> list[VideoCodecs]:
+        if len(codecs) != len(set(codecs)):
+            raise PydanticCustomError("unique_list", "List must be unique")
+        return codecs
 
     @staticmethod
     def load(path: Path | None = None) -> Self:
@@ -43,7 +47,7 @@ class Config(DataClassJsonMixin):
             path = DEFAULT_CONFIG_PATH
         try:
             with path.open("r") as f:
-                return Config.schema().loads(f.read())
+                return Config.model_validate_json(f.read())
         except Exception as e:
             raise RuntimeError(f"Failed to load config file: {path}") from e
 
@@ -53,24 +57,16 @@ class Config(DataClassJsonMixin):
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
             with path.open("w") as f:
-                f.write(
-                    Config.schema().dumps(self, indent=4, ensure_ascii=False)
-                )
+                f.write(Config.model_dump_json(self, indent=4))
             return self
         except Exception as e:
             raise RuntimeError(f"Failed to save config file: {path}") from e
 
 
 def init_settings() -> Config:
-    return (
-        (
-            Config.load(DEFAULT_CONFIG_PATH)
-            if DEFAULT_CONFIG_PATH.exists()
-            else Config()
-        )
-        .save(DEFAULT_CONFIG_PATH)
-        .validate()
-    )
+    if not DEFAULT_CONFIG_PATH.exists():
+        Config().save(DEFAULT_CONFIG_PATH)
+    return Config.load(DEFAULT_CONFIG_PATH)
 
 
 settings = init_settings()

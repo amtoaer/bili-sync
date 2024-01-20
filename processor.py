@@ -297,7 +297,7 @@ async def process_favorite_item(
                 detector = video.VideoDownloadURLDataDetecter(
                     await v.get_download_url(page_index=0)
                 )
-                streams = detector.detect_best_streams()
+                streams = detector.detect_best_streams(codecs=settings.codec)
                 if detector.check_flv_stream():
                     await download_content(
                         streams[0].url, fav_item.tmp_video_path
