@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Self
 
 from bilibili_api.video import VideoCodecs
 from pydantic import BaseModel, Field, field_validator
@@ -42,7 +41,7 @@ class Config(BaseModel):
         return codecs
 
     @staticmethod
-    def load(path: Path | None = None) -> Self:
+    def load(path: Path | None = None) -> "Config":
         if not path:
             path = DEFAULT_CONFIG_PATH
         try:
@@ -51,7 +50,7 @@ class Config(BaseModel):
         except Exception as e:
             raise RuntimeError(f"Failed to load config file: {path}") from e
 
-    def save(self, path: Path | None = None) -> Self:
+    def save(self, path: Path | None = None) -> "Config":
         if not path:
             path = DEFAULT_CONFIG_PATH
         try:
@@ -65,8 +64,10 @@ class Config(BaseModel):
 
 def init_settings() -> Config:
     if not DEFAULT_CONFIG_PATH.exists():
+        # 配置文件不存在的情况下，写入空的默认值
         Config().save(DEFAULT_CONFIG_PATH)
-    return Config.load(DEFAULT_CONFIG_PATH)
+    # 读取配置文件，校验出错会抛出异常，校验通过则重新保存一下配置文件（写入新配置项的默认值）
+    return Config.load(DEFAULT_CONFIG_PATH).save()
 
 
 settings = init_settings()
