@@ -13,6 +13,7 @@ aiofiles = "23.2.1"
 bilibili-api-python = {git = "https://github.com/amtoaer/bilibili-api", rev = "dev"}
 dataclasses-json = "0.6.2"
 loguru = "0.7.2"
+pydantic = "2.5.3"
 tortoise-orm = "0.20.0"
 uvloop = "0.19.0"
 
