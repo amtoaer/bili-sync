@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import itertools
 from asyncio import Semaphore, create_subprocess_exec
 from asyncio.subprocess import DEVNULL
 
@@ -293,33 +294,33 @@ async def process_favorite_item(
                     process = await create_subprocess_exec(
                         FFMPEG_COMMAND,
                         "-i",
-                        str(fav_item.tmp_video_path),
-                        str(fav_item.video_path),
+                        fav_item.tmp_video_path,
+                        fav_item.video_path,
                         stdout=DEVNULL,
                         stderr=DEVNULL,
                     )
                     await process.communicate()
                     fav_item.tmp_video_path.unlink()
                 else:
-                    await asyncio.gather(
-                        download_content(streams[0].url, fav_item.tmp_video_path),
-                        download_content(streams[1].url, fav_item.tmp_audio_path),
-                    )
+                    paths, tasks = [fav_item.tmp_video_path], [
+                        download_content(streams[0].url, fav_item.tmp_video_path)
+                    ]
+                    if streams[1]:
+                        paths.append(fav_item.tmp_audio_path)
+                        tasks.append(download_content(streams[1].url, fav_item.tmp_audio_path))
+                    await asyncio.gather(*tasks)
                     process = await create_subprocess_exec(
                         FFMPEG_COMMAND,
-                        "-i",
-                        str(fav_item.tmp_video_path),
-                        "-i",
-                        str(fav_item.tmp_audio_path),
+                        *list(itertools.chain(*zip(["-i"] * len(paths), paths))),
                         "-c",
                         "copy",
-                        str(fav_item.video_path),
+                        fav_item.video_path,
                         stdout=DEVNULL,
                         stderr=DEVNULL,
                     )
                     await process.communicate()
-                    fav_item.tmp_video_path.unlink()
-                    fav_item.tmp_audio_path.unlink()
+                    for path in paths:
+                        path.unlink()
                 fav_item.downloaded = True
         except ResponseCodeException as e:
             match e.code:
