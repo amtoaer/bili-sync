@@ -10,7 +10,7 @@ readme = "README.md"
 python = "^3.11"
 aerich = "0.7.2"
 aiofiles = "23.2.1"
-bilibili-api-python = {git = "https://github.com/amtoaer/bilibili-api", rev = "dev"}
+bilibili-api-python = {git = "https://github.com/Nemo2011/bilibili-api.git", rev = "16.2.0b2"}
 dataclasses-json = "0.6.2"
 loguru = "0.7.2"
 pydantic = "2.5.3"
