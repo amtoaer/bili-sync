@@ -44,6 +44,13 @@ class MediaStatus(IntEnum):
         }[self]
 
 
+class NfoMode(IntEnum):
+    MOVIE = 1
+    TVSHOW = 2
+    EPISODE = 3
+    UPPER = 4
+
+
 TORTOISE_ORM = {
     "connections": {"default": f"sqlite://{DEFAULT_DATABASE_PATH}"},
     "apps": {

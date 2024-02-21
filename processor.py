@@ -1,20 +1,23 @@
 import asyncio
+import contextlib
 import datetime
-import itertools
 from asyncio import Semaphore, create_subprocess_exec
 from asyncio.subprocess import DEVNULL
+from pathlib import Path
 
 from bilibili_api import ass, favorite_list, video
 from bilibili_api.exceptions import ResponseCodeException
 from loguru import logger
 from tortoise.connection import connections
+from tortoise.models import Model
 
-from constants import FFMPEG_COMMAND, MediaStatus, MediaType
+from constants import FFMPEG_COMMAND, MediaStatus, MediaType, NfoMode
 from credential import credential
-from models import FavoriteItem, FavoriteList, Upper
-from nfo import Actor, EpisodeInfo
+from models import FavoriteItem, FavoriteItemPage, FavoriteList, Upper
+from nfo import Base as NfoBase
+from nfo import EpisodeInfo, MovieInfo, TVShowInfo, UpperInfo
 from settings import settings
-from utils import aexists, amakedirs, client, download_content
+from utils import aexists, aremove, client, download_content
 
 anchor = datetime.date.today()
 
@@ -25,6 +28,7 @@ async def cleanup() -> None:
 
 
 def concurrent_decorator(concurrency: int) -> callable:
+    """一个简单的并发限制装饰器，被装饰的函数同时仅能运行 concurrency 个"""
     sem = Semaphore(value=concurrency)
 
     def decorator(func: callable) -> callable:
@@ -37,7 +41,8 @@ def concurrent_decorator(concurrency: int) -> callable:
     return decorator
 
 
-async def manage_model(medias: list[dict], fav_list: FavoriteList) -> None:
+async def update_favorite_item(medias: list[dict], fav_list: FavoriteList) -> None:
+    """根据收藏夹里的视频列表更新数据库记录"""
     uppers = [
         Upper(
             mid=media["upper"]["mid"],
@@ -127,7 +132,7 @@ async def process_favorite(favorite_id: int) -> None:
         continue_flag = not media_info & {
             (item.bvid, int(item.fav_time.timestamp())) for item in existed_items
         }
-        await manage_model(favorite_video_list["medias"], fav_list)
+        await update_favorite_item(favorite_video_list["medias"], fav_list)
         if not (continue_flag and favorite_video_list["has_more"]):
             break
     all_unprocessed_items = await FavoriteItem.filter(
@@ -143,7 +148,7 @@ async def process_favorite(favorite_id: int) -> None:
     logger.info("Favorite {} {} processed successfully.", favorite_id, title)
 
 
-@concurrent_decorator(4)
+@concurrent_decorator(concurrency=4)
 async def process_favorite_item(
     fav_item: FavoriteItem,
     process_poster=True,
@@ -157,117 +162,90 @@ async def process_favorite_item(
         logger.warning("Media {} is not a video, skipped.", fav_item.name)
         return
     v = video.Video(fav_item.bvid, credential=credential)
-    # 如果没有获取过 tags，那么尝试获取一下
-    try:
+    # 如果没有获取过 tags，那么尝试获取一下（不关键，忽略掉错误）
+    with contextlib.suppress(Exception):
         if fav_item.tags is None:
             fav_item.tags = [_["tag_name"] for _ in await v.get_tags()]
+    try:
+        pages = await v.get_pages()
+        pages = [
+            FavoriteItemPage(
+                favorite_item=fav_item,
+                cid=page["cid"],
+                page=page["page"],
+                name=page["part"],
+                image=page["first_frame"],
+            )
+            for page in pages
+        ]
+        await FavoriteItemPage.bulk_create(
+            pages,
+            on_conflict=["favorite_item_id", "page"],
+            update_fields=["cid", "name", "image"],
+        )
     except Exception:
         logger.exception(
-            "Failed to get tags of video {} {}",
+            "Failed to get pages of video {} {}",
             fav_item.bvid,
             fav_item.name,
         )
-
     if process_upper:
-        try:
-            if not all(
-                await asyncio.gather(
-                    aexists(fav_item.upper.thumb_path),
-                    aexists(fav_item.upper.meta_path),
-                )
-            ):
-                await amakedirs(fav_item.upper.thumb_path.parent, exist_ok=True)
-                await asyncio.gather(
-                    fav_item.upper.save_metadata(),
-                    download_content(fav_item.upper.thumb, fav_item.upper.thumb_path),
-                    return_exceptions=True,
-                )
-            else:
-                logger.info(
-                    "Upper {} {} already exists, skipped.",
-                    fav_item.upper.mid,
-                    fav_item.upper.name,
-                )
-        except Exception:
-            logger.exception(
-                "Failed to process upper {} {}",
+        result = await asyncio.gather(
+            get_file(fav_item.upper.thumb, fav_item.upper.thumb_path),
+            get_nfo(fav_item.upper.meta_path, obj=fav_item.upper, mode=NfoMode.UPPER),
+            return_exceptions=True,
+        )
+        if any(isinstance(_, FileExistsError) for _ in result):
+            logger.info(
+                "Upper {} {} already exists, skipped.",
                 fav_item.upper.mid,
                 fav_item.upper.name,
             )
-
+        elif any(isinstance(_, Exception) for _ in result):
+            logger.exception(
+                "Failed to process upper {} {}.",
+                fav_item.upper.mid,
+                fav_item.upper.name,
+            )
     if process_nfo:
         try:
-            if not await aexists(fav_item.nfo_path):
-                await EpisodeInfo(
-                    title=fav_item.name,
-                    plot=fav_item.desc,
-                    actor=[
-                        Actor(
-                            name=fav_item.upper.mid,
-                            role=fav_item.upper.name,
-                        )
-                    ],
-                    tags=fav_item.tags,
-                    bvid=fav_item.bvid,
-                    aired=fav_item.ctime,
-                ).write_nfo(fav_item.nfo_path)
-            else:
-                logger.info(
-                    "NFO of {} {} already exists, skipped.",
-                    fav_item.bvid,
-                    fav_item.name,
-                )
+            await get_nfo(fav_item.nfo_path, obj=fav_item, mode=NfoMode.MOVIE)
+        except FileExistsError:
+            logger.info(
+                "NFO of {} {} already exists, skipped.",
+                fav_item.bvid,
+                fav_item.name,
+            )
         except Exception:
             logger.exception(
                 "Failed to process nfo of video {} {}",
                 fav_item.bvid,
                 fav_item.name,
             )
-
     if process_poster:
         try:
-            if not await aexists(fav_item.poster_path):
-                try:
-                    await download_content(fav_item.cover, fav_item.poster_path)
-                except Exception:
-                    logger.exception(
-                        "Failed to download poster of video {} {}",
-                        fav_item.bvid,
-                        fav_item.name,
-                    )
-            else:
-                logger.info(
-                    "Poster of {} {} already exists, skipped.",
-                    fav_item.bvid,
-                    fav_item.name,
-                )
+            await get_file(fav_item.cover, fav_item.poster_path)
+        except FileExistsError:
+            logger.info(
+                "Poster of {} {} already exists, skipped.",
+                fav_item.bvid,
+                fav_item.name,
+            )
         except Exception:
             logger.exception(
                 "Failed to process poster of video {} {}",
                 fav_item.bvid,
                 fav_item.name,
             )
-
     if process_subtitle:
         try:
-            if not await aexists(fav_item.subtitle_path):
-                await ass.make_ass_file_danmakus_protobuf(
-                    v,
-                    0,
-                    str(fav_item.subtitle_path.resolve()),
-                    credential=credential,
-                    font_name=settings.subtitle.font_name,
-                    font_size=settings.subtitle.font_size,
-                    alpha=settings.subtitle.alpha,
-                    fly_time=settings.subtitle.fly_time,
-                    static_time=settings.subtitle.static_time,
-                )
-            else:
-                logger.info(
-                    "Subtitle of {} {} already exists, skipped.",
-                    fav_item.bvid,
-                    fav_item.name,
-                )
+            await get_subtitle(v, 0, fav_item.subtitle_path)
+        except FileExistsError:
+            logger.info(
+                "Subtitle of {} {} already exists, skipped.",
+                fav_item.bvid,
+                fav_item.name,
+            )
         except Exception:
             logger.exception(
                 "Failed to process subtitle of video {} {}",
@@ -276,78 +254,130 @@ async def process_favorite_item(
             )
     if process_video:
         try:
-            if await aexists(fav_item.video_path):
-                fav_item.downloaded = True
-                logger.info(
-                    "Video {} {} already exists, skipped.",
-                    fav_item.bvid,
-                    fav_item.name,
-                )
+            await get_video(
+                v, 0, fav_item.tmp_video_path, fav_item.tmp_audio_path, fav_item.video_path
+            )
+            fav_item.downloaded = True
+        except Exception as e:
+            errcode_status = {
+                62002: MediaStatus.INVISIBLE,
+                -404: MediaStatus.DELETED,
+            }
+            if not (
+                isinstance(e, ResponseCodeException) and (status := errcode_status.get(e.code))
+            ):
+                logger.exception("Failed to process video {} {}", fav_item.bvid, fav_item.name)
             else:
-                # 开始处理视频内容
-                detector = video.VideoDownloadURLDataDetecter(
-                    await v.get_download_url(page_index=0)
-                )
-                streams = detector.detect_best_streams(codecs=settings.codec)
-                if detector.check_flv_stream():
-                    await download_content(streams[0].url, fav_item.tmp_video_path)
-                    process = await create_subprocess_exec(
-                        FFMPEG_COMMAND,
-                        "-i",
-                        fav_item.tmp_video_path,
-                        fav_item.video_path,
-                        stdout=DEVNULL,
-                        stderr=DEVNULL,
-                    )
-                    await process.communicate()
-                    fav_item.tmp_video_path.unlink()
-                else:
-                    paths, tasks = (
-                        [fav_item.tmp_video_path],
-                        [download_content(streams[0].url, fav_item.tmp_video_path)],
-                    )
-                    if streams[1]:
-                        paths.append(fav_item.tmp_audio_path)
-                        tasks.append(download_content(streams[1].url, fav_item.tmp_audio_path))
-                    await asyncio.gather(*tasks)
-                    process = await create_subprocess_exec(
-                        FFMPEG_COMMAND,
-                        *list(itertools.chain(*zip(["-i"] * len(paths), paths))),
-                        "-c",
-                        "copy",
-                        fav_item.video_path,
-                        stdout=DEVNULL,
-                        stderr=DEVNULL,
-                    )
-                    await process.communicate()
-                    for path in paths:
-                        path.unlink()
-                fav_item.downloaded = True
-        except ResponseCodeException as e:
-            match e.code:
-                case 62002:
-                    fav_item.status = MediaStatus.INVISIBLE
-                case -404:
-                    fav_item.status = MediaStatus.DELETED
-                case _:
-                    logger.exception(
-                        "Failed to process video {} {}, error_code: {}",
-                        fav_item.bvid,
-                        fav_item.name,
-                        e.code,
-                    )
-            if fav_item.status != MediaStatus.NORMAL:
+                fav_item.status = status
                 logger.error(
                     "Video {} {} is not available, marked as {}",
                     fav_item.bvid,
                     fav_item.name,
                     fav_item.status.text,
                 )
-        except Exception:
-            logger.exception("Failed to process video {} {}", fav_item.bvid, fav_item.name)
     await fav_item.save()
     logger.info(
-        "{} {} is processed successfully.",
+        "{} {} has been processed.",
         fav_item.bvid,
         fav_item.name,
     )
+
+
+async def get_video(
+    v: video.Video, page_id: int, tmp_video_path: Path, tmp_audio_path: Path, video_path: Path
+) -> None:
+    """指定临时视频、音频和目标视频目录，下载视频的某个分p"""
+    if await aexists(video_path):
+        # 目标视频已经存在，忽略掉
+        raise FileExistsError
+    # 分析对应分p的视频流
+    detector = video.VideoDownloadURLDataDetecter(await v.get_download_url(page_index=page_id))
+    streams = detector.detect_best_streams()
+    if detector.check_flv_stream():
+        # 对于 flv，直接下载
+        await download_content(streams[0].url, tmp_video_path)
+        process = await create_subprocess_exec(
+            FFMPEG_COMMAND,
+            "-i",
+            tmp_video_path,
+            video_path,
+            stdout=DEVNULL,
+            stderr=DEVNULL,
+        )
+        await process.communicate()
+        tmp_video_path.unlink()
+    else:
+        # 对于非 flv，首先要下载视频流
+        paths, tasks = (
+            [tmp_video_path],
+            [download_content(streams[0].url, tmp_video_path)],
+        )
+        if streams[1]:
+            # 如果有音频流，也下载
+            paths.append(tmp_audio_path)
+            tasks.append(download_content(streams[1].url, tmp_audio_path))
+        await asyncio.gather(*tasks)
+        process = await create_subprocess_exec(
+            FFMPEG_COMMAND,
+            *sum([["-i", path] for path in paths], []),
+            "-c",
+            "copy",
+            video_path,
+            stdout=DEVNULL,
+            stderr=DEVNULL,
+        )
+        await process.communicate()
+        await asyncio.gather(*[aremove(path) for path in paths])
+
+
+async def get_file(url: str, path: Path) -> None:
+    """一个简单的下载封装，用于下载封面等内容"""
+    if await aexists(path):
+        # 目标文件已经存在，忽略掉
+        raise FileExistsError
+    # 直接下载
+    await download_content(url, path)
+
+
+async def get_subtitle(v: video.Video, page_id: int, subtitle_path: Path) -> None:
+    """指定目标字幕文件，下载视频的某个分p的字幕"""
+    if await aexists(subtitle_path):
+        # 目标字幕已经存在，忽略掉
+        raise FileExistsError
+    await ass.make_ass_file_danmakus_protobuf(
+        v,
+        page_id,
+        str(subtitle_path.resolve()),
+        credential=credential,
+        font_name=settings.subtitle.font_name,
+        font_size=settings.subtitle.font_size,
+        alpha=settings.subtitle.alpha,
+        fly_time=settings.subtitle.fly_time,
+        static_time=settings.subtitle.static_time,
+    )
+
+
+async def get_nfo(
+    nfo_path: Path,
+    *,
+    obj: Model,
+    mode: NfoMode,
+) -> None:
+    """指定 nfo 路径、对象和模式，将对应的 nfo 信息写入到文件"""
+    if await aexists(nfo_path):
+        # 目标 nfo 已经存在，忽略掉
+        raise FileExistsError
+    # 根据不同的模式，生成不同的 nfo
+    nfo: NfoBase = None
+    match obj, mode:
+        case FavoriteItem(), NfoMode.MOVIE:
+            nfo = MovieInfo.from_favorite_item(obj)
+        case FavoriteItem(), NfoMode.TVSHOW:
+            nfo = TVShowInfo.from_favorite_item(obj)
+        case FavoriteItemPage(), NfoMode.EPISODE:
+            nfo = EpisodeInfo.from_favorite_item_page(obj)
+        case Upper(), NfoMode.UPPER:
+            nfo = UpperInfo.from_upper(obj)
+        case _:
+            raise ValueError
+    await nfo.to_file(nfo_path)

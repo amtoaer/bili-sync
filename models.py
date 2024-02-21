@@ -3,6 +3,7 @@ from asyncio import create_subprocess_exec
 from pathlib import Path
 
 from tortoise import Tortoise, fields
+from tortoise.fields import Field
 from tortoise.models import Model
 
 from constants import (
@@ -13,7 +14,6 @@ from constants import (
     MediaType,
 )
 from settings import settings
-from utils import aopen
 from version import VERSION
 
 
@@ -47,22 +47,6 @@ class Upper(Model):
     def meta_path(self) -> Path:
         return DEFAULT_THUMB_PATH / str(self.mid)[0] / f"{self.mid}" / "person.nfo"
 
-    async def save_metadata(self):
-        async with aopen(self.meta_path, "w") as f:
-            await f.write(
-                f"""
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<person>
-  <plot />
-  <outline />
-  <lockdata>false</lockdata>
-  <dateadded>{self.created_at.strftime("%Y-%m-%d %H:%M:%S")}</dateadded>
-  <title>{self.mid}</title>
-  <sorttitle>{self.mid}</sorttitle>
-</person>
-""".strip()
-            )
-
 
 class FavoriteItem(Model):
     """收藏条目"""
@@ -75,8 +59,10 @@ class FavoriteItem(Model):
     desc = fields.TextField()
     cover = fields.TextField()
     tags = fields.JSONField(null=True)
-    favorite_list = fields.ForeignKeyField("models.FavoriteList", related_name="items")
-    upper = fields.ForeignKeyField("models.Upper", related_name="uploads")
+    favorite_list: Field[FavoriteList] = fields.ForeignKeyField(
+        "models.FavoriteList", related_name="items"
+    )
+    upper: Field[Upper] = fields.ForeignKeyField("models.Upper", related_name="uploads")
     ctime = fields.DatetimeField()
     pubtime = fields.DatetimeField()
     fav_time = fields.DatetimeField()
@@ -121,6 +107,82 @@ class FavoriteItem(Model):
     @property
     def subtitle_path(self) -> Path:
         return Path(settings.path_mapper[self.favorite_list_id]) / f"{self.bvid}.zh-CN.default.ass"
+
+
+class FavoriteItemPage(Model):
+    """收藏条目的分p"""
+
+    id = fields.IntField(pk=True)
+    favorite_item: Field[FavoriteItem] = fields.ForeignKeyField(
+        "models.FavoriteItem", related_name="pages"
+    )
+    cid = fields.IntField()
+    page = fields.IntField()
+    name = fields.CharField(max_length=255)
+    image = fields.TextField()
+    downloaded = fields.BooleanField(default=False)
+
+    class Meta:
+        unique_together = (("favorite_item_id", "page"),)
+
+    @property
+    def tmp_video_path(self) -> Path:
+        return (
+            Path(settings.path_mapper[self.favorite_list_id])
+            / f"tmp_{self.bvid}_video"
+            / self.favorite_item.bvid
+            / "Season 1"
+            / f"tmp_{self.favorite_item.bvid} - S01E{':02d'.format()}_video"
+        )
+
+    @property
+    def tmp_audio_path(self) -> Path:
+        return (
+            Path(settings.path_mapper[self.favorite_list_id])
+            / f"tmp_{self.bvid}_audio"
+            / self.favorite_item.bvid
+            / "Season 1"
+            / f"tmp_{self.favorite_item.bvid} - S01E{':02d'.format()}_audio"
+        )
+
+    @property
+    def video_path(self) -> Path:
+        return (
+            Path(settings.path_mapper[self.favorite_list_id])
+            / f"{self.bvid}.mp4"
+            / self.favorite_item.bvid
+            / "Season 1"
+            / f"{self.favorite_item.bvid} - S01E{':02d'.format()}.mp4"
+        )
+
+    @property
+    def nfo_path(self) -> Path:
+        return (
+            Path(settings.path_mapper[self.favorite_list_id])
+            / f"{self.bvid}.nfo"
+            / self.favorite_item.bvid
+            / "Season 1"
+            / f"{self.favorite_item.bvid} - S01E{':02d'.format()}.nfo"
+        )
+
+    @property
+    def poster_path(self) -> Path:
+        return (
+            Path(settings.path_mapper[self.favorite_list_id])
+            / f"{self.bvid}-poster.jpg"
+            / self.favorite_item.bvid
+            / "Season 1"
+            / f"{self.favorite_item.bvid} - S01E{':02d'.format()}-thumb.jpg"
+        )
+
+    @property
+    def subtitle_path(self) -> Path:
+        return (
+            Path(settings.path_mapper[self.favorite_list_id])
+            / self.favorite_item.bvid
+            / "Season 1"
+            / f"{self.favorite_item.bvid} - S01E{':02d'.format()}.zh-CN.default.ass"
+        )
 
 
 class Program(Model):
