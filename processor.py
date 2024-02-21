@@ -302,9 +302,10 @@ async def process_favorite_item(
                     await process.communicate()
                     fav_item.tmp_video_path.unlink()
                 else:
-                    paths, tasks = [fav_item.tmp_video_path], [
-                        download_content(streams[0].url, fav_item.tmp_video_path)
-                    ]
+                    paths, tasks = (
+                        [fav_item.tmp_video_path],
+                        [download_content(streams[0].url, fav_item.tmp_video_path)],
+                    )
                     if streams[1]:
                         paths.append(fav_item.tmp_audio_path)
                         tasks.append(download_content(streams[1].url, fav_item.tmp_audio_path))

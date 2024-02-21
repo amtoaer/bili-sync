@@ -6,8 +6,8 @@ install:
 
 fmt:
 	@echo "Formatting..."
-	@poetry run black .
-	@poetry run ruff --fix .
+	@poetry run ruff format .
+	@poetry run ruff check --fix .
 
 start-daemon:
 	@poetry run python entry.py

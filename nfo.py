@@ -16,9 +16,7 @@ class Actor:
         <name>{self.name}</name>
         <role>{self.role}</role>
     </actor>
-""".strip(
-            "\n"
-        )
+""".strip("\n")
 
 
 @dataclass
@@ -53,6 +51,4 @@ class EpisodeInfo:
     <uniqueid type="bilibili">{self.bvid}</uniqueid>
     <aired>{self.aired.strftime("%Y-%m-%d")}</aired>
 </episodedetails>
-""".strip(
-            "\n"
-        )
+""".strip("\n")
