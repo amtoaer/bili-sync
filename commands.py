@@ -17,7 +17,7 @@ async def recheck():
     exists = await asyncio.gather(*[aexists(item.video_path) for item in items])
     for item, exist in zip(items, exists):
         if isinstance(exist, Exception):
-            logger.error("Error when checking file {} {}: {}", item.bvid, item.name, exist)
+            logger.error("Error when checking file {} {}: {}.", item.bvid, item.name, exist)
             continue
         if not exist:
             logger.info("File {} {} not exists, mark as not downloaded.", item.bvid, item.name)

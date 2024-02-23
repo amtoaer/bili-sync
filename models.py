@@ -97,6 +97,16 @@ class FavoriteItem(Model):
     def subtitle_path(self) -> Path:
         return Path(settings.path_mapper[self.favorite_list_id]) / f"{self.bvid}.zh-CN.default.ass"
 
+    @property
+    def tvshow_nfo_path(self) -> Path:
+        """分p视频时使用"""
+        return Path(settings.path_mapper[self.favorite_list_id]) / self.bvid / "tvshow.nfo"
+
+    @property
+    def tvshow_poster_path(self) -> Path:
+        """分p视频时使用"""
+        return Path(settings.path_mapper[self.favorite_list_id]) / self.bvid / "poster.jpg"
+
 
 class FavoriteItemPage(Model):
     """收藏条目的分p"""
@@ -107,6 +117,7 @@ class FavoriteItemPage(Model):
     page = fields.IntField()
     name = fields.CharField(max_length=255)
     image = fields.TextField()
+    status = fields.IntEnumField(enum_type=MediaStatus, default=MediaStatus.NORMAL)
     downloaded = fields.BooleanField(default=False)
 
     class Meta:
@@ -116,7 +127,6 @@ class FavoriteItemPage(Model):
     def tmp_video_path(self) -> Path:
         return (
             Path(settings.path_mapper[self.favorite_list_id])
-            / f"tmp_{self.bvid}_video"
             / self.favorite_item.bvid
             / "Season 1"
             / f"tmp_{self.favorite_item.bvid} - S01E{':02d'.format()}_video"
@@ -126,7 +136,6 @@ class FavoriteItemPage(Model):
     def tmp_audio_path(self) -> Path:
         return (
             Path(settings.path_mapper[self.favorite_list_id])
-            / f"tmp_{self.bvid}_audio"
             / self.favorite_item.bvid
             / "Season 1"
             / f"tmp_{self.favorite_item.bvid} - S01E{':02d'.format()}_audio"
@@ -136,7 +145,6 @@ class FavoriteItemPage(Model):
     def video_path(self) -> Path:
         return (
             Path(settings.path_mapper[self.favorite_list_id])
-            / f"{self.bvid}.mp4"
             / self.favorite_item.bvid
             / "Season 1"
             / f"{self.favorite_item.bvid} - S01E{':02d'.format()}.mp4"
@@ -146,7 +154,6 @@ class FavoriteItemPage(Model):
     def nfo_path(self) -> Path:
         return (
             Path(settings.path_mapper[self.favorite_list_id])
-            / f"{self.bvid}.nfo"
             / self.favorite_item.bvid
             / "Season 1"
             / f"{self.favorite_item.bvid} - S01E{':02d'.format()}.nfo"
@@ -156,7 +163,6 @@ class FavoriteItemPage(Model):
     def poster_path(self) -> Path:
         return (
             Path(settings.path_mapper[self.favorite_list_id])
-            / f"{self.bvid}-poster.jpg"
             / self.favorite_item.bvid
             / "Season 1"
             / f"{self.favorite_item.bvid} - S01E{':02d'.format()}-thumb.jpg"
