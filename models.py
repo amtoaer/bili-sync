@@ -6,13 +6,7 @@ from tortoise import Tortoise, fields
 from tortoise.fields import Field
 from tortoise.models import Model
 
-from constants import (
-    DEFAULT_THUMB_PATH,
-    MIGRATE_COMMAND,
-    TORTOISE_ORM,
-    MediaStatus,
-    MediaType,
-)
+from constants import DEFAULT_THUMB_PATH, MIGRATE_COMMAND, TORTOISE_ORM, MediaStatus, MediaType
 from settings import settings
 from version import VERSION
 
@@ -59,9 +53,7 @@ class FavoriteItem(Model):
     desc = fields.TextField()
     cover = fields.TextField()
     tags = fields.JSONField(null=True)
-    favorite_list: Field[FavoriteList] = fields.ForeignKeyField(
-        "models.FavoriteList", related_name="items"
-    )
+    favorite_list: Field[FavoriteList] = fields.ForeignKeyField("models.FavoriteList", related_name="items")
     upper: Field[Upper] = fields.ForeignKeyField("models.Upper", related_name="uploads")
     ctime = fields.DatetimeField()
     pubtime = fields.DatetimeField()
@@ -99,10 +91,7 @@ class FavoriteItem(Model):
 
     @property
     def upper_path(self) -> list[Path]:
-        return [
-            self.upper.thumb_path,
-            self.upper.meta_path,
-        ]
+        return [self.upper.thumb_path, self.upper.meta_path]
 
     @property
     def subtitle_path(self) -> Path:
@@ -113,9 +102,7 @@ class FavoriteItemPage(Model):
     """收藏条目的分p"""
 
     id = fields.IntField(pk=True)
-    favorite_item: Field[FavoriteItem] = fields.ForeignKeyField(
-        "models.FavoriteItem", related_name="pages"
-    )
+    favorite_item: Field[FavoriteItem] = fields.ForeignKeyField("models.FavoriteItem", related_name="pages")
     cid = fields.IntField()
     page = fields.IntField()
     name = fields.CharField(max_length=255)
@@ -193,17 +180,11 @@ class Program(Model):
 async def init_model() -> None:
     await Tortoise.init(config=TORTOISE_ORM)
     migrate_commands = (
-        [MIGRATE_COMMAND, "upgrade"]
-        if os.getenv("BILI_IN_DOCKER")
-        else ["poetry", "run", MIGRATE_COMMAND, "upgrade"]
+        [MIGRATE_COMMAND, "upgrade"] if os.getenv("BILI_IN_DOCKER") else ["poetry", "run", MIGRATE_COMMAND, "upgrade"]
     )
     process = await create_subprocess_exec(*migrate_commands)
     await process.communicate()
-    program, created = await Program.get_or_create(
-        defaults={
-            "version": VERSION,
-        }
-    )
+    program, created = await Program.get_or_create(defaults={"version": VERSION})
     if created or program.version != VERSION:
         # 把新版本的迁移逻辑写在这里
         pass

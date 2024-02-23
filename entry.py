@@ -6,14 +6,7 @@ import sys
 import uvloop
 from loguru import logger
 
-from commands import (
-    recheck,
-    refresh_nfo,
-    refresh_poster,
-    refresh_subtitle,
-    refresh_upper,
-    refresh_video,
-)
+from commands import recheck, refresh_nfo, refresh_poster, refresh_subtitle, refresh_upper, refresh_video
 from models import init_model
 from processor import cleanup, process
 from settings import settings

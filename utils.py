@@ -27,9 +27,7 @@ async def amakedirs(path: Path, exist_ok=False) -> None:
     await makedirs(path, exist_ok=exist_ok)
 
 
-def aopen(
-    path: Path, mode: str = "r", **kwargs
-) -> AiofilesContextManager[None, None, AsyncTextIOWrapper]:
+def aopen(path: Path, mode: str = "r", **kwargs) -> AiofilesContextManager[None, None, AsyncTextIOWrapper]:
     return aiofiles.open(path, mode, **kwargs)
 
 

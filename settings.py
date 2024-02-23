@@ -23,15 +23,11 @@ class Config(BaseModel):
     dedeuserid: Annotated[str, Field(min_length=1)] = ""
     ac_time_value: Annotated[str, Field(min_length=1)] = ""
     interval: int = 20
+    paginated_video: bool = False
     path_mapper: dict[int, str] = Field(default_factory=dict)
     subtitle: SubtitleConfig = Field(default_factory=SubtitleConfig)
     codec: list[VideoCodecs] = Field(
-        default_factory=lambda: [
-            VideoCodecs.AV1,
-            VideoCodecs.AVC,
-            VideoCodecs.HEV,
-        ],
-        min_length=1,
+        default_factory=lambda: [VideoCodecs.AV1, VideoCodecs.AVC, VideoCodecs.HEV], min_length=1
     )
 
     @field_validator("codec", mode="after")

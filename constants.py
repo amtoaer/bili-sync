@@ -4,11 +4,7 @@ from pathlib import Path
 
 
 def get_base(dir_name: str) -> Path:
-    path = (
-        Path(base)
-        if (base := os.getenv(f"{dir_name.upper()}_PATH"))
-        else Path(__file__).parent / dir_name
-    )
+    path = Path(base) if (base := os.getenv(f"{dir_name.upper()}_PATH")) else Path(__file__).parent / dir_name
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -37,11 +33,7 @@ class MediaStatus(IntEnum):
 
     @property
     def text(self) -> str:
-        return {
-            MediaStatus.NORMAL: "normal",
-            MediaStatus.INVISIBLE: "invisible",
-            MediaStatus.DELETED: "deleted",
-        }[self]
+        return {MediaStatus.NORMAL: "normal", MediaStatus.INVISIBLE: "invisible", MediaStatus.DELETED: "deleted"}[self]
 
 
 class NfoMode(IntEnum):
@@ -53,11 +45,6 @@ class NfoMode(IntEnum):
 
 TORTOISE_ORM = {
     "connections": {"default": f"sqlite://{DEFAULT_DATABASE_PATH}"},
-    "apps": {
-        "models": {
-            "models": ["models", "aerich.models"],
-            "default_connection": "default",
-        },
-    },
+    "apps": {"models": {"models": ["models", "aerich.models"], "default_connection": "default"}},
     "use_tz": True,
 }

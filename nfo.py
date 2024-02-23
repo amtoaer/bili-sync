@@ -31,11 +31,7 @@ class EpisodeInfo(Base):
 
     @staticmethod
     def from_favorite_item_page(page: FavoriteItemPage) -> "EpisodeInfo":
-        return EpisodeInfo(
-            title=page.title,
-            season=page.season,
-            episode=page.episode,
-        )
+        return EpisodeInfo(title=page.title, season=page.season, episode=page.episode)
 
     def to_xml(self) -> str:
         return f"""
@@ -57,10 +53,7 @@ class Actor(Base):
 
     @staticmethod
     def from_upper(upper: Upper) -> "Actor":
-        return Actor(
-            name=upper.mid,
-            role=upper.name,
-        )
+        return Actor(name=upper.mid, role=upper.name)
 
     def to_xml(self) -> str:
         return f"""
@@ -95,11 +88,7 @@ class MovieInfo(Base):
 
     def to_xml(self) -> str:
         actor = "\n".join(_.to_xml() for _ in self.actor)
-        tags = (
-            "\n".join(f"    <genre>{_}</genre>" for _ in self.tags)
-            if isinstance(self.tags, list)
-            else ""
-        )
+        tags = "\n".join(f"    <genre>{_}</genre>" for _ in self.tags) if isinstance(self.tags, list) else ""
         return f"""
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <movie>
@@ -137,11 +126,7 @@ class TVShowInfo(Base):
 
     def to_xml(self) -> str:
         actor = "\n".join(_.to_xml() for _ in self.actor)
-        tags = (
-            "\n".join(f"    <genre>{_}</genre>" for _ in self.tags)
-            if isinstance(self.tags, list)
-            else ""
-        )
+        tags = "\n".join(f"    <genre>{_}</genre>" for _ in self.tags) if isinstance(self.tags, list) else ""
         return f"""
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <tvshow>
@@ -163,10 +148,7 @@ class UpperInfo(Base):
     created_at: datetime.datetime
 
     def from_upper(upper: Upper) -> "UpperInfo":
-        return UpperInfo(
-            mid=upper.mid,
-            created_at=upper.created_at,
-        )
+        return UpperInfo(mid=upper.mid, created_at=upper.created_at)
 
     def to_xml(self) -> str:
         return f"""
