@@ -56,7 +56,7 @@ services:
   bili-sync:
     image: amtoaer/bili-sync:latest
     user: 1000:1000  # 此处可以指定以哪个用户的权限运行，不填写的话默认 root，推荐填写。
-    tty: true  # 加上这一行可以让日志变成彩色
+    tty: true  # 加上这一行可以让支持的终端以彩色显示日志（如果发现日志出现乱码就去掉）
     volumes:
       - /home/amtoaer/Videos/Bilibilis/:/Videos/Bilibilis/  # 视频文件
       - /home/amtoaer/.config/nas/bili-sync/config/:/app/config/  # 配置文件
@@ -129,7 +129,7 @@ services:
 - [x] 凭证认证
 - [x] 视频选优
 - [x] 视频下载
-- [x] 支持并行下载
+- [x] 支持并发下载
 - [x] 支持作为 daemon 运行
 - [x] 构建 nfo 和 poster 文件，方便以单集形式导入 emby
 - [x] 支持收藏夹翻页，下载全部历史视频
