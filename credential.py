@@ -17,8 +17,7 @@ class PersistedCredential(Credential):
             self.dedeuserid,
             self.ac_time_value,
         )
-        # 暂时使用同步调用
-        settings.save()
+        await settings.asave()
 
 
 credential = PersistedCredential()

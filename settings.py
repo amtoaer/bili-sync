@@ -6,6 +6,7 @@ from pydantic_core import PydanticCustomError
 from typing_extensions import Annotated
 
 from constants import DEFAULT_CONFIG_PATH
+from utils import amakedirs, aopen
 
 
 class SubtitleConfig(BaseModel):
@@ -53,6 +54,17 @@ class Config(BaseModel):
             path.parent.mkdir(parents=True, exist_ok=True)
             with path.open("w") as f:
                 f.write(Config.model_dump_json(self, indent=4))
+            return self
+        except Exception as e:
+            raise RuntimeError(f"Failed to save config file: {path}") from e
+
+    async def asave(self, path: Path | None = None) -> "Config":
+        if not path:
+            path = DEFAULT_CONFIG_PATH
+        try:
+            await amakedirs(path.parent, exist_ok=True)
+            async with aopen(path, "w") as f:
+                await f.write(Config.model_dump_json(self, indent=4))
             return self
         except Exception as e:
             raise RuntimeError(f"Failed to save config file: {path}") from e
