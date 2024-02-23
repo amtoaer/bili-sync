@@ -126,55 +126,55 @@ class FavoriteItemPage(Model):
     @property
     def tmp_video_path(self) -> Path:
         return (
-            Path(settings.path_mapper[self.favorite_list_id])
+            Path(settings.path_mapper[self.favorite_item.favorite_list_id])
             / self.favorite_item.bvid
             / "Season 1"
-            / f"tmp_{self.favorite_item.bvid} - S01E{':02d'.format()}_video"
+            / f"tmp_{self.favorite_item.bvid} - S01E{f'{self.page:02d}'}_video"
         )
 
     @property
     def tmp_audio_path(self) -> Path:
         return (
-            Path(settings.path_mapper[self.favorite_list_id])
+            Path(settings.path_mapper[self.favorite_item.favorite_list_id])
             / self.favorite_item.bvid
             / "Season 1"
-            / f"tmp_{self.favorite_item.bvid} - S01E{':02d'.format()}_audio"
+            / f"tmp_{self.favorite_item.bvid} - S01E{f'{self.page:02d}'}_audio"
         )
 
     @property
     def video_path(self) -> Path:
         return (
-            Path(settings.path_mapper[self.favorite_list_id])
+            Path(settings.path_mapper[self.favorite_item.favorite_list_id])
             / self.favorite_item.bvid
             / "Season 1"
-            / f"{self.favorite_item.bvid} - S01E{':02d'.format()}.mp4"
+            / f"{self.favorite_item.bvid} - S01E{f'{self.page:02d}'}.mp4"
         )
 
     @property
     def nfo_path(self) -> Path:
         return (
-            Path(settings.path_mapper[self.favorite_list_id])
+            Path(settings.path_mapper[self.favorite_item.favorite_list_id])
             / self.favorite_item.bvid
             / "Season 1"
-            / f"{self.favorite_item.bvid} - S01E{':02d'.format()}.nfo"
+            / f"{self.favorite_item.bvid} - S01E{f'{self.page:02d}'}.nfo"
         )
 
     @property
     def poster_path(self) -> Path:
         return (
-            Path(settings.path_mapper[self.favorite_list_id])
+            Path(settings.path_mapper[self.favorite_item.favorite_list_id])
             / self.favorite_item.bvid
             / "Season 1"
-            / f"{self.favorite_item.bvid} - S01E{':02d'.format()}-thumb.jpg"
+            / f"{self.favorite_item.bvid} - S01E{f'{self.page:02d}'}-thumb.jpg"
         )
 
     @property
     def subtitle_path(self) -> Path:
         return (
-            Path(settings.path_mapper[self.favorite_list_id])
+            Path(settings.path_mapper[self.favorite_item.favorite_list_id])
             / self.favorite_item.bvid
             / "Season 1"
-            / f"{self.favorite_item.bvid} - S01E{':02d'.format()}.zh-CN.default.ass"
+            / f"{self.favorite_item.bvid} - S01E{f'{self.page:02d}'}.zh-CN.default.ass"
         )
 
 

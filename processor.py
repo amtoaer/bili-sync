@@ -2,7 +2,7 @@ import asyncio
 import contextlib
 import datetime
 from asyncio import Semaphore, create_subprocess_exec
-from asyncio.subprocess import DEVNULL
+from asyncio.subprocess import PIPE
 from pathlib import Path
 
 from bilibili_api import ass, favorite_list, video
@@ -17,7 +17,7 @@ from models import FavoriteItem, FavoriteItemPage, FavoriteList, Upper
 from nfo import Base as NfoBase
 from nfo import EpisodeInfo, MovieInfo, TVShowInfo, UpperInfo
 from settings import settings
-from utils import aexists, amakedirs, aremove, client, download_content
+from utils import aexists, amakedirs, client, download_content
 
 anchor = datetime.date.today()
 
@@ -172,7 +172,7 @@ async def process_favorite_item(
             if len(pages) == 1:
                 single_page = True
             else:
-                await FavoriteItemPage.bulk_create(
+                pages = await FavoriteItemPage.bulk_create(
                     pages, on_conflict=["favorite_item_id", "page"], update_fields=["cid", "name", "image"]
                 )
                 if process_nfo:
@@ -192,7 +192,7 @@ async def process_favorite_item(
                 await asyncio.gather(
                     *[
                         process_favorite_item_page(
-                            page, process_poster, process_video, process_nfo, process_upper, process_subtitle
+                            page, v, process_poster, process_video, process_nfo, process_subtitle
                         )
                         for page in pages
                     ],
@@ -232,6 +232,9 @@ async def process_favorite_item(
             try:
                 await get_video(v, 0, fav_item.tmp_video_path, fav_item.tmp_audio_path, fav_item.video_path)
                 fav_item.downloaded = True
+            except FileExistsError:
+                logger.info("Video {} {} already exists, skipped.", fav_item.bvid, fav_item.name)
+                fav_item.downloaded = True
             except Exception as e:
                 errcode_status = {62002: MediaStatus.INVISIBLE, -404: MediaStatus.DELETED}
                 if not (isinstance(e, ResponseCodeException) and (status := errcode_status.get(e.code))):
@@ -257,6 +260,9 @@ async def process_favorite_item_page(
     process_nfo=True,
     process_subtitle=True,
 ):
+    logger.info(
+        "Start to process video {} {} page {}.", fav_page.favorite_item.bvid, fav_page.favorite_item.name, fav_page.page
+    )
     if process_nfo:
         try:
             await get_nfo(fav_page.nfo_path, obj=fav_page, mode=NfoMode.EPISODE)
@@ -264,14 +270,14 @@ async def process_favorite_item_page(
             logger.info(
                 "NFO of {} {} page {} already exists, skipped.",
                 fav_page.favorite_item.bvid,
-                fav_page.name,
+                fav_page.favorite_item.name,
                 fav_page.page,
             )
         except Exception:
             logger.exception(
                 "Failed to process nfo of video {} {} page {}.",
                 fav_page.favorite_item.bvid,
-                fav_page.name,
+                fav_page.favorite_item.name,
                 fav_page.page,
             )
     if process_poster:
@@ -281,54 +287,67 @@ async def process_favorite_item_page(
             logger.info(
                 "Poster of {} {} page {} already exists, skipped.",
                 fav_page.favorite_item.bvid,
-                fav_page.name,
+                fav_page.favorite_item.name,
                 fav_page.page,
             )
         except Exception:
             logger.exception(
                 "Failed to process poster of video {} {} page {}.",
                 fav_page.favorite_item.bvid,
-                fav_page.name,
+                fav_page.favorite_item.name,
                 fav_page.page,
             )
     if process_subtitle:
         try:
-            await get_subtitle(v, fav_page.page, fav_page.subtitle_path)
+            await get_subtitle(v, fav_page.page - 1, fav_page.subtitle_path)
         except FileExistsError:
             logger.info(
                 "Subtitle of {} {} page {} already exists, skipped.",
                 fav_page.favorite_item.bvid,
-                fav_page.name,
+                fav_page.favorite_item.name,
                 fav_page.page,
             )
         except Exception:
             logger.exception(
                 "Failed to process subtitle of video {} {} page {}.",
                 fav_page.favorite_item.bvid,
-                fav_page.name,
+                fav_page.favorite_item.name,
                 fav_page.page,
             )
     if process_video:
         try:
-            await get_video(v, fav_page.page, fav_page.tmp_video_path, fav_page.tmp_audio_path, fav_page.video_path)
+            await get_video(v, fav_page.page - 1, fav_page.tmp_video_path, fav_page.tmp_audio_path, fav_page.video_path)
+            fav_page.downloaded = True
+        except FileExistsError:
+            logger.info(
+                "Video {} {} page {} already exists, skipped.",
+                fav_page.favorite_item.bvid,
+                fav_page.favorite_item.name,
+                fav_page.page,
+            )
             fav_page.downloaded = True
         except Exception as e:
             errcode_status = {62002: MediaStatus.INVISIBLE, -404: MediaStatus.DELETED}
             if not (isinstance(e, ResponseCodeException) and (status := errcode_status.get(e.code))):
                 logger.exception(
-                    "Failed to process video {} {} page {}.", fav_page.favorite_item.bvid, fav_page.name, fav_page.page
+                    "Failed to process video {} {} page {}.",
+                    fav_page.favorite_item.bvid,
+                    fav_page.favorite_item.name,
+                    fav_page.page,
                 )
             else:
                 fav_page.status = status
                 logger.error(
                     "Video {} {} page {} is not available, marked as {}.",
                     fav_page.favorite_item.bvid,
-                    fav_page.name,
+                    fav_page.favorite_item.name,
                     fav_page.page,
                     fav_page.status.text,
                 )
     await fav_page.save()
-    logger.info("{} {} page {} has been processed.", fav_page.favorite_item.bvid, fav_page.name, fav_page.page)
+    logger.info(
+        "{} {} page {} has been processed.", fav_page.favorite_item.bvid, fav_page.favorite_item.name, fav_page.page
+    )
 
 
 async def get_video(v: video.Video, page_id: int, tmp_video_path: Path, tmp_audio_path: Path, video_path: Path) -> None:
@@ -344,10 +363,10 @@ async def get_video(v: video.Video, page_id: int, tmp_video_path: Path, tmp_audi
         # 对于 flv，直接下载
         await download_content(streams[0].url, tmp_video_path)
         process = await create_subprocess_exec(
-            FFMPEG_COMMAND, "-i", tmp_video_path, video_path, stdout=DEVNULL, stderr=DEVNULL
+            FFMPEG_COMMAND, "-i", tmp_video_path, video_path, stdout=PIPE, stderr=PIPE
         )
-        await process.communicate()
-        tmp_video_path.unlink()
+        stdout, stderr = await process.communicate()
+        tmp_video_path.unlink(missing_ok=True)
     else:
         # 对于非 flv，首先要下载视频流
         paths, tasks = ([tmp_video_path], [download_content(streams[0].url, tmp_video_path)])
@@ -362,11 +381,18 @@ async def get_video(v: video.Video, page_id: int, tmp_video_path: Path, tmp_audi
             "-c",
             "copy",
             video_path,
-            stdout=DEVNULL,
-            stderr=DEVNULL,
+            stdout=PIPE,
+            stderr=PIPE,
         )
-        await process.communicate()
-        await asyncio.gather(*[aremove(path) for path in paths])
+        stdout, stderr = await process.communicate()
+        for path in paths:
+            path.unlink(missing_ok=True)
+    if process.returncode != 0:
+        raise RuntimeError(
+            f"{FFMPEG_COMMAND} exited with non-zero code {process.returncode}."
+            f"\nstdout:\n{stdout.decode()}"
+            f"\nstderr:\n{stderr.decode()}"
+        )
 
 
 async def get_file(url: str, path: Path) -> None:

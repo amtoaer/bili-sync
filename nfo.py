@@ -31,7 +31,7 @@ class EpisodeInfo(Base):
 
     @staticmethod
     def from_favorite_item_page(page: FavoriteItemPage) -> "EpisodeInfo":
-        return EpisodeInfo(title=page.title, season=page.season, episode=page.episode)
+        return EpisodeInfo(title=page.name, season=1, episode=page.page)
 
     def to_xml(self) -> str:
         return f"""
@@ -80,7 +80,7 @@ class MovieInfo(Base):
         return MovieInfo(
             title=fav_item.name,
             plot=fav_item.desc,
-            actor=[Actor.from_upper(upper) for upper in fav_item.upper],
+            actor=[Actor.from_upper(fav_item.upper)],
             tags=fav_item.tags,
             bvid=fav_item.bvid,
             aired=fav_item.ctime,
@@ -118,7 +118,7 @@ class TVShowInfo(Base):
         return TVShowInfo(
             title=fav_item.name,
             plot=fav_item.desc,
-            actor=[Actor.from_upper(upper) for upper in fav_item.upper],
+            actor=[Actor.from_upper(fav_item.upper)],
             tags=fav_item.tags,
             bvid=fav_item.bvid,
             aired=fav_item.ctime,
