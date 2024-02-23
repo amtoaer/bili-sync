@@ -25,7 +25,7 @@ ruff = "0.2.2"
 line-length = 100
 
 [tool.ruff]
-line-length = 100
+line-length = 120
 lint.select = [
   "F", # https://beta.ruff.rs/docs/rules/#pyflakes-f
   "E",
@@ -53,6 +53,8 @@ lint.select = [
 lint.ignore = [
   "A003", # Class attribute `id` is shadowing a Python builtin
 ]
+lint.isort.split-on-trailing-comma = false
+format.skip-magic-trailing-comma = true
 exclude = ["migrations"]
 
 [tool.aerich]

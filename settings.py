@@ -26,13 +26,9 @@ class Config(BaseModel):
     path_mapper: dict[int, str] = Field(default_factory=dict)
     subtitle: SubtitleConfig = Field(default_factory=SubtitleConfig)
     codec: list[VideoCodecs] = Field(
-        default_factory=lambda: [
-            VideoCodecs.AV1,
-            VideoCodecs.AVC,
-            VideoCodecs.HEV,
-        ],
-        min_length=1,
+        default_factory=lambda: [VideoCodecs.AV1, VideoCodecs.AVC, VideoCodecs.HEV], min_length=1
     )
+    paginated_video: bool = False
 
     @field_validator("codec", mode="after")
     def codec_validator(cls, codecs: list[VideoCodecs]) -> list[VideoCodecs]:

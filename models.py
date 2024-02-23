@@ -3,17 +3,11 @@ from asyncio import create_subprocess_exec
 from pathlib import Path
 
 from tortoise import Tortoise, fields
+from tortoise.fields import Field
 from tortoise.models import Model
 
-from constants import (
-    DEFAULT_THUMB_PATH,
-    MIGRATE_COMMAND,
-    TORTOISE_ORM,
-    MediaStatus,
-    MediaType,
-)
+from constants import DEFAULT_THUMB_PATH, MIGRATE_COMMAND, TORTOISE_ORM, MediaStatus, MediaType
 from settings import settings
-from utils import aopen
 from version import VERSION
 
 
@@ -47,22 +41,6 @@ class Upper(Model):
     def meta_path(self) -> Path:
         return DEFAULT_THUMB_PATH / str(self.mid)[0] / f"{self.mid}" / "person.nfo"
 
-    async def save_metadata(self):
-        async with aopen(self.meta_path, "w") as f:
-            await f.write(
-                f"""
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<person>
-  <plot />
-  <outline />
-  <lockdata>false</lockdata>
-  <dateadded>{self.created_at.strftime("%Y-%m-%d %H:%M:%S")}</dateadded>
-  <title>{self.mid}</title>
-  <sorttitle>{self.mid}</sorttitle>
-</person>
-""".strip()
-            )
-
 
 class FavoriteItem(Model):
     """收藏条目"""
@@ -75,8 +53,8 @@ class FavoriteItem(Model):
     desc = fields.TextField()
     cover = fields.TextField()
     tags = fields.JSONField(null=True)
-    favorite_list = fields.ForeignKeyField("models.FavoriteList", related_name="items")
-    upper = fields.ForeignKeyField("models.Upper", related_name="uploads")
+    favorite_list: Field[FavoriteList] = fields.ForeignKeyField("models.FavoriteList", related_name="items")
+    upper: Field[Upper] = fields.ForeignKeyField("models.Upper", related_name="uploads")
     ctime = fields.DatetimeField()
     pubtime = fields.DatetimeField()
     fav_time = fields.DatetimeField()
@@ -113,14 +91,91 @@ class FavoriteItem(Model):
 
     @property
     def upper_path(self) -> list[Path]:
-        return [
-            self.upper.thumb_path,
-            self.upper.meta_path,
-        ]
+        return [self.upper.thumb_path, self.upper.meta_path]
 
     @property
     def subtitle_path(self) -> Path:
         return Path(settings.path_mapper[self.favorite_list_id]) / f"{self.bvid}.zh-CN.default.ass"
+
+    @property
+    def tvshow_nfo_path(self) -> Path:
+        """分p视频时使用"""
+        return Path(settings.path_mapper[self.favorite_list_id]) / self.bvid / "tvshow.nfo"
+
+    @property
+    def tvshow_poster_path(self) -> Path:
+        """分p视频时使用"""
+        return Path(settings.path_mapper[self.favorite_list_id]) / self.bvid / "poster.jpg"
+
+
+class FavoriteItemPage(Model):
+    """收藏条目的分p"""
+
+    id = fields.IntField(pk=True)
+    favorite_item: Field[FavoriteItem] = fields.ForeignKeyField("models.FavoriteItem", related_name="pages")
+    cid = fields.IntField()
+    page = fields.IntField()
+    name = fields.CharField(max_length=255)
+    image = fields.TextField()
+    status = fields.IntEnumField(enum_type=MediaStatus, default=MediaStatus.NORMAL)
+    downloaded = fields.BooleanField(default=False)
+
+    class Meta:
+        unique_together = (("favorite_item_id", "page"),)
+
+    @property
+    def tmp_video_path(self) -> Path:
+        return (
+            Path(settings.path_mapper[self.favorite_item.favorite_list_id])
+            / self.favorite_item.bvid
+            / "Season 1"
+            / f"tmp_{self.favorite_item.bvid} - S01E{f'{self.page:02d}'}_video"
+        )
+
+    @property
+    def tmp_audio_path(self) -> Path:
+        return (
+            Path(settings.path_mapper[self.favorite_item.favorite_list_id])
+            / self.favorite_item.bvid
+            / "Season 1"
+            / f"tmp_{self.favorite_item.bvid} - S01E{f'{self.page:02d}'}_audio"
+        )
+
+    @property
+    def video_path(self) -> Path:
+        return (
+            Path(settings.path_mapper[self.favorite_item.favorite_list_id])
+            / self.favorite_item.bvid
+            / "Season 1"
+            / f"{self.favorite_item.bvid} - S01E{f'{self.page:02d}'}.mp4"
+        )
+
+    @property
+    def nfo_path(self) -> Path:
+        return (
+            Path(settings.path_mapper[self.favorite_item.favorite_list_id])
+            / self.favorite_item.bvid
+            / "Season 1"
+            / f"{self.favorite_item.bvid} - S01E{f'{self.page:02d}'}.nfo"
+        )
+
+    @property
+    def poster_path(self) -> Path:
+        return (
+            Path(settings.path_mapper[self.favorite_item.favorite_list_id])
+            / self.favorite_item.bvid
+            / "Season 1"
+            / f"{self.favorite_item.bvid} - S01E{f'{self.page:02d}'}-thumb.jpg"
+        )
+
+    @property
+    def subtitle_path(self) -> Path:
+        return (
+            Path(settings.path_mapper[self.favorite_item.favorite_list_id])
+            / self.favorite_item.bvid
+            / "Season 1"
+            / f"{self.favorite_item.bvid} - S01E{f'{self.page:02d}'}.zh-CN.default.ass"
+        )
 
 
 class Program(Model):
@@ -131,17 +186,11 @@ class Program(Model):
 async def init_model() -> None:
     await Tortoise.init(config=TORTOISE_ORM)
     migrate_commands = (
-        [MIGRATE_COMMAND, "upgrade"]
-        if os.getenv("BILI_IN_DOCKER")
-        else ["poetry", "run", MIGRATE_COMMAND, "upgrade"]
+        [MIGRATE_COMMAND, "upgrade"] if os.getenv("BILI_IN_DOCKER") else ["poetry", "run", MIGRATE_COMMAND, "upgrade"]
     )
     process = await create_subprocess_exec(*migrate_commands)
     await process.communicate()
-    program, created = await Program.get_or_create(
-        defaults={
-            "version": VERSION,
-        }
-    )
+    program, created = await Program.get_or_create(defaults={"version": VERSION})
     if created or program.version != VERSION:
         # 把新版本的迁移逻辑写在这里
         pass
