@@ -158,7 +158,11 @@ async def process_favorite_item(
             pages = await v.get_pages()
             pages = [
                 FavoriteItemPage(
-                    favorite_item=fav_item, cid=page["cid"], page=page["page"], name=page["part"], image=page["first_frame"]
+                    favorite_item=fav_item,
+                    cid=page["cid"],
+                    page=page["page"],
+                    name=page["part"],
+                    image=page["first_frame"],
                 )
                 for page in pages
             ]
@@ -173,9 +177,7 @@ async def process_favorite_item(
                 )
                 if process_nfo:
                     pass
-                        
-                    
-        
+
     if single_page or not settings.paginated_video:
         if process_nfo:
             try:
