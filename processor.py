@@ -173,12 +173,17 @@ async def process_favorite_item(
             if len(pages) == 1:
                 single_page = True
             else:
-                pages = await FavoriteItemPage.bulk_create(
+                # 如果有多个分 p，那么先创建记录
+                await FavoriteItemPage.bulk_create(
                     pages,
                     on_conflict=["favorite_item_id", "page"],
                     update_fields=["cid", "name", "image"],
                     batch_size=300,
                 )
+                # 重新拉一下数据，不能用 bulk create 的返回值，因为 bulk_create 不会填充主键
+                pages = await FavoriteItemPage.filter(favorite_item=fav_item).order_by("page")
+                for page in pages:
+                    page.favorite_item = fav_item
                 if process_nfo:
                     try:
                         await get_nfo(fav_item.tvshow_nfo_path, obj=fav_item, mode=NfoMode.TVSHOW)
