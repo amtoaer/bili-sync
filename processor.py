@@ -46,7 +46,7 @@ async def update_favorite_item(medias: list[dict], fav_list: FavoriteList) -> No
     uppers = [
         Upper(mid=media["upper"]["mid"], name=media["upper"]["name"], thumb=media["upper"]["face"]) for media in medias
     ]
-    await Upper.bulk_create(uppers, on_conflict=["mid"], update_fields=["name", "thumb"])
+    await Upper.bulk_create(uppers, on_conflict=["mid"], update_fields=["name", "thumb"], batch_size=300)
     items = [
         FavoriteItem(
             name=media["title"],
@@ -67,6 +67,7 @@ async def update_favorite_item(medias: list[dict], fav_list: FavoriteList) -> No
         items,
         on_conflict=["bvid", "favorite_list_id"],
         update_fields=["name", "type", "desc", "cover", "ctime", "pubtime", "fav_time"],
+        batch_size=300,
     )
 
 
@@ -173,7 +174,10 @@ async def process_favorite_item(
                 single_page = True
             else:
                 pages = await FavoriteItemPage.bulk_create(
-                    pages, on_conflict=["favorite_item_id", "page"], update_fields=["cid", "name", "image"]
+                    pages,
+                    on_conflict=["favorite_item_id", "page"],
+                    update_fields=["cid", "name", "image"],
+                    batch_size=300,
                 )
                 if process_nfo:
                     try:
