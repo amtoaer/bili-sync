@@ -358,7 +358,7 @@ async def get_video(v: video.Video, page_id: int, tmp_video_path: Path, tmp_audi
     await amakedirs(video_path.parent, exist_ok=True)
     # 分析对应分p的视频流
     detector = video.VideoDownloadURLDataDetecter(await v.get_download_url(page_index=page_id))
-    streams = detector.detect_best_streams()
+    streams = detector.detect_best_streams(**settings.stream.model_dump())
     if detector.check_flv_stream():
         # 对于 flv，直接下载
         await download_content(streams[0].url, tmp_video_path)

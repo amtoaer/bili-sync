@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from bilibili_api.video import VideoCodecs
-from pydantic import BaseModel, Field, field_validator
+from bilibili_api.video import AudioQuality, VideoCodecs, VideoQuality
+from pydantic import BaseModel, Field, field_validator, root_validator
 from pydantic_core import PydanticCustomError
 from typing_extensions import Annotated
 
@@ -17,6 +17,26 @@ class SubtitleConfig(BaseModel):
     static_time: float = 10  # 静态弹幕持续时间
 
 
+class StreamConfig(BaseModel):
+    video_max_quality: VideoQuality = VideoQuality._8K
+    audio_max_quality: AudioQuality = AudioQuality._192K
+    video_min_quality: VideoQuality = VideoQuality._360P
+    audio_min_quality: AudioQuality = AudioQuality._64K
+    codecs: list[VideoCodecs] = Field(
+        default_factory=lambda: [VideoCodecs.AV1, VideoCodecs.AVC, VideoCodecs.HEV], min_length=1
+    )
+    no_dolby_video: bool = False
+    no_dolby_audio: bool = False
+    no_hdr: bool = False
+    no_hires: bool = False
+
+    @field_validator("codecs", mode="after")
+    def codec_validator(cls, codecs: list[VideoCodecs]) -> list[VideoCodecs]:
+        if len(codecs) != len(set(codecs)):
+            raise PydanticCustomError("unique_list", "List must be unique")
+        return codecs
+
+
 class Config(BaseModel):
     sessdata: Annotated[str, Field(min_length=1)] = ""
     bili_jct: Annotated[str, Field(min_length=1)] = ""
@@ -26,16 +46,15 @@ class Config(BaseModel):
     interval: int = 20
     path_mapper: dict[int, str] = Field(default_factory=dict)
     subtitle: SubtitleConfig = Field(default_factory=SubtitleConfig)
-    codec: list[VideoCodecs] = Field(
-        default_factory=lambda: [VideoCodecs.AV1, VideoCodecs.AVC, VideoCodecs.HEV], min_length=1
-    )
+    stream: StreamConfig = Field(default_factory=StreamConfig)
     paginated_video: bool = False
 
-    @field_validator("codec", mode="after")
-    def codec_validator(cls, codecs: list[VideoCodecs]) -> list[VideoCodecs]:
-        if len(codecs) != len(set(codecs)):
-            raise PydanticCustomError("unique_list", "List must be unique")
-        return codecs
+    @root_validator(pre=True)
+    def migrate(cls, values: dict) -> dict:
+        # 把旧版本的 codec 迁移为 stream 中的 codecs
+        if "codec" in values and "stream" not in values:
+            values["stream"] = {"codecs": values.pop("codec")}
+        return values
 
     @staticmethod
     def load(path: Path | None = None) -> "Config":
