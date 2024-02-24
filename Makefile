@@ -1,4 +1,4 @@
-.PHONY: install fmt start-daemon start-once db-init db-migrate db-upgrade sync-conf
+.PHONY: install fmt start-daemon start-once db-init db-migrate db-upgrade sync-conf release
 
 install:
 	@echo "Installing dependencies..."
@@ -28,4 +28,12 @@ sync-conf:
 	@echo "Syncing config..."
 	@cp ${CONFIG_SRC} ./config/
 	@cp ${DB_SRC} ./data/
+	@echo "Done."
+
+release:
+	@echo "Releasing..."
+	@git checkout main
+	@bump-my-version bump patch
+	@git push origin main
+	@git push origin --tags
 	@echo "Done."
