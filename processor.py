@@ -71,6 +71,18 @@ async def update_favorite_item(medias: list[dict], fav_list: FavoriteList) -> No
     )
 
 
+async def update_favorite_item_page(pages: list[dict], item: FavoriteItem):
+    pages = [
+        FavoriteItemPage(
+            favorite_item=item, cid=page["cid"], page=page["page"], name=page["part"], image=page.get("first_frame", "")
+        )
+        for page in pages
+    ]
+    await FavoriteItemPage.bulk_create(
+        pages, on_conflict=["favorite_item_id", "page"], update_fields=["cid", "name", "image"], batch_size=300
+    )
+
+
 async def process() -> None:
     global anchor
     if (today := datetime.date.today()) > anchor:
@@ -131,6 +143,7 @@ async def process_favorite_item(
     process_nfo=True,
     process_upper=True,
     process_subtitle=True,
+    refresh_mode=False,
 ) -> None:
     logger.info("Start to process video {} {}.", fav_item.bvid, fav_item.name)
     if fav_item.type != MediaType.VIDEO:
@@ -155,66 +168,50 @@ async def process_favorite_item(
     single_page = False
     if settings.paginated_video:
         pages = None
-        try:
-            pages = await v.get_pages()
-            pages = [
-                FavoriteItemPage(
-                    favorite_item=fav_item,
-                    cid=page["cid"],
-                    page=page["page"],
-                    name=page["part"],
-                    image=page["first_frame"],
-                )
-                for page in pages
-            ]
-        except Exception:
-            logger.exception("Failed to get pages of video {} {}.", fav_item.bvid, fav_item.name)
-        if pages:
-            if len(pages) == 1:
-                single_page = True
-            else:
-                # 如果有多个分 p，那么先创建记录
-                await FavoriteItemPage.bulk_create(
-                    pages,
-                    on_conflict=["favorite_item_id", "page"],
-                    update_fields=["cid", "name", "image"],
-                    batch_size=300,
-                )
-                # 重新拉一下数据，不能用 bulk create 的返回值，因为 bulk_create 不会填充主键
-                pages = await FavoriteItemPage.filter(favorite_item=fav_item).order_by("page")
-                for page in pages:
-                    page.favorite_item = fav_item
-                if process_nfo:
-                    try:
-                        await get_nfo(fav_item.tvshow_nfo_path, obj=fav_item, mode=NfoMode.TVSHOW)
-                    except FileExistsError:
-                        logger.info("Nfo of {} {} already exists, skipped.", fav_item.bvid, fav_item.name)
-                    except Exception:
-                        logger.exception("Failed to process nfo of video {} {}.", fav_item.bvid, fav_item.name)
-                if process_poster:
-                    try:
-                        await get_file(fav_item.cover, fav_item.tvshow_poster_path)
-                    except FileExistsError:
-                        logger.info("Poster of {} {} already exists, skipped.", fav_item.bvid, fav_item.name)
-                    except Exception:
-                        logger.exception("Failed to process poster of video {} {}.", fav_item.bvid, fav_item.name)
-                await asyncio.gather(
-                    *[
-                        process_favorite_item_page(
-                            page, v, process_poster, process_video, process_nfo, process_subtitle
-                        )
-                        for page in pages
-                    ],
-                    return_exceptions=True,
-                )
-                fav_item.downloaded = all(page.downloaded for page in pages)
-                page_status = {page.status for page in pages}
-                if MediaStatus.INVISIBLE in page_status:
-                    fav_item.status = MediaStatus.INVISIBLE
-                elif MediaStatus.DELETED in page_status:
-                    fav_item.status = MediaStatus.DELETED
+        if not refresh_mode:
+            # 非手动触发的情况下，会刷新一下 pages
+            try:
+                tmp_pages = await v.get_pages()
+                if len(tmp_pages) <= 1:
+                    single_page = True
                 else:
-                    fav_item.status = MediaStatus.NORMAL
+                    await update_favorite_item_page(tmp_pages, fav_item)
+            except Exception:
+                logger.exception("Failed to get pages of video {} {}.", fav_item.bvid, fav_item.name)
+        # 从表中查出 pages
+        pages = await FavoriteItemPage.filter(favorite_item=fav_item).order_by("page")
+        for page in pages:
+            page.favorite_item = fav_item
+        if pages and not single_page:
+            if process_nfo:
+                try:
+                    await get_nfo(fav_item.tvshow_nfo_path, obj=fav_item, mode=NfoMode.TVSHOW)
+                except FileExistsError:
+                    logger.info("Nfo of {} {} already exists, skipped.", fav_item.bvid, fav_item.name)
+                except Exception:
+                    logger.exception("Failed to process nfo of video {} {}.", fav_item.bvid, fav_item.name)
+            if process_poster:
+                try:
+                    await get_file(fav_item.cover, fav_item.tvshow_poster_path)
+                except FileExistsError:
+                    logger.info("Poster of {} {} already exists, skipped.", fav_item.bvid, fav_item.name)
+                except Exception:
+                    logger.exception("Failed to process poster of video {} {}.", fav_item.bvid, fav_item.name)
+            await asyncio.gather(
+                *[
+                    process_favorite_item_page(page, v, process_poster, process_video, process_nfo, process_subtitle)
+                    for page in pages
+                ],
+                return_exceptions=True,
+            )
+            fav_item.downloaded = all(page.downloaded for page in pages)
+            page_status = {page.status for page in pages}
+            if MediaStatus.INVISIBLE in page_status:
+                fav_item.status = MediaStatus.INVISIBLE
+            elif MediaStatus.DELETED in page_status:
+                fav_item.status = MediaStatus.DELETED
+            else:
+                fav_item.status = MediaStatus.NORMAL
     if single_page or not settings.paginated_video:
         if process_nfo:
             try:
@@ -291,7 +288,7 @@ async def process_favorite_item_page(
             )
     if process_poster:
         try:
-            await get_file(fav_page.image, fav_page.poster_path)
+            await get_file(fav_page.image or fav_page.favorite_item.cover, fav_page.poster_path)
         except FileExistsError:
             logger.info(
                 "Poster of {} {} page {} already exists, skipped.",

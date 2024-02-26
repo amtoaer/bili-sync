@@ -64,6 +64,7 @@ async def _refresh_favorite_item_info(
                 process_nfo=process_nfo,
                 process_upper=process_upper,
                 process_subtitle=process_subtitle,
+                refresh_mode=True,
             )
             for item in items
         ],
