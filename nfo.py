@@ -15,6 +15,11 @@ class Base:
     def to_xml(self) -> str:
         ...
 
+    @staticmethod
+    def escape(s: str) -> str:
+        """转义 xml 特殊字符"""
+        return s.translate(str.maketrans({"<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;"}))
+
     async def to_file(self, path: Path) -> None:
         """把 xml 写入文件"""
         async with aopen(path, "w", encoding="utf-8") as f:
@@ -39,7 +44,7 @@ class EpisodeInfo(Base):
 <episodedetails>
     <plot />
     <outline />
-    <title>{self.title}</title>
+    <title>{self.escape(self.title)}</title>
     <season>{self.season}</season>
     <episode>{self.episode}</episode>
 </episodedetails>
@@ -59,7 +64,7 @@ class Actor(Base):
         return f"""
     <actor>
         <name>{self.name}</name>
-        <role>{self.role}</role>
+        <role>{self.escape(self.role)}</role>
     </actor>
 """.strip()
 
@@ -88,13 +93,15 @@ class MovieInfo(Base):
 
     def to_xml(self) -> str:
         actor = "\n".join(_.to_xml() for _ in self.actor)
-        tags = "\n".join(f"    <genre>{_}</genre>" for _ in self.tags) if isinstance(self.tags, list) else ""
+        tags = (
+            "\n".join(f"    <genre>{self.escape(_)}</genre>" for _ in self.tags) if isinstance(self.tags, list) else ""
+        )
         return f"""
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <movie>
-    <plot><![CDATA[{self.plot}]]></plot>
+    <plot><![CDATA[{self.escape(self.plot)}]]></plot>
     <outline />
-    <title>{self.title}</title>
+    <title>{self.escape(self.title)}</title>
 {actor}
     <year>{self.aired.year}</year>
 {tags}
@@ -126,13 +133,15 @@ class TVShowInfo(Base):
 
     def to_xml(self) -> str:
         actor = "\n".join(_.to_xml() for _ in self.actor)
-        tags = "\n".join(f"    <genre>{_}</genre>" for _ in self.tags) if isinstance(self.tags, list) else ""
+        tags = (
+            "\n".join(f"    <genre>{self.escape(_)}</genre>" for _ in self.tags) if isinstance(self.tags, list) else ""
+        )
         return f"""
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <tvshow>
-    <plot><![CDATA[{self.plot}]]></plot>
+    <plot><![CDATA[{self.escape(self.plot)}]]></plot>
     <outline />
-    <title>{self.title}</title>
+    <title>{self.escape(self.title)}</title>
 {actor}
     <year>{self.aired.year}</year>
 {tags}

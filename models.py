@@ -66,10 +66,6 @@ class FavoriteItem(Model):
         unique_together = (("bvid", "favorite_list_id"),)
 
     @property
-    def safe_name(self) -> str:
-        return self.name.replace("/", "_")
-
-    @property
     def tmp_video_path(self) -> Path:
         return Path(settings.path_mapper[self.favorite_list_id]) / f"tmp_{self.bvid}_video"
 
