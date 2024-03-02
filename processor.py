@@ -96,7 +96,10 @@ async def process() -> None:
                 logger.exception("Failed to refresh credential.")
                 return
     for favorite_id in settings.path_mapper:
-        await process_favorite(favorite_id)
+        try:
+            await process_favorite(favorite_id)
+        except asyncio.TimeoutError:
+            logger.exception("Process favorite {} timeout.", favorite_id)
 
 
 async def process_favorite(favorite_id: int) -> None:
