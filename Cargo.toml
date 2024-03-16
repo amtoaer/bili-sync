@@ -1,0 +1,9 @@
+[package]
+name = "bili-sync"
+version = "2.0.0"
+edition = "2021"
+
+[dependencies]
+serde_json = "1.0"
+reqwest = { version = "0.11", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
