@@ -19,7 +19,6 @@ impl Downloader {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).await?;
         }
-        // must be a new file
         let mut file = File::create(path).await?;
         let mut res = self.client.get(url).send().await?.bytes_stream();
         while let Some(item) = res.next().await {
