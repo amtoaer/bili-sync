@@ -1,4 +1,4 @@
-use reqwest::Method;
+use reqwest::{header, Method};
 
 pub struct Credential {
     sessdata: String,
@@ -26,6 +26,21 @@ impl Credential {
     }
 }
 
+pub fn client_with_header() -> reqwest::Client {
+    let mut headers = header::HeaderMap::new();
+    headers.insert(
+        header::USER_AGENT,
+        header::HeaderValue::from_static("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36 Edg/116.0.1938.54"));
+    headers.insert(
+        header::REFERER,
+        header::HeaderValue::from_static("https://www.bilibili.com"),
+    );
+    reqwest::Client::builder()
+        .default_headers(headers)
+        .build()
+        .unwrap()
+}
+
 pub struct BiliClient {
     credential: Option<Credential>,
     client: reqwest::Client,
@@ -34,34 +49,28 @@ pub struct BiliClient {
 impl BiliClient {
     pub fn anonymous() -> Self {
         let credential = None;
-        let client = reqwest::Client::new();
+        let client = client_with_header();
         Self { credential, client }
     }
 
     pub fn authenticated(credential: Credential) -> Self {
         let credential = Some(credential);
-        let client = reqwest::Client::new();
+        let client = client_with_header();
         Self { credential, client }
     }
 
     fn set_header(&self, req: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
-        let req =req.header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36 Edg/116.0.1938.54")
-        .header("Referer", "https://www.bilibili.com");
-        if let Some(credential) = &self.credential {
-            return req.header("cookie", format!("SESSDATA={}", credential.sessdata))
+        let Some(credential) = &self.credential else {
+            return req;
+        };
+        req.header("cookie", format!("SESSDATA={}", credential.sessdata))
             .header("cookie", format!("bili_jct={}", credential.bili_jct))
             .header("cookie", format!("buvid3={}", credential.buvid3))
-            .header(
-                "cookie",
-                format!("DedeUserID={}", credential.dedeuserid),
-            )
+            .header("cookie", format!("DedeUserID={}", credential.dedeuserid))
             .header(
                 "cookie",
                 format!("ac_time_value={}", credential.ac_time_value),
-            ).header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36 Edg/116.0.1938.54")
-            .header("Referer", "https://www.bilibili.com");
-        }
-        req
+            )
     }
 
     pub fn request(&self, method: Method, url: &str) -> reqwest::RequestBuilder {

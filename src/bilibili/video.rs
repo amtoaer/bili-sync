@@ -4,7 +4,7 @@ use reqwest::Method;
 
 use crate::bilibili::analyzer::PageAnalyzer;
 use crate::bilibili::client::BiliClient;
-use crate::bilibili::Result;
+use crate::Result;
 
 static MASK_CODE: u64 = 2251799813685247;
 static XOR_CODE: u64 = 23442827791579;
@@ -46,7 +46,7 @@ impl Video {
     pub async fn get_pages(&self) -> Result<Vec<Page>> {
         let mut res = self
             .client
-            .request(Method::GET, &"https://api.bilibili.com/x/player/pagelist")
+            .request(Method::GET, "https://api.bilibili.com/x/player/pagelist")
             .query(&[("aid", &self.aid), ("bvid", &self.bvid)])
             .send()
             .await?
@@ -60,7 +60,7 @@ impl Video {
             .client
             .request(
                 Method::GET,
-                &"https://api.bilibili.com/x/web-interface/view/detail/tag",
+                "https://api.bilibili.com/x/web-interface/view/detail/tag",
             )
             .query(&[("aid", &self.aid), ("bvid", &self.bvid)])
             .send()
@@ -73,10 +73,7 @@ impl Video {
     pub async fn get_page_analyzer(&self, page: &Page) -> Result<PageAnalyzer> {
         let mut res = self
             .client
-            .request(
-                Method::GET,
-                &"https://api.bilibili.com/x/player/wbi/playurl",
-            )
+            .request(Method::GET, "https://api.bilibili.com/x/player/wbi/playurl")
             .query(&[
                 ("avid", self.aid.as_str()),
                 ("cid", page.cid.to_string().as_str()),
@@ -101,11 +98,11 @@ fn bvid_to_aid(bvid: &str) -> u64 {
     (bvid[3], bvid[9]) = (bvid[9], bvid[3]);
     (bvid[4], bvid[7]) = (bvid[7], bvid[4]);
     let mut tmp = 0u64;
-    for i in 3..bvid.len() {
-        let idx = DATA.iter().position(|&x| x == bvid[i]).unwrap();
+    for char in bvid.into_iter().skip(3) {
+        let idx = DATA.iter().position(|&x| x == char).unwrap();
         tmp = tmp * BASE + idx as u64;
     }
-    return (tmp & MASK_CODE) ^ XOR_CODE;
+    (tmp & MASK_CODE) ^ XOR_CODE
 }
 
 #[cfg(test)]

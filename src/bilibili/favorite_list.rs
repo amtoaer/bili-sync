@@ -4,7 +4,8 @@ use async_stream::stream;
 use futures_core::stream::Stream;
 use serde_json::Value;
 
-use crate::bilibili::{BiliClient, Result};
+use crate::bilibili::BiliClient;
+use crate::Result;
 pub struct FavoriteList {
     client: Rc<BiliClient>,
     fid: String,
@@ -44,7 +45,7 @@ impl FavoriteList {
             .client
             .request(
                 reqwest::Method::GET,
-                &"https://api.bilibili.com/x/v3/fav/folder/info",
+                "https://api.bilibili.com/x/v3/fav/folder/info",
             )
             .query(&[("media_id", &self.fid)])
             .send()
@@ -59,15 +60,15 @@ impl FavoriteList {
             .client
             .request(
                 reqwest::Method::GET,
-                &"https://api.bilibili.com/x/v3/fav/resource/list",
+                "https://api.bilibili.com/x/v3/fav/resource/list",
             )
             .query(&[
-                ("media_id", &self.fid),
+                ("media_id", self.fid.as_str()),
                 ("pn", &page.to_string()),
-                ("ps", &"20".to_string()),
-                ("order", &"mtime".to_string()),
-                ("type", &"0".to_string()),
-                ("tid", &"0".to_string()),
+                ("ps", "20"),
+                ("order", "mtime"),
+                ("type", "0"),
+                ("tid", "0"),
             ])
             .send()
             .await?
