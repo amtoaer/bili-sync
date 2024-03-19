@@ -10,7 +10,7 @@ use futures_util::{pin_mut, StreamExt};
 
 #[tokio::main]
 async fn main() {
-    let bili_client = Rc::new(BiliClient::anonymous());
+    let bili_client = Rc::new(BiliClient::new(None));
     let favorite_list = FavoriteList::new(bili_client.clone(), "52642258".to_string());
     dbg!(favorite_list.get_info().await.unwrap());
 

@@ -1,17 +1,18 @@
 use std::path::Path;
 
 use futures_util::StreamExt;
+use reqwest::Method;
 use tokio::fs::{self, File};
 use tokio::io;
 
-use crate::bilibili::client_with_header;
+use crate::bilibili::Client;
 use crate::Result;
 pub struct Downloader {
-    client: reqwest::Client,
+    client: Client,
 }
 
 impl Downloader {
-    pub fn new(client: reqwest::Client) -> Self {
+    pub fn new(client: Client) -> Self {
         Self { client }
     }
 
@@ -20,7 +21,12 @@ impl Downloader {
             fs::create_dir_all(parent).await?;
         }
         let mut file = File::create(path).await?;
-        let mut res = self.client.get(url).send().await?.bytes_stream();
+        let mut res = self
+            .client
+            .request(Method::GET, url, None)
+            .send()
+            .await?
+            .bytes_stream();
         while let Some(item) = res.next().await {
             io::copy(&mut item?.as_ref(), &mut file).await?;
         }
@@ -59,6 +65,6 @@ impl Downloader {
 
 impl Default for Downloader {
     fn default() -> Self {
-        Self::new(client_with_header())
+        Self::new(Client::new())
     }
 }

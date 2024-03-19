@@ -11,6 +11,7 @@ pub struct FavoriteList {
     fid: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, serde::Deserialize)]
 pub struct FavoriteListInfo {
     id: u64,

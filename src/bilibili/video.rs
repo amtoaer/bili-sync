@@ -27,6 +27,7 @@ pub struct Tag {
     pub tag_name: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, serde::Deserialize)]
 pub struct Page {
     cid: u64,
