@@ -3,10 +3,12 @@ use reqwest::{header, Method};
 use crate::bilibili::Credential;
 use crate::Result;
 
+// 一个对 reqwest::Client 的简单封装，用于 Bilibili 请求
 pub struct Client(reqwest::Client);
 
 impl Client {
     pub fn new() -> Self {
+        // 正常访问 api 所必须的 header，作为默认 header 添加到每个请求中
         let mut headers = header::HeaderMap::new();
         headers.insert(
         header::USER_AGENT,
@@ -23,6 +25,7 @@ impl Client {
         )
     }
 
+    // a wrapper of reqwest::Client::request to add credential to the request
     pub fn request(
         &self,
         method: Method,
@@ -30,6 +33,7 @@ impl Client {
         credential: Option<&Credential>,
     ) -> reqwest::RequestBuilder {
         let mut req = self.0.request(method, url);
+        // 如果有 credential，会将其转换成 cookie 添加到请求的 header 中
         if let Some(credential) = credential {
             req = req
                 .header(header::COOKIE, format!("SESSDATA={}", credential.sessdata))
@@ -48,6 +52,7 @@ impl Client {
     }
 }
 
+// clippy 建议实现 Default trait
 impl Default for Client {
     fn default() -> Self {
         Self::new()
@@ -71,11 +76,9 @@ impl BiliClient {
 
     pub async fn check_refresh(&mut self) -> Result<()> {
         let Some(credential) = self.credential.as_mut() else {
-            // no credential, just ignore it
             return Ok(());
         };
         if credential.check(&self.client).await? {
-            // is valid, no need to refresh
             return Ok(());
         }
         credential.refresh(&self.client).await

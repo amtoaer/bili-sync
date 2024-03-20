@@ -12,6 +12,9 @@ pub struct Downloader {
 }
 
 impl Downloader {
+    // Downloader 使用带有默认 Header 的 Client 构建
+    // 拿到 url 后下载文件不需要任何 cookie 作为身份凭证
+    // 但如果不设置默认 Header，下载时会遇到 403 Forbidden 错误
     pub fn new(client: Client) -> Self {
         Self { client }
     }

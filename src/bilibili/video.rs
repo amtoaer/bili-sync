@@ -35,7 +35,7 @@ pub struct Page {
     #[serde(rename = "part")]
     name: String,
     #[serde(default = "String::new")]
-    first_frame: String, // may not exist
+    first_frame: String, // 可能不存在，默认填充为空
 }
 
 impl Video {

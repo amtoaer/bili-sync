@@ -81,6 +81,7 @@ impl FavoriteList {
         Ok(res)
     }
 
+    // 拿到收藏夹的所有权，返回一个收藏夹下的视频流
     pub fn into_video_stream(self) -> impl Stream<Item = VideoInfo> {
         stream! {
             let mut page = 1;
@@ -88,7 +89,9 @@ impl FavoriteList {
                 let Ok(mut videos) = self.get_videos(page).await else{
                     break;
                 };
-                let videos_info: Vec<VideoInfo> = serde_json::from_value(videos["data"]["medias"].take()).unwrap();
+                let Ok(videos_info) = serde_json::from_value::<Vec<VideoInfo>>(videos["data"]["medias"].take()) else{
+                    break;
+                };
                 for video_info in videos_info.into_iter(){
                     yield video_info;
                 }
