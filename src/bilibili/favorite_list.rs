@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use async_stream::stream;
 use futures_core::stream::Stream;
@@ -7,15 +7,15 @@ use serde_json::Value;
 use crate::bilibili::BiliClient;
 use crate::Result;
 pub struct FavoriteList {
-    client: Rc<BiliClient>,
+    client: Arc<BiliClient>,
     fid: String,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, serde::Deserialize)]
 pub struct FavoriteListInfo {
-    id: u64,
-    title: String,
+    pub id: u64,
+    pub title: String,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -29,6 +29,7 @@ pub struct VideoInfo {
     pub upper: Upper,
     pub ctime: u64,
     pub fav_time: u64,
+    pub pubtime: u64,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -37,7 +38,7 @@ pub struct Upper {
     pub name: String,
 }
 impl FavoriteList {
-    pub fn new(client: Rc<BiliClient>, fid: String) -> Self {
+    pub fn new(client: Arc<BiliClient>, fid: String) -> Self {
         Self { client, fid }
     }
 

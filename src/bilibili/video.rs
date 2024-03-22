@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use reqwest::Method;
 
@@ -17,7 +17,7 @@ static DATA: &[char] = &[
 ];
 
 pub struct Video {
-    client: Rc<BiliClient>,
+    client: Arc<BiliClient>,
     pub aid: String,
     pub bvid: String,
 }
@@ -39,7 +39,7 @@ pub struct Page {
 }
 
 impl Video {
-    pub fn new(client: Rc<BiliClient>, bvid: String) -> Self {
+    pub fn new(client: Arc<BiliClient>, bvid: String) -> Self {
         let aid = bvid_to_aid(&bvid).to_string();
         Self { client, aid, bvid }
     }

@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::Result;
 
@@ -44,7 +44,7 @@ pub struct FilterOption {
     pub video_min_quality: VideoQuality,
     pub audio_max_quality: AudioQuality,
     pub audio_min_quality: AudioQuality,
-    pub codecs: Rc<Vec<VideoCodecs>>,
+    pub codecs: Arc<Vec<VideoCodecs>>,
     pub no_dolby_video: bool,
     pub no_dolby_audio: bool,
     pub no_hdr: bool,
