@@ -9,5 +9,5 @@ pub use analyzer::{
 };
 pub use client::{BiliClient, Client};
 pub use credential::Credential;
-pub use favorite_list::FavoriteList;
+pub use favorite_list::{FavoriteList, FavoriteListInfo, VideoInfo};
 pub use video::Video;

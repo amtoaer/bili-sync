@@ -1,7 +1,7 @@
 use std::error;
 
 pub mod bilibili;
-pub mod command;
+pub mod core;
 pub mod database;
 pub mod downloader;
 
