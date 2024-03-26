@@ -1,5 +1,4 @@
 use sea_orm_migration::prelude::*;
-use sea_orm_migration::sea_orm::{EnumIter, Iterable};
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -34,12 +33,6 @@ impl MigrationTrait for Migration {
                             .default(Expr::current_timestamp())
                             .not_null(),
                     )
-                    .col(
-                        ColumnDef::new(Favorite::UpdatedAt)
-                            .timestamp()
-                            .default(Expr::current_timestamp())
-                            .not_null(),
-                    )
                     .to_owned(),
             )
             .await?;
@@ -57,31 +50,27 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(Video::FavoriteId).unsigned().not_null())
                     .col(ColumnDef::new(Video::UpperId).unsigned().not_null())
+                    .col(ColumnDef::new(Video::UpperName).string().not_null())
                     .col(ColumnDef::new(Video::Name).string().not_null())
                     .col(ColumnDef::new(Video::Path).string().not_null())
-                    .col(
-                        ColumnDef::new(Video::Category)
-                            .enumeration(Alias::new("category"), Category::iter())
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Video::Category).small_unsigned().not_null())
                     .col(ColumnDef::new(Video::Bvid).string().not_null())
                     .col(ColumnDef::new(Video::Intro).string().not_null())
                     .col(ColumnDef::new(Video::Cover).string().not_null())
                     .col(ColumnDef::new(Video::Ctime).timestamp().not_null())
                     .col(ColumnDef::new(Video::Pubtime).timestamp().not_null())
                     .col(ColumnDef::new(Video::Favtime).timestamp().not_null())
-                    .col(ColumnDef::new(Video::Downloaded).boolean().not_null())
-                    .col(ColumnDef::new(Video::Valid).boolean().not_null())
-                    .col(ColumnDef::new(Video::Tags).json_binary().not_null())
-                    .col(ColumnDef::new(Video::SinglePage).boolean().not_null())
                     .col(
-                        ColumnDef::new(Video::CreatedAt)
-                            .timestamp()
-                            .default(Expr::current_timestamp())
+                        ColumnDef::new(Video::Handled)
+                            .boolean()
+                            .default(false)
                             .not_null(),
                     )
+                    .col(ColumnDef::new(Video::Valid).boolean().not_null())
+                    .col(ColumnDef::new(Video::Tags).json_binary())
+                    .col(ColumnDef::new(Video::SinglePage).boolean())
                     .col(
-                        ColumnDef::new(Video::UpdatedAt)
+                        ColumnDef::new(Video::CreatedAt)
                             .timestamp()
                             .default(Expr::current_timestamp())
                             .not_null(),
@@ -109,15 +98,8 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Page::Image).string().not_null())
                     .col(ColumnDef::new(Page::Valid).boolean().not_null())
                     .col(ColumnDef::new(Page::DownloadStatus).unsigned().not_null())
-                    .col(ColumnDef::new(Page::Downloaded).boolean().not_null())
                     .col(
                         ColumnDef::new(Page::CreatedAt)
-                            .timestamp()
-                            .default(Expr::current_timestamp())
-                            .not_null(),
-                    )
-                    .col(
-                        ColumnDef::new(Page::UpdatedAt)
                             .timestamp()
                             .default(Expr::current_timestamp())
                             .not_null(),
@@ -132,6 +114,7 @@ impl MigrationTrait for Migration {
                     .name("idx_video_favorite_id_bvid")
                     .col(Video::FavoriteId)
                     .col(Video::Bvid)
+                    .unique()
                     .to_owned(),
             )
             .await?;
@@ -142,6 +125,7 @@ impl MigrationTrait for Migration {
                     .name("idx_page_video_id_pid")
                     .col(Page::VideoId)
                     .col(Page::Pid)
+                    .unique()
                     .to_owned(),
             )
             .await?;
@@ -171,7 +155,6 @@ enum Favorite {
     Path,
     Enabled,
     CreatedAt,
-    UpdatedAt,
 }
 
 #[derive(DeriveIden)]
@@ -180,6 +163,7 @@ enum Video {
     Id,
     FavoriteId,
     UpperId,
+    UpperName,
     Name,
     Path,
     Category,
@@ -189,12 +173,11 @@ enum Video {
     Ctime,
     Pubtime,
     Favtime,
-    Downloaded,
+    Handled,
     Valid,
     Tags,
     SinglePage,
     CreatedAt,
-    UpdatedAt,
 }
 
 #[derive(DeriveIden)]
@@ -209,18 +192,5 @@ enum Page {
     Image,
     Valid,
     DownloadStatus,
-    Downloaded,
     CreatedAt,
-    UpdatedAt,
-}
-
-// 参考: https://socialsisteryi.github.io/bilibili-API-collect/docs/fav/list.html#%E8%8E%B7%E5%8F%96%E6%94%B6%E8%97%8F%E5%A4%B9%E5%86%85%E5%AE%B9%E6%98%8E%E7%BB%86%E5%88%97%E8%A1%A8
-#[derive(Iden, EnumIter)]
-pub enum Category {
-    #[iden = "2"]
-    Video,
-    #[iden = "12"]
-    Audio,
-    #[iden = "21"]
-    VideoCollection,
 }

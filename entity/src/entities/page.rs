@@ -9,15 +9,13 @@ pub struct Model {
     pub id: i32,
     pub video_id: i32,
     pub cid: i32,
-    pub page: i32,
+    pub pid: i32,
     pub name: String,
     pub path: String,
     pub image: String,
     pub valid: bool,
     pub download_status: i32,
-    pub downloaded: bool,
     pub created_at: String,
-    pub updated_at: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
