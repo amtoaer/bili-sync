@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
 use async_stream::stream;
+use chrono::serde::ts_seconds;
+use chrono::{DateTime, Utc};
 use futures_core::stream::Stream;
 use serde_json::Value;
 
@@ -11,10 +13,9 @@ pub struct FavoriteList {
     fid: String,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, serde::Deserialize)]
 pub struct FavoriteListInfo {
-    pub id: u64,
+    pub id: i32,
     pub title: String,
 }
 
@@ -22,19 +23,23 @@ pub struct FavoriteListInfo {
 pub struct VideoInfo {
     pub title: String,
     #[serde(rename = "type")]
-    pub vtype: u64,
+    pub vtype: i32,
     pub bvid: String,
     pub intro: String,
     pub cover: String,
     pub upper: Upper,
-    pub ctime: u64,
-    pub fav_time: u64,
-    pub pubtime: u64,
+    #[serde(with = "ts_seconds")]
+    pub ctime: DateTime<Utc>,
+    #[serde(with = "ts_seconds")]
+    pub fav_time: DateTime<Utc>,
+    #[serde(with = "ts_seconds")]
+    pub pubtime: DateTime<Utc>,
+    pub attr: i32,
 }
 
 #[derive(Debug, serde::Deserialize)]
 pub struct Upper {
-    pub mid: u64,
+    pub mid: i32,
     pub name: String,
 }
 impl FavoriteList {

@@ -27,15 +27,14 @@ pub struct Tag {
     pub tag_name: String,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, serde::Deserialize)]
-pub struct Page {
-    cid: u64,
-    page: u32,
+pub struct PageInfo {
+    pub cid: i32,
+    pub page: i32,
     #[serde(rename = "part")]
-    name: String,
+    pub name: String,
     #[serde(default = "String::new")]
-    first_frame: String, // 可能不存在，默认填充为空
+    pub first_frame: String, // 可能不存在，默认填充为空
 }
 
 impl Video {
@@ -44,7 +43,7 @@ impl Video {
         Self { client, aid, bvid }
     }
 
-    pub async fn get_pages(&self) -> Result<Vec<Page>> {
+    pub async fn get_pages(&self) -> Result<Vec<PageInfo>> {
         let mut res = self
             .client
             .request(Method::GET, "https://api.bilibili.com/x/player/pagelist")
@@ -71,7 +70,7 @@ impl Video {
         Ok(serde_json::from_value(res["data"].take())?)
     }
 
-    pub async fn get_page_analyzer(&self, page: &Page) -> Result<PageAnalyzer> {
+    pub async fn get_page_analyzer(&self, page: &PageInfo) -> Result<PageAnalyzer> {
         let mut res = self
             .client
             .request(Method::GET, "https://api.bilibili.com/x/player/wbi/playurl")

@@ -10,8 +10,11 @@ async fn main() -> ! {
     let bili_client = Arc::new(BiliClient::new(None));
     loop {
         for fid in [52642258] {
-            let _ = process_favorite(bili_client.clone(), fid, connection.clone()).await;
+            let res = process_favorite(bili_client.clone(), fid, connection.clone()).await;
+            if let Err(e) = res {
+                eprintln!("Error: {:?}", e);
+            }
         }
-        tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+        tokio::time::sleep(std::time::Duration::from_secs(600)).await;
     }
 }
