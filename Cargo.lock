@@ -384,6 +384,7 @@ name = "bili-sync"
 version = "2.0.0"
 dependencies = [
  "async-stream",
+ "chrono",
  "cookie 0.18.0",
  "entity",
  "futures-core",
@@ -543,8 +544,10 @@ checksum = "8eaf5903dcbc0a39312feb77df2ff4c76387d591b9fc7b04a238dcf8bb62639a"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
+ "js-sys",
  "num-traits",
  "serde",
+ "wasm-bindgen",
  "windows-targets 0.52.4",
 ]
 

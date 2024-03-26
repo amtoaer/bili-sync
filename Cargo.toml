@@ -22,6 +22,7 @@ rsa = { version = "0.9.6", features = ["sha2"] }
 hex = "0.4.3"
 rand = "0.8.5"
 regex = "1.10.3"
+chrono = { version = "0.4.35", features = ["serde"] }
 entity = { path = "entity" }
 migration = { path = "migration" }
 
