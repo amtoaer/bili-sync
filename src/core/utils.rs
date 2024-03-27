@@ -58,10 +58,10 @@ pub async fn exists_bvids_favtime(
         )
         .select_only()
         .columns([video::Column::Bvid, video::Column::Favtime])
+        .into_tuple()
         .all(connection)
         .await?
         .into_iter()
-        .map(|v| (v.bvid, v.favtime))
         .collect::<HashSet<(String, DateTime)>>();
     Ok(exist_bvid_favtime)
 }
@@ -104,6 +104,7 @@ pub async fn create_videos(
                 .do_nothing()
                 .to_owned(),
         )
+        .do_nothing()
         .exec(connection)
         .await?;
     Ok(())
@@ -166,6 +167,7 @@ pub async fn create_video_pages(
                 .do_nothing()
                 .to_owned(),
         )
+        .do_nothing()
         .exec(connection)
         .await?;
     Ok(())

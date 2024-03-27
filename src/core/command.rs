@@ -25,7 +25,7 @@ pub async fn process_favorite(
     pin_mut!(video_stream);
     while let Some(videos_info) = video_stream.next().await {
         let exist_bvids_pubtimes =
-            exists_bvids_favtime(&videos_info, fid, connection.as_ref()).await?;
+            exists_bvids_favtime(&videos_info, favorite_obj.id, connection.as_ref()).await?;
         let should_break = videos_info
             .iter()
             // 出现 bvid 和 fav_time 都相同的记录，说明已经到达了上次处理到的位置
