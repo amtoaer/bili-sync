@@ -10,7 +10,7 @@ use sea_orm::QuerySelect;
 use crate::bilibili::{FavoriteListInfo, PageInfo, VideoInfo};
 use crate::Result;
 
-// 根据获得的收藏夹信息，插入或更新数据库中的收藏夹，并返回收藏夹对象
+/// 根据获得的收藏夹信息，插入或更新数据库中的收藏夹，并返回收藏夹对象
 pub async fn handle_favorite_info(
     info: &FavoriteListInfo,
     connection: &DatabaseConnection,
@@ -40,20 +40,21 @@ pub async fn handle_favorite_info(
         .unwrap())
 }
 
-// 获取数据库中存在的与该视频 favorite_id 和 bvid 重合的视频
-pub async fn exists_bvids_favtime(
+/// 获取数据库中存在的与该视频 favorite_id 和 bvid 重合的视频中的 bvid 和 favtime
+/// 如果 bvid 和 favtime 均相同，说明到达了上次处理到的位置
+pub async fn exist_labels(
     videos_info: &[VideoInfo],
-    fid: i32,
+    favorite_model: &favorite::Model,
     connection: &DatabaseConnection,
 ) -> Result<HashSet<(String, DateTime)>> {
     let bvids = videos_info
         .iter()
         .map(|v| v.bvid.clone())
         .collect::<Vec<String>>();
-    let exist_bvid_favtime = video::Entity::find()
+    let exist_labels = video::Entity::find()
         .filter(
             video::Column::FavoriteId
-                .eq(fid)
+                .eq(favorite_model.id)
                 .and(video::Column::Bvid.is_in(bvids)),
         )
         .select_only()
@@ -63,21 +64,21 @@ pub async fn exists_bvids_favtime(
         .await?
         .into_iter()
         .collect::<HashSet<(String, DateTime)>>();
-    Ok(exist_bvid_favtime)
+    Ok(exist_labels)
 }
 
-// 尝试创建 Video Model，如果发生冲突则忽略
+/// 尝试创建 Video Model，如果发生冲突则忽略
 pub async fn create_videos(
     videos_info: &[VideoInfo],
-    favorite_obj: &favorite::Model,
+    favorite: &favorite::Model,
     connection: &DatabaseConnection,
 ) -> Result<()> {
     let video_models = videos_info
         .iter()
         .map(move |v| video::ActiveModel {
-            favorite_id: Set(favorite_obj.id),
+            favorite_id: Set(favorite.id),
             bvid: Set(v.bvid.clone()),
-            path: Set(Path::new(favorite_obj.path.as_str())
+            path: Set(Path::new(favorite.path.as_str())
                 .join(&v.title)
                 .to_str()
                 .unwrap()
@@ -95,6 +96,7 @@ pub async fn create_videos(
             single_page: Set(None),
             upper_id: Set(v.upper.mid),
             upper_name: Set(v.upper.name.clone()),
+            upper_face: Set(v.upper.face.clone()),
             ..Default::default()
         })
         .collect::<Vec<video::ActiveModel>>();
@@ -110,10 +112,10 @@ pub async fn create_videos(
     Ok(())
 }
 
-// 筛选所有符合条件的视频
+/// 筛选所有符合条件的视频
 pub async fn filter_videos(
     videos_info: &[VideoInfo],
-    favorite_obj: &favorite::Model,
+    favorite_model: &favorite::Model,
     only_unhandled: bool,
     only_no_page: bool,
     connection: &DatabaseConnection,
@@ -123,7 +125,7 @@ pub async fn filter_videos(
         .map(|v| v.bvid.clone())
         .collect::<Vec<String>>();
     let mut condition = video::Column::FavoriteId
-        .eq(favorite_obj.id)
+        .eq(favorite_model.id)
         .and(video::Column::Bvid.is_in(bvids))
         .and(video::Column::Valid.eq(true));
     if only_unhandled {
@@ -137,26 +139,26 @@ pub async fn filter_videos(
         .all(connection)
         .await?)
 }
-
+/// 创建视频的所有分 P
 pub async fn create_video_pages(
-    pages: &[PageInfo],
-    video_obj: &video::Model,
+    pages_info: &[PageInfo],
+    video_model: &video::Model,
     connection: &DatabaseConnection,
 ) -> Result<()> {
-    let page_models = pages
+    let page_models = pages_info
         .iter()
         .map(move |p| page::ActiveModel {
-            video_id: Set(video_obj.id),
+            video_id: Set(video_model.id),
             cid: Set(p.cid),
             pid: Set(p.page),
             name: Set(p.name.clone()),
-            path: Set(Path::new(video_obj.path.as_str())
+            path: Set(Path::new(video_model.path.as_str())
                 .join(&p.name)
                 .to_str()
                 .unwrap()
                 .to_string()),
             image: Set(p.first_frame.clone()),
-            valid: Set(video_obj.valid),
+            valid: Set(video_model.valid),
             download_status: Set(0),
             ..Default::default()
         })
@@ -171,4 +173,20 @@ pub async fn create_video_pages(
         .exec(connection)
         .await?;
     Ok(())
+}
+
+/// 获取所有未处理的视频和页
+pub async fn unhandled_videos_pages(
+    favorite_model: &favorite::Model,
+    connection: &DatabaseConnection,
+) -> Result<Vec<video::Model>> {
+    Ok(video::Entity::find()
+        .filter(
+            video::Column::FavoriteId
+                .eq(favorite_model.id)
+                .and(video::Column::Valid.eq(true))
+                .and(video::Column::Handled.eq(false)),
+        )
+        .all(connection)
+        .await?)
 }

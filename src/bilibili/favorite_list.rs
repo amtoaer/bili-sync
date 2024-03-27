@@ -41,6 +41,7 @@ pub struct VideoInfo {
 pub struct Upper {
     pub mid: i32,
     pub name: String,
+    pub face: String,
 }
 impl FavoriteList {
     pub fn new(client: Arc<BiliClient>, fid: String) -> Self {
