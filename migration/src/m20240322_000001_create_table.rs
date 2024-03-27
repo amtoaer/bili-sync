@@ -51,6 +51,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Video::FavoriteId).unsigned().not_null())
                     .col(ColumnDef::new(Video::UpperId).unsigned().not_null())
                     .col(ColumnDef::new(Video::UpperName).string().not_null())
+                    .col(ColumnDef::new(Video::UpperFace).string().not_null())
                     .col(ColumnDef::new(Video::Name).string().not_null())
                     .col(ColumnDef::new(Video::Path).string().not_null())
                     .col(ColumnDef::new(Video::Category).small_unsigned().not_null())
@@ -164,6 +165,7 @@ enum Video {
     FavoriteId,
     UpperId,
     UpperName,
+    UpperFace,
     Name,
     Path,
     Category,

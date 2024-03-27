@@ -10,6 +10,7 @@ pub struct Model {
     pub favorite_id: i32,
     pub upper_id: i32,
     pub upper_name: String,
+    pub upper_face: String,
     pub name: String,
     pub path: String,
     pub category: i32,
