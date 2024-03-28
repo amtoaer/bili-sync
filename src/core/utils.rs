@@ -190,3 +190,22 @@ pub async fn unhandled_videos_pages(
         .all(connection)
         .await?)
 }
+
+#[cfg(test)]
+mod test {
+    use entity::{page, video};
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+
+    #[ignore = "just for manual test"]
+    #[tokio::test]
+    async fn test_join() {
+        let video_with_pages: Vec<(video::Model, Vec<page::Model>)> = video::Entity::find()
+            .filter(video::Column::Handled.eq(false))
+            .filter(video::Column::SinglePage.eq(false))
+            .find_with_related(page::Entity)
+            .all(&crate::database::database_connection().await.unwrap())
+            .await
+            .unwrap();
+        dbg!(video_with_pages);
+    }
+}
