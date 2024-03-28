@@ -25,6 +25,7 @@ regex = "1.10.3"
 chrono = { version = "0.4.35", features = ["serde"] }
 env_logger = "0.11.3"
 log = "0.4.21"
+futures = "0.3.30"
 entity = { path = "entity" }
 migration = { path = "migration" }
 
