@@ -14,7 +14,7 @@ pub struct Model {
     pub path: String,
     pub image: String,
     pub valid: bool,
-    pub download_status: i32,
+    pub download_status: u32,
     pub created_at: String,
 }
 

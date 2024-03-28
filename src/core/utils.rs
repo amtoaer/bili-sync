@@ -179,33 +179,16 @@ pub async fn create_video_pages(
 pub async fn unhandled_videos_pages(
     favorite_model: &favorite::Model,
     connection: &DatabaseConnection,
-) -> Result<Vec<video::Model>> {
+) -> Result<Vec<(video::Model, Vec<page::Model>)>> {
     Ok(video::Entity::find()
         .filter(
             video::Column::FavoriteId
                 .eq(favorite_model.id)
                 .and(video::Column::Valid.eq(true))
-                .and(video::Column::Handled.eq(false)),
+                .and(video::Column::Handled.eq(false))
+                .and(video::Column::SinglePage.is_not_null()),
         )
+        .find_with_related(page::Entity)
         .all(connection)
         .await?)
-}
-
-#[cfg(test)]
-mod test {
-    use entity::{page, video};
-    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
-
-    #[ignore = "just for manual test"]
-    #[tokio::test]
-    async fn test_join() {
-        let video_with_pages: Vec<(video::Model, Vec<page::Model>)> = video::Entity::find()
-            .filter(video::Column::Handled.eq(false))
-            .filter(video::Column::SinglePage.eq(false))
-            .find_with_related(page::Entity)
-            .all(&crate::database::database_connection().await.unwrap())
-            .await
-            .unwrap();
-        dbg!(video_with_pages);
-    }
 }
