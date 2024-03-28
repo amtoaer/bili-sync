@@ -34,6 +34,7 @@ pub async fn refresh_favorite(
     let video_stream = bili_favorite_list.into_video_stream().chunks(10);
     pin_mut!(video_stream);
     while let Some(videos_info) = video_stream.next().await {
+        info!("handle videos: {}", videos_info.len());
         let exist_labels = exist_labels(&videos_info, &favorite_model, connection.as_ref()).await?;
         let should_break = videos_info
             .iter()
@@ -50,10 +51,12 @@ pub async fn refresh_favorite(
         if !unrefreshed_video_models.is_empty() {
             for video_model in unrefreshed_video_models {
                 let bili_video = Video::new(bili_client.clone(), video_model.bvid.clone());
+                let tags = bili_video.get_tags().await?;
                 let pages_info = bili_video.get_pages().await?;
                 create_video_pages(&pages_info, &video_model, connection.as_ref()).await?;
                 let mut video_active_model: video::ActiveModel = video_model.into();
                 video_active_model.single_page = Set(Some(pages_info.len() == 1));
+                video_active_model.tags = Set(Some(serde_json::to_value(tags).unwrap()));
                 video_active_model.save(connection.as_ref()).await?;
             }
         }

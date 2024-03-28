@@ -22,12 +22,21 @@ pub struct Model {
     pub favtime: DateTime,
     pub handled: bool,
     pub valid: bool,
-    pub tags: Option<String>,
+    pub tags: Option<serde_json::Value>,
     pub single_page: Option<bool>,
     pub created_at: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(has_many = "super::page::Entity")]
+    Page,
+}
+
+impl Related<super::page::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Page.def()
+    }
+}
 
 impl ActiveModelBehavior for ActiveModel {}

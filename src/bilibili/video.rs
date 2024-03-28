@@ -27,6 +27,15 @@ pub struct Tag {
     pub tag_name: String,
 }
 
+impl serde::Serialize for Tag {
+    fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.tag_name)
+    }
+}
+
 #[derive(Debug, serde::Deserialize)]
 pub struct PageInfo {
     pub cid: i32,
