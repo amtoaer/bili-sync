@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use reqwest::Method;
 
 use crate::bilibili::analyzer::PageAnalyzer;
@@ -16,8 +14,8 @@ static DATA: &[char] = &[
     'f',
 ];
 
-pub struct Video {
-    client: Arc<BiliClient>,
+pub struct Video<'a> {
+    client: &'a BiliClient,
     pub aid: String,
     pub bvid: String,
 }
@@ -36,18 +34,17 @@ impl serde::Serialize for Tag {
     }
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, Default)]
 pub struct PageInfo {
     pub cid: i32,
     pub page: i32,
     #[serde(rename = "part")]
     pub name: String,
-    #[serde(default = "String::new")]
-    pub first_frame: String, // 可能不存在，默认填充为空
+    pub first_frame: Option<String>,
 }
 
-impl Video {
-    pub fn new(client: Arc<BiliClient>, bvid: String) -> Self {
+impl<'a> Video<'a> {
+    pub fn new(client: &'a BiliClient, bvid: String) -> Self {
         let aid = bvid_to_aid(&bvid).to_string();
         Self { client, aid, bvid }
     }

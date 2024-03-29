@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use async_stream::stream;
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
@@ -8,8 +6,8 @@ use serde_json::Value;
 
 use crate::bilibili::BiliClient;
 use crate::Result;
-pub struct FavoriteList {
-    client: Arc<BiliClient>,
+pub struct FavoriteList<'a> {
+    client: &'a BiliClient,
     fid: String,
 }
 
@@ -43,8 +41,8 @@ pub struct Upper {
     pub name: String,
     pub face: String,
 }
-impl FavoriteList {
-    pub fn new(client: Arc<BiliClient>, fid: String) -> Self {
+impl<'a> FavoriteList<'a> {
+    pub fn new(client: &'a BiliClient, fid: String) -> Self {
         Self { client, fid }
     }
 
@@ -89,7 +87,7 @@ impl FavoriteList {
     }
 
     // 拿到收藏夹的所有权，返回一个收藏夹下的视频流
-    pub fn into_video_stream(self) -> impl Stream<Item = VideoInfo> {
+    pub fn into_video_stream(self) -> impl Stream<Item = VideoInfo> + 'a {
         stream! {
             let mut page = 1;
             loop {
