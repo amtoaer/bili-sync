@@ -2,7 +2,7 @@
 
 use sea_orm::entity::prelude::*;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Default)]
 #[sea_orm(table_name = "page")]
 pub struct Model {
     #[sea_orm(primary_key)]
@@ -12,7 +12,7 @@ pub struct Model {
     pub pid: i32,
     pub name: String,
     pub path: String,
-    pub image: String,
+    pub image: Option<String>,
     pub valid: bool,
     pub download_status: u32,
     pub created_at: String,

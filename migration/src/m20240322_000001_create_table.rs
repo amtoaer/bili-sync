@@ -96,7 +96,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Page::Pid).unsigned().not_null())
                     .col(ColumnDef::new(Page::Name).string().not_null())
                     .col(ColumnDef::new(Page::Path).string().not_null())
-                    .col(ColumnDef::new(Page::Image).string().not_null())
+                    .col(ColumnDef::new(Page::Image).string())
                     .col(ColumnDef::new(Page::Valid).boolean().not_null())
                     .col(ColumnDef::new(Page::DownloadStatus).unsigned().not_null())
                     .col(
