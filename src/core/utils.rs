@@ -3,12 +3,30 @@ use std::path::Path;
 
 use entity::*;
 use migration::OnConflict;
+use quick_xml::events::BytesText;
+use quick_xml::writer::Writer;
+use quick_xml::Error;
 use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
 use sea_orm::QuerySelect;
+use tokio::io::AsyncWriteExt;
 
 use crate::bilibili::{FavoriteListInfo, PageInfo, VideoInfo};
 use crate::Result;
+
+pub enum NFOMode {
+    MOVIE,
+    TVSHOW,
+    EPOSODE,
+    UPPER,
+}
+
+pub enum ModelWrapper<'a> {
+    Video(&'a video::Model),
+    Page(&'a page::Model),
+}
+
+pub struct NFOSerializer<'a>(pub ModelWrapper<'a>, pub NFOMode);
 
 /// 根据获得的收藏夹信息，插入或更新数据库中的收藏夹，并返回收藏夹对象
 pub async fn handle_favorite_info(
@@ -191,4 +209,346 @@ pub async fn unhandled_videos_pages(
         .find_with_related(page::Entity)
         .all(connection)
         .await?)
+}
+
+/// serde xml 似乎不太好用，先这么裸着写
+/// （真是又臭又长啊
+impl<'a> NFOSerializer<'a> {
+    pub async fn generate_nfo(self) -> Result<String> {
+        let mut buffer = r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+"#
+        .as_bytes()
+        .to_vec();
+        let mut tokio_buffer = tokio::io::BufWriter::new(&mut buffer);
+        let mut writer = Writer::new_with_indent(&mut tokio_buffer, b' ', 4);
+        match self {
+            NFOSerializer(ModelWrapper::Video(v), NFOMode::MOVIE) => {
+                writer
+                    .create_element("movie")
+                    .write_inner_content_async::<_, _, Error>(|writer| async move {
+                        writer
+                            .create_element("plot")
+                            .write_text_content_async(BytesText::new(&format!(
+                                r#"![CDATA[{}]]"#,
+                                &v.intro
+                            )))
+                            .await
+                            .unwrap();
+                        writer
+                            .create_element("outline")
+                            .write_empty_async()
+                            .await
+                            .unwrap();
+                        writer
+                            .create_element("title")
+                            .write_text_content_async(BytesText::new(&v.name))
+                            .await
+                            .unwrap();
+                        writer
+                            .create_element("actor")
+                            .write_inner_content_async::<_, _, Error>(|writer| async move {
+                                writer
+                                    .create_element("name")
+                                    .write_text_content_async(BytesText::new(
+                                        &v.upper_id.to_string(),
+                                    ))
+                                    .await
+                                    .unwrap();
+                                writer
+                                    .create_element("role")
+                                    .write_text_content_async(BytesText::new(&v.upper_name))
+                                    .await
+                                    .unwrap();
+                                Ok(writer)
+                            })
+                            .await
+                            .unwrap();
+                        writer
+                            .create_element("year")
+                            .write_text_content_async(BytesText::new(
+                                &v.pubtime.format("%Y").to_string(),
+                            ))
+                            .await
+                            .unwrap();
+                        if let Some(tags) = &v.tags {
+                            let tags: Vec<String> = serde_json::from_value(tags.clone()).unwrap();
+                            for tag in tags {
+                                writer
+                                    .create_element("genre")
+                                    .write_text_content_async(BytesText::new(&tag))
+                                    .await
+                                    .unwrap();
+                            }
+                        }
+                        writer
+                            .create_element("uniqueid")
+                            .with_attribute(("type", "bilibili"))
+                            .write_text_content_async(BytesText::new(&v.bvid))
+                            .await
+                            .unwrap();
+                        writer
+                            .create_element("aired")
+                            .write_text_content_async(BytesText::new(
+                                &v.pubtime.format("%Y-%m-%d").to_string(),
+                            ))
+                            .await
+                            .unwrap();
+                        Ok(writer)
+                    })
+                    .await
+                    .unwrap();
+            }
+            NFOSerializer(ModelWrapper::Video(v), NFOMode::TVSHOW) => {
+                writer
+                    .create_element("tvshow")
+                    .write_inner_content_async::<_, _, Error>(|writer| async move {
+                        writer
+                            .create_element("plot")
+                            .write_text_content_async(BytesText::new(&format!(
+                                r#"![CDATA[{}]]"#,
+                                &v.intro
+                            )))
+                            .await
+                            .unwrap();
+                        writer
+                            .create_element("outline")
+                            .write_empty_async()
+                            .await
+                            .unwrap();
+                        writer
+                            .create_element("title")
+                            .write_text_content_async(BytesText::new(&v.name))
+                            .await
+                            .unwrap();
+                        writer
+                            .create_element("actor")
+                            .write_inner_content_async::<_, _, Error>(|writer| async move {
+                                writer
+                                    .create_element("name")
+                                    .write_text_content_async(BytesText::new(
+                                        &v.upper_id.to_string(),
+                                    ))
+                                    .await
+                                    .unwrap();
+                                writer
+                                    .create_element("role")
+                                    .write_text_content_async(BytesText::new(&v.upper_name))
+                                    .await
+                                    .unwrap();
+                                Ok(writer)
+                            })
+                            .await
+                            .unwrap();
+                        writer
+                            .create_element("year")
+                            .write_text_content_async(BytesText::new(
+                                &v.pubtime.format("%Y").to_string(),
+                            ))
+                            .await
+                            .unwrap();
+                        if let Some(tags) = &v.tags {
+                            let tags: Vec<String> = serde_json::from_value(tags.clone()).unwrap();
+                            for tag in tags {
+                                writer
+                                    .create_element("genre")
+                                    .write_text_content_async(BytesText::new(&tag))
+                                    .await
+                                    .unwrap();
+                            }
+                        }
+                        writer
+                            .create_element("uniqueid")
+                            .with_attribute(("type", "bilibili"))
+                            .write_text_content_async(BytesText::new(&v.bvid))
+                            .await
+                            .unwrap();
+                        writer
+                            .create_element("aired")
+                            .write_text_content_async(BytesText::new(
+                                &v.pubtime.format("%Y-%m-%d").to_string(),
+                            ))
+                            .await
+                            .unwrap();
+                        Ok(writer)
+                    })
+                    .await
+                    .unwrap();
+            }
+            NFOSerializer(ModelWrapper::Video(v), NFOMode::UPPER) => {
+                writer
+                    .create_element("person")
+                    .write_inner_content_async::<_, _, Error>(|writer| async move {
+                        writer
+                            .create_element("plot")
+                            .write_empty_async()
+                            .await
+                            .unwrap();
+                        writer
+                            .create_element("outline")
+                            .write_empty_async()
+                            .await
+                            .unwrap();
+                        writer
+                            .create_element("lockdata")
+                            .write_text_content_async(BytesText::new("false"))
+                            .await
+                            .unwrap();
+                        writer
+                            .create_element("dateadded")
+                            .write_text_content_async(BytesText::new(
+                                &v.pubtime.format("%Y-%m-%d").to_string(),
+                            ))
+                            .await
+                            .unwrap();
+                        writer
+                            .create_element("title")
+                            .write_text_content_async(BytesText::new(&v.upper_id.to_string()))
+                            .await
+                            .unwrap();
+                        writer
+                            .create_element("sorttitle")
+                            .write_text_content_async(BytesText::new(&v.upper_id.to_string()))
+                            .await
+                            .unwrap();
+                        Ok(writer)
+                    })
+                    .await
+                    .unwrap();
+            }
+            NFOSerializer(ModelWrapper::Page(p), NFOMode::EPOSODE) => {
+                writer
+                    .create_element("episodedetails")
+                    .write_inner_content_async::<_, _, Error>(|writer| async move {
+                        writer
+                            .create_element("plot")
+                            .write_empty_async()
+                            .await
+                            .unwrap();
+                        writer
+                            .create_element("outline")
+                            .write_empty_async()
+                            .await
+                            .unwrap();
+                        writer
+                            .create_element("title")
+                            .write_text_content_async(BytesText::new(&p.name))
+                            .await
+                            .unwrap();
+                        writer
+                            .create_element("season")
+                            .write_text_content_async(BytesText::new("1"))
+                            .await
+                            .unwrap();
+                        writer
+                            .create_element("episode")
+                            .write_text_content_async(BytesText::new(&p.pid.to_string()))
+                            .await
+                            .unwrap();
+                        Ok(writer)
+                    })
+                    .await
+                    .unwrap();
+            }
+            _ => unreachable!(),
+        }
+        tokio_buffer.flush().await?;
+        Ok(std::str::from_utf8(&buffer).unwrap().to_owned())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[tokio::test]
+    async fn test_generate_nfo() {
+        let video = video::Model {
+            intro: "intro".to_string(),
+            name: "name".to_string(),
+            upper_id: 1,
+            upper_name: "upper_name".to_string(),
+            pubtime: chrono::NaiveDateTime::new(
+                chrono::NaiveDate::from_ymd_opt(2022, 2, 2).unwrap(),
+                chrono::NaiveTime::from_hms_opt(2, 2, 2).unwrap(),
+            ),
+            bvid: "bvid".to_string(),
+            tags: Some(serde_json::json!(["tag1", "tag2"])),
+            ..Default::default()
+        };
+        assert_eq!(
+            NFOSerializer(ModelWrapper::Video(&video), NFOMode::MOVIE)
+                .generate_nfo()
+                .await
+                .unwrap(),
+            r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<movie>
+    <plot>![CDATA[intro]]</plot>
+    <outline/>
+    <title>name</title>
+    <actor>
+        <name>1</name>
+        <role>upper_name</role>
+    </actor>
+    <year>2022</year>
+    <genre>tag1</genre>
+    <genre>tag2</genre>
+    <uniqueid type="bilibili">bvid</uniqueid>
+    <aired>2022-02-02</aired>
+</movie>"#,
+        );
+        assert_eq!(
+            NFOSerializer(ModelWrapper::Video(&video), NFOMode::TVSHOW)
+                .generate_nfo()
+                .await
+                .unwrap(),
+            r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<tvshow>
+    <plot>![CDATA[intro]]</plot>
+    <outline/>
+    <title>name</title>
+    <actor>
+        <name>1</name>
+        <role>upper_name</role>
+    </actor>
+    <year>2022</year>
+    <genre>tag1</genre>
+    <genre>tag2</genre>
+    <uniqueid type="bilibili">bvid</uniqueid>
+    <aired>2022-02-02</aired>
+</tvshow>"#,
+        );
+        assert_eq!(
+            NFOSerializer(ModelWrapper::Video(&video), NFOMode::UPPER)
+                .generate_nfo()
+                .await
+                .unwrap(),
+            r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<person>
+    <plot/>
+    <outline/>
+    <lockdata>false</lockdata>
+    <dateadded>2022-02-02</dateadded>
+    <title>1</title>
+    <sorttitle>1</sorttitle>
+</person>"#,
+        );
+        let page = page::Model {
+            name: "name".to_string(),
+            pid: 3,
+            ..Default::default()
+        };
+        assert_eq!(
+            NFOSerializer(ModelWrapper::Page(&page), NFOMode::EPOSODE)
+                .generate_nfo()
+                .await
+                .unwrap(),
+            r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<episodedetails>
+    <plot/>
+    <outline/>
+    <title>name</title>
+    <season>1</season>
+    <episode>3</episode>
+</episodedetails>"#,
+        );
+    }
 }
