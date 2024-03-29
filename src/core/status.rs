@@ -12,8 +12,8 @@ impl Status {
         Self(status)
     }
 
-    pub fn should_run(&self) -> [bool; 4] {
-        let mut result = [false; 4];
+    pub fn should_run(&self) -> [bool; 3] {
+        let mut result = [false; 3];
         for (i, res) in result.iter_mut().enumerate() {
             *res = self.check_continue(i);
         }
@@ -21,8 +21,8 @@ impl Status {
     }
 
     pub fn update_status(&mut self, result: &[Result<()>]) {
-        assert!(result.len() >= 4, "result length must be 4");
-        for (i, res) in result.iter().enumerate().take(4) {
+        assert!(result.len() == 3, "result length must be 3");
+        for (i, res) in result.iter().enumerate().take(3) {
             self.set_result(res, i);
         }
         if self.should_run().iter().all(|x| !x) {
