@@ -51,6 +51,22 @@ pub struct FilterOption {
     pub no_hires: bool,
 }
 
+impl Default for FilterOption {
+    fn default() -> Self {
+        Self {
+            video_max_quality: VideoQuality::Quality8k,
+            video_min_quality: VideoQuality::Quality360p,
+            audio_max_quality: AudioQuality::QualityHiRES,
+            audio_min_quality: AudioQuality::Quality64k,
+            codecs: Arc::new(vec![VideoCodecs::AV1, VideoCodecs::HEV, VideoCodecs::AVC]),
+            no_dolby_video: false,
+            no_dolby_audio: false,
+            no_hdr: false,
+            no_hires: false,
+        }
+    }
+}
+
 // 上游项目中的五种流类型，不过目测应该只有 Flv、DashVideo、DashAudio 三种会被用到
 #[derive(Debug, PartialEq, PartialOrd)]
 pub enum Stream {
@@ -81,9 +97,9 @@ impl Stream {
     }
 }
 
-// 用于获取视频流的最佳筛选结果，有两种可能：
-// 1. 单个混合流，作为 Mixed 返回
-// 2. 视频、音频分离，作为 VideoAudio 返回，其中音频流可能不存在（对于无声视频，如 BV1J7411H7KQ）
+/// 用于获取视频流的最佳筛选结果，有两种可能：
+/// 1. 单个混合流，作为 Mixed 返回
+/// 2. 视频、音频分离，作为 VideoAudio 返回，其中音频流可能不存在（对于无声视频，如 BV1J7411H7KQ）
 #[derive(Debug)]
 pub enum BestStream {
     VideoAudio {
