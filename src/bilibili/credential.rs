@@ -21,13 +21,7 @@ pub struct Credential {
 }
 
 impl Credential {
-    pub fn new(
-        sessdata: String,
-        bili_jct: String,
-        buvid3: String,
-        dedeuserid: String,
-        ac_time_value: String,
-    ) -> Self {
+    pub fn new(sessdata: String, bili_jct: String, buvid3: String, dedeuserid: String, ac_time_value: String) -> Self {
         Self {
             sessdata,
             bili_jct,
@@ -49,9 +43,7 @@ impl Credential {
             .await?
             .json::<serde_json::Value>()
             .await?;
-        res["refresh"]
-            .as_bool()
-            .ok_or("check refresh failed".into())
+        res["refresh"].as_bool().ok_or("check refresh failed".into())
     }
 
     pub async fn refresh(&mut self, client: &Client) -> Result<()> {
@@ -74,10 +66,7 @@ impl Credential {
         -----END PUBLIC KEY-----",
         )
         .unwrap();
-        let ts = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis();
+        let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
         let data = format!("refresh_{}", ts).into_bytes();
         let mut rng = rand::rngs::OsRng;
         let encrypted = key.encrypt(&mut rng, Oaep::new::<Sha256>(), &data).unwrap();
@@ -100,10 +89,7 @@ impl Credential {
                 _ => Err("get csrf failed".into()),
             };
         }
-        regex_find(
-            r#"<div id="1-name">(.+?)</div>"#,
-            res.text().await?.as_str(),
-        )
+        regex_find(r#"<div id="1-name">(.+?)</div>"#, res.text().await?.as_str())
     }
 
     async fn get_new_credential(&self, client: &Client, csrf: &str) -> Result<Credential> {
@@ -134,10 +120,7 @@ impl Credential {
         };
         let required_cookies = HashSet::from(["SESSDATA", "bili_jct", "DedeUserID"]);
         let cookies: Vec<Cookie> = Cookie::split_parse_encoded(set_cookie)
-            .filter(|x| {
-                x.as_ref()
-                    .is_ok_and(|x| required_cookies.contains(x.name()))
-            })
+            .filter(|x| x.as_ref().is_ok_and(|x| required_cookies.contains(x.name())))
             .map(|x| x.unwrap())
             .collect();
         if cookies.len() != required_cookies.len() {

@@ -18,12 +18,7 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(
-                        ColumnDef::new(Favorite::FId)
-                            .unique_key()
-                            .unsigned()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Favorite::FId).unique_key().unsigned().not_null())
                     .col(ColumnDef::new(Favorite::Name).string().not_null())
                     .col(ColumnDef::new(Favorite::Path).string().not_null())
                     .col(ColumnDef::new(Favorite::Enabled).boolean().not_null())
@@ -61,12 +56,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Video::Ctime).timestamp().not_null())
                     .col(ColumnDef::new(Video::Pubtime).timestamp().not_null())
                     .col(ColumnDef::new(Video::Favtime).timestamp().not_null())
-                    .col(
-                        ColumnDef::new(Video::Handled)
-                            .boolean()
-                            .default(false)
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Video::Handled).boolean().default(false).not_null())
                     .col(ColumnDef::new(Video::Valid).boolean().not_null())
                     .col(ColumnDef::new(Video::Tags).json_binary())
                     .col(ColumnDef::new(Video::SinglePage).boolean())
@@ -137,12 +127,8 @@ impl MigrationTrait for Migration {
         manager
             .drop_table(Table::drop().table(Favorite::Table).to_owned())
             .await?;
-        manager
-            .drop_table(Table::drop().table(Video::Table).to_owned())
-            .await?;
-        manager
-            .drop_table(Table::drop().table(Page::Table).to_owned())
-            .await?;
+        manager.drop_table(Table::drop().table(Video::Table).to_owned()).await?;
+        manager.drop_table(Table::drop().table(Page::Table).to_owned()).await?;
         Ok(())
     }
 }

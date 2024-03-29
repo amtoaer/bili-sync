@@ -11,27 +11,20 @@ impl Client {
         // 正常访问 api 所必须的 header，作为默认 header 添加到每个请求中
         let mut headers = header::HeaderMap::new();
         headers.insert(
-        header::USER_AGENT,
-        header::HeaderValue::from_static("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36 Edg/116.0.1938.54"));
+            header::USER_AGENT,
+            header::HeaderValue::from_static(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36 Edg/116.0.1938.54",
+            ),
+        );
         headers.insert(
             header::REFERER,
             header::HeaderValue::from_static("https://www.bilibili.com"),
         );
-        Self(
-            reqwest::Client::builder()
-                .default_headers(headers)
-                .build()
-                .unwrap(),
-        )
+        Self(reqwest::Client::builder().default_headers(headers).build().unwrap())
     }
 
     // a wrapper of reqwest::Client::request to add credential to the request
-    pub fn request(
-        &self,
-        method: Method,
-        url: &str,
-        credential: Option<&Credential>,
-    ) -> reqwest::RequestBuilder {
+    pub fn request(&self, method: Method, url: &str, credential: Option<&Credential>) -> reqwest::RequestBuilder {
         let mut req = self.0.request(method, url);
         // 如果有 credential，会将其转换成 cookie 添加到请求的 header 中
         if let Some(credential) = credential {
@@ -39,14 +32,8 @@ impl Client {
                 .header(header::COOKIE, format!("SESSDATA={}", credential.sessdata))
                 .header(header::COOKIE, format!("bili_jct={}", credential.bili_jct))
                 .header(header::COOKIE, format!("buvid3={}", credential.buvid3))
-                .header(
-                    header::COOKIE,
-                    format!("DedeUserID={}", credential.dedeuserid),
-                )
-                .header(
-                    header::COOKIE,
-                    format!("ac_time_value={}", credential.ac_time_value),
-                );
+                .header(header::COOKIE, format!("DedeUserID={}", credential.dedeuserid))
+                .header(header::COOKIE, format!("ac_time_value={}", credential.ac_time_value));
         }
         req
     }

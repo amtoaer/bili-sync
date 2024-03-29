@@ -24,24 +24,14 @@ impl Downloader {
             fs::create_dir_all(parent).await?;
         }
         let mut file = File::create(path).await?;
-        let mut res = self
-            .client
-            .request(Method::GET, url, None)
-            .send()
-            .await?
-            .bytes_stream();
+        let mut res = self.client.request(Method::GET, url, None).send().await?.bytes_stream();
         while let Some(item) = res.next().await {
             io::copy(&mut item?.as_ref(), &mut file).await?;
         }
         Ok(())
     }
 
-    pub async fn merge(
-        &self,
-        video_path: &Path,
-        audio_path: &Path,
-        output_path: &Path,
-    ) -> Result<()> {
+    pub async fn merge(&self, video_path: &Path, audio_path: &Path, output_path: &Path) -> Result<()> {
         let output = tokio::process::Command::new("ffmpeg")
             .args([
                 "-i",

@@ -29,10 +29,7 @@ pub enum ModelWrapper<'a> {
 pub struct NFOSerializer<'a>(pub ModelWrapper<'a>, pub NFOMode);
 
 /// 根据获得的收藏夹信息，插入或更新数据库中的收藏夹，并返回收藏夹对象
-pub async fn handle_favorite_info(
-    info: &FavoriteListInfo,
-    connection: &DatabaseConnection,
-) -> Result<favorite::Model> {
+pub async fn handle_favorite_info(info: &FavoriteListInfo, connection: &DatabaseConnection) -> Result<favorite::Model> {
     favorite::Entity::insert(favorite::ActiveModel {
         f_id: Set(info.id),
         name: Set(info.title.to_string()),
@@ -65,10 +62,7 @@ pub async fn exist_labels(
     favorite_model: &favorite::Model,
     connection: &DatabaseConnection,
 ) -> Result<HashSet<(String, DateTime)>> {
-    let bvids = videos_info
-        .iter()
-        .map(|v| v.bvid.clone())
-        .collect::<Vec<String>>();
+    let bvids = videos_info.iter().map(|v| v.bvid.clone()).collect::<Vec<String>>();
     let exist_labels = video::Entity::find()
         .filter(
             video::Column::FavoriteId
@@ -138,10 +132,7 @@ pub async fn filter_videos(
     only_no_page: bool,
     connection: &DatabaseConnection,
 ) -> Result<Vec<video::Model>> {
-    let bvids = videos_info
-        .iter()
-        .map(|v| v.bvid.clone())
-        .collect::<Vec<String>>();
+    let bvids = videos_info.iter().map(|v| v.bvid.clone()).collect::<Vec<String>>();
     let mut condition = video::Column::FavoriteId
         .eq(favorite_model.id)
         .and(video::Column::Bvid.is_in(bvids))
@@ -152,10 +143,7 @@ pub async fn filter_videos(
     if only_no_page {
         condition = condition.and(video::Column::SinglePage.is_null());
     }
-    Ok(video::Entity::find()
-        .filter(condition)
-        .all(connection)
-        .await?)
+    Ok(video::Entity::find().filter(condition).all(connection).await?)
 }
 /// 创建视频的所有分 P
 pub async fn create_video_pages(
@@ -228,17 +216,10 @@ impl<'a> NFOSerializer<'a> {
                     .write_inner_content_async::<_, _, Error>(|writer| async move {
                         writer
                             .create_element("plot")
-                            .write_text_content_async(BytesText::new(&format!(
-                                r#"![CDATA[{}]]"#,
-                                &v.intro
-                            )))
+                            .write_text_content_async(BytesText::new(&format!(r#"![CDATA[{}]]"#, &v.intro)))
                             .await
                             .unwrap();
-                        writer
-                            .create_element("outline")
-                            .write_empty_async()
-                            .await
-                            .unwrap();
+                        writer.create_element("outline").write_empty_async().await.unwrap();
                         writer
                             .create_element("title")
                             .write_text_content_async(BytesText::new(&v.name))
@@ -249,9 +230,7 @@ impl<'a> NFOSerializer<'a> {
                             .write_inner_content_async::<_, _, Error>(|writer| async move {
                                 writer
                                     .create_element("name")
-                                    .write_text_content_async(BytesText::new(
-                                        &v.upper_id.to_string(),
-                                    ))
+                                    .write_text_content_async(BytesText::new(&v.upper_id.to_string()))
                                     .await
                                     .unwrap();
                                 writer
@@ -265,9 +244,7 @@ impl<'a> NFOSerializer<'a> {
                             .unwrap();
                         writer
                             .create_element("year")
-                            .write_text_content_async(BytesText::new(
-                                &v.pubtime.format("%Y").to_string(),
-                            ))
+                            .write_text_content_async(BytesText::new(&v.pubtime.format("%Y").to_string()))
                             .await
                             .unwrap();
                         if let Some(tags) = &v.tags {
@@ -288,9 +265,7 @@ impl<'a> NFOSerializer<'a> {
                             .unwrap();
                         writer
                             .create_element("aired")
-                            .write_text_content_async(BytesText::new(
-                                &v.pubtime.format("%Y-%m-%d").to_string(),
-                            ))
+                            .write_text_content_async(BytesText::new(&v.pubtime.format("%Y-%m-%d").to_string()))
                             .await
                             .unwrap();
                         Ok(writer)
@@ -304,17 +279,10 @@ impl<'a> NFOSerializer<'a> {
                     .write_inner_content_async::<_, _, Error>(|writer| async move {
                         writer
                             .create_element("plot")
-                            .write_text_content_async(BytesText::new(&format!(
-                                r#"![CDATA[{}]]"#,
-                                &v.intro
-                            )))
+                            .write_text_content_async(BytesText::new(&format!(r#"![CDATA[{}]]"#, &v.intro)))
                             .await
                             .unwrap();
-                        writer
-                            .create_element("outline")
-                            .write_empty_async()
-                            .await
-                            .unwrap();
+                        writer.create_element("outline").write_empty_async().await.unwrap();
                         writer
                             .create_element("title")
                             .write_text_content_async(BytesText::new(&v.name))
@@ -325,9 +293,7 @@ impl<'a> NFOSerializer<'a> {
                             .write_inner_content_async::<_, _, Error>(|writer| async move {
                                 writer
                                     .create_element("name")
-                                    .write_text_content_async(BytesText::new(
-                                        &v.upper_id.to_string(),
-                                    ))
+                                    .write_text_content_async(BytesText::new(&v.upper_id.to_string()))
                                     .await
                                     .unwrap();
                                 writer
@@ -341,9 +307,7 @@ impl<'a> NFOSerializer<'a> {
                             .unwrap();
                         writer
                             .create_element("year")
-                            .write_text_content_async(BytesText::new(
-                                &v.pubtime.format("%Y").to_string(),
-                            ))
+                            .write_text_content_async(BytesText::new(&v.pubtime.format("%Y").to_string()))
                             .await
                             .unwrap();
                         if let Some(tags) = &v.tags {
@@ -364,9 +328,7 @@ impl<'a> NFOSerializer<'a> {
                             .unwrap();
                         writer
                             .create_element("aired")
-                            .write_text_content_async(BytesText::new(
-                                &v.pubtime.format("%Y-%m-%d").to_string(),
-                            ))
+                            .write_text_content_async(BytesText::new(&v.pubtime.format("%Y-%m-%d").to_string()))
                             .await
                             .unwrap();
                         Ok(writer)
@@ -378,16 +340,8 @@ impl<'a> NFOSerializer<'a> {
                 writer
                     .create_element("person")
                     .write_inner_content_async::<_, _, Error>(|writer| async move {
-                        writer
-                            .create_element("plot")
-                            .write_empty_async()
-                            .await
-                            .unwrap();
-                        writer
-                            .create_element("outline")
-                            .write_empty_async()
-                            .await
-                            .unwrap();
+                        writer.create_element("plot").write_empty_async().await.unwrap();
+                        writer.create_element("outline").write_empty_async().await.unwrap();
                         writer
                             .create_element("lockdata")
                             .write_text_content_async(BytesText::new("false"))
@@ -395,9 +349,7 @@ impl<'a> NFOSerializer<'a> {
                             .unwrap();
                         writer
                             .create_element("dateadded")
-                            .write_text_content_async(BytesText::new(
-                                &v.pubtime.format("%Y-%m-%d").to_string(),
-                            ))
+                            .write_text_content_async(BytesText::new(&v.pubtime.format("%Y-%m-%d").to_string()))
                             .await
                             .unwrap();
                         writer
@@ -419,16 +371,8 @@ impl<'a> NFOSerializer<'a> {
                 writer
                     .create_element("episodedetails")
                     .write_inner_content_async::<_, _, Error>(|writer| async move {
-                        writer
-                            .create_element("plot")
-                            .write_empty_async()
-                            .await
-                            .unwrap();
-                        writer
-                            .create_element("outline")
-                            .write_empty_async()
-                            .await
-                            .unwrap();
+                        writer.create_element("plot").write_empty_async().await.unwrap();
+                        writer.create_element("outline").write_empty_async().await.unwrap();
                         writer
                             .create_element("title")
                             .write_text_content_async(BytesText::new(&p.name))

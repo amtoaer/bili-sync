@@ -18,9 +18,7 @@ use tokio::sync::Semaphore;
 use super::status::Status;
 use super::utils::{unhandled_videos_pages, ModelWrapper, NFOMode, NFOSerializer};
 use crate::bilibili::{BestStream, BiliClient, FavoriteList, FilterOption, PageInfo, Video};
-use crate::core::utils::{
-    create_video_pages, create_videos, exist_labels, filter_videos, handle_favorite_info,
-};
+use crate::core::utils::{create_video_pages, create_videos, exist_labels, filter_videos, handle_favorite_info};
 use crate::downloader::Downloader;
 use crate::Result;
 
@@ -32,11 +30,7 @@ struct Context<'a> {
     pid: &'a str,
 }
 
-pub async fn process_favorite(
-    bili_client: &BiliClient,
-    fid: &str,
-    connection: &DatabaseConnection,
-) -> Result<()> {
+pub async fn process_favorite(bili_client: &BiliClient, fid: &str, connection: &DatabaseConnection) -> Result<()> {
     let favorite_model = refresh_favorite(bili_client, fid, connection).await?;
     download_favorite(bili_client, favorite_model, connection).await?;
     Ok(())
@@ -60,8 +54,7 @@ pub async fn refresh_favorite(
             .iter()
             .any(|v| exist_labels.contains(&(v.bvid.clone(), v.fav_time.naive_utc())));
         create_videos(&videos_info, &favorite_model, connection).await?;
-        let unrefreshed_video_models =
-            filter_videos(&videos_info, &favorite_model, true, true, connection).await?;
+        let unrefreshed_video_models = filter_videos(&videos_info, &favorite_model, true, true, connection).await?;
         if !unrefreshed_video_models.is_empty() {
             for video_model in unrefreshed_video_models {
                 let bili_video = Video::new(bili_client, video_model.bvid.clone());
@@ -177,10 +170,9 @@ pub async fn download_page(
         )
     } else {
         (
-            base_path.join("Season 1").join(format!(
-                "{} - S01E{:2}-thumb.jpg",
-                &base_name, page_model.pid
-            )),
+            base_path
+                .join("Season 1")
+                .join(format!("{} - S01E{:2}-thumb.jpg", &base_name, page_model.pid)),
             base_path
                 .join("Season 1")
                 .join(format!("{} - S01E{:2}.mp4", &base_name, page_model.pid)),
@@ -206,12 +198,7 @@ pub async fn download_page(
             downloader,
             video_path,
         )),
-        Box::pin(generate_nfo(
-            seprate_status[2],
-            video_model,
-            &page_model,
-            nfo_path,
-        )),
+        Box::pin(generate_nfo(seprate_status[2], video_model, &page_model, nfo_path)),
     ];
     let results = futures::future::join_all(tasks).await;
     status.update_status(&results);
@@ -277,15 +264,9 @@ pub async fn download_video(
                 page_path.with_extension("tmp_video"),
                 page_path.with_extension("tmp_audio"),
             );
-            downloader
-                .fetch(video_stream.url(), &tmp_video_path)
-                .await?;
-            downloader
-                .fetch(audio_stream.url(), &tmp_audio_path)
-                .await?;
-            downloader
-                .merge(&tmp_video_path, &tmp_audio_path, &page_path)
-                .await?;
+            downloader.fetch(video_stream.url(), &tmp_video_path).await?;
+            downloader.fetch(audio_stream.url(), &tmp_audio_path).await?;
+            downloader.merge(&tmp_video_path, &tmp_audio_path, &page_path).await?;
         }
     }
     Ok(())

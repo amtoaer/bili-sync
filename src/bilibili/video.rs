@@ -8,10 +8,9 @@ static MASK_CODE: u64 = 2251799813685247;
 static XOR_CODE: u64 = 23442827791579;
 static BASE: u64 = 58;
 static DATA: &[char] = &[
-    'F', 'c', 'w', 'A', 'P', 'N', 'K', 'T', 'M', 'u', 'g', '3', 'G', 'V', '5', 'L', 'j', '7', 'E',
-    'J', 'n', 'H', 'p', 'W', 's', 'x', '4', 't', 'b', '8', 'h', 'a', 'Y', 'e', 'v', 'i', 'q', 'B',
-    'z', '6', 'r', 'k', 'C', 'y', '1', '2', 'm', 'U', 'S', 'D', 'Q', 'X', '9', 'R', 'd', 'o', 'Z',
-    'f',
+    'F', 'c', 'w', 'A', 'P', 'N', 'K', 'T', 'M', 'u', 'g', '3', 'G', 'V', '5', 'L', 'j', '7', 'E', 'J', 'n', 'H', 'p',
+    'W', 's', 'x', '4', 't', 'b', '8', 'h', 'a', 'Y', 'e', 'v', 'i', 'q', 'B', 'z', '6', 'r', 'k', 'C', 'y', '1', '2',
+    'm', 'U', 'S', 'D', 'Q', 'X', '9', 'R', 'd', 'o', 'Z', 'f',
 ];
 
 pub struct Video<'a> {
@@ -64,10 +63,7 @@ impl<'a> Video<'a> {
     pub async fn get_tags(&self) -> Result<Vec<Tag>> {
         let mut res = self
             .client
-            .request(
-                Method::GET,
-                "https://api.bilibili.com/x/web-interface/view/detail/tag",
-            )
+            .request(Method::GET, "https://api.bilibili.com/x/web-interface/view/detail/tag")
             .query(&[("aid", &self.aid), ("bvid", &self.bvid)])
             .send()
             .await?

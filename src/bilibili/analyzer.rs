@@ -102,10 +102,7 @@ impl Stream {
 /// 2. 视频、音频分离，作为 VideoAudio 返回，其中音频流可能不存在（对于无声视频，如 BV1J7411H7KQ）
 #[derive(Debug)]
 pub enum BestStream {
-    VideoAudio {
-        video: Stream,
-        audio: Option<Stream>,
-    },
+    VideoAudio { video: Stream, audio: Option<Stream> },
     Mixed(Stream),
 }
 
@@ -158,12 +155,10 @@ impl PageAnalyzer {
         let dolby_data = self.info["dash"]["dolby"].take();
         for video_data in videos_data.as_array().unwrap().iter() {
             let video_stream_url = video_data["baseUrl"].as_str().unwrap().to_string();
-            let video_stream_quality =
-                VideoQuality::from_repr(video_data["id"].as_u64().unwrap() as usize)
-                    .ok_or("invalid video stream quality")?;
+            let video_stream_quality = VideoQuality::from_repr(video_data["id"].as_u64().unwrap() as usize)
+                .ok_or("invalid video stream quality")?;
             if (video_stream_quality == VideoQuality::QualityHdr && filter_option.no_hdr)
-                || (video_stream_quality == VideoQuality::QualityDolby
-                    && filter_option.no_dolby_video)
+                || (video_stream_quality == VideoQuality::QualityDolby && filter_option.no_dolby_video)
                 || (video_stream_quality != VideoQuality::QualityDolby
                     && video_stream_quality != VideoQuality::QualityHdr
                     && (video_stream_quality < filter_option.video_min_quality
@@ -197,8 +192,7 @@ impl PageAnalyzer {
         if audios_data.is_array() {
             for audio_data in audios_data.as_array().unwrap().iter() {
                 let audio_stream_url = audio_data["baseUrl"].as_str().unwrap().to_string();
-                let audio_stream_quality =
-                    AudioQuality::from_repr(audio_data["id"].as_u64().unwrap() as usize);
+                let audio_stream_quality = AudioQuality::from_repr(audio_data["id"].as_u64().unwrap() as usize);
                 let Some(audio_stream_quality) = audio_stream_quality else {
                     continue;
                 };
@@ -217,8 +211,7 @@ impl PageAnalyzer {
             // 允许 hires 且存在 flac 音频流才会进来
             let flac_stream_url = flac_data["audio"]["baseUrl"].as_str().unwrap().to_string();
             let flac_stream_quality =
-                AudioQuality::from_repr(flac_data["audio"]["id"].as_u64().unwrap() as usize)
-                    .unwrap();
+                AudioQuality::from_repr(flac_data["audio"]["id"].as_u64().unwrap() as usize).unwrap();
             streams.push(Stream::DashAudio {
                 url: flac_stream_url,
                 quality: flac_stream_quality,
@@ -231,8 +224,7 @@ impl PageAnalyzer {
                 let dolby_stream_data = dolby_stream_data.unwrap();
                 let dolby_stream_url = dolby_stream_data["baseUrl"].as_str().unwrap().to_string();
                 let dolby_stream_quality =
-                    AudioQuality::from_repr(dolby_stream_data["id"].as_u64().unwrap() as usize)
-                        .unwrap();
+                    AudioQuality::from_repr(dolby_stream_data["id"].as_u64().unwrap() as usize).unwrap();
                 streams.push(Stream::DashAudio {
                     url: dolby_stream_url,
                     quality: dolby_stream_quality,
@@ -249,9 +241,8 @@ impl PageAnalyzer {
             return Ok(BestStream::Mixed(streams.into_iter().next().unwrap()));
         }
         // 将视频流和音频流拆分，分别做排序
-        let (mut video_streams, mut audio_streams): (Vec<_>, Vec<_>) = streams
-            .into_iter()
-            .partition(|s| matches!(s, Stream::DashVideo { .. }));
+        let (mut video_streams, mut audio_streams): (Vec<_>, Vec<_>) =
+            streams.into_iter().partition(|s| matches!(s, Stream::DashVideo { .. }));
         // 因为该处的排序与筛选选项有关，因此不能在外面实现 PartialOrd trait，只能在这里写闭包
         video_streams.sort_by(|a, b| match (a, b) {
             (
@@ -291,14 +282,7 @@ impl PageAnalyzer {
             _ => unreachable!(),
         });
         audio_streams.sort_by(|a, b| match (a, b) {
-            (
-                Stream::DashAudio {
-                    quality: a_quality, ..
-                },
-                Stream::DashAudio {
-                    quality: b_quality, ..
-                },
-            ) => {
+            (Stream::DashAudio { quality: a_quality, .. }, Stream::DashAudio { quality: b_quality, .. }) => {
                 if a_quality == &AudioQuality::QualityDolby && !filter_option.no_dolby_audio {
                     return std::cmp::Ordering::Greater;
                 }
