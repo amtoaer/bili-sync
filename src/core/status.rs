@@ -1,3 +1,5 @@
+use core::fmt;
+
 use crate::Result;
 
 static STATUS_MAX_RETRY: u32 = 0b100;
@@ -75,7 +77,17 @@ impl Status {
 
     fn get_status(&self, offset: usize) -> u32 {
         let helper = !0u32;
-        self.0 & (helper << (offset * 3)) & (helper >> (32 - 3 * offset - 3))
+        (self.0 & (helper << (offset * 3)) & (helper >> (32 - 3 * offset - 3))) >> (offset * 3)
+    }
+
+    fn display_status(status: u32) -> String {
+        if status < STATUS_MAX_RETRY {
+            format!("retry {} times", status)
+        } else if status == STATUS_OK {
+            "ok".to_string()
+        } else {
+            "failed".to_string()
+        }
     }
 }
 
@@ -85,7 +97,7 @@ impl From<Status> for u32 {
     }
 }
 
-/// 从前到后分别表示：视频封面、分页下载、视频信息
+/// 从前到后分别表示：视频封面、分页下载、视频信息、Up 主头像、Up 主信息
 #[derive(Clone)]
 pub struct VideoStatus(Status);
 
@@ -95,12 +107,26 @@ impl VideoStatus {
     }
 
     pub fn should_run(&self) -> Vec<bool> {
-        self.0.should_run(3)
+        self.0.should_run(5)
     }
 
     pub fn update_status(&mut self, result: &[Result<()>]) {
-        assert!(result.len() == 3, "VideoStatus should have 3 status");
+        assert!(result.len() == 5, "VideoStatus should have 5 status");
         self.0.update_status(result)
+    }
+}
+
+impl fmt::Display for VideoStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Video Cover: {}, Page: {}, Video NFO: {}, Up Avatar: {}, Up NFO: {}",
+            Status::display_status(self.0.get_status(0)),
+            Status::display_status(self.0.get_status(1)),
+            Status::display_status(self.0.get_status(2)),
+            Status::display_status(self.0.get_status(3)),
+            Status::display_status(self.0.get_status(4))
+        )
     }
 }
 
@@ -126,6 +152,18 @@ impl PageStatus {
     pub fn update_status(&mut self, result: &[Result<()>]) {
         assert!(result.len() == 3, "PageStatus should have 3 status");
         self.0.update_status(result)
+    }
+}
+
+impl fmt::Display for PageStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Page Cover: {}, Page Content: {}, Page NFO: {}",
+            Status::display_status(self.0.get_status(0)),
+            Status::display_status(self.0.get_status(1)),
+            Status::display_status(self.0.get_status(2))
+        )
     }
 }
 

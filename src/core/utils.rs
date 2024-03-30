@@ -11,6 +11,7 @@ use sea_orm::ActiveValue::Set;
 use sea_orm::QuerySelect;
 use tokio::io::AsyncWriteExt;
 
+use super::status::Status;
 use crate::bilibili::{FavoriteListInfo, PageInfo, VideoInfo};
 use crate::Result;
 
@@ -102,7 +103,7 @@ pub async fn create_videos(
             ctime: Set(v.ctime.naive_utc()),
             pubtime: Set(v.pubtime.naive_utc()),
             favtime: Set(v.fav_time.naive_utc()),
-            handled: Set(false),
+            download_status: Set(0),
             valid: Set(v.attr == 0),
             tags: Set(None),
             single_page: Set(None),
@@ -138,7 +139,7 @@ pub async fn filter_videos(
         .and(video::Column::Bvid.is_in(bvids))
         .and(video::Column::Valid.eq(true));
     if only_unhandled {
-        condition = condition.and(video::Column::Handled.eq(false));
+        condition = condition.and(video::Column::DownloadStatus.lt(Status::handled()));
     }
     if only_no_page {
         condition = condition.and(video::Column::SinglePage.is_null());
@@ -164,7 +165,6 @@ pub async fn create_video_pages(
                 .unwrap()
                 .to_string()),
             image: Set(p.first_frame.clone()),
-            valid: Set(video_model.valid),
             download_status: Set(0),
             ..Default::default()
         })
@@ -191,7 +191,7 @@ pub async fn unhandled_videos_pages(
             video::Column::FavoriteId
                 .eq(favorite_model.id)
                 .and(video::Column::Valid.eq(true))
-                .and(video::Column::Handled.eq(false))
+                .and(video::Column::DownloadStatus.lt(Status::handled()))
                 .and(video::Column::SinglePage.is_not_null()),
         )
         .find_with_related(page::Entity)
