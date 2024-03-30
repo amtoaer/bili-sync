@@ -7,33 +7,31 @@ use futures::stream::FuturesUnordered;
 use futures::Future;
 use futures_util::{pin_mut, StreamExt};
 use log::{error, info};
+use once_cell::sync::Lazy;
 use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
 use sea_orm::TryIntoModel;
-use serde::Serialize;
-use tinytemplate::TinyTemplate;
+use serde_json::json;
 use tokio::fs;
 use tokio::sync::Semaphore;
 
-use super::status::Status;
+use super::status::PageStatus;
 use super::utils::{unhandled_videos_pages, ModelWrapper, NFOMode, NFOSerializer};
 use crate::bilibili::{BestStream, BiliClient, FavoriteList, FilterOption, PageInfo, Video};
 use crate::core::utils::{create_video_pages, create_videos, exist_labels, filter_videos, handle_favorite_info};
 use crate::downloader::Downloader;
 use crate::Result;
 
-/// 用来拼接路径名称
-#[derive(Serialize)]
-struct Context<'a> {
-    bvid: &'a str,
-    name: &'a str,
-    pid: &'a str,
-}
+static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
+    let mut handlebars = handlebars::Handlebars::new();
+    handlebars.register_template_string("video", "{{bvid}}").unwrap();
+    handlebars.register_template_string("page", "{{bvid}}").unwrap();
+    handlebars
+});
 
 pub async fn process_favorite(bili_client: &BiliClient, fid: &str, connection: &DatabaseConnection) -> Result<()> {
     let favorite_model = refresh_favorite(bili_client, fid, connection).await?;
-    download_favorite(bili_client, favorite_model, connection).await?;
-    Ok(())
+    download_favorite(bili_client, favorite_model, connection).await
 }
 
 pub async fn refresh_favorite(
@@ -71,6 +69,7 @@ pub async fn refresh_favorite(
             break;
         }
     }
+    info!("handle videos done");
     Ok(favorite_model)
 }
 
@@ -79,6 +78,7 @@ pub async fn download_favorite(
     favorite_model: favorite::Model,
     connection: &DatabaseConnection,
 ) -> Result<()> {
+    info!("start to download!");
     let unhandled_videos_pages = unhandled_videos_pages(&favorite_model, connection).await?;
     let semaphore = Arc::new(Semaphore::new(3));
     let downloader = Downloader::default();
@@ -98,6 +98,7 @@ pub async fn download_favorite(
             error!("Error: {e}");
         }
     }
+    info!("download done.");
     Ok(())
 }
 
@@ -113,8 +114,6 @@ pub async fn download_video_pages(
     if let Err(e) = permit {
         return Err(e.into());
     }
-    let mut template = TinyTemplate::new();
-    let _ = template.add_template("video", "{bvid}");
     let child_semaphore = Arc::new(Semaphore::new(5));
     let mut tasks = FuturesUnordered::new();
     for page_model in pages {
@@ -132,6 +131,14 @@ pub async fn download_video_pages(
             error!("Error: {e}");
         }
     }
+    let is_single_page = video_model.single_page.unwrap();
+    // 对于单页视频，page 的下载已经足够
+    // 对于多页视频，page 下载仅包含了分集内容，需要额外补上视频的 poster 的 tvshow.nfo
+    if !is_single_page {
+        let base_path = Path::new(&video_model.path);
+        generate_video_nfo(true, &video_model, base_path.join("tvshow.nfo")).await?;
+        download_video_poster(true, &video_model, downloader, base_path.join("poster.jpg")).await?;
+    }
     Ok(())
 }
 
@@ -147,20 +154,18 @@ pub async fn download_page(
     if let Err(e) = permit {
         return Err(e.into());
     }
-    let mut status = Status::new(page_model.download_status);
+    let mut status = PageStatus::new(page_model.download_status);
     let seprate_status = status.should_run();
     let is_single_page = video_model.single_page.unwrap();
     let base_path = Path::new(&video_model.path);
-    let mut template = TinyTemplate::new();
     // 这个文件名模板支持自定义
-    let _ = template.add_template("video", "{bvid}");
-    let base_name = template.render(
-        "video",
-        &Context {
-            bvid: &video_model.bvid,
-            name: &video_model.name,
-            pid: &page_model.pid.to_string(),
-        },
+    let base_name = TEMPLATE.render(
+        "page",
+        &json!({
+            "bvid": &video_model.bvid,
+            "name": &video_model.name,
+            "pid": page_model.pid,
+        }),
     )?;
     let (poster_path, video_path, nfo_path) = if is_single_page {
         (
@@ -172,18 +177,18 @@ pub async fn download_page(
         (
             base_path
                 .join("Season 1")
-                .join(format!("{} - S01E{:2}-thumb.jpg", &base_name, page_model.pid)),
+                .join(format!("{} - S01E{:0>2}-thumb.jpg", &base_name, page_model.pid)),
             base_path
                 .join("Season 1")
-                .join(format!("{} - S01E{:2}.mp4", &base_name, page_model.pid)),
+                .join(format!("{} - S01E{:0>2}.mp4", &base_name, page_model.pid)),
             base_path
                 .join("Season 1")
-                .join(format!("{} - S01E{:2}.nfo", &base_name, page_model.pid)),
+                .join(format!("{} - S01E{:0>2}.nfo", &base_name, page_model.pid)),
         )
     };
     let tasks: Vec<Pin<Box<dyn Future<Output = Result<()>>>>> = vec![
         // 暂时不支持下载字幕
-        Box::pin(download_poster(
+        Box::pin(download_page_poster(
             seprate_status[0],
             video_model,
             &page_model,
@@ -198,7 +203,7 @@ pub async fn download_page(
             downloader,
             video_path,
         )),
-        Box::pin(generate_nfo(seprate_status[2], video_model, &page_model, nfo_path)),
+        Box::pin(generate_page_nfo(seprate_status[2], video_model, &page_model, nfo_path)),
     ];
     let results = futures::future::join_all(tasks).await;
     status.update_status(&results);
@@ -208,7 +213,7 @@ pub async fn download_page(
     Ok(page_active_model.try_into_model().unwrap())
 }
 
-pub async fn download_poster(
+pub async fn download_page_poster(
     should_run: bool,
     video_model: &video::Model,
     page_model: &page::Model,
@@ -223,8 +228,7 @@ pub async fn download_poster(
         Some(url) => url.as_str(),
         None => video_model.cover.as_str(),
     };
-    downloader.fetch(url, &poster_path).await?;
-    Ok(())
+    downloader.fetch(url, &poster_path).await
 }
 
 pub async fn download_video(
@@ -272,7 +276,15 @@ pub async fn download_video(
     Ok(())
 }
 
-pub async fn generate_nfo(
+async fn generate_nfo(serializer: NFOSerializer<'_>, nfo_path: PathBuf) -> Result<()> {
+    if let Some(parent) = nfo_path.parent() {
+        fs::create_dir_all(parent).await?;
+    }
+    fs::write(nfo_path, serializer.generate_nfo().await?.as_bytes()).await?;
+    Ok(())
+}
+
+pub async fn generate_page_nfo(
     should_run: bool,
     video_model: &video::Model,
     page_model: &page::Model,
@@ -287,9 +299,38 @@ pub async fn generate_nfo(
     } else {
         NFOSerializer(ModelWrapper::Page(page_model), NFOMode::EPOSODE)
     };
-    if let Some(parent) = nfo_path.parent() {
-        fs::create_dir_all(parent).await?;
+    generate_nfo(nfo_serializer, nfo_path).await
+}
+
+pub async fn download_video_poster(
+    should_run: bool,
+    video_model: &video::Model,
+    downloader: &Downloader,
+    poster_path: PathBuf,
+) -> Result<()> {
+    if !should_run {
+        return Ok(());
     }
-    fs::write(nfo_path, nfo_serializer.generate_nfo().await?.as_bytes()).await?;
-    Ok(())
+    downloader.fetch(&video_model.cover, &poster_path).await
+}
+
+pub async fn generate_video_nfo(should_run: bool, video_model: &video::Model, nfo_path: PathBuf) -> Result<()> {
+    if !should_run {
+        return Ok(());
+    }
+    let nfo_serializer = NFOSerializer(ModelWrapper::Video(video_model), NFOMode::TVSHOW);
+    generate_nfo(nfo_serializer, nfo_path).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_template_usage() {
+        assert_eq!(
+            TEMPLATE.render("video", &json!({"bvid": "BV1b5411h7g7"})).unwrap(),
+            "BV1b5411h7g7"
+        );
+    }
 }
