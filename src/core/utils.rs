@@ -91,7 +91,7 @@ pub async fn create_videos(
             favorite_id: Set(favorite.id),
             bvid: Set(v.bvid.clone()),
             path: Set(Path::new(favorite.path.as_str())
-                .join(&v.title)
+                .join(&v.bvid)
                 .to_str()
                 .unwrap()
                 .to_string()),
