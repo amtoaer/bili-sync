@@ -24,11 +24,13 @@ use crate::Result;
 
 static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
     let mut handlebars = handlebars::Handlebars::new();
+    // TODO: 此处开放自定义
     handlebars.register_template_string("video", "{{bvid}}").unwrap();
     handlebars.register_template_string("page", "{{bvid}}").unwrap();
     handlebars
 });
 
+/// 处理某个收藏夹，首先刷新收藏夹信息，然后下载收藏夹中未下载成功的视频
 pub async fn process_favorite(bili_client: &BiliClient, fid: &str, connection: &DatabaseConnection) -> Result<()> {
     let favorite_model = refresh_favorite(bili_client, fid, connection).await?;
     download_favorite(bili_client, favorite_model, connection).await
@@ -43,25 +45,31 @@ pub async fn refresh_favorite(
     let favorite_list_info = bili_favorite_list.get_info().await?;
     let favorite_model = handle_favorite_info(&favorite_list_info, connection).await?;
     info!("Scan the favorite: {fid}");
+    // 每十个视频一组，避免太多的数据库操作
     let video_stream = bili_favorite_list.into_video_stream().chunks(10);
     pin_mut!(video_stream);
     while let Some(videos_info) = video_stream.next().await {
         info!("handle videos: {}", videos_info.len());
         let exist_labels = exist_labels(&videos_info, &favorite_model, connection).await?;
+        // 如果发现有视频的收藏时间和 bvid 和数据库中重合，说明到达了上次处理到的地方，可以直接退出
         let should_break = videos_info
             .iter()
             .any(|v| exist_labels.contains(&(v.bvid.clone(), v.fav_time.naive_utc())));
+        // 将视频信息写入数据库
         create_videos(&videos_info, &favorite_model, connection).await?;
+        // 找到这些视频中没有下载过，也没有 page 的视频
         let unrefreshed_video_models = filter_videos(&videos_info, &favorite_model, true, true, connection).await?;
         if !unrefreshed_video_models.is_empty() {
             for video_model in unrefreshed_video_models {
                 let bili_video = Video::new(bili_client, video_model.bvid.clone());
                 let tags = bili_video.get_tags().await?;
                 let pages_info = bili_video.get_pages().await?;
+                // 记录视频的分集信息
                 create_video_pages(&pages_info, &video_model, connection).await?;
                 let mut video_active_model: video::ActiveModel = video_model.into();
                 video_active_model.single_page = Set(Some(pages_info.len() == 1));
                 video_active_model.tags = Set(Some(serde_json::to_value(tags).unwrap()));
+                // 记录视频是否是单页，以及标签信息
                 video_active_model.save(connection).await?;
             }
         }
@@ -80,19 +88,21 @@ pub async fn download_favorite(
 ) -> Result<()> {
     info!("start to download!");
     let unhandled_videos_pages = unhandled_videos_pages(&favorite_model, connection).await?;
-    let semaphore = Arc::new(Semaphore::new(3));
+    // 对于视频，允许五个同时下载（视频内还有分页、不同分页还有多种下载任务）
+    let semaphore = Arc::new(Semaphore::new(5));
     let downloader = Downloader::default();
     let mut tasks = FuturesUnordered::new();
     for (video_model, pages) in unhandled_videos_pages {
-        tasks.push(Box::pin(download_video_pages(
+        tasks.push(download_video_pages(
             bili_client,
             video_model,
             pages,
             connection,
             semaphore.clone(),
             &downloader,
-        )));
+        ));
     }
+    // 创建好下载任务，等待下载任务运行即可，任务结束会返回 Result<VideoModel>
     while let Some(res) = tasks.next().await {
         if let Err(e) = res {
             error!("Error: {e}");
@@ -114,18 +124,20 @@ pub async fn download_video_pages(
     if let Err(e) = permit {
         return Err(e.into());
     }
+    // 对于视频的分页，允许同时下载三个同时下载（绝大部分是单页视频）
     let child_semaphore = Arc::new(Semaphore::new(5));
     let mut tasks = FuturesUnordered::new();
     for page_model in pages {
-        tasks.push(Box::pin(download_page(
+        tasks.push(download_page(
             bili_client,
             &video_model,
             page_model,
             connection,
             child_semaphore.clone(),
             downloader,
-        )));
+        ));
     }
+    // 同样创建好下载任务等待运行，任务结束会返回 Result<PageModel>
     while let Some(res) = tasks.next().await {
         if let Err(e) = res {
             error!("Error: {e}");
@@ -137,7 +149,7 @@ pub async fn download_video_pages(
     if !is_single_page {
         let base_path = Path::new(&video_model.path);
         generate_video_nfo(true, &video_model, base_path.join("tvshow.nfo")).await?;
-        download_video_poster(true, &video_model, downloader, base_path.join("poster.jpg")).await?;
+        fetch_video_poster(true, &video_model, downloader, base_path.join("poster.jpg")).await?;
     }
     Ok(())
 }
@@ -158,7 +170,6 @@ pub async fn download_page(
     let seprate_status = status.should_run();
     let is_single_page = video_model.single_page.unwrap();
     let base_path = Path::new(&video_model.path);
-    // 这个文件名模板支持自定义
     let base_name = TEMPLATE.render(
         "page",
         &json!({
@@ -188,14 +199,14 @@ pub async fn download_page(
     };
     let tasks: Vec<Pin<Box<dyn Future<Output = Result<()>>>>> = vec![
         // 暂时不支持下载字幕
-        Box::pin(download_page_poster(
+        Box::pin(fetch_page_poster(
             seprate_status[0],
             video_model,
             &page_model,
             downloader,
             poster_path,
         )),
-        Box::pin(download_video(
+        Box::pin(fetch_page_video(
             seprate_status[1],
             bili_client,
             video_model,
@@ -213,7 +224,7 @@ pub async fn download_page(
     Ok(page_active_model.try_into_model().unwrap())
 }
 
-pub async fn download_page_poster(
+pub async fn fetch_page_poster(
     should_run: bool,
     video_model: &video::Model,
     page_model: &page::Model,
@@ -231,7 +242,7 @@ pub async fn download_page_poster(
     downloader.fetch(url, &poster_path).await
 }
 
-pub async fn download_video(
+pub async fn fetch_page_video(
     should_run: bool,
     bili_client: &BiliClient,
     video_model: &video::Model,
@@ -276,14 +287,6 @@ pub async fn download_video(
     Ok(())
 }
 
-async fn generate_nfo(serializer: NFOSerializer<'_>, nfo_path: PathBuf) -> Result<()> {
-    if let Some(parent) = nfo_path.parent() {
-        fs::create_dir_all(parent).await?;
-    }
-    fs::write(nfo_path, serializer.generate_nfo().await?.as_bytes()).await?;
-    Ok(())
-}
-
 pub async fn generate_page_nfo(
     should_run: bool,
     video_model: &video::Model,
@@ -302,7 +305,7 @@ pub async fn generate_page_nfo(
     generate_nfo(nfo_serializer, nfo_path).await
 }
 
-pub async fn download_video_poster(
+pub async fn fetch_video_poster(
     should_run: bool,
     video_model: &video::Model,
     downloader: &Downloader,
@@ -320,6 +323,15 @@ pub async fn generate_video_nfo(should_run: bool, video_model: &video::Model, nf
     }
     let nfo_serializer = NFOSerializer(ModelWrapper::Video(video_model), NFOMode::TVSHOW);
     generate_nfo(nfo_serializer, nfo_path).await
+}
+
+/// 创建 nfo_path 的父目录，然后写入 nfo 文件
+async fn generate_nfo(serializer: NFOSerializer<'_>, nfo_path: PathBuf) -> Result<()> {
+    if let Some(parent) = nfo_path.parent() {
+        fs::create_dir_all(parent).await?;
+    }
+    fs::write(nfo_path, serializer.generate_nfo().await?.as_bytes()).await?;
+    Ok(())
 }
 
 #[cfg(test)]
