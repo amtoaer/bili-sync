@@ -56,7 +56,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Video::Ctime).timestamp().not_null())
                     .col(ColumnDef::new(Video::Pubtime).timestamp().not_null())
                     .col(ColumnDef::new(Video::Favtime).timestamp().not_null())
-                    .col(ColumnDef::new(Video::Handled).boolean().default(false).not_null())
+                    .col(ColumnDef::new(Video::DownloadStatus).unsigned().not_null())
                     .col(ColumnDef::new(Video::Valid).boolean().not_null())
                     .col(ColumnDef::new(Video::Tags).json_binary())
                     .col(ColumnDef::new(Video::SinglePage).boolean())
@@ -87,7 +87,6 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Page::Name).string().not_null())
                     .col(ColumnDef::new(Page::Path).string().not_null())
                     .col(ColumnDef::new(Page::Image).string())
-                    .col(ColumnDef::new(Page::Valid).boolean().not_null())
                     .col(ColumnDef::new(Page::DownloadStatus).unsigned().not_null())
                     .col(
                         ColumnDef::new(Page::CreatedAt)
@@ -161,7 +160,7 @@ enum Video {
     Ctime,
     Pubtime,
     Favtime,
-    Handled,
+    DownloadStatus,
     Valid,
     Tags,
     SinglePage,
@@ -178,7 +177,6 @@ enum Page {
     Name,
     Path,
     Image,
-    Valid,
     DownloadStatus,
     CreatedAt,
 }

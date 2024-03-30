@@ -13,7 +13,6 @@ pub struct Model {
     pub name: String,
     pub path: String,
     pub image: Option<String>,
-    pub valid: bool,
     pub download_status: u32,
     pub created_at: String,
 }

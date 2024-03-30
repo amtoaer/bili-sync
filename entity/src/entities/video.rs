@@ -20,7 +20,7 @@ pub struct Model {
     pub ctime: DateTime,
     pub pubtime: DateTime,
     pub favtime: DateTime,
-    pub handled: bool,
+    pub download_status: u32,
     pub valid: bool,
     pub tags: Option<serde_json::Value>,
     pub single_page: Option<bool>,
