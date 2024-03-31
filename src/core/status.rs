@@ -67,12 +67,27 @@ impl Status {
         }
     }
 
+    /// 根据 mask 设置状态，如果 mask 为 false，则清除对应的状态
+    fn set_mask(&mut self, mask: &[bool]) {
+        assert!(mask.len() < 10, "u32 can only store 10 status");
+        for (i, &m) in mask.iter().enumerate() {
+            if !m {
+                self.clear(i);
+                self.set_flag(false);
+            }
+        }
+    }
+
     fn plus_one(&mut self, offset: usize) {
         self.0 += 1 << (3 * offset);
     }
 
     fn set_ok(&mut self, offset: usize) {
         self.0 |= STATUS_OK << (3 * offset);
+    }
+
+    fn clear(&mut self, offset: usize) {
+        self.0 &= !(STATUS_OK << (3 * offset));
     }
 
     fn get_status(&self, offset: usize) -> u32 {
@@ -82,7 +97,7 @@ impl Status {
 
     fn display_status(status: u32) -> String {
         if status < STATUS_MAX_RETRY {
-            format!("retry {} times", status)
+            format!("failed {} times", status)
         } else if status == STATUS_OK {
             "ok".to_string()
         } else {
@@ -97,7 +112,7 @@ impl From<Status> for u32 {
     }
 }
 
-/// 从前到后分别表示：视频封面、视频信息、Up 主头像、Up 主信息
+/// 从前到后分别表示：视频封面、视频信息、Up 主头像、Up 主信息、分 P 下载
 #[derive(Clone)]
 pub struct VideoStatus(Status);
 
@@ -106,16 +121,18 @@ impl VideoStatus {
         Self(Status::new(status))
     }
 
+    pub fn set_mask(&mut self, clear: &[bool]) {
+        assert!(clear.len() == 5, "VideoStatus should have 5 status");
+        self.0.set_mask(clear)
+    }
+
     pub fn should_run(&self) -> Vec<bool> {
-        self.0.should_run(4)
+        self.0.should_run(5)
     }
 
     pub fn update_status(&mut self, result: &[Result<()>]) {
-        assert!(
-            result.len() >= 4,
-            "VideoStatus should have 4 status, more status will be ignored"
-        );
-        self.0.update_status(&result[..4])
+        assert!(result.len() == 5, "VideoStatus should have 5 status");
+        self.0.update_status(result)
     }
 }
 
@@ -123,7 +140,7 @@ impl fmt::Display for VideoStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Video Cover: {}, Page: {}, Video NFO: {}, Up Avatar: {}, Up NFO: {}",
+            "Video Cover: {}, Video NFO: {}, Up Avatar: {}, Up NFO: {}, Page Download: {}",
             Status::display_status(self.0.get_status(0)),
             Status::display_status(self.0.get_status(1)),
             Status::display_status(self.0.get_status(2)),
@@ -146,6 +163,11 @@ pub struct PageStatus(Status);
 impl PageStatus {
     pub fn new(status: u32) -> Self {
         Self(Status::new(status))
+    }
+
+    pub fn set_mask(&mut self, clear: &[bool]) {
+        assert!(clear.len() == 3, "PageStatus should have 3 status");
+        self.0.set_mask(clear)
     }
 
     pub fn should_run(&self) -> Vec<bool> {
