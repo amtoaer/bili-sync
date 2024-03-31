@@ -402,6 +402,7 @@ dependencies = [
  "dirs",
  "entity",
  "env_logger",
+ "filenamify",
  "futures",
  "futures-core",
  "futures-util",
@@ -956,6 +957,15 @@ name = "fastrand"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25cbce373ec4653f1a01a31e8a5e5ec0c622dc27ff9c4e6606eefef5cbbed4a5"
+
+[[package]]
+name = "filenamify"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b781e8974b2cc71ac3c587c881c11ee5fe9a379f43503674e1e1052647593b4c"
+dependencies = [
+ "regex",
+]
 
 [[package]]
 name = "finl_unicode"
