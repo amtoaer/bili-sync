@@ -2,9 +2,10 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use entity::*;
+use filenamify::filenamify;
 use migration::OnConflict;
 use once_cell::sync::Lazy;
-use quick_xml::events::BytesText;
+use quick_xml::events::{BytesCData, BytesText};
 use quick_xml::writer::Writer;
 use quick_xml::Error;
 use sea_orm::entity::prelude::*;
@@ -107,7 +108,7 @@ pub async fn create_videos(
             bvid: Set(v.bvid.clone()),
             name: Set(v.title.clone()),
             path: Set(Path::new(&favorite.path)
-                .join(
+                .join(filenamify(
                     TEMPLATE
                         .render(
                             "video",
@@ -119,7 +120,7 @@ pub async fn create_videos(
                             }),
                         )
                         .unwrap_or_else(|_| v.bvid.clone()),
-                )
+                ))
                 .to_str()
                 .unwrap()
                 .to_owned()),
@@ -238,7 +239,7 @@ impl<'a> NFOSerializer<'a> {
                     .write_inner_content_async::<_, _, Error>(|writer| async move {
                         writer
                             .create_element("plot")
-                            .write_text_content_async(BytesText::new(&format!(r#"![CDATA[{}]]"#, &v.intro)))
+                            .write_cdata_content_async(BytesCData::new(&v.intro))
                             .await
                             .unwrap();
                         writer.create_element("outline").write_empty_async().await.unwrap();
@@ -266,7 +267,7 @@ impl<'a> NFOSerializer<'a> {
                             .unwrap();
                         writer
                             .create_element("year")
-                            .write_text_content_async(BytesText::new(&v.pubtime.format("%Y").to_string()))
+                            .write_text_content_async(BytesText::new(&v.favtime.format("%Y").to_string()))
                             .await
                             .unwrap();
                         if let Some(tags) = &v.tags {
@@ -287,7 +288,7 @@ impl<'a> NFOSerializer<'a> {
                             .unwrap();
                         writer
                             .create_element("aired")
-                            .write_text_content_async(BytesText::new(&v.pubtime.format("%Y-%m-%d").to_string()))
+                            .write_text_content_async(BytesText::new(&v.favtime.format("%Y-%m-%d").to_string()))
                             .await
                             .unwrap();
                         Ok(writer)
@@ -301,7 +302,7 @@ impl<'a> NFOSerializer<'a> {
                     .write_inner_content_async::<_, _, Error>(|writer| async move {
                         writer
                             .create_element("plot")
-                            .write_text_content_async(BytesText::new(&format!(r#"![CDATA[{}]]"#, &v.intro)))
+                            .write_cdata_content_async(BytesCData::new(&v.intro))
                             .await
                             .unwrap();
                         writer.create_element("outline").write_empty_async().await.unwrap();
@@ -329,7 +330,7 @@ impl<'a> NFOSerializer<'a> {
                             .unwrap();
                         writer
                             .create_element("year")
-                            .write_text_content_async(BytesText::new(&v.pubtime.format("%Y").to_string()))
+                            .write_text_content_async(BytesText::new(&v.favtime.format("%Y").to_string()))
                             .await
                             .unwrap();
                         if let Some(tags) = &v.tags {
@@ -350,7 +351,7 @@ impl<'a> NFOSerializer<'a> {
                             .unwrap();
                         writer
                             .create_element("aired")
-                            .write_text_content_async(BytesText::new(&v.pubtime.format("%Y-%m-%d").to_string()))
+                            .write_text_content_async(BytesText::new(&v.favtime.format("%Y-%m-%d").to_string()))
                             .await
                             .unwrap();
                         Ok(writer)
@@ -371,7 +372,9 @@ impl<'a> NFOSerializer<'a> {
                             .unwrap();
                         writer
                             .create_element("dateadded")
-                            .write_text_content_async(BytesText::new(&v.pubtime.format("%Y-%m-%d").to_string()))
+                            .write_text_content_async(BytesText::new(
+                                &v.pubtime.format("%Y-%m-%d %H:%M:%S").to_string(),
+                            ))
                             .await
                             .unwrap();
                         writer
@@ -447,7 +450,7 @@ mod tests {
                 .unwrap(),
             r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <movie>
-    <plot>![CDATA[intro]]</plot>
+    <plot><![CDATA[intro]]></plot>
     <outline/>
     <title>name</title>
     <actor>
@@ -468,7 +471,7 @@ mod tests {
                 .unwrap(),
             r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <tvshow>
-    <plot>![CDATA[intro]]</plot>
+    <plot><![CDATA[intro]]></plot>
     <outline/>
     <title>name</title>
     <actor>
