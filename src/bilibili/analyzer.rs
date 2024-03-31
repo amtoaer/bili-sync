@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use log::error;
 use serde::{Deserialize, Serialize};
 
 use crate::Result;
@@ -156,7 +157,15 @@ impl PageAnalyzer {
         let audios_data = self.info["dash"]["audio"].take();
         let flac_data = self.info["dash"]["flac"].take();
         let dolby_data = self.info["dash"]["dolby"].take();
-        for video_data in videos_data.as_array().unwrap().iter() {
+        for video_data in videos_data
+            .as_array()
+            .ok_or_else(|| -> Result<serde_json::Value> {
+                error!("video data is not an array: {:?}", self.info);
+                Err("invalid video data".into())
+            })
+            .unwrap_or(&Vec::new())
+            .iter()
+        {
             let video_stream_url = video_data["baseUrl"].as_str().unwrap().to_string();
             let video_stream_quality = VideoQuality::from_repr(video_data["id"].as_u64().unwrap() as usize)
                 .ok_or("invalid video stream quality")?;
