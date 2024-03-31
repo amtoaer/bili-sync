@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
+
 use crate::Result;
 
 pub struct PageAnalyzer {
     info: serde_json::Value,
 }
 
-#[derive(Debug, strum::FromRepr, PartialEq, PartialOrd)]
+#[derive(Debug, strum::FromRepr, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum VideoQuality {
     Quality360p = 16,
     Quality480p = 32,
@@ -19,7 +21,7 @@ pub enum VideoQuality {
     QualityDolby = 126,
     Quality8k = 127,
 }
-#[derive(Debug, strum::FromRepr, PartialEq, PartialOrd)]
+#[derive(Debug, strum::FromRepr, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum AudioQuality {
     Quality64k = 30216,
     Quality132k = 30232,
@@ -28,7 +30,7 @@ pub enum AudioQuality {
     Quality192k = 30280,
 }
 
-#[derive(Debug, strum::EnumString, strum::Display, PartialEq, PartialOrd)]
+#[derive(Debug, strum::EnumString, strum::Display, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum VideoCodecs {
     #[strum(serialize = "hev")]
     HEV,
@@ -39,6 +41,7 @@ pub enum VideoCodecs {
 }
 
 // 视频流的筛选偏好
+#[derive(Serialize, Deserialize)]
 pub struct FilterOption {
     pub video_max_quality: VideoQuality,
     pub video_min_quality: VideoQuality,
