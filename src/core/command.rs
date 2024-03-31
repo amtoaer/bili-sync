@@ -269,7 +269,10 @@ pub async fn download_page(
         "page",
         &json!({
             "bvid": &video_model.bvid,
-            "name": &video_model.name,
+            "title": &video_model.name,
+            "upper_name": &video_model.upper_name,
+            "upper_mid": &video_model.upper_id,
+            "ptitle": &page_model.name,
             "pid": page_model.pid,
         }),
     )?);
