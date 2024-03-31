@@ -2,6 +2,7 @@
 
 ## 简介
 
+> [!NOTE]
 > 新版本已使用 Rust 重构，对于 v1.x 的 Python 版本，请前往 [v1.x](https://github.com/amtoaer/bili-sync/tree/v1.x) 分支查看。
 
 > [!CAUTION]
@@ -20,12 +21,40 @@
 
 ## 配置文件
 
-对于配置文件的前五项，请参考[凭据获取流程](https://nemo2011.github.io/bilibili-api/#/get-credential)。
-
-
 程序默认会将配置文件存储于 `~/.config/bili-sync/config.toml`，数据库文件存储于 `~/.config/bili-sync/data.sqlite`，如果发现不存在则新建并写入初始配置。
 
 配置文件加载时会进行简单校验，对于默认的空配置，校验将会报错，程序将会终止运行。
+
+对于配置文件中的 `credential`，请参考[凭据获取流程](https://nemo2011.github.io/bilibili-api/#/get-credential)。
+
+配置文件中的 `video_name` 和 `page_name` 支持使用模板，在执行时会被动态替换为对应的内容。
+
+video_name 支持设置 bvid（视频编号）、title（视频标题）、upper_name（up 主名称）、upper_mid（up 主 id）。
+
+page_name 除支持 video 的全部参数外，还支持 ptitle（分 P 标题）、pid（分 P 页号）。
+
+对于每个 favorite_list 的下载路径，程序会在其下建立如下的文件夹：
+1. 单页视频：
+    ```bash
+    ├── {video_name}
+    │   ├── {page_name}.mp4
+    │   ├── {page_name}.nfo
+    │   └── {page_name}-poster.jpg
+    ```
+2. 多页视频：
+    ```bash
+    ├── {video_name}
+    │   ├── poster.jpg
+    │   ├── Season 1
+    │   │   ├── {page_name} - S01E01.mp4
+    │   │   ├── {page_name} - S01E01.nfo
+    │   │   ├── {page_name} - S01E01-thumb.jpg
+    │   │   ├── {page_name} - S01E02.mp4
+    │   │   ├── {page_name} - S01E02.nfo
+    │   │   └── {page_name} - S01E02-thumb.jpg
+    │   └── tvshow.nfo
+    ```
+对于 filter_option 的可选值，请前往 [analyzer.rs](https://github.com/amtoaer/bili-sync/blob/main/src/bilibili/analyzer.rs) 查看。
 
 ## 配置文件示例与说明
 
@@ -60,35 +89,6 @@ no_hires = false
 52642258 = "/home/amtoaer/HDDs/Videos/Bilibilis/混剪"
 ```
 
-`video_name` 和 `page_name` 支持使用模板，在执行时会被动态替换为对应的内容。
-
-video_name 支持设置 bvid（视频编号）、title（视频标题）、upper_name（up 主名称）、upper_mid（up 主 id）。
-
-page_name 除支持 video 的全部参数外，还支持 ptitle（分 P 标题）、pid（分 P 页号）。
-
-对于每个 favorite 的下载路径，程序会在其下建立如下的文件夹：
-1. 单页视频：
-```bash
-├── {video_name}
-│   ├── {page_name}.mp4
-│   ├── {page_name}.nfo
-│   └── {page_name}-poster.jpg
-```
-2. 多页视频：
-```bash
-├── {video_name}
-│   ├── poster.jpg
-│   ├── Season 1
-│   │   ├── {page_name} - S01E01.mp4
-│   │   ├── {page_name} - S01E01.nfo
-│   │   ├── {page_name} - S01E01-thumb.jpg
-│   │   ├── {page_name} - S01E02.mp4
-│   │   ├── {page_name} - S01E02.nfo
-│   │   └── {page_name} - S01E02-thumb.jpg
-│   └── tvshow.nfo
-```
-
-对于 filter_option 的可选值，请前往 [analyzer.rs](https://github.com/amtoaer/bili-sync/blob/main/src/bilibili/analyzer.rs) 查看。
 ## 路线图
 
 - [x] 凭证认证
