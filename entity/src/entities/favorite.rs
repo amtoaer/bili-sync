@@ -11,7 +11,6 @@ pub struct Model {
     pub f_id: i32,
     pub name: String,
     pub path: String,
-    pub enabled: bool,
     pub created_at: String,
 }
 

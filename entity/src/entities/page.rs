@@ -11,7 +11,7 @@ pub struct Model {
     pub cid: i32,
     pub pid: i32,
     pub name: String,
-    pub path: String,
+    pub path: Option<String>,
     pub image: Option<String>,
     pub download_status: u32,
     pub created_at: String,

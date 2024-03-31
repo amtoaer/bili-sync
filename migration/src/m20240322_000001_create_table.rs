@@ -21,7 +21,6 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Favorite::FId).unique_key().unsigned().not_null())
                     .col(ColumnDef::new(Favorite::Name).string().not_null())
                     .col(ColumnDef::new(Favorite::Path).string().not_null())
-                    .col(ColumnDef::new(Favorite::Enabled).boolean().not_null())
                     .col(
                         ColumnDef::new(Favorite::CreatedAt)
                             .timestamp()
@@ -85,7 +84,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Page::Cid).unsigned().not_null())
                     .col(ColumnDef::new(Page::Pid).unsigned().not_null())
                     .col(ColumnDef::new(Page::Name).string().not_null())
-                    .col(ColumnDef::new(Page::Path).string().not_null())
+                    .col(ColumnDef::new(Page::Path).string())
                     .col(ColumnDef::new(Page::Image).string())
                     .col(ColumnDef::new(Page::DownloadStatus).unsigned().not_null())
                     .col(
@@ -139,7 +138,6 @@ enum Favorite {
     FId,
     Name,
     Path,
-    Enabled,
     CreatedAt,
 }
 
