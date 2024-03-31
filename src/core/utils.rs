@@ -213,6 +213,7 @@ pub async fn unhandled_videos_pages(
                 .eq(favorite_model.id)
                 .and(video::Column::Valid.eq(true))
                 .and(video::Column::DownloadStatus.lt(Status::handled()))
+                .and(video::Column::Category.eq(2))
                 .and(video::Column::SinglePage.is_not_null()),
         )
         .find_with_related(page::Entity)
