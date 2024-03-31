@@ -4,6 +4,7 @@ use std::pin::Pin;
 
 use dirs::config_dir;
 use entity::{favorite, page, video};
+use filenamify::filenamify;
 use futures::stream::FuturesUnordered;
 use futures::Future;
 use futures_util::{pin_mut, StreamExt};
@@ -47,7 +48,7 @@ pub async fn refresh_favorite(
     let video_stream = bili_favorite_list.into_video_stream().chunks(10);
     pin_mut!(video_stream);
     while let Some(videos_info) = video_stream.next().await {
-        info!("got {} videos...", videos_info.len());
+        info!("got {} new videos...", videos_info.len());
         let exist_labels = exist_labels(&videos_info, &favorite_model, connection).await?;
         // 如果发现有视频的收藏时间和 bvid 和数据库中重合，说明到达了上次处理到的地方，可以直接退出
         let should_break = videos_info
@@ -180,8 +181,9 @@ pub async fn download_video_pages(
             &upper_mutex.1,
             base_upper_path.join("person.nfo"),
         )),
-        // 对于多页视频下载的任务，无论如何都会执行
+        // 分发并执行分 P 下载的任务
         Box::pin(dispatch_download_page(
+            seprate_status[4],
             bili_client,
             &video_model,
             pages,
@@ -198,12 +200,16 @@ pub async fn download_video_pages(
 }
 
 pub async fn dispatch_download_page(
+    should_run: bool,
     bili_client: &BiliClient,
     video_model: &video::Model,
     pages: Vec<page::Model>,
     connection: &DatabaseConnection,
     downloader: &Downloader,
 ) -> Result<()> {
+    if !should_run {
+        return Ok(());
+    }
     // 对于视频的分页，允许同时下载三个同时下载（绝大部分是单页视频）
     let child_semaphore = Semaphore::new(5);
     let mut tasks = FuturesUnordered::new();
@@ -217,23 +223,30 @@ pub async fn dispatch_download_page(
             downloader,
         ));
     }
+    let mut final_result = Ok(());
     // 任务结束会返回 Result<PageModel>
     while let Some(res) = tasks.next().await {
         match res {
             Ok(page_model) => {
+                let page_status = PageStatus::new(page_model.download_status);
                 info!(
                     "Video {} page {} processed:\n\t {}",
-                    &video_model.bvid,
-                    page_model.pid,
-                    PageStatus::new(page_model.download_status)
+                    &video_model.bvid, page_model.pid, &page_status
                 );
+                if final_result.is_ok() && page_status.should_run().iter().any(|x| *x) {
+                    final_result = Err("Some page item download failed".into());
+                }
             }
             Err(e) => {
                 error!("Video {} processed failed: {e}", &video_model.bvid);
+                if final_result.is_ok() {
+                    // 只需要设置一次，作为一个状态标记
+                    final_result = Err(e);
+                }
             }
         }
     }
-    Ok(())
+    final_result
 }
 
 pub async fn download_page(
@@ -252,14 +265,14 @@ pub async fn download_page(
     let seprate_status = status.should_run();
     let is_single_page = video_model.single_page.unwrap();
     let base_path = Path::new(&video_model.path);
-    let base_name = TEMPLATE.render(
+    let base_name = filenamify(TEMPLATE.render(
         "page",
         &json!({
             "bvid": &video_model.bvid,
             "name": &video_model.name,
             "pid": page_model.pid,
         }),
-    )?;
+    )?);
     let (poster_path, video_path, nfo_path) = if is_single_page {
         (
             base_path.join(format!("{}-poster.jpg", &base_name)),
@@ -464,8 +477,10 @@ mod tests {
 
     #[test]
     fn test_template_usage() {
+        let mut template = handlebars::Handlebars::new();
+        let _ = template.register_template_string("video", "{{bvid}}");
         assert_eq!(
-            TEMPLATE.render("video", &json!({"bvid": "BV1b5411h7g7"})).unwrap(),
+            template.render("video", &json!({"bvid": "BV1b5411h7g7"})).unwrap(),
             "BV1b5411h7g7"
         );
     }
