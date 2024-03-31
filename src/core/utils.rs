@@ -3,17 +3,32 @@ use std::path::Path;
 
 use entity::*;
 use migration::OnConflict;
+use once_cell::sync::Lazy;
 use quick_xml::events::BytesText;
 use quick_xml::writer::Writer;
 use quick_xml::Error;
 use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
 use sea_orm::QuerySelect;
+use serde_json::json;
 use tokio::io::AsyncWriteExt;
 
 use super::status::Status;
 use crate::bilibili::{FavoriteListInfo, PageInfo, VideoInfo};
+use crate::config::CONFIG;
 use crate::Result;
+
+pub static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
+    let mut handlebars = handlebars::Handlebars::new();
+    let config = CONFIG.lock().unwrap();
+    handlebars
+        .register_template_string("video", config.video_name.clone())
+        .unwrap();
+    handlebars
+        .register_template_string("page", config.page_name.clone())
+        .unwrap();
+    handlebars
+});
 
 pub enum NFOMode {
     MOVIE,
@@ -30,21 +45,20 @@ pub enum ModelWrapper<'a> {
 pub struct NFOSerializer<'a>(pub ModelWrapper<'a>, pub NFOMode);
 
 /// 根据获得的收藏夹信息，插入或更新数据库中的收藏夹，并返回收藏夹对象
-pub async fn handle_favorite_info(info: &FavoriteListInfo, connection: &DatabaseConnection) -> Result<favorite::Model> {
+pub async fn handle_favorite_info(
+    info: &FavoriteListInfo,
+    path: &str,
+    connection: &DatabaseConnection,
+) -> Result<favorite::Model> {
     favorite::Entity::insert(favorite::ActiveModel {
         f_id: Set(info.id),
         name: Set(info.title.to_string()),
-        path: Set("/home/amtoaer/Documents/code/rust/bili-sync/video".to_string()),
-        enabled: Set(true),
+        path: Set(path.to_owned()),
         ..Default::default()
     })
     .on_conflict(
         OnConflict::column(favorite::Column::FId)
-            .update_columns([
-                favorite::Column::Name,
-                favorite::Column::Path,
-                favorite::Column::Enabled,
-            ])
+            .update_columns([favorite::Column::Name, favorite::Column::Path])
             .to_owned(),
     )
     .exec(connection)
@@ -91,12 +105,24 @@ pub async fn create_videos(
         .map(move |v| video::ActiveModel {
             favorite_id: Set(favorite.id),
             bvid: Set(v.bvid.clone()),
-            path: Set(Path::new(favorite.path.as_str())
-                .join(&v.bvid)
+            name: Set(v.title.clone()),
+            path: Set(Path::new(&favorite.path)
+                .join(
+                    TEMPLATE
+                        .render(
+                            "video",
+                            &json!({
+                                "bvid": &v.bvid,
+                                "title": &v.title,
+                                "upper_name": &v.upper.name,
+                                "upper_mid": &v.upper.mid,
+                            }),
+                        )
+                        .unwrap_or_else(|_| v.bvid.clone()),
+                )
                 .to_str()
                 .unwrap()
-                .to_string()),
-            name: Set(v.title.clone()),
+                .to_owned()),
             category: Set(v.vtype),
             intro: Set(v.intro.clone()),
             cover: Set(v.cover.clone()),
@@ -159,11 +185,6 @@ pub async fn create_video_pages(
             cid: Set(p.cid),
             pid: Set(p.page),
             name: Set(p.name.clone()),
-            path: Set(Path::new(video_model.path.as_str())
-                .join(&p.name)
-                .to_str()
-                .unwrap()
-                .to_string()),
             image: Set(p.first_frame.clone()),
             download_status: Set(0),
             ..Default::default()

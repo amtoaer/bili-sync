@@ -2,12 +2,12 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 
+use dirs::config_dir;
 use entity::{favorite, page, video};
 use futures::stream::FuturesUnordered;
 use futures::Future;
 use futures_util::{pin_mut, StreamExt};
 use log::{error, info};
-use once_cell::sync::Lazy;
 use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
 use sea_orm::TryIntoModel;
@@ -16,34 +16,32 @@ use tokio::fs;
 use tokio::sync::{Mutex, Semaphore};
 
 use super::status::{PageStatus, VideoStatus};
-use super::utils::{unhandled_videos_pages, ModelWrapper, NFOMode, NFOSerializer};
+use super::utils::{unhandled_videos_pages, ModelWrapper, NFOMode, NFOSerializer, TEMPLATE};
 use crate::bilibili::{BestStream, BiliClient, FavoriteList, FilterOption, PageInfo, Video};
 use crate::core::utils::{create_video_pages, create_videos, exist_labels, filter_videos, handle_favorite_info};
 use crate::downloader::Downloader;
 use crate::Result;
 
-static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
-    let mut handlebars = handlebars::Handlebars::new();
-    // TODO: 此处开放自定义
-    handlebars.register_template_string("video", "{{bvid}}").unwrap();
-    handlebars.register_template_string("page", "{{bvid}}").unwrap();
-    handlebars
-});
-
 /// 处理某个收藏夹，首先刷新收藏夹信息，然后下载收藏夹中未下载成功的视频
-pub async fn process_favorite(bili_client: &BiliClient, fid: &str, connection: &DatabaseConnection) -> Result<()> {
-    let favorite_model = refresh_favorite(bili_client, fid, connection).await?;
+pub async fn process_favorite(
+    bili_client: &BiliClient,
+    fid: &str,
+    path: &str,
+    connection: &DatabaseConnection,
+) -> Result<()> {
+    let favorite_model = refresh_favorite(bili_client, fid, path, connection).await?;
     download_favorite(bili_client, favorite_model, connection).await
 }
 
 pub async fn refresh_favorite(
     bili_client: &BiliClient,
     fid: &str,
+    path: &str,
     connection: &DatabaseConnection,
 ) -> Result<favorite::Model> {
     let bili_favorite_list = FavoriteList::new(bili_client, fid.to_owned());
     let favorite_list_info = bili_favorite_list.get_info().await?;
-    let favorite_model = handle_favorite_info(&favorite_list_info, connection).await?;
+    let favorite_model = handle_favorite_info(&favorite_list_info, path, connection).await?;
     info!("Scan the favorite: {fid}");
     // 每十个视频一组，避免太多的数据库操作
     let video_stream = bili_favorite_list.into_video_stream().chunks(10);
@@ -143,13 +141,20 @@ pub async fn download_video_pages(
     let mut status = VideoStatus::new(video_model.download_status);
     let seprate_status = status.should_run();
     let base_path = Path::new(&video_model.path);
+    let upper_id = video_model.upper_id.to_string();
+    let base_upper_path = config_dir()
+        .unwrap()
+        .join("bili-sync")
+        .join("upper")
+        .join(upper_id.chars().next().unwrap().to_string())
+        .join(upper_id);
     let is_single_page = video_model.single_page.unwrap();
     // 对于单页视频，page 的下载已经足够
     // 对于多页视频，page 下载仅包含了分集内容，需要额外补上视频的 poster 的 tvshow.nfo
     let tasks: Vec<Pin<Box<dyn Future<Output = Result<()>>>>> = vec![
         // 下载视频封面
         Box::pin(fetch_video_poster(
-            seprate_status[0],
+            seprate_status[0] && !is_single_page,
             &video_model,
             downloader,
             base_path.join("poster.jpg"),
@@ -175,14 +180,14 @@ pub async fn download_video_pages(
             &video_model,
             downloader,
             &upper_mutex.0,
-            base_path.join("upper-face.jpg"),
+            base_upper_path.join("folder.jpg"),
         )),
         // 生成 Up 主信息的 nfo
         Box::pin(generate_upper_nfo(
             seprate_status[4],
             &video_model,
             &upper_mutex.1,
-            base_path.join("upper.nfo"),
+            base_upper_path.join("person.nfo"),
         )),
     ];
     let results = futures::future::join_all(tasks).await;
@@ -294,7 +299,7 @@ pub async fn download_page(
             video_model,
             &page_model,
             downloader,
-            video_path,
+            video_path.clone(),
         )),
         Box::pin(generate_page_nfo(seprate_status[2], video_model, &page_model, nfo_path)),
     ];
@@ -302,6 +307,7 @@ pub async fn download_page(
     status.update_status(&results);
     let mut page_active_model: page::ActiveModel = page_model.into();
     page_active_model.download_status = Set(status.into());
+    page_active_model.path = Set(Some(video_path.to_str().unwrap().to_string()));
     page_active_model = page_active_model.save(connection).await?;
     Ok(page_active_model.try_into_model().unwrap())
 }
@@ -409,8 +415,8 @@ pub async fn fetch_upper_face(
     if !should_run {
         return Ok(());
     }
-    // 这个锁是为了避免多个视频同时下载同一个 up 主的头像
-    let _permit = upper_face_mutex.lock().await;
+    // 这个锁只是为了避免多个视频同时下载同一个 up 主的头像，不携带实际内容
+    let _ = upper_face_mutex.lock().await;
     if !upper_face_path.exists() {
         return downloader.fetch(&video_model.upper_face, &upper_face_path).await;
     }
@@ -426,7 +432,7 @@ pub async fn generate_upper_nfo(
     if !should_run {
         return Ok(());
     }
-    let _permit = upper_nfo_mutex.lock().await;
+    let _ = upper_nfo_mutex.lock().await;
     if !nfo_path.exists() {
         let nfo_serializer = NFOSerializer(ModelWrapper::Video(video_model), NFOMode::UPPER);
         return generate_nfo(nfo_serializer, nfo_path).await;
