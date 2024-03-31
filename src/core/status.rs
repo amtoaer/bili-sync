@@ -97,7 +97,7 @@ impl From<Status> for u32 {
     }
 }
 
-/// 从前到后分别表示：视频封面、分页下载、视频信息、Up 主头像、Up 主信息
+/// 从前到后分别表示：视频封面、视频信息、Up 主头像、Up 主信息
 #[derive(Clone)]
 pub struct VideoStatus(Status);
 
@@ -107,12 +107,15 @@ impl VideoStatus {
     }
 
     pub fn should_run(&self) -> Vec<bool> {
-        self.0.should_run(5)
+        self.0.should_run(4)
     }
 
     pub fn update_status(&mut self, result: &[Result<()>]) {
-        assert!(result.len() == 5, "VideoStatus should have 5 status");
-        self.0.update_status(result)
+        assert!(
+            result.len() >= 4,
+            "VideoStatus should have 4 status, more status will be ignored"
+        );
+        self.0.update_status(&result[..4])
     }
 }
 
@@ -150,8 +153,11 @@ impl PageStatus {
     }
 
     pub fn update_status(&mut self, result: &[Result<()>]) {
-        assert!(result.len() == 3, "PageStatus should have 3 status");
-        self.0.update_status(result)
+        assert!(
+            result.len() >= 3,
+            "PageStatus should have at least 3 status, more status will be ignored"
+        );
+        self.0.update_status(&result[..3])
     }
 }
 

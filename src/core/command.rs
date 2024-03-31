@@ -159,24 +159,15 @@ pub async fn download_video_pages(
             downloader,
             base_path.join("poster.jpg"),
         )),
-        // 分发分页下载的任务
-        Box::pin(dispatch_download_page(
-            seprate_status[1],
-            bili_client,
-            &video_model,
-            pages,
-            connection,
-            downloader,
-        )),
         // 生成视频信息的 nfo
         Box::pin(generate_video_nfo(
-            seprate_status[2] && !is_single_page,
+            seprate_status[1] && !is_single_page,
             &video_model,
             base_path.join("tvshow.nfo"),
         )),
         // 下载 Up 主头像
         Box::pin(fetch_upper_face(
-            seprate_status[3],
+            seprate_status[2],
             &video_model,
             downloader,
             &upper_mutex.0,
@@ -184,10 +175,18 @@ pub async fn download_video_pages(
         )),
         // 生成 Up 主信息的 nfo
         Box::pin(generate_upper_nfo(
-            seprate_status[4],
+            seprate_status[3],
             &video_model,
             &upper_mutex.1,
             base_upper_path.join("person.nfo"),
+        )),
+        // 对于多页视频下载的任务，无论如何都会执行
+        Box::pin(dispatch_download_page(
+            bili_client,
+            &video_model,
+            pages,
+            connection,
+            downloader,
         )),
     ];
     let results = futures::future::join_all(tasks).await;
@@ -199,16 +198,12 @@ pub async fn download_video_pages(
 }
 
 pub async fn dispatch_download_page(
-    should_run: bool,
     bili_client: &BiliClient,
     video_model: &video::Model,
     pages: Vec<page::Model>,
     connection: &DatabaseConnection,
     downloader: &Downloader,
 ) -> Result<()> {
-    if !should_run {
-        return Ok(());
-    }
     // 对于视频的分页，允许同时下载三个同时下载（绝大部分是单页视频）
     let child_semaphore = Semaphore::new(5);
     let mut tasks = FuturesUnordered::new();
@@ -322,10 +317,16 @@ pub async fn fetch_page_poster(
     if !should_run {
         return Ok(());
     }
-    // 如果单页没有封面，就使用视频的封面
-    let url = match &page_model.image {
-        Some(url) => url.as_str(),
-        None => video_model.cover.as_str(),
+    let single_page = video_model.single_page.unwrap();
+    let url = if single_page {
+        // 单页视频直接用视频的封面
+        video_model.cover.as_str()
+    } else {
+        // 多页视频，如果单页没有封面，就使用视频的封面
+        match &page_model.image {
+            Some(url) => url.as_str(),
+            None => video_model.cover.as_str(),
+        }
     };
     downloader.fetch(url, &poster_path).await
 }
