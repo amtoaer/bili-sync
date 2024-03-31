@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use cookie::Cookie;
 use regex::Regex;
@@ -7,11 +6,12 @@ use reqwest::{header, Method};
 use rsa::pkcs8::DecodePublicKey;
 use rsa::sha2::Sha256;
 use rsa::{Oaep, RsaPublicKey};
+use serde::{Deserialize, Serialize};
 
 use crate::bilibili::Client;
 use crate::Result;
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Credential {
     pub sessdata: String,
     pub bili_jct: String,
@@ -32,7 +32,7 @@ impl Credential {
     }
 
     /// 检查凭据是否有效
-    pub async fn check(&self, client: &Client) -> Result<bool> {
+    pub async fn need_refresh(&self, client: &Client) -> Result<bool> {
         let res = client
             .request(
                 Method::GET,
@@ -43,7 +43,7 @@ impl Credential {
             .await?
             .json::<serde_json::Value>()
             .await?;
-        res["refresh"].as_bool().ok_or("check refresh failed".into())
+        res["data"]["refresh"].as_bool().ok_or("check refresh failed".into())
     }
 
     pub async fn refresh(&mut self, client: &Client) -> Result<()> {
@@ -59,14 +59,14 @@ impl Credential {
         // 调用频率很低，让 key 在函数内部构造影响不大
         let key = RsaPublicKey::from_public_key_pem(
             "-----BEGIN PUBLIC KEY-----
-        MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDLgd2OAkcGVtoE3ThUREbio0Eg
-        Uc/prcajMKXvkCKFCWhJYJcLkcM2DKKcSeFpD/j6Boy538YXnR6VhcuUJOhH2x71
-        nzPjfdTcqMz7djHum0qSZA0AyCBDABUqCrfNgCiJ00Ra7GmRj+YCK1NJEuewlb40
-        JNrRuoEUXpabUzGB8QIDAQAB
-        -----END PUBLIC KEY-----",
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDLgd2OAkcGVtoE3ThUREbio0Eg
+Uc/prcajMKXvkCKFCWhJYJcLkcM2DKKcSeFpD/j6Boy538YXnR6VhcuUJOhH2x71
+nzPjfdTcqMz7djHum0qSZA0AyCBDABUqCrfNgCiJ00Ra7GmRj+YCK1NJEuewlb40
+JNrRuoEUXpabUzGB8QIDAQAB
+-----END PUBLIC KEY-----",
         )
         .unwrap();
-        let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+        let ts = chrono::Local::now().timestamp_millis();
         let data = format!("refresh_{}", ts).into_bytes();
         let mut rng = rand::rngs::OsRng;
         let encrypted = key.encrypt(&mut rng, Oaep::new::<Sha256>(), &data).unwrap();
@@ -109,19 +109,17 @@ impl Credential {
             ])
             .send()
             .await?;
-        let set_cookie = res
-            .headers()
-            .get(header::SET_COOKIE)
-            .ok_or("no set_cookie header")?
-            .to_str()?;
+        let set_cookies = res.headers().get_all(header::SET_COOKIE);
         let mut credential = Credential {
             buvid3: self.buvid3.clone(),
             ..Default::default()
         };
         let required_cookies = HashSet::from(["SESSDATA", "bili_jct", "DedeUserID"]);
-        let cookies: Vec<Cookie> = Cookie::split_parse_encoded(set_cookie)
-            .filter(|x| x.as_ref().is_ok_and(|x| required_cookies.contains(x.name())))
-            .map(|x| x.unwrap())
+        let cookies: Vec<Cookie> = set_cookies
+            .iter()
+            .filter_map(|x| x.to_str().ok())
+            .filter_map(|x| Cookie::parse(x).ok())
+            .filter(|x| required_cookies.contains(x.name()))
             .collect();
         if cookies.len() != required_cookies.len() {
             return Err("not all required cookies found".into());

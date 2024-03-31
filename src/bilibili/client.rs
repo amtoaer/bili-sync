@@ -1,6 +1,7 @@
 use reqwest::{header, Method};
 
 use crate::bilibili::Credential;
+use crate::config::CONFIG;
 use crate::Result;
 
 // 一个对 reqwest::Client 的简单封装，用于 Bilibili 请求
@@ -20,7 +21,13 @@ impl Client {
             header::REFERER,
             header::HeaderValue::from_static("https://www.bilibili.com"),
         );
-        Self(reqwest::Client::builder().default_headers(headers).build().unwrap())
+        Self(
+            reqwest::Client::builder()
+                .default_headers(headers)
+                .gzip(true)
+                .build()
+                .unwrap(),
+        )
     }
 
     // a wrapper of reqwest::Client::request to add credential to the request
@@ -65,9 +72,13 @@ impl BiliClient {
         let Some(credential) = self.credential.as_mut() else {
             return Ok(());
         };
-        if credential.check(&self.client).await? {
+        if !credential.need_refresh(&self.client).await? {
             return Ok(());
         }
-        credential.refresh(&self.client).await
+        credential.refresh(&self.client).await?;
+
+        let mut config = CONFIG.lock().unwrap();
+        config.credential = Some(credential.clone());
+        config.save()
     }
 }
