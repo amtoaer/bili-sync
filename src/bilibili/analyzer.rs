@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use anyhow::{anyhow, bail, Result};
-use log::error;
 use serde::{Deserialize, Serialize};
+
+use crate::bilibili::error::BiliError;
 
 pub struct PageAnalyzer {
     info: serde_json::Value,
@@ -138,17 +139,26 @@ impl PageAnalyzer {
     fn streams(&mut self, filter_option: &FilterOption) -> Result<Vec<Stream>> {
         if self.is_flv_stream() {
             return Ok(vec![Stream::Flv(
-                self.info["durl"][0]["url"].as_str().unwrap().to_string(),
+                self.info["durl"][0]["url"]
+                    .as_str()
+                    .ok_or(anyhow!("invalid flv stream"))?
+                    .to_string(),
             )]);
         }
         if self.is_html5_mp4_stream() {
             return Ok(vec![Stream::Html5Mp4(
-                self.info["durl"][0]["url"].as_str().unwrap().to_string(),
+                self.info["durl"][0]["url"]
+                    .as_str()
+                    .ok_or(anyhow!("invalid html5 mp4 stream"))?
+                    .to_string(),
             )]);
         }
         if self.is_episode_try_mp4_stream() {
             return Ok(vec![Stream::EpositeTryMp4(
-                self.info["durl"][0]["url"].as_str().unwrap().to_string(),
+                self.info["durl"][0]["url"]
+                    .as_str()
+                    .ok_or(anyhow!("invalid episode try mp4 stream"))?
+                    .to_string(),
             )]);
         }
         let mut streams: Vec<Stream> = Vec::new();
@@ -156,15 +166,7 @@ impl PageAnalyzer {
         let audios_data = self.info["dash"]["audio"].take();
         let flac_data = self.info["dash"]["flac"].take();
         let dolby_data = self.info["dash"]["dolby"].take();
-        for video_data in videos_data
-            .as_array()
-            .ok_or_else(|| -> Result<serde_json::Value> {
-                error!("video data is not an array: {:?}", self.info);
-                Err(anyhow!("invalid video data"))
-            })
-            .unwrap_or(&Vec::new())
-            .iter()
-        {
+        for video_data in videos_data.as_array().ok_or(BiliError::RiskControlOccurred)?.iter() {
             let video_stream_url = video_data["baseUrl"].as_str().unwrap().to_string();
             let video_stream_quality = VideoQuality::from_repr(video_data["id"].as_u64().unwrap() as usize)
                 .ok_or(anyhow!("invalid video stream quality"))?;

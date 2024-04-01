@@ -3,6 +3,7 @@ use reqwest::Method;
 
 use crate::bilibili::analyzer::PageAnalyzer;
 use crate::bilibili::client::BiliClient;
+use crate::bilibili::error::BiliError;
 
 static MASK_CODE: u64 = 2251799813685247;
 static XOR_CODE: u64 = 23442827791579;
@@ -55,8 +56,16 @@ impl<'a> Video<'a> {
             .query(&[("aid", &self.aid), ("bvid", &self.bvid)])
             .send()
             .await?
+            .error_for_status()?
             .json::<serde_json::Value>()
             .await?;
+        let (code, msg) = match (res["code"].as_u64(), res["message"].as_str()) {
+            (Some(code), Some(msg)) => (code, msg),
+            _ => bail!("no code or message found"),
+        };
+        if code != 0 {
+            bail!(BiliError::RequestFailed(code, msg.to_owned()));
+        }
         Ok(serde_json::from_value(res["data"].take())?)
     }
 
@@ -67,8 +76,16 @@ impl<'a> Video<'a> {
             .query(&[("aid", &self.aid), ("bvid", &self.bvid)])
             .send()
             .await?
+            .error_for_status()?
             .json::<serde_json::Value>()
             .await?;
+        let (code, msg) = match (res["code"].as_u64(), res["message"].as_str()) {
+            (Some(code), Some(msg)) => (code, msg),
+            _ => bail!("no code or message found"),
+        };
+        if code != 0 {
+            bail!(BiliError::RequestFailed(code, msg.to_owned()));
+        }
         Ok(serde_json::from_value(res["data"].take())?)
     }
 
@@ -86,10 +103,15 @@ impl<'a> Video<'a> {
             ])
             .send()
             .await?
+            .error_for_status()?
             .json::<serde_json::Value>()
             .await?;
-        if res["code"] != 0 {
-            bail!("get page analyzer failed: {}", res["message"]);
+        let (code, msg) = match (res["code"].as_u64(), res["message"].as_str()) {
+            (Some(code), Some(msg)) => (code, msg),
+            _ => bail!("no code or message found"),
+        };
+        if code != 0 {
+            bail!(BiliError::RequestFailed(code, msg.to_owned()));
         }
         Ok(PageAnalyzer::new(res["data"].take()))
     }

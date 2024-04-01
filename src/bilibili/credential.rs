@@ -9,6 +9,7 @@ use rsa::sha2::Sha256;
 use rsa::{Oaep, RsaPublicKey};
 use serde::{Deserialize, Serialize};
 
+use super::error::BiliError;
 use crate::bilibili::Client;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -41,8 +42,16 @@ impl Credential {
             )
             .send()
             .await?
+            .error_for_status()?
             .json::<serde_json::Value>()
             .await?;
+        let (code, msg) = match (res["code"].as_u64(), res["message"].as_str()) {
+            (Some(code), Some(msg)) => (code, msg),
+            _ => bail!("no code or message found"),
+        };
+        if code != 0 {
+            bail!(BiliError::RequestFailed(code, msg.to_owned()));
+        }
         res["data"]["refresh"].as_bool().ok_or(anyhow!("check refresh failed"))
     }
 
@@ -82,18 +91,13 @@ JNrRuoEUXpabUzGB8QIDAQAB
             )
             .header(header::COOKIE, "Domain=.bilibili.com")
             .send()
-            .await?;
-        if !res.status().is_success() {
-            return match res.status().as_u16() {
-                404 => Err(anyhow!("correspond path is wrong or expired")),
-                _ => Err(anyhow!("get csrf failed")),
-            };
-        }
+            .await?
+            .error_for_status()?;
         regex_find(r#"<div id="1-name">(.+?)</div>"#, res.text().await?.as_str())
     }
 
     async fn get_new_credential(&self, client: &Client, csrf: &str) -> Result<Credential> {
-        let res = client
+        let mut res = client
             .request(
                 Method::POST,
                 "https://passport.bilibili.com/x/passport-login/web/cookie/refresh",
@@ -108,8 +112,19 @@ JNrRuoEUXpabUzGB8QIDAQAB
                 ("source", "main_web"),
             ])
             .send()
-            .await?;
-        let set_cookies = res.headers().get_all(header::SET_COOKIE);
+            .await?
+            .error_for_status()?;
+        // 必须在 .json 前取出 headers，否则 res 会被消耗
+        let headers = std::mem::take(res.headers_mut());
+        let res = res.json::<serde_json::Value>().await?;
+        let (code, msg) = match (res["code"].as_u64(), res["message"].as_str()) {
+            (Some(code), Some(msg)) => (code, msg),
+            _ => bail!("no code or message found"),
+        };
+        if code != 0 {
+            bail!(BiliError::RequestFailed(code, msg.to_owned()));
+        }
+        let set_cookies = headers.get_all(header::SET_COOKIE);
         let mut credential = Credential {
             buvid3: self.buvid3.clone(),
             ..Default::default()
@@ -132,11 +147,10 @@ JNrRuoEUXpabUzGB8QIDAQAB
                 _ => unreachable!(),
             }
         }
-        let json = res.json::<serde_json::Value>().await?;
-        if !json["data"]["refresh_token"].is_string() {
+        if !res["data"]["refresh_token"].is_string() {
             bail!("refresh_token not found");
         }
-        credential.ac_time_value = json["data"]["refresh_token"].as_str().unwrap().to_string();
+        credential.ac_time_value = res["data"]["refresh_token"].as_str().unwrap().to_string();
         Ok(credential)
     }
 
@@ -154,10 +168,15 @@ JNrRuoEUXpabUzGB8QIDAQAB
             ])
             .send()
             .await?
+            .error_for_status()?
             .json::<serde_json::Value>()
             .await?;
-        if res["code"] != 0 {
-            bail!("confirm refresh failed: {}", res["message"]);
+        let (code, msg) = match (res["code"].as_u64(), res["message"].as_str()) {
+            (Some(code), Some(msg)) => (code, msg),
+            _ => bail!("no code or message found"),
+        };
+        if code != 0 {
+            bail!(BiliError::RequestFailed(code, msg.to_owned()));
         }
         Ok(())
     }

@@ -3,8 +3,10 @@ use async_stream::stream;
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
 use futures::Stream;
+use log::error;
 use serde_json::Value;
 
+use crate::bilibili::error::BiliError;
 use crate::bilibili::BiliClient;
 pub struct FavoriteList<'a> {
     client: &'a BiliClient,
@@ -53,8 +55,16 @@ impl<'a> FavoriteList<'a> {
             .query(&[("media_id", &self.fid)])
             .send()
             .await?
+            .error_for_status()?
             .json::<serde_json::Value>()
             .await?;
+        let (code, msg) = match (res["code"].as_u64(), res["message"].as_str()) {
+            (Some(code), Some(msg)) => (code, msg),
+            _ => bail!("no code or message found"),
+        };
+        if code != 0 {
+            bail!(BiliError::RequestFailed(code, msg.to_owned()));
+        }
         Ok(serde_json::from_value(res["data"].take())?)
     }
 
@@ -72,10 +82,15 @@ impl<'a> FavoriteList<'a> {
             ])
             .send()
             .await?
+            .error_for_status()?
             .json::<serde_json::Value>()
             .await?;
-        if res["code"] != 0 {
-            bail!("get favorite videos failed: {}", res["message"]);
+        let (code, msg) = match (res["code"].as_u64(), res["message"].as_str()) {
+            (Some(code), Some(msg)) => (code, msg),
+            _ => bail!("no code or message found"),
+        };
+        if code != 0 {
+            bail!(BiliError::RequestFailed(code, msg.to_owned()));
         }
         Ok(res)
     }
@@ -85,11 +100,19 @@ impl<'a> FavoriteList<'a> {
         stream! {
             let mut page = 1;
             loop {
-                let Ok(mut videos) = self.get_videos(page).await else{
-                    break;
+                let mut videos = match self.get_videos(page).await {
+                    Ok(v) => v,
+                    Err(e) => {
+                        error!("failed to get videos of page {}: {}", page, e);
+                        break;
+                    },
                 };
-                let Ok(videos_info) = serde_json::from_value::<Vec<VideoInfo>>(videos["data"]["medias"].take()) else{
-                    break;
+                let videos_info = match serde_json::from_value::<Vec<VideoInfo>>(videos["data"]["medias"].take()) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        error!("failed to parse videos of page {}: {}", page, e);
+                        break;
+                    },
                 };
                 for video_info in videos_info.into_iter(){
                     yield video_info;
