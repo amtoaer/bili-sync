@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use anyhow::{anyhow, Result};
-use futures_util::StreamExt;
+use futures::StreamExt;
 use reqwest::Method;
 use tokio::fs::{self, File};
 use tokio::io;

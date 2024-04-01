@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use async_stream::stream;
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
-use futures_core::stream::Stream;
+use futures::Stream;
 use serde_json::Value;
 
 use crate::bilibili::BiliClient;
