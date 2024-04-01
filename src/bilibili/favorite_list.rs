@@ -1,3 +1,4 @@
+use anyhow::{bail, Result};
 use async_stream::stream;
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
@@ -5,7 +6,6 @@ use futures_core::stream::Stream;
 use serde_json::Value;
 
 use crate::bilibili::BiliClient;
-use crate::Result;
 pub struct FavoriteList<'a> {
     client: &'a BiliClient,
     fid: String,
@@ -75,7 +75,7 @@ impl<'a> FavoriteList<'a> {
             .json::<serde_json::Value>()
             .await?;
         if res["code"] != 0 {
-            return Err(format!("get favorite videos failed: {}", res["message"]).into());
+            bail!("get favorite videos failed: {}", res["message"]);
         }
         Ok(res)
     }

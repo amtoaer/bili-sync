@@ -1,8 +1,8 @@
+use anyhow::{bail, Result};
 use reqwest::Method;
 
 use crate::bilibili::analyzer::PageAnalyzer;
 use crate::bilibili::client::BiliClient;
-use crate::Result;
 
 static MASK_CODE: u64 = 2251799813685247;
 static XOR_CODE: u64 = 23442827791579;
@@ -89,7 +89,7 @@ impl<'a> Video<'a> {
             .json::<serde_json::Value>()
             .await?;
         if res["code"] != 0 {
-            return Err(format!("get page analyzer failed: {}", res["message"]).into());
+            bail!("get page analyzer failed: {}", res["message"]);
         }
         Ok(PageAnalyzer::new(res["data"].take()))
     }

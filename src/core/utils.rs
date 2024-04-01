@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::path::Path;
 
+use anyhow::Result;
 use entity::*;
 use filenamify::filenamify;
 use migration::OnConflict;
@@ -17,7 +18,6 @@ use tokio::io::AsyncWriteExt;
 use super::status::Status;
 use crate::bilibili::{FavoriteListInfo, PageInfo, VideoInfo};
 use crate::config::CONFIG;
-use crate::Result;
 
 pub static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
     let mut handlebars = handlebars::Handlebars::new();

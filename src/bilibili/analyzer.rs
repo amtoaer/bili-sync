@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
+use anyhow::{anyhow, bail, Result};
 use log::error;
 use serde::{Deserialize, Serialize};
-
-use crate::Result;
 
 pub struct PageAnalyzer {
     info: serde_json::Value,
@@ -161,14 +160,14 @@ impl PageAnalyzer {
             .as_array()
             .ok_or_else(|| -> Result<serde_json::Value> {
                 error!("video data is not an array: {:?}", self.info);
-                Err("invalid video data".into())
+                Err(anyhow!("invalid video data"))
             })
             .unwrap_or(&Vec::new())
             .iter()
         {
             let video_stream_url = video_data["baseUrl"].as_str().unwrap().to_string();
             let video_stream_quality = VideoQuality::from_repr(video_data["id"].as_u64().unwrap() as usize)
-                .ok_or("invalid video stream quality")?;
+                .ok_or(anyhow!("invalid video stream quality"))?;
             if (video_stream_quality == VideoQuality::QualityHdr && filter_option.no_hdr)
                 || (video_stream_quality == VideoQuality::QualityDolby && filter_option.no_dolby_video)
                 || (video_stream_quality != VideoQuality::QualityDolby
@@ -306,7 +305,7 @@ impl PageAnalyzer {
             _ => unreachable!(),
         });
         if video_streams.is_empty() {
-            return Err("no stream found".into());
+            bail!("no video stream found");
         }
         Ok(BestStream::VideoAudio {
             video: video_streams.remove(video_streams.len() - 1),

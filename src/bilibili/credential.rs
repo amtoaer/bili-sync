@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use anyhow::{anyhow, bail, Result};
 use cookie::Cookie;
 use regex::Regex;
 use reqwest::{header, Method};
@@ -9,7 +10,6 @@ use rsa::{Oaep, RsaPublicKey};
 use serde::{Deserialize, Serialize};
 
 use crate::bilibili::Client;
-use crate::Result;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Credential {
@@ -43,7 +43,7 @@ impl Credential {
             .await?
             .json::<serde_json::Value>()
             .await?;
-        res["data"]["refresh"].as_bool().ok_or("check refresh failed".into())
+        res["data"]["refresh"].as_bool().ok_or(anyhow!("check refresh failed"))
     }
 
     pub async fn refresh(&mut self, client: &Client) -> Result<()> {
@@ -85,8 +85,8 @@ JNrRuoEUXpabUzGB8QIDAQAB
             .await?;
         if !res.status().is_success() {
             return match res.status().as_u16() {
-                404 => Err("correspond path is wrong or expired".into()),
-                _ => Err("get csrf failed".into()),
+                404 => Err(anyhow!("correspond path is wrong or expired")),
+                _ => Err(anyhow!("get csrf failed")),
             };
         }
         regex_find(r#"<div id="1-name">(.+?)</div>"#, res.text().await?.as_str())
@@ -122,7 +122,7 @@ JNrRuoEUXpabUzGB8QIDAQAB
             .filter(|x| required_cookies.contains(x.name()))
             .collect();
         if cookies.len() != required_cookies.len() {
-            return Err("not all required cookies found".into());
+            bail!("not all required cookies found");
         }
         for cookie in cookies {
             match cookie.name() {
@@ -134,7 +134,7 @@ JNrRuoEUXpabUzGB8QIDAQAB
         }
         let json = res.json::<serde_json::Value>().await?;
         if !json["data"]["refresh_token"].is_string() {
-            return Err("refresh_token not found".into());
+            bail!("refresh_token not found");
         }
         credential.ac_time_value = json["data"]["refresh_token"].as_str().unwrap().to_string();
         Ok(credential)
@@ -157,7 +157,7 @@ JNrRuoEUXpabUzGB8QIDAQAB
             .json::<serde_json::Value>()
             .await?;
         if res["code"] != 0 {
-            return Err(format!("confirm refresh failed: {}", res["message"]).into());
+            bail!("confirm refresh failed: {}", res["message"]);
         }
         Ok(())
     }
@@ -168,7 +168,7 @@ fn regex_find(pattern: &str, doc: &str) -> Result<String> {
     let re = Regex::new(pattern)?;
     Ok(re
         .captures(doc)
-        .ok_or("pattern not match")?
+        .ok_or(anyhow!("pattern not match"))?
         .get(1)
         .unwrap()
         .as_str()

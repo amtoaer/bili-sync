@@ -1,8 +1,8 @@
+use anyhow::Result;
 use reqwest::{header, Method};
 
 use crate::bilibili::Credential;
 use crate::config::CONFIG;
-use crate::Result;
 
 // 一个对 reqwest::Client 的简单封装，用于 Bilibili 请求
 pub struct Client(reqwest::Client);

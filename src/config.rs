@@ -2,12 +2,12 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Mutex;
 
+use anyhow::{anyhow, Result};
 use log::warn;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
 use crate::bilibili::{Credential, FilterOption};
-use crate::Result;
 
 pub static CONFIG: Lazy<Mutex<Config>> = Lazy::new(|| {
     let config = Config::new();
@@ -75,7 +75,7 @@ impl Config {
 
     fn load() -> Result<Self> {
         let config_path = dirs::config_dir()
-            .ok_or("No config path found")?
+            .ok_or(anyhow!("No config path found"))?
             .join("bili-sync")
             .join("config.toml");
         let config_content = std::fs::read_to_string(config_path)?;
@@ -84,7 +84,7 @@ impl Config {
 
     pub fn save(&self) -> Result<()> {
         let config_path = dirs::config_dir()
-            .ok_or("No config path found")?
+            .ok_or(anyhow!("No config path found"))?
             .join("bili-sync")
             .join("config.toml");
         if let Some(parent) = config_path.parent() {

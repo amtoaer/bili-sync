@@ -1,6 +1,6 @@
 use core::fmt;
 
-use crate::Result;
+use anyhow::Result;
 
 static STATUS_MAX_RETRY: u32 = 0b100;
 static STATUS_OK: u32 = 0b111;
@@ -203,6 +203,8 @@ impl From<PageStatus> for u32 {
 
 #[cfg(test)]
 mod test {
+    use anyhow::anyhow;
+
     use super::*;
 
     #[test]
@@ -210,11 +212,11 @@ mod test {
         let mut status = Status::new(0);
         assert_eq!(status.should_run(3), vec![true, true, true]);
         for count in 1..=3 {
-            status.update_status(&[Err("".into()), Ok(()), Ok(())]);
+            status.update_status(&[Err(anyhow!("")), Ok(()), Ok(())]);
             assert_eq!(status.should_run(3), vec![true, false, false]);
             assert_eq!(u32::from(status.clone()), 0b111_111_000 + count);
         }
-        status.update_status(&[Err("".into()), Ok(()), Ok(())]);
+        status.update_status(&[Err(anyhow!("")), Ok(()), Ok(())]);
         assert_eq!(status.should_run(3), vec![false, false, false]);
         assert_eq!(u32::from(status), 0b111_111_100 | Status::handled());
     }

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 
+use anyhow::{anyhow, Result};
 use dirs::config_dir;
 use entity::{favorite, page, video};
 use filenamify::filenamify;
@@ -21,7 +22,6 @@ use super::utils::{unhandled_videos_pages, ModelWrapper, NFOMode, NFOSerializer,
 use crate::bilibili::{BestStream, BiliClient, FavoriteList, FilterOption, PageInfo, Video};
 use crate::core::utils::{create_video_pages, create_videos, exist_labels, filter_videos, handle_favorite_info};
 use crate::downloader::Downloader;
-use crate::Result;
 
 /// 处理某个收藏夹，首先刷新收藏夹信息，然后下载收藏夹中未下载成功的视频
 pub async fn process_favorite(
@@ -234,7 +234,7 @@ pub async fn dispatch_download_page(
                     &video_model.bvid, page_model.pid, &page_status
                 );
                 if final_result.is_ok() && page_status.should_run().iter().any(|x| *x) {
-                    final_result = Err("Some page item download failed".into());
+                    final_result = Err(anyhow!("Some page item download failed"));
                 }
             }
             Err(e) => {

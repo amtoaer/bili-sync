@@ -1,12 +1,12 @@
 use std::path::Path;
 
+use anyhow::{anyhow, Result};
 use futures_util::StreamExt;
 use reqwest::Method;
 use tokio::fs::{self, File};
 use tokio::io;
 
 use crate::bilibili::Client;
-use crate::Result;
 pub struct Downloader {
     client: Client,
 }
@@ -46,8 +46,8 @@ impl Downloader {
             .await?;
         if !output.status.success() {
             return match String::from_utf8(output.stderr) {
-                Ok(err) => Err(err.into()),
-                _ => Err("ffmpeg error".into()),
+                Ok(err) => Err(anyhow!(err)),
+                _ => Err(anyhow!("ffmpeg error")),
             };
         }
         let _ = fs::remove_file(video_path).await;
