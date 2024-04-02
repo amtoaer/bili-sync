@@ -26,6 +26,7 @@ pub struct Config {
     pub video_name: String,
     pub page_name: String,
     pub interval: u64,
+    pub upper_path: String,
 }
 
 impl Default for Config {
@@ -37,6 +38,13 @@ impl Default for Config {
             video_name: "{{bvid}}".to_string(),
             page_name: "{{bvid}}".to_string(),
             interval: 1200,
+            upper_path: dirs::config_dir()
+                .unwrap()
+                .join("bili-sync")
+                .join("upper_face")
+                .to_str()
+                .unwrap()
+                .to_string(),
         }
     }
 }
@@ -54,6 +62,10 @@ impl Config {
         for path in self.favorite_list.values() {
             assert!(Path::new(path).is_absolute(), "Path in favorite list must be absolute");
         }
+        assert!(
+            Path::new(&self.upper_path).is_absolute(),
+            "Upper face path must be absolute"
+        );
         assert!(!self.video_name.is_empty(), "No video name template found");
         assert!(!self.page_name.is_empty(), "No page name template found");
         match self.credential {
