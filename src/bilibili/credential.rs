@@ -45,7 +45,7 @@ impl Credential {
             .error_for_status()?
             .json::<serde_json::Value>()
             .await?;
-        let (code, msg) = match (res["code"].as_u64(), res["message"].as_str()) {
+        let (code, msg) = match (res["code"].as_i64(), res["message"].as_str()) {
             (Some(code), Some(msg)) => (code, msg),
             _ => bail!("no code or message found"),
         };
@@ -117,7 +117,7 @@ JNrRuoEUXpabUzGB8QIDAQAB
         // 必须在 .json 前取出 headers，否则 res 会被消耗
         let headers = std::mem::take(res.headers_mut());
         let res = res.json::<serde_json::Value>().await?;
-        let (code, msg) = match (res["code"].as_u64(), res["message"].as_str()) {
+        let (code, msg) = match (res["code"].as_i64(), res["message"].as_str()) {
             (Some(code), Some(msg)) => (code, msg),
             _ => bail!("no code or message found"),
         };
@@ -171,7 +171,7 @@ JNrRuoEUXpabUzGB8QIDAQAB
             .error_for_status()?
             .json::<serde_json::Value>()
             .await?;
-        let (code, msg) = match (res["code"].as_u64(), res["message"].as_str()) {
+        let (code, msg) = match (res["code"].as_i64(), res["message"].as_str()) {
             (Some(code), Some(msg)) => (code, msg),
             _ => bail!("no code or message found"),
         };

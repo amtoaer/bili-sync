@@ -59,7 +59,7 @@ impl<'a> Video<'a> {
             .error_for_status()?
             .json::<serde_json::Value>()
             .await?;
-        let (code, msg) = match (res["code"].as_u64(), res["message"].as_str()) {
+        let (code, msg) = match (res["code"].as_i64(), res["message"].as_str()) {
             (Some(code), Some(msg)) => (code, msg),
             _ => bail!("no code or message found"),
         };
@@ -79,7 +79,7 @@ impl<'a> Video<'a> {
             .error_for_status()?
             .json::<serde_json::Value>()
             .await?;
-        let (code, msg) = match (res["code"].as_u64(), res["message"].as_str()) {
+        let (code, msg) = match (res["code"].as_i64(), res["message"].as_str()) {
             (Some(code), Some(msg)) => (code, msg),
             _ => bail!("no code or message found"),
         };
@@ -106,7 +106,7 @@ impl<'a> Video<'a> {
             .error_for_status()?
             .json::<serde_json::Value>()
             .await?;
-        let (code, msg) = match (res["code"].as_u64(), res["message"].as_str()) {
+        let (code, msg) = match (res["code"].as_i64(), res["message"].as_str()) {
             (Some(code), Some(msg)) => (code, msg),
             _ => bail!("no code or message found"),
         };

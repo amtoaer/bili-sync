@@ -1,5 +1,5 @@
 use bili_sync::bilibili::BiliClient;
-use bili_sync::core::command::process_favorite;
+use bili_sync::core::command::process_favorite_list;
 use bili_sync::database::{database_connection, migrate_database};
 use log::error;
 
@@ -24,7 +24,7 @@ async fn main() -> ! {
             anchor = chrono::Local::now().date_naive();
         }
         for (fid, path) in &favorites {
-            let res = process_favorite(&bili_client, fid, path, &connection).await;
+            let res = process_favorite_list(&bili_client, fid, path, &connection).await;
             if let Err(e) = res {
                 error!("Error: {e}");
             }
