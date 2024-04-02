@@ -15,7 +15,7 @@ pub struct FavoriteList<'a> {
 
 #[derive(Debug, serde::Deserialize)]
 pub struct FavoriteListInfo {
-    pub id: i32,
+    pub id: i64,
     pub title: String,
 }
 
@@ -39,7 +39,7 @@ pub struct VideoInfo {
 
 #[derive(Debug, serde::Deserialize)]
 pub struct Upper {
-    pub mid: i32,
+    pub mid: i64,
     pub name: String,
     pub face: String,
 }
@@ -103,14 +103,18 @@ impl<'a> FavoriteList<'a> {
                 let mut videos = match self.get_videos(page).await {
                     Ok(v) => v,
                     Err(e) => {
-                        error!("failed to get videos of page {}: {}", page, e);
+                        error!("failed to get videos of favorite {} page {}: {}", self.fid, page, e);
                         break;
                     },
                 };
+                if !videos["data"]["medias"].is_array() {
+                    error!("no medias found in favorite {} page {}", self.fid, page);
+                    break;
+                }
                 let videos_info = match serde_json::from_value::<Vec<VideoInfo>>(videos["data"]["medias"].take()) {
                     Ok(v) => v,
                     Err(e) => {
-                        error!("failed to parse videos of page {}: {}", page, e);
+                        error!("failed to parse videos of favorite {} page {}: {}", self.fid, page, e);
                         break;
                     },
                 };
