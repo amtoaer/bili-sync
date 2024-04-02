@@ -152,32 +152,36 @@ pub async fn create_videos(
     Ok(())
 }
 
-/// 筛选所有符合条件的视频
-pub async fn filter_videos(
-    videos_info: &[VideoInfo],
+pub async fn total_video_count(favorite_model: &favorite::Model, connection: &DatabaseConnection) -> Result<u64> {
+    Ok(video::Entity::find()
+        .filter(video::Column::FavoriteId.eq(favorite_model.id))
+        .count(connection)
+        .await?)
+}
+
+/// 筛选所有未
+pub async fn filter_unfilled_videos(
     favorite_model: &favorite::Model,
-    only_unhandled: bool,
-    only_no_page: bool,
     connection: &DatabaseConnection,
 ) -> Result<Vec<video::Model>> {
-    let bvids = videos_info.iter().map(|v| v.bvid.clone()).collect::<Vec<String>>();
-    let mut condition = video::Column::FavoriteId
-        .eq(favorite_model.id)
-        .and(video::Column::Bvid.is_in(bvids))
-        .and(video::Column::Valid.eq(true));
-    if only_unhandled {
-        condition = condition.and(video::Column::DownloadStatus.lt(Status::handled()));
-    }
-    if only_no_page {
-        condition = condition.and(video::Column::SinglePage.is_null());
-    }
-    Ok(video::Entity::find().filter(condition).all(connection).await?)
+    Ok(video::Entity::find()
+        .filter(
+            video::Column::FavoriteId
+                .eq(favorite_model.id)
+                .and(video::Column::Valid.eq(true))
+                .and(video::Column::DownloadStatus.eq(0))
+                .and(video::Column::Category.eq(2))
+                .and(video::Column::SinglePage.is_null()),
+        )
+        .all(connection)
+        .await?)
 }
+
 /// 创建视频的所有分 P
 pub async fn create_video_pages(
     pages_info: &[PageInfo],
     video_model: &video::Model,
-    connection: &DatabaseConnection,
+    connection: &impl ConnectionTrait,
 ) -> Result<()> {
     let page_models = pages_info
         .iter()
