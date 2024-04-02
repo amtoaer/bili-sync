@@ -225,6 +225,29 @@ pub async fn unhandled_videos_pages(
         .all(connection)
         .await?)
 }
+/// 更新视频 model 的下载状态
+pub async fn update_videos_model(videos: Vec<video::ActiveModel>, connection: &DatabaseConnection) -> Result<()> {
+    video::Entity::insert_many(videos)
+        .on_conflict(
+            OnConflict::column(video::Column::Id)
+                .update_column(video::Column::DownloadStatus)
+                .to_owned(),
+        )
+        .exec(connection)
+        .await?;
+    Ok(())
+}
+
+/// 更新视频页 model 的下载状态
+pub async fn update_pages_model(pages: Vec<page::ActiveModel>, connection: &DatabaseConnection) -> Result<()> {
+    let query = page::Entity::insert_many(pages).on_conflict(
+        OnConflict::column(page::Column::Id)
+            .update_columns([page::Column::DownloadStatus, page::Column::Path])
+            .to_owned(),
+    );
+    query.exec(connection).await?;
+    Ok(())
+}
 
 /// serde xml 似乎不太好用，先这么裸着写
 /// （真是又臭又长啊
