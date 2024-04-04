@@ -141,11 +141,6 @@ pub async fn download_unprocessed_videos(
     for (video_model, _) in &unhandled_videos_pages {
         uppers_mutex.insert(video_model.upper_id, (Mutex::new(()), Mutex::new(())));
     }
-    let upper_path = {
-        let config = CONFIG.lock().unwrap();
-        config.upper_path.clone()
-    };
-    let upper_path = Path::new(&upper_path);
     let mut tasks = unhandled_videos_pages
         .into_iter()
         .map(|(video_model, pages_model)| {
@@ -157,7 +152,7 @@ pub async fn download_unprocessed_videos(
                 connection,
                 &semaphore,
                 &downloader,
-                upper_path,
+                &CONFIG.upper_path,
                 upper_mutex,
             )
         })

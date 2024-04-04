@@ -21,13 +21,10 @@ use crate::config::CONFIG;
 
 pub static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
     let mut handlebars = handlebars::Handlebars::new();
-    let config = CONFIG.lock().unwrap();
     handlebars
-        .register_template_string("video", config.video_name.clone())
+        .register_template_string("video", &CONFIG.video_name)
         .unwrap();
-    handlebars
-        .register_template_string("page", config.page_name.clone())
-        .unwrap();
+    handlebars.register_template_string("page", &CONFIG.page_name).unwrap();
     handlebars
 });
 
