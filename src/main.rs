@@ -2,11 +2,15 @@ use bili_sync::bilibili::BiliClient;
 use bili_sync::config::CONFIG;
 use bili_sync::core::command::process_favorite_list;
 use bili_sync::database::{database_connection, migrate_database};
-use log::error;
+use once_cell::sync::Lazy;
+
+#[macro_use]
+extern crate log;
 
 #[tokio::main]
 async fn main() -> ! {
     env_logger::init();
+    Lazy::force(&CONFIG);
     let mut anchor = chrono::Local::now().date_naive();
     let bili_client = BiliClient::new();
     let connection = database_connection().await.unwrap();

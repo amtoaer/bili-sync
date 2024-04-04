@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate log;
+
 pub mod bilibili;
 pub mod config;
 pub mod core;
