@@ -1,11 +1,19 @@
-use bili_sync::bilibili::BiliClient;
-use bili_sync::config::CONFIG;
-use bili_sync::core::command::process_favorite_list;
-use bili_sync::database::{database_connection, migrate_database};
-use once_cell::sync::Lazy;
-
 #[macro_use]
 extern crate log;
+
+mod bilibili;
+mod config;
+mod core;
+mod database;
+mod downloader;
+mod error;
+
+use once_cell::sync::Lazy;
+
+use self::bilibili::BiliClient;
+use self::config::CONFIG;
+use self::core::command::process_favorite_list;
+use self::database::{database_connection, migrate_database};
 
 #[tokio::main]
 async fn main() -> ! {
