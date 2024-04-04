@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use super::error::BiliError;
 use crate::bilibili::Client;
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Credential {
     pub sessdata: String,
     pub bili_jct: String,
@@ -29,6 +29,16 @@ impl Credential {
             buvid3,
             dedeuserid,
             ac_time_value,
+        }
+    }
+
+    const fn empty() -> Self {
+        Self {
+            sessdata: String::new(),
+            bili_jct: String::new(),
+            buvid3: String::new(),
+            dedeuserid: String::new(),
+            ac_time_value: String::new(),
         }
     }
 
@@ -55,13 +65,12 @@ impl Credential {
         res["data"]["refresh"].as_bool().ok_or(anyhow!("check refresh failed"))
     }
 
-    pub async fn refresh(&mut self, client: &Client) -> Result<()> {
+    pub async fn refresh(&self, client: &Client) -> Result<Self> {
         let correspond_path = Self::get_correspond_path();
         let csrf = self.get_refresh_csrf(client, correspond_path).await?;
         let new_credential = self.get_new_credential(client, &csrf).await?;
         self.confirm_refresh(client, &new_credential).await?;
-        *self = new_credential;
-        Ok(())
+        Ok(new_credential)
     }
 
     fn get_correspond_path() -> String {
@@ -125,9 +134,9 @@ JNrRuoEUXpabUzGB8QIDAQAB
             bail!(BiliError::RequestFailed(code, msg.to_owned()));
         }
         let set_cookies = headers.get_all(header::SET_COOKIE);
-        let mut credential = Credential {
+        let mut credential = Self {
             buvid3: self.buvid3.clone(),
-            ..Default::default()
+            ..Self::empty()
         };
         let required_cookies = HashSet::from(["SESSDATA", "bili_jct", "DedeUserID"]);
         let cookies: Vec<Cookie> = set_cookies

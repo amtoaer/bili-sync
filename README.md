@@ -8,7 +8,6 @@
 > [!CAUTION]
 > 当前新版本尚不稳定，可能会有未告知的不兼容更改，请优先使用 Python 版本。
 
-
 为 NAS 用户编写的 BILIBILI 收藏夹同步工具，可使用 EMBY 等媒体库工具浏览。
 
 支持展示视频封面、名称、加入日期、标签、分页等。
@@ -34,14 +33,18 @@ video_name 支持设置 bvid（视频编号）、title（视频标题）、upper
 page_name 除支持 video 的全部参数外，还支持 ptitle（分 P 标题）、pid（分 P 页号）。
 
 对于每个 favorite_list 的下载路径，程序会在其下建立如下的文件夹：
+
 1. 单页视频：
+
     ```bash
     ├── {video_name}
     │   ├── {page_name}.mp4
     │   ├── {page_name}.nfo
     │   └── {page_name}-poster.jpg
     ```
+
 2. 多页视频：
+
     ```bash
     ├── {video_name}
     │   ├── poster.jpg
@@ -54,6 +57,7 @@ page_name 除支持 video 的全部参数外，还支持 ptitle（分 P 标题�
     │   │   └── {page_name} - S01E02-thumb.jpg
     │   └── tvshow.nfo
     ```
+
 对于 filter_option 的可选值，请前往 [analyzer.rs](https://github.com/amtoaer/bili-sync/blob/main/src/bilibili/analyzer.rs) 查看。
 
 ## 配置文件示例与说明

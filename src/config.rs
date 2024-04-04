@@ -1,107 +1,114 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
-use std::path::Path;
-use std::sync::Mutex;
+use std::path::PathBuf;
 
-use anyhow::{anyhow, Result};
-use log::warn;
+use anyhow::Result;
+use arc_swap::ArcSwapOption;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
 use crate::bilibili::{Credential, FilterOption};
 
-pub static CONFIG: Lazy<Mutex<Config>> = Lazy::new(|| {
-    let config = Config::new();
-    // 保存一次，确保配置文件存在
-    config.save().unwrap();
+pub static CONFIG: Lazy<Config> = Lazy::new(|| {
+    let config = Config::load().unwrap_or_else(|err| {
+        warn!("Failed loading config: {err}");
+        let new_config = Config::new();
+        // 保存一次，确保配置文件存在
+        new_config.save().unwrap();
+        new_config
+    });
     // 检查配置文件内容
     config.check();
-    Mutex::new(Config::new())
+    config
 });
+
+pub static CONFIG_DIR: Lazy<PathBuf> =
+    Lazy::new(|| dirs::config_dir().expect("No config path found").join("bili-sync"));
 
 #[derive(Serialize, Deserialize)]
 pub struct Config {
-    pub credential: Option<Credential>,
+    pub credential: ArcSwapOption<Credential>,
     pub filter_option: FilterOption,
-    pub favorite_list: HashMap<String, String>,
-    pub video_name: String,
-    pub page_name: String,
+    pub favorite_list: HashMap<String, PathBuf>,
+    pub video_name: Cow<'static, str>,
+    pub page_name: Cow<'static, str>,
     pub interval: u64,
-    pub upper_path: String,
+    pub upper_path: PathBuf,
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Self {
-            credential: Some(Credential::default()),
-            filter_option: FilterOption::default(),
-            favorite_list: HashMap::new(),
-            video_name: "{{bvid}}".to_string(),
-            page_name: "{{bvid}}".to_string(),
-            interval: 1200,
-            upper_path: dirs::config_dir()
-                .unwrap()
-                .join("bili-sync")
-                .join("upper_face")
-                .to_str()
-                .unwrap()
-                .to_string(),
-        }
+        Self::new()
     }
 }
+
 impl Config {
     fn new() -> Self {
-        Config::load().unwrap_or_default()
+        Self {
+            credential: ArcSwapOption::empty(),
+            filter_option: FilterOption::default(),
+            favorite_list: HashMap::new(),
+            video_name: Cow::Borrowed("{{bvid}}"),
+            page_name: Cow::Borrowed("{{bvid}}"),
+            interval: 1200,
+            upper_path: CONFIG_DIR.join("upper_face"),
+        }
     }
 
     /// 简单的预检查
     pub fn check(&self) {
-        assert!(
-            !self.favorite_list.is_empty(),
-            "No favorite list found, program won't do anything"
-        );
-        for path in self.favorite_list.values() {
-            assert!(Path::new(path).is_absolute(), "Path in favorite list must be absolute");
+        let mut ok = true;
+        if self.favorite_list.is_empty() {
+            ok = false;
+            error!("No favorite list found, program won't do anything");
         }
-        assert!(
-            Path::new(&self.upper_path).is_absolute(),
-            "Upper face path must be absolute"
-        );
-        assert!(!self.video_name.is_empty(), "No video name template found");
-        assert!(!self.page_name.is_empty(), "No page name template found");
-        match self.credential {
-            Some(ref credential) => {
-                assert!(
-                    !(credential.sessdata.is_empty()
-                        || credential.bili_jct.is_empty()
-                        || credential.buvid3.is_empty()
-                        || credential.dedeuserid.is_empty()
-                        || credential.ac_time_value.is_empty()),
-                    "Credential is incomplete"
-                )
+        for path in self.favorite_list.values() {
+            if !path.is_absolute() {
+                ok = false;
+                error!("Path in favorite list must be absolute: {}", path.display());
             }
-            None => {
-                warn!("No credential found, can't access high quality video");
+        }
+        if !self.upper_path.is_absolute() {
+            ok = false;
+            error!("Upper face path must be absolute");
+        }
+        if self.video_name.is_empty() {
+            ok = false;
+            error!("No video name template found");
+        }
+        if self.page_name.is_empty() {
+            ok = false;
+            error!("No page name template found");
+        }
+        let credential = self.credential.load();
+        if let Some(credential) = credential.as_deref() {
+            if credential.sessdata.is_empty()
+                || credential.bili_jct.is_empty()
+                || credential.buvid3.is_empty()
+                || credential.dedeuserid.is_empty()
+                || credential.ac_time_value.is_empty()
+            {
+                ok = false;
+                error!("Credential is incomplete");
             }
+        } else {
+            warn!("No credential found, can't access high quality video");
+        }
+
+        if !ok {
+            panic!("Config in {} is invalid", CONFIG_DIR.join("config.toml").display());
         }
     }
 
     fn load() -> Result<Self> {
-        let config_path = dirs::config_dir()
-            .ok_or(anyhow!("No config path found"))?
-            .join("bili-sync")
-            .join("config.toml");
+        let config_path = CONFIG_DIR.join("config.toml");
         let config_content = std::fs::read_to_string(config_path)?;
         Ok(toml::from_str(&config_content)?)
     }
 
     pub fn save(&self) -> Result<()> {
-        let config_path = dirs::config_dir()
-            .ok_or(anyhow!("No config path found"))?
-            .join("bili-sync")
-            .join("config.toml");
-        if let Some(parent) = config_path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
+        let config_path = CONFIG_DIR.join("config.toml");
+        std::fs::create_dir_all(&*CONFIG_DIR)?;
         std::fs::write(config_path, toml::to_string_pretty(self)?)?;
         Ok(())
     }

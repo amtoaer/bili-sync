@@ -7,7 +7,6 @@ use entity::{favorite, page, video};
 use filenamify::filenamify;
 use futures::stream::{FuturesOrdered, FuturesUnordered};
 use futures::{pin_mut, Future, StreamExt};
-use log::{error, info, warn};
 use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
 use sea_orm::TransactionTrait;
@@ -31,7 +30,7 @@ use crate::error::DownloadAbortError;
 pub async fn process_favorite_list(
     bili_client: &BiliClient,
     fid: &str,
-    path: &str,
+    path: &Path,
     connection: &DatabaseConnection,
 ) -> Result<()> {
     let favorite_model = refresh_favorite_list(bili_client, fid, path, connection).await?;
@@ -43,7 +42,7 @@ pub async fn process_favorite_list(
 pub async fn refresh_favorite_list(
     bili_client: &BiliClient,
     fid: &str,
-    path: &str,
+    path: &Path,
     connection: &DatabaseConnection,
 ) -> Result<favorite::Model> {
     let bili_favorite_list = FavoriteList::new(bili_client, fid.to_owned());
@@ -141,11 +140,6 @@ pub async fn download_unprocessed_videos(
     for (video_model, _) in &unhandled_videos_pages {
         uppers_mutex.insert(video_model.upper_id, (Mutex::new(()), Mutex::new(())));
     }
-    let upper_path = {
-        let config = CONFIG.lock().unwrap();
-        config.upper_path.clone()
-    };
-    let upper_path = Path::new(&upper_path);
     let mut tasks = unhandled_videos_pages
         .into_iter()
         .map(|(video_model, pages_model)| {
@@ -157,7 +151,7 @@ pub async fn download_unprocessed_videos(
                 connection,
                 &semaphore,
                 &downloader,
-                upper_path,
+                &CONFIG.upper_path,
                 upper_mutex,
             )
         })

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use reqwest::{header, Method};
 
@@ -54,31 +56,30 @@ impl Default for Client {
 }
 
 pub struct BiliClient {
-    credential: Option<Credential>,
     client: Client,
 }
 
 impl BiliClient {
-    pub fn new(credential: Option<Credential>) -> Self {
+    pub fn new() -> Self {
         let client = Client::new();
-        Self { credential, client }
+        Self { client }
     }
 
     pub fn request(&self, method: Method, url: &str) -> reqwest::RequestBuilder {
-        self.client.request(method, url, self.credential.as_ref())
+        let credential = CONFIG.credential.load();
+        self.client.request(method, url, credential.as_deref())
     }
 
-    pub async fn check_refresh(&mut self) -> Result<()> {
-        let Some(credential) = self.credential.as_mut() else {
+    pub async fn check_refresh(&self) -> Result<()> {
+        let credential = CONFIG.credential.load();
+        let Some(credential) = credential.as_deref() else {
             return Ok(());
         };
         if !credential.need_refresh(&self.client).await? {
             return Ok(());
         }
-        credential.refresh(&self.client).await?;
-
-        let mut config = CONFIG.lock().unwrap();
-        config.credential = Some(credential.clone());
-        config.save()
+        let new_credential = credential.refresh(&self.client).await?;
+        CONFIG.credential.store(Some(Arc::new(new_credential)));
+        CONFIG.save()
     }
 }

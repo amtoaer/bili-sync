@@ -21,13 +21,10 @@ use crate::config::CONFIG;
 
 pub static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
     let mut handlebars = handlebars::Handlebars::new();
-    let config = CONFIG.lock().unwrap();
     handlebars
-        .register_template_string("video", config.video_name.clone())
+        .register_template_string("video", &CONFIG.video_name)
         .unwrap();
-    handlebars
-        .register_template_string("page", config.page_name.clone())
-        .unwrap();
+    handlebars.register_template_string("page", &CONFIG.page_name).unwrap();
     handlebars
 });
 
@@ -48,13 +45,13 @@ pub struct NFOSerializer<'a>(pub ModelWrapper<'a>, pub NFOMode);
 /// 根据获得的收藏夹信息，插入或更新数据库中的收藏夹，并返回收藏夹对象
 pub async fn handle_favorite_info(
     info: &FavoriteListInfo,
-    path: &str,
+    path: &Path,
     connection: &DatabaseConnection,
 ) -> Result<favorite::Model> {
     favorite::Entity::insert(favorite::ActiveModel {
         f_id: Set(info.id),
-        name: Set(info.title.to_string()),
-        path: Set(path.to_owned()),
+        name: Set(info.title.clone()),
+        path: Set(path.to_string_lossy().to_string()),
         ..Default::default()
     })
     .on_conflict(
