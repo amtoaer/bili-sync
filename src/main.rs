@@ -38,6 +38,7 @@ async fn main() -> ! {
                 error!("Error: {e}");
             }
         }
+        info!("All favorite lists have been processed, wait for next round.");
 
         tokio::time::sleep(std::time::Duration::from_secs(CONFIG.interval)).await;
     }
