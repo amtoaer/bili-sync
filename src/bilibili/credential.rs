@@ -22,16 +22,6 @@ pub struct Credential {
 }
 
 impl Credential {
-    pub fn new(sessdata: String, bili_jct: String, buvid3: String, dedeuserid: String, ac_time_value: String) -> Self {
-        Self {
-            sessdata,
-            bili_jct,
-            buvid3,
-            dedeuserid,
-            ac_time_value,
-        }
-    }
-
     const fn empty() -> Self {
         Self {
             sessdata: String::new(),
