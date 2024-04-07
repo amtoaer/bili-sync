@@ -3,10 +3,12 @@
 ## 简介
 
 > [!NOTE]
-> 新版本已使用 Rust 重构，对于 v1.x 的 Python 版本，请前往 [v1.x](https://github.com/amtoaer/bili-sync/tree/v1.x) 分支查看。
+> 新版本已使用 Rust 重构，该文档是对新版本的说明。对于 v1.x 的 Python 版本，请前往 [v1.x](https://github.com/amtoaer/bili-sync/tree/v1.x) 分支查看。
+>
+> 目前新版本尚未进行 docker 打包，docker 版本相关问题请同样参考 [v1.x](https://github.com/amtoaer/bili-sync/tree/v1.x) 分支的 README 与 [v1.x 的 release 文档](https://github.com/amtoaer/bili-sync/releases)。
 
 > [!CAUTION]
-> 当前新版本尚不稳定，可能会有未告知的不兼容更改，请优先使用 Python 版本。
+> 当前新版本尚不稳定，可能会有未告知的不兼容更改，请优先使用 v1.x 的 Python 版本。
 
 为 NAS 用户编写的 BILIBILI 收藏夹同步工具，可使用 EMBY 等媒体库工具浏览。
 
@@ -103,7 +105,9 @@ no_hires = false
 - [x] 构建 nfo 和 poster 文件，方便以单集形式导入 emby
 - [x] 支持收藏夹翻页，下载全部历史视频
 - [x] 对接数据库，提前检查，按需下载
-- [ ] 提供简单易用的打包（如 docker）
 - [ ] 更好的错误处理
 - [ ] 更好的日志
+- [ ] 支持弹幕下载
 - [ ] 请求过快出现风控的 workaround
+- [ ] 提供简单易用的打包（如 docker）
+- [ ] 支持 UP 主合集下载
