@@ -7,16 +7,15 @@ use arc_swap::ArcSwapOption;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
-use crate::bilibili::{Credential, FilterOption, SubtitleOption};
+use crate::bilibili::{Credential, DanmakuOption, FilterOption};
 
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     let config = Config::load().unwrap_or_else(|err| {
         warn!("Failed loading config: {err}");
-        let new_config = Config::new();
-        // 保存一次，确保配置文件存在
-        new_config.save().unwrap();
-        new_config
+        Config::new()
     });
+    // 放到外面，确保新的配置项被保存
+    config.save().unwrap();
     // 检查配置文件内容
     config.check();
     config
@@ -29,7 +28,8 @@ pub static CONFIG_DIR: Lazy<PathBuf> =
 pub struct Config {
     pub credential: ArcSwapOption<Credential>,
     pub filter_option: FilterOption,
-    pub subtitle_option: SubtitleOption,
+    #[serde(default)]
+    pub danmaku_option: DanmakuOption,
     pub favorite_list: HashMap<String, PathBuf>,
     pub video_name: Cow<'static, str>,
     pub page_name: Cow<'static, str>,
@@ -48,7 +48,7 @@ impl Config {
         Self {
             credential: ArcSwapOption::empty(),
             filter_option: FilterOption::default(),
-            subtitle_option: SubtitleOption::default(),
+            danmaku_option: DanmakuOption::default(),
             favorite_list: HashMap::new(),
             video_name: Cow::Borrowed("{{bvid}}"),
             page_name: Cow::Borrowed("{{bvid}}"),

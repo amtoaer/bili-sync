@@ -5,7 +5,8 @@ use std::pin::Pin;
 use anyhow::Result;
 use tokio::io::{AsyncWrite, AsyncWriteExt, BufWriter};
 
-use crate::bilibili::danmaku::{DrawEffect, Drawable, SubtitleOption};
+use super::canvas::CanvasConfig;
+use crate::bilibili::danmaku::{DrawEffect, Drawable};
 
 struct TimePoint {
     t: f64,
@@ -37,7 +38,7 @@ impl fmt::Display for AssEffect {
     }
 }
 
-impl super::SubtitleOption {
+impl super::DanmakuOption {
     pub fn ass_styles(&self) -> Vec<String> {
         vec![
             // Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, \
@@ -87,14 +88,14 @@ impl fmt::Display for CanvasStyles {
     }
 }
 
-pub struct AssWriter<W: AsyncWrite> {
+pub struct AssWriter<'a, W: AsyncWrite> {
     f: Pin<Box<BufWriter<W>>>,
     title: String,
-    canvas_config: SubtitleOption,
+    canvas_config: CanvasConfig<'a>,
 }
 
-impl<W: AsyncWrite> AssWriter<W> {
-    pub fn new(f: W, title: String, canvas_config: SubtitleOption) -> Self {
+impl<'a, W: AsyncWrite> AssWriter<'a, W> {
+    pub fn new(f: W, title: String, canvas_config: CanvasConfig<'a>) -> Self {
         AssWriter {
             // 对于 HDD、docker 之类的场景，磁盘 IO 是非常大的瓶颈。使用大缓存
             f: Box::pin(BufWriter::with_capacity(10 << 20, f)),
@@ -103,13 +104,14 @@ impl<W: AsyncWrite> AssWriter<W> {
         }
     }
 
-    pub async fn inited(f: W, title: String, canvas_config: SubtitleOption) -> Result<Self> {
+    pub async fn construct(f: W, title: String, canvas_config: CanvasConfig<'a>) -> Result<Self> {
         let mut res = Self::new(f, title, canvas_config);
         res.init().await?;
         Ok(res)
     }
 
     pub async fn init(&mut self) -> Result<()> {
+        let (width, height) = self.canvas_config.dimension();
         self.f
             .write_all(
                 format!(
@@ -138,9 +140,9 @@ impl<W: AsyncWrite> AssWriter<W> {
             Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n\
             ",
                     title = self.title,
-                    width = self.canvas_config.width,
-                    height = self.canvas_config.height,
-                    styles = CanvasStyles(self.canvas_config.ass_styles()),
+                    width = width,
+                    height = height,
+                    styles = CanvasStyles(self.canvas_config.danmaku_option.ass_styles()),
                 )
                 .into_bytes()
                 .as_slice(),
@@ -154,7 +156,7 @@ impl<W: AsyncWrite> AssWriter<W> {
             .write_all(
                 format!(
                     // Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-                    "Dialogue: 2,{start},{end},{style},,0,0,0,,{{{effect}\\c&H{b:02x}{g:02x}{r:02x}&}}{text}",
+                    "Dialogue: 2,{start},{end},{style},,0,0,0,,{{{effect}\\c&H{b:02x}{g:02x}{r:02x}&}}{text}\n",
                     start = TimePoint {
                         t: drawable.danmu.timeline_s
                     },

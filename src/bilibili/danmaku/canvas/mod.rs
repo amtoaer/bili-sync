@@ -9,12 +9,13 @@ use super::{Danmu, Drawable};
 use crate::bilibili::danmaku::canvas::lane::Collision;
 use crate::bilibili::danmaku::danmu::DanmuType;
 use crate::bilibili::danmaku::DrawEffect;
+use crate::bilibili::PageInfo;
 
-#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
-pub struct SubtitleOption {
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct DanmakuOption {
+    pub default_width: u64,
+    pub default_height: u64,
     pub duration: f64,
-    pub width: u32,
-    pub height: u32,
     pub font: String,
     pub font_size: u32,
     pub width_ratio: f64,
@@ -25,10 +26,8 @@ pub struct SubtitleOption {
     /// 屏幕上滚动弹幕最多高度百分比
     pub float_percentage: f64,
     /// 屏幕上底部弹幕最多高度百分比
-    #[serde(skip_deserializing)]
     pub bottom_percentage: f64,
-    /// 透明度
-    #[serde(rename = "alpha", deserialize_with = "deserialize_alpha_to_opacity")]
+    /// 透明度（0-255）
     pub opacity: u8,
     /// 是否加粗，1代表是，0代表否
     pub bold: bool,
@@ -37,21 +36,52 @@ pub struct SubtitleOption {
     /// 时间轴偏移
     pub time_offset: f64,
 }
-fn deserialize_alpha_to_opacity<'de, D>(deserializer: D) -> Result<u8, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    use serde::de::Deserialize;
-    let alpha = f64::deserialize(deserializer)?;
-    if !(0.0..=1.0).contains(&alpha) {
-        return Err(serde::de::Error::custom("alpha must be between 0 and 1"));
+
+impl Default for DanmakuOption {
+    fn default() -> Self {
+        Self {
+            default_width: 1920,
+            default_height: 1080,
+            duration: 15.0,
+            font: "黑体".to_string(),
+            font_size: 25,
+            width_ratio: 1.2,
+            horizontal_gap: 20.0,
+            lane_size: 32,
+            float_percentage: 0.5,
+            bottom_percentage: 0.3,
+            opacity: (0.3 * 255.0) as u8,
+            bold: true,
+            outline: 0.8,
+            time_offset: 0.0,
+        }
     }
-    Ok(255 - (alpha * 255.) as u8)
 }
 
-impl SubtitleOption {
-    pub fn canvas(self) -> Canvas {
-        let float_lanes_cnt = (self.float_percentage * self.height as f64 / self.lane_size as f64) as usize;
+#[derive(Clone)]
+pub struct CanvasConfig<'a> {
+    pub danmaku_option: &'a DanmakuOption,
+    pub page: &'a PageInfo,
+}
+
+impl<'a> CanvasConfig<'a> {
+    pub fn dimension(&self) -> (u64, u64) {
+        match &self.page.dimension {
+            Some(d) => {
+                if d.rotate == 0 {
+                    (d.width, d.height)
+                } else {
+                    (d.height, d.width)
+                }
+            }
+            None => (self.danmaku_option.default_width, self.danmaku_option.default_height),
+        }
+    }
+
+    pub fn canvas(self) -> Canvas<'a> {
+        let (_, height) = self.dimension();
+        let float_lanes_cnt =
+            (self.danmaku_option.float_percentage * height as f64 / self.danmaku_option.lane_size as f64) as usize;
 
         Canvas {
             config: self,
@@ -60,14 +90,14 @@ impl SubtitleOption {
     }
 }
 
-pub struct Canvas {
-    pub config: SubtitleOption,
+pub struct Canvas<'a> {
+    pub config: CanvasConfig<'a>,
     pub float_lanes: Vec<Option<Lane>>,
 }
 
-impl Canvas {
+impl<'a> Canvas<'a> {
     pub fn draw(&mut self, mut danmu: Danmu) -> Result<Option<Drawable>> {
-        danmu.timeline_s += self.config.time_offset;
+        danmu.timeline_s += self.config.danmaku_option.time_offset;
         if danmu.timeline_s < 0.0 {
             return Ok(None);
         }
@@ -120,14 +150,15 @@ impl Canvas {
 
     fn draw_float_in_lane(&mut self, danmu: Danmu, lane_idx: usize) -> Drawable {
         self.float_lanes[lane_idx] = Some(Lane::draw(&danmu, &self.config));
-        let y = lane_idx as i32 * self.config.lane_size as i32;
+        let y = lane_idx as i32 * self.config.danmaku_option.lane_size as i32;
         let l = danmu.length(&self.config);
+        let (width, _) = self.config.dimension();
         Drawable::new(
             danmu,
-            self.config.duration,
+            self.config.danmaku_option.duration,
             "Float",
             DrawEffect::Move {
-                start: (self.config.width as i32, y),
+                start: (width as i32, y),
                 end: (-(l as i32), y),
             },
         )

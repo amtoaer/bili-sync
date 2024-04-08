@@ -6,7 +6,7 @@ mod model;
 mod writer;
 
 pub use ass_writer::AssWriter;
-pub use canvas::SubtitleOption;
+pub use canvas::DanmakuOption;
 pub use danmu::Danmu;
 pub use drawable::{DrawEffect, Drawable};
 pub use model::{DanmakuElem, DmSegMobileReply};

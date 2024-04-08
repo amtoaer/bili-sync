@@ -1,4 +1,4 @@
-use super::SubtitleOption;
+use super::CanvasConfig;
 use crate::bilibili::danmaku::Danmu;
 
 pub enum Collision {
@@ -18,7 +18,7 @@ pub struct Lane {
 }
 
 impl Lane {
-    pub fn draw(danmu: &Danmu, config: &SubtitleOption) -> Self {
+    pub fn draw(danmu: &Danmu, config: &CanvasConfig) -> Self {
         Lane {
             last_shoot_time: danmu.timeline_s,
             last_length: danmu.length(config),
@@ -26,12 +26,13 @@ impl Lane {
     }
 
     /// 这个槽位是否可以发射另外一条弹幕，返回可能的情形
-    pub fn available_for(&self, other: &Danmu, config: &super::SubtitleOption) -> Collision {
+    pub fn available_for(&self, other: &Danmu, config: &CanvasConfig) -> Collision {
+        let (width, _) = config.dimension();
         #[allow(non_snake_case)]
-        let T = config.duration;
+        let T = config.danmaku_option.duration;
         #[allow(non_snake_case)]
-        let W = config.width as f64;
-        let gap = config.horizontal_gap;
+        let W = width as f64;
+        let gap = config.danmaku_option.horizontal_gap;
 
         // 先计算我的速度
         let t1 = self.last_shoot_time;

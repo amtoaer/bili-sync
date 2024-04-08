@@ -352,7 +352,7 @@ pub async fn download_page(
             "pid": page_model.pid,
         }),
     )?);
-    let (poster_path, video_path, nfo_path, subtitle_path) = if is_single_page {
+    let (poster_path, video_path, nfo_path, danmaku_path) = if is_single_page {
         (
             base_path.join(format!("{}-poster.jpg", &base_name)),
             base_path.join(format!("{}.mp4", &base_name)),
@@ -393,12 +393,12 @@ pub async fn download_page(
             video_path.clone(),
         )),
         Box::pin(generate_page_nfo(seprate_status[2], video_model, &page_model, nfo_path)),
-        Box::pin(fetch_page_subtitle(
+        Box::pin(fetch_page_danmaku(
             seprate_status[3],
             bili_client,
             video_model,
             &page_model,
-            subtitle_path,
+            danmaku_path,
         )),
     ];
     let tasks: FuturesOrdered<_> = tasks.into_iter().collect();
@@ -499,12 +499,12 @@ pub async fn fetch_page_video(
     Ok(())
 }
 
-pub async fn fetch_page_subtitle(
+pub async fn fetch_page_danmaku(
     should_run: bool,
     bili_client: &BiliClient,
     video_model: &video::Model,
     page_model: &page::Model,
-    subtitle_path: PathBuf,
+    danmaku_path: PathBuf,
 ) -> Result<()> {
     if !should_run {
         return Ok(());
@@ -516,7 +516,7 @@ pub async fn fetch_page_subtitle(
             ..Default::default()
         })
         .await?
-        .write(subtitle_path)
+        .write(danmaku_path)
         .await?;
     Ok(())
 }

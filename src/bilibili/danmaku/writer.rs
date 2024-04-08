@@ -3,8 +3,10 @@ use std::path::PathBuf;
 use anyhow::Result;
 use tokio::fs::{self, File};
 
-use super::{AssWriter, Danmu, SubtitleOption};
+use super::canvas::CanvasConfig;
+use super::{AssWriter, Danmu};
 use crate::bilibili::PageInfo;
+use crate::config::CONFIG;
 
 pub struct DanmakuWriter<'a> {
     page: &'a PageInfo,
@@ -20,9 +22,12 @@ impl<'a> DanmakuWriter<'a> {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).await?;
         }
-        let canvas_config = SubtitleOption::default();
+        let canvas_config = CanvasConfig {
+            danmaku_option: &CONFIG.danmaku_option,
+            page: self.page,
+        };
         let mut writer =
-            AssWriter::inited(File::create(path).await?, self.page.name.clone(), canvas_config.clone()).await?;
+            AssWriter::construct(File::create(path).await?, self.page.name.clone(), canvas_config.clone()).await?;
         let mut canvas = canvas_config.canvas();
         for danmuku in self.danmaku {
             if let Some(drawable) = canvas.draw(danmuku)? {

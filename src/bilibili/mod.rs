@@ -1,7 +1,7 @@
 pub use analyzer::{BestStream, FilterOption};
 pub use client::{BiliClient, Client};
 pub use credential::Credential;
-pub use danmaku::SubtitleOption;
+pub use danmaku::DanmakuOption;
 pub use error::BiliError;
 pub use favorite_list::{FavoriteList, FavoriteListInfo, VideoInfo};
 pub use video::{PageInfo, Video};

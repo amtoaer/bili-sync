@@ -9,6 +9,7 @@ use crate::bilibili::analyzer::PageAnalyzer;
 use crate::bilibili::client::BiliClient;
 use crate::bilibili::danmaku::DmSegMobileReply;
 use crate::bilibili::error::BiliError;
+
 static MASK_CODE: u64 = 2251799813685247;
 static XOR_CODE: u64 = 23442827791579;
 static BASE: u64 = 58;
@@ -37,7 +38,6 @@ impl serde::Serialize for Tag {
         serializer.serialize_str(&self.tag_name)
     }
 }
-#[allow(dead_code)]
 #[derive(Debug, serde::Deserialize, Default)]
 pub struct PageInfo {
     pub cid: i32,
@@ -49,7 +49,6 @@ pub struct PageInfo {
     pub dimension: Option<Dimension>,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, serde::Deserialize, Default)]
 pub struct Dimension {
     pub width: u64,
@@ -117,7 +116,7 @@ impl<'a> Video<'a> {
     async fn get_danmaku_segment(&self, page: &PageInfo, segment_idx: i32) -> Result<Vec<DanmakuElem>> {
         let res = self
             .client
-            .request(Method::GET, "https://api.bilibili.com/x/v2/dm/web/history/seg.so")
+            .request(Method::GET, "http://api.bilibili.com/x/v2/dm/web/seg.so")
             .query(&[("type", 1), ("oid", page.cid), ("segment_index", segment_idx)])
             .send()
             .await?
