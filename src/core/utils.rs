@@ -459,6 +459,10 @@ mod tests {
             name: "name".to_string(),
             upper_id: 1,
             upper_name: "upper_name".to_string(),
+            favtime: chrono::NaiveDateTime::new(
+                chrono::NaiveDate::from_ymd_opt(2022, 2, 2).unwrap(),
+                chrono::NaiveTime::from_hms_opt(2, 2, 2).unwrap(),
+            ),
             pubtime: chrono::NaiveDateTime::new(
                 chrono::NaiveDate::from_ymd_opt(2022, 2, 2).unwrap(),
                 chrono::NaiveTime::from_hms_opt(2, 2, 2).unwrap(),
@@ -519,7 +523,7 @@ mod tests {
     <plot/>
     <outline/>
     <lockdata>false</lockdata>
-    <dateadded>2022-02-02</dateadded>
+    <dateadded>2022-02-02 02:02:02</dateadded>
     <title>1</title>
     <sorttitle>1</sorttitle>
 </person>"#,
