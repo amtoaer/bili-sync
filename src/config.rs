@@ -7,7 +7,7 @@ use arc_swap::ArcSwapOption;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
-use crate::bilibili::{Credential, FilterOption};
+use crate::bilibili::{Credential, FilterOption, SubtitleOption};
 
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     let config = Config::load().unwrap_or_else(|err| {
@@ -29,6 +29,7 @@ pub static CONFIG_DIR: Lazy<PathBuf> =
 pub struct Config {
     pub credential: ArcSwapOption<Credential>,
     pub filter_option: FilterOption,
+    pub subtitle_option: SubtitleOption,
     pub favorite_list: HashMap<String, PathBuf>,
     pub video_name: Cow<'static, str>,
     pub page_name: Cow<'static, str>,
@@ -47,6 +48,7 @@ impl Config {
         Self {
             credential: ArcSwapOption::empty(),
             filter_option: FilterOption::default(),
+            subtitle_option: SubtitleOption::default(),
             favorite_list: HashMap::new(),
             video_name: Cow::Borrowed("{{bvid}}"),
             page_name: Cow::Borrowed("{{bvid}}"),

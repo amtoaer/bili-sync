@@ -28,6 +28,7 @@ pub static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
     handlebars
 });
 
+#[allow(clippy::upper_case_acronyms)]
 pub enum NFOMode {
     MOVIE,
     TVSHOW,

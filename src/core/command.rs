@@ -352,11 +352,12 @@ pub async fn download_page(
             "pid": page_model.pid,
         }),
     )?);
-    let (poster_path, video_path, nfo_path) = if is_single_page {
+    let (poster_path, video_path, nfo_path, subtitle_path) = if is_single_page {
         (
             base_path.join(format!("{}-poster.jpg", &base_name)),
             base_path.join(format!("{}.mp4", &base_name)),
             base_path.join(format!("{}.nfo", &base_name)),
+            base_path.join(format!("{}.zh-CN.default.ass", &base_name)),
         )
     } else {
         (
@@ -369,6 +370,9 @@ pub async fn download_page(
             base_path
                 .join("Season 1")
                 .join(format!("{} - S01E{:0>2}.nfo", &base_name, page_model.pid)),
+            base_path
+                .join("Season 1")
+                .join(format!("{} - S01E{:0>2}.zh-CN.default.ass", &base_name, page_model.pid)),
         )
     };
     let tasks: Vec<Pin<Box<dyn Future<Output = Result<()>>>>> = vec![
@@ -389,6 +393,13 @@ pub async fn download_page(
             video_path.clone(),
         )),
         Box::pin(generate_page_nfo(seprate_status[2], video_model, &page_model, nfo_path)),
+        Box::pin(fetch_page_subtitle(
+            seprate_status[3],
+            bili_client,
+            video_model,
+            &page_model,
+            subtitle_path,
+        )),
     ];
     let tasks: FuturesOrdered<_> = tasks.into_iter().collect();
     let results: Vec<Result<()>> = tasks.collect().await;
@@ -485,6 +496,28 @@ pub async fn fetch_page_video(
             downloader.merge(&tmp_video_path, &tmp_audio_path, &page_path).await?;
         }
     }
+    Ok(())
+}
+
+pub async fn fetch_page_subtitle(
+    should_run: bool,
+    bili_client: &BiliClient,
+    video_model: &video::Model,
+    page_model: &page::Model,
+    subtitle_path: PathBuf,
+) -> Result<()> {
+    if !should_run {
+        return Ok(());
+    }
+    let bili_video = Video::new(bili_client, video_model.bvid.clone());
+    bili_video
+        .get_danmaku_writer(&PageInfo {
+            cid: page_model.cid,
+            ..Default::default()
+        })
+        .await?
+        .write(subtitle_path)
+        .await?;
     Ok(())
 }
 
