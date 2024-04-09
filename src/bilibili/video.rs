@@ -44,16 +44,16 @@ pub struct PageInfo {
     pub page: i32,
     #[serde(rename = "part")]
     pub name: String,
-    pub duration: u64,
+    pub duration: u32,
     pub first_frame: Option<String>,
     pub dimension: Option<Dimension>,
 }
 
 #[derive(Debug, serde::Deserialize, Default)]
 pub struct Dimension {
-    pub width: u64,
-    pub height: u64,
-    pub rotate: u64,
+    pub width: u32,
+    pub height: u32,
+    pub rotate: u32,
 }
 
 impl<'a> Video<'a> {

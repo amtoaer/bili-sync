@@ -1,5 +1,3 @@
-use core::fmt;
-
 use anyhow::Result;
 
 static STATUS_MAX_RETRY: u32 = 0b100;
@@ -94,16 +92,6 @@ impl Status {
         let helper = !0u32;
         (self.0 & (helper << (offset * 3)) & (helper >> (32 - 3 * offset - 3))) >> (offset * 3)
     }
-
-    fn display_status(status: u32) -> String {
-        if status < STATUS_MAX_RETRY {
-            format!("failed {} times", status)
-        } else if status == STATUS_OK {
-            "ok".to_string()
-        } else {
-            "failed".to_string()
-        }
-    }
 }
 
 impl From<Status> for u32 {
@@ -136,20 +124,6 @@ impl VideoStatus {
     }
 }
 
-impl fmt::Display for VideoStatus {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Video Cover: {}, Video NFO: {}, Up Avatar: {}, Up NFO: {}, Page Download: {}",
-            Status::display_status(self.0.get_status(0)),
-            Status::display_status(self.0.get_status(1)),
-            Status::display_status(self.0.get_status(2)),
-            Status::display_status(self.0.get_status(3)),
-            Status::display_status(self.0.get_status(4))
-        )
-    }
-}
-
 impl From<VideoStatus> for u32 {
     fn from(status: VideoStatus) -> Self {
         status.0.into()
@@ -166,32 +140,17 @@ impl PageStatus {
     }
 
     pub fn set_mask(&mut self, clear: &[bool]) {
-        assert!(clear.len() == 3, "PageStatus should have 3 status");
+        assert!(clear.len() == 4, "PageStatus should have 4 status");
         self.0.set_mask(clear)
     }
 
     pub fn should_run(&self) -> Vec<bool> {
-        self.0.should_run(3)
+        self.0.should_run(4)
     }
 
     pub fn update_status(&mut self, result: &[Result<()>]) {
-        assert!(
-            result.len() >= 3,
-            "PageStatus should have at least 3 status, more status will be ignored"
-        );
-        self.0.update_status(&result[..3])
-    }
-}
-
-impl fmt::Display for PageStatus {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Page Cover: {}, Page Content: {}, Page NFO: {}",
-            Status::display_status(self.0.get_status(0)),
-            Status::display_status(self.0.get_status(1)),
-            Status::display_status(self.0.get_status(2))
-        )
+        assert!(result.len() == 4, "PageStatus should have 4 status");
+        self.0.update_status(&result)
     }
 }
 

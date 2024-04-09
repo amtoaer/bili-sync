@@ -199,13 +199,11 @@ pub async fn download_video_pages(
     }
     let mut status = VideoStatus::new(video_model.download_status);
     let seprate_status = status.should_run();
-
     let base_path = Path::new(&video_model.path);
     let upper_id = video_model.upper_id.to_string();
     let base_upper_path = upper_path
         .join(upper_id.chars().next().unwrap().to_string())
         .join(upper_id);
-
     let is_single_page = video_model.single_page.unwrap();
     // 对于单页视频，page 的下载已经足够
     // 对于多页视频，page 下载仅包含了分集内容，需要额外补上视频的 poster 的 tvshow.nfo
@@ -391,7 +389,6 @@ pub async fn download_page(
         ..Default::default()
     };
     let tasks: Vec<Pin<Box<dyn Future<Output = Result<()>>>>> = vec![
-        // 暂时不支持下载字幕
         Box::pin(fetch_page_poster(
             seprate_status[0],
             video_model,
@@ -421,7 +418,7 @@ pub async fn download_page(
     status.update_status(&results);
     results
         .iter()
-        .zip(["poster", "video", "nfo"])
+        .zip(["poster", "video", "nfo", "danmaku"])
         .for_each(|(res, task_name)| {
             if res.is_err() {
                 error!(
