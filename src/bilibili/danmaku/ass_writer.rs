@@ -88,14 +88,14 @@ impl fmt::Display for CanvasStyles {
     }
 }
 
-pub struct AssWriter<'a, W: AsyncWrite> {
+pub struct AssWriter<W: AsyncWrite> {
     f: Pin<Box<BufWriter<W>>>,
     title: String,
-    canvas_config: CanvasConfig<'a>,
+    canvas_config: CanvasConfig,
 }
 
-impl<'a, W: AsyncWrite> AssWriter<'a, W> {
-    pub fn new(f: W, title: String, canvas_config: CanvasConfig<'a>) -> Self {
+impl<W: AsyncWrite> AssWriter<W> {
+    pub fn new(f: W, title: String, canvas_config: CanvasConfig) -> Self {
         AssWriter {
             // 对于 HDD、docker 之类的场景，磁盘 IO 是非常大的瓶颈。使用大缓存
             f: Box::pin(BufWriter::with_capacity(10 << 20, f)),
@@ -104,14 +104,13 @@ impl<'a, W: AsyncWrite> AssWriter<'a, W> {
         }
     }
 
-    pub async fn construct(f: W, title: String, canvas_config: CanvasConfig<'a>) -> Result<Self> {
+    pub async fn construct(f: W, title: String, canvas_config: CanvasConfig) -> Result<Self> {
         let mut res = Self::new(f, title, canvas_config);
         res.init().await?;
         Ok(res)
     }
 
     pub async fn init(&mut self) -> Result<()> {
-        let (width, height) = self.canvas_config.dimension();
         self.f
             .write_all(
                 format!(
@@ -140,8 +139,8 @@ impl<'a, W: AsyncWrite> AssWriter<'a, W> {
             Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n\
             ",
                     title = self.title,
-                    width = width,
-                    height = height,
+                    width = self.canvas_config.width,
+                    height = self.canvas_config.height,
                     styles = CanvasStyles(self.canvas_config.danmaku_option.ass_styles()),
                 )
                 .into_bytes()

@@ -22,10 +22,7 @@ impl<'a> DanmakuWriter<'a> {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).await?;
         }
-        let canvas_config = CanvasConfig {
-            danmaku_option: &CONFIG.danmaku_option,
-            page: self.page,
-        };
+        let canvas_config = CanvasConfig::new(&CONFIG.danmaku_option, self.page);
         let mut writer =
             AssWriter::construct(File::create(path).await?, self.page.name.clone(), canvas_config.clone()).await?;
         let mut canvas = canvas_config.canvas();

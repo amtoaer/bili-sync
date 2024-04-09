@@ -27,11 +27,10 @@ impl Lane {
 
     /// 这个槽位是否可以发射另外一条弹幕，返回可能的情形
     pub fn available_for(&self, other: &Danmu, config: &CanvasConfig) -> Collision {
-        let (width, _) = config.dimension();
         #[allow(non_snake_case)]
         let T = config.danmaku_option.duration;
         #[allow(non_snake_case)]
-        let W = width as f64;
+        let W = config.width as f64;
         let gap = config.danmaku_option.horizontal_gap;
 
         // 先计算我的速度

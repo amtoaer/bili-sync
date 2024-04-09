@@ -13,8 +13,6 @@ use crate::bilibili::PageInfo;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct DanmakuOption {
-    pub default_width: u64,
-    pub default_height: u64,
     pub duration: f64,
     pub font: String,
     pub font_size: u32,
@@ -40,8 +38,6 @@ pub struct DanmakuOption {
 impl Default for DanmakuOption {
     fn default() -> Self {
         Self {
-            default_width: 1920,
-            default_height: 1080,
             duration: 15.0,
             font: "黑体".to_string(),
             font_size: 25,
@@ -59,14 +55,24 @@ impl Default for DanmakuOption {
 }
 
 #[derive(Clone)]
-pub struct CanvasConfig<'a> {
-    pub danmaku_option: &'a DanmakuOption,
-    pub page: &'a PageInfo,
+pub struct CanvasConfig {
+    pub width: u64,
+    pub height: u64,
+    pub danmaku_option: &'static DanmakuOption,
 }
+impl CanvasConfig {
+    pub fn new(danmaku_option: &'static DanmakuOption, page: &PageInfo) -> Self {
+        let (width, height) = Self::dimension(page);
+        Self {
+            width,
+            height,
+            danmaku_option,
+        }
+    }
 
-impl<'a> CanvasConfig<'a> {
-    pub fn dimension(&self) -> (u64, u64) {
-        match &self.page.dimension {
+    /// 获取画布的宽高
+    fn dimension(page: &PageInfo) -> (u64, u64) {
+        let (width, height) = match &page.dimension {
             Some(d) => {
                 if d.rotate == 0 {
                     (d.width, d.height)
@@ -74,14 +80,16 @@ impl<'a> CanvasConfig<'a> {
                     (d.height, d.width)
                 }
             }
-            None => (self.danmaku_option.default_width, self.danmaku_option.default_height),
-        }
+            None => (1280, 720),
+        };
+        // 对于指定的字体大小，画布的大小同样会影响到字体的实际显示大小
+        // 怀疑字体的大小会根据 height 缩放，尝试将视频的 height 对齐到 720
+        ((720.0 / height as f64 * width as f64) as u64, 720)
     }
 
-    pub fn canvas(self) -> Canvas<'a> {
-        let (_, height) = self.dimension();
+    pub fn canvas(self) -> Canvas {
         let float_lanes_cnt =
-            (self.danmaku_option.float_percentage * height as f64 / self.danmaku_option.lane_size as f64) as usize;
+            (self.danmaku_option.float_percentage * self.height as f64 / self.danmaku_option.lane_size as f64) as usize;
 
         Canvas {
             config: self,
@@ -90,12 +98,12 @@ impl<'a> CanvasConfig<'a> {
     }
 }
 
-pub struct Canvas<'a> {
-    pub config: CanvasConfig<'a>,
+pub struct Canvas {
+    pub config: CanvasConfig,
     pub float_lanes: Vec<Option<Lane>>,
 }
 
-impl<'a> Canvas<'a> {
+impl Canvas {
     pub fn draw(&mut self, mut danmu: Danmu) -> Result<Option<Drawable>> {
         danmu.timeline_s += self.config.danmaku_option.time_offset;
         if danmu.timeline_s < 0.0 {
@@ -152,13 +160,12 @@ impl<'a> Canvas<'a> {
         self.float_lanes[lane_idx] = Some(Lane::draw(&danmu, &self.config));
         let y = lane_idx as i32 * self.config.danmaku_option.lane_size as i32;
         let l = danmu.length(&self.config);
-        let (width, _) = self.config.dimension();
         Drawable::new(
             danmu,
             self.config.danmaku_option.duration,
             "Float",
             DrawEffect::Move {
-                start: (width as i32, y),
+                start: (self.config.width as i32, y),
                 end: (-(l as i32), y),
             },
         )
