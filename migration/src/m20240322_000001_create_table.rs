@@ -84,6 +84,9 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Page::Cid).unsigned().not_null())
                     .col(ColumnDef::new(Page::Pid).unsigned().not_null())
                     .col(ColumnDef::new(Page::Name).string().not_null())
+                    .col(ColumnDef::new(Page::Width).unsigned())
+                    .col(ColumnDef::new(Page::Height).unsigned())
+                    .col(ColumnDef::new(Page::Duration).unsigned().not_null())
                     .col(ColumnDef::new(Page::Path).string())
                     .col(ColumnDef::new(Page::Image).string())
                     .col(ColumnDef::new(Page::DownloadStatus).unsigned().not_null())
@@ -173,6 +176,9 @@ enum Page {
     Cid,
     Pid,
     Name,
+    Width,
+    Height,
+    Duration,
     Path,
     Image,
     DownloadStatus,

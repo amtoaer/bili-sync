@@ -18,7 +18,7 @@ use super::status::{PageStatus, VideoStatus};
 use super::utils::{
     unhandled_videos_pages, update_pages_model, update_videos_model, ModelWrapper, NFOMode, NFOSerializer, TEMPLATE,
 };
-use crate::bilibili::{BestStream, BiliClient, BiliError, FavoriteList, FilterOption, PageInfo, Video};
+use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, FavoriteList, FilterOption, PageInfo, Video};
 use crate::config::CONFIG;
 use crate::core::utils::{
     create_video_pages, create_videos, exist_labels, filter_unfilled_videos, handle_favorite_info, total_video_count,
@@ -375,6 +375,21 @@ pub async fn download_page(
                 .join(format!("{} - S01E{:0>2}.zh-CN.default.ass", &base_name, page_model.pid)),
         )
     };
+    let dimension = if page_model.width.is_some() && page_model.height.is_some() {
+        Some(Dimension {
+            width: page_model.width.unwrap(),
+            height: page_model.height.unwrap(),
+            rotate: 0,
+        })
+    } else {
+        None
+    };
+    let page_info = PageInfo {
+        cid: page_model.cid,
+        duration: page_model.duration,
+        dimension,
+        ..Default::default()
+    };
     let tasks: Vec<Pin<Box<dyn Future<Output = Result<()>>>>> = vec![
         // 暂时不支持下载字幕
         Box::pin(fetch_page_poster(
@@ -388,8 +403,8 @@ pub async fn download_page(
             seprate_status[1],
             bili_client,
             video_model,
-            &page_model,
             downloader,
+            &page_info,
             video_path.clone(),
         )),
         Box::pin(generate_page_nfo(seprate_status[2], video_model, &page_model, nfo_path)),
@@ -397,7 +412,7 @@ pub async fn download_page(
             seprate_status[3],
             bili_client,
             video_model,
-            &page_model,
+            &page_info,
             danmaku_path,
         )),
     ];
@@ -458,8 +473,8 @@ pub async fn fetch_page_video(
     should_run: bool,
     bili_client: &BiliClient,
     video_model: &video::Model,
-    page_model: &page::Model,
     downloader: &Downloader,
+    page_info: &PageInfo,
     page_path: PathBuf,
 ) -> Result<()> {
     if !should_run {
@@ -467,10 +482,7 @@ pub async fn fetch_page_video(
     }
     let bili_video = Video::new(bili_client, video_model.bvid.clone());
     let streams = bili_video
-        .get_page_analyzer(&PageInfo {
-            cid: page_model.cid,
-            ..Default::default()
-        })
+        .get_page_analyzer(page_info)
         .await?
         .best_stream(&FilterOption::default())?;
     match streams {
@@ -503,7 +515,7 @@ pub async fn fetch_page_danmaku(
     should_run: bool,
     bili_client: &BiliClient,
     video_model: &video::Model,
-    page_model: &page::Model,
+    page_info: &PageInfo,
     danmaku_path: PathBuf,
 ) -> Result<()> {
     if !should_run {
@@ -511,10 +523,7 @@ pub async fn fetch_page_danmaku(
     }
     let bili_video = Video::new(bili_client, video_model.bvid.clone());
     bili_video
-        .get_danmaku_writer(&PageInfo {
-            cid: page_model.cid,
-            ..Default::default()
-        })
+        .get_danmaku_writer(page_info)
         .await?
         .write(danmaku_path)
         .await?;
