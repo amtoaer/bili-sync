@@ -1,8 +1,13 @@
 use anyhow::{bail, Result};
+use futures::stream::FuturesUnordered;
+use futures::TryStreamExt;
+use prost::Message;
 use reqwest::Method;
 
+use super::danmaku::{DanmakuElem, DanmakuWriter};
 use crate::bilibili::analyzer::PageAnalyzer;
 use crate::bilibili::client::BiliClient;
+use crate::bilibili::danmaku::DmSegMobileReply;
 use crate::bilibili::error::BiliError;
 
 static MASK_CODE: u64 = 2251799813685247;
@@ -33,14 +38,22 @@ impl serde::Serialize for Tag {
         serializer.serialize_str(&self.tag_name)
     }
 }
-
 #[derive(Debug, serde::Deserialize, Default)]
 pub struct PageInfo {
     pub cid: i32,
     pub page: i32,
     #[serde(rename = "part")]
     pub name: String,
+    pub duration: u32,
     pub first_frame: Option<String>,
+    pub dimension: Option<Dimension>,
+}
+
+#[derive(Debug, serde::Deserialize, Default)]
+pub struct Dimension {
+    pub width: u32,
+    pub height: u32,
+    pub rotate: u32,
 }
 
 impl<'a> Video<'a> {
@@ -87,6 +100,30 @@ impl<'a> Video<'a> {
             bail!(BiliError::RequestFailed(code, msg.to_owned()));
         }
         Ok(serde_json::from_value(res["data"].take())?)
+    }
+
+    pub async fn get_danmaku_writer(&self, page: &'a PageInfo) -> Result<DanmakuWriter> {
+        let tasks = FuturesUnordered::new();
+        for i in 1..=(page.duration + 359) / 360 {
+            tasks.push(self.get_danmaku_segment(page, i as i32));
+        }
+        let result: Vec<Vec<DanmakuElem>> = tasks.try_collect().await?;
+        let mut result: Vec<DanmakuElem> = result.into_iter().flatten().collect();
+        result.sort_by_key(|d| d.progress);
+        Ok(DanmakuWriter::new(page, result.into_iter().map(|x| x.into()).collect()))
+    }
+
+    async fn get_danmaku_segment(&self, page: &PageInfo, segment_idx: i32) -> Result<Vec<DanmakuElem>> {
+        let res = self
+            .client
+            .request(Method::GET, "http://api.bilibili.com/x/v2/dm/web/seg.so")
+            .query(&[("type", 1), ("oid", page.cid), ("segment_index", segment_idx)])
+            .send()
+            .await?
+            .error_for_status()?
+            .bytes()
+            .await?;
+        Ok(DmSegMobileReply::decode(res)?.elems)
     }
 
     pub async fn get_page_analyzer(&self, page: &PageInfo) -> Result<PageAnalyzer> {

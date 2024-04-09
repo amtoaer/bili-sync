@@ -28,6 +28,7 @@ pub static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
     handlebars
 });
 
+#[allow(clippy::upper_case_acronyms)]
 pub enum NFOMode {
     MOVIE,
     TVSHOW,
@@ -182,14 +183,29 @@ pub async fn create_video_pages(
 ) -> Result<()> {
     let page_models = pages_info
         .iter()
-        .map(move |p| page::ActiveModel {
-            video_id: Set(video_model.id),
-            cid: Set(p.cid),
-            pid: Set(p.page),
-            name: Set(p.name.clone()),
-            image: Set(p.first_frame.clone()),
-            download_status: Set(0),
-            ..Default::default()
+        .map(move |p| {
+            let (width, height) = match &p.dimension {
+                Some(d) => {
+                    if d.rotate == 0 {
+                        (Some(d.width), Some(d.height))
+                    } else {
+                        (Some(d.height), Some(d.width))
+                    }
+                }
+                None => (None, None),
+            };
+            page::ActiveModel {
+                video_id: Set(video_model.id),
+                cid: Set(p.cid),
+                pid: Set(p.page),
+                name: Set(p.name.clone()),
+                width: Set(width),
+                height: Set(height),
+                duration: Set(p.duration),
+                image: Set(p.first_frame.clone()),
+                download_status: Set(0),
+                ..Default::default()
+            }
         })
         .collect::<Vec<page::ActiveModel>>();
     page::Entity::insert_many(page_models)

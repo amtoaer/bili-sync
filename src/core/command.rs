@@ -18,7 +18,7 @@ use super::status::{PageStatus, VideoStatus};
 use super::utils::{
     unhandled_videos_pages, update_pages_model, update_videos_model, ModelWrapper, NFOMode, NFOSerializer, TEMPLATE,
 };
-use crate::bilibili::{BestStream, BiliClient, BiliError, FavoriteList, FilterOption, PageInfo, Video};
+use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, FavoriteList, FilterOption, PageInfo, Video};
 use crate::config::CONFIG;
 use crate::core::utils::{
     create_video_pages, create_videos, exist_labels, filter_unfilled_videos, handle_favorite_info, total_video_count,
@@ -199,13 +199,11 @@ pub async fn download_video_pages(
     }
     let mut status = VideoStatus::new(video_model.download_status);
     let seprate_status = status.should_run();
-
     let base_path = Path::new(&video_model.path);
     let upper_id = video_model.upper_id.to_string();
     let base_upper_path = upper_path
         .join(upper_id.chars().next().unwrap().to_string())
         .join(upper_id);
-
     let is_single_page = video_model.single_page.unwrap();
     // 对于单页视频，page 的下载已经足够
     // 对于多页视频，page 下载仅包含了分集内容，需要额外补上视频的 poster 的 tvshow.nfo
@@ -352,11 +350,12 @@ pub async fn download_page(
             "pid": page_model.pid,
         }),
     )?);
-    let (poster_path, video_path, nfo_path) = if is_single_page {
+    let (poster_path, video_path, nfo_path, danmaku_path) = if is_single_page {
         (
             base_path.join(format!("{}-poster.jpg", &base_name)),
             base_path.join(format!("{}.mp4", &base_name)),
             base_path.join(format!("{}.nfo", &base_name)),
+            base_path.join(format!("{}.zh-CN.default.ass", &base_name)),
         )
     } else {
         (
@@ -369,10 +368,27 @@ pub async fn download_page(
             base_path
                 .join("Season 1")
                 .join(format!("{} - S01E{:0>2}.nfo", &base_name, page_model.pid)),
+            base_path
+                .join("Season 1")
+                .join(format!("{} - S01E{:0>2}.zh-CN.default.ass", &base_name, page_model.pid)),
         )
     };
+    let dimension = if page_model.width.is_some() && page_model.height.is_some() {
+        Some(Dimension {
+            width: page_model.width.unwrap(),
+            height: page_model.height.unwrap(),
+            rotate: 0,
+        })
+    } else {
+        None
+    };
+    let page_info = PageInfo {
+        cid: page_model.cid,
+        duration: page_model.duration,
+        dimension,
+        ..Default::default()
+    };
     let tasks: Vec<Pin<Box<dyn Future<Output = Result<()>>>>> = vec![
-        // 暂时不支持下载字幕
         Box::pin(fetch_page_poster(
             seprate_status[0],
             video_model,
@@ -384,18 +400,25 @@ pub async fn download_page(
             seprate_status[1],
             bili_client,
             video_model,
-            &page_model,
             downloader,
+            &page_info,
             video_path.clone(),
         )),
         Box::pin(generate_page_nfo(seprate_status[2], video_model, &page_model, nfo_path)),
+        Box::pin(fetch_page_danmaku(
+            seprate_status[3],
+            bili_client,
+            video_model,
+            &page_info,
+            danmaku_path,
+        )),
     ];
     let tasks: FuturesOrdered<_> = tasks.into_iter().collect();
     let results: Vec<Result<()>> = tasks.collect().await;
     status.update_status(&results);
     results
         .iter()
-        .zip(["poster", "video", "nfo"])
+        .zip(["poster", "video", "nfo", "danmaku"])
         .for_each(|(res, task_name)| {
             if res.is_err() {
                 error!(
@@ -447,8 +470,8 @@ pub async fn fetch_page_video(
     should_run: bool,
     bili_client: &BiliClient,
     video_model: &video::Model,
-    page_model: &page::Model,
     downloader: &Downloader,
+    page_info: &PageInfo,
     page_path: PathBuf,
 ) -> Result<()> {
     if !should_run {
@@ -456,10 +479,7 @@ pub async fn fetch_page_video(
     }
     let bili_video = Video::new(bili_client, video_model.bvid.clone());
     let streams = bili_video
-        .get_page_analyzer(&PageInfo {
-            cid: page_model.cid,
-            ..Default::default()
-        })
+        .get_page_analyzer(page_info)
         .await?
         .best_stream(&FilterOption::default())?;
     match streams {
@@ -485,6 +505,25 @@ pub async fn fetch_page_video(
             downloader.merge(&tmp_video_path, &tmp_audio_path, &page_path).await?;
         }
     }
+    Ok(())
+}
+
+pub async fn fetch_page_danmaku(
+    should_run: bool,
+    bili_client: &BiliClient,
+    video_model: &video::Model,
+    page_info: &PageInfo,
+    danmaku_path: PathBuf,
+) -> Result<()> {
+    if !should_run {
+        return Ok(());
+    }
+    let bili_video = Video::new(bili_client, video_model.bvid.clone());
+    bili_video
+        .get_danmaku_writer(page_info)
+        .await?
+        .write(danmaku_path)
+        .await?;
     Ok(())
 }
 

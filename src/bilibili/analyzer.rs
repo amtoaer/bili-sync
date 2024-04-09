@@ -31,6 +31,7 @@ pub enum AudioQuality {
     Quality192k = 30280,
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, strum::EnumString, strum::Display, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum VideoCodecs {
     #[strum(serialize = "hev")]
