@@ -132,3 +132,11 @@ time_offset = 0.0
 - [x] 请求过快出现风控的 workaround
 - [ ] 提供简单易用的打包（如 docker）
 - [ ] 支持 UP 主合集下载
+
+## 参考与借鉴
+
+该项目实现过程中主要参考借鉴了如下的项目，感谢他们的贡献：
+
++ [bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect) B 站的第三方接口文档
++ [bilibili-api](https://github.com/Nemo2011/bilibili-api) 使用 Python 调用接口的参考实现
++ [danmu2ass](https://github.com/gwy15/danmu2ass) 本项目弹幕下载功能的缝合来源
