@@ -97,7 +97,6 @@ no_dolby_audio = false
 no_hdr = false
 no_hires = false
 
-
 [danmaku_option]
 duration = 12.0
 font = "黑体"
