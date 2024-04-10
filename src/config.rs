@@ -11,12 +11,14 @@ use crate::bilibili::{Credential, DanmakuOption, FilterOption};
 
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     let config = Config::load().unwrap_or_else(|err| {
-        warn!("Failed loading config: {err}");
+        warn!("加载配置失败，错误为： {err}，将使用默认配置...");
         Config::new()
     });
     // 放到外面，确保新的配置项被保存
+    info!("配置加载完毕，覆盖刷新原有配置");
     config.save().unwrap();
     // 检查配置文件内容
+    info!("校验配置文件内容...");
     config.check();
     config
 });
@@ -62,43 +64,50 @@ impl Config {
         let mut ok = true;
         if self.favorite_list.is_empty() {
             ok = false;
-            error!("No favorite list found, program won't do anything");
+            error!("未设置需监听的收藏夹，程序空转没有意义");
         }
         for path in self.favorite_list.values() {
             if !path.is_absolute() {
                 ok = false;
-                error!("Path in favorite list must be absolute: {}", path.display());
+                error!("收藏夹保存的路径应为绝对路径，检测到: {}", path.display());
             }
         }
         if !self.upper_path.is_absolute() {
             ok = false;
-            error!("Upper face path must be absolute");
+            error!("up 主头像保存的路径应为绝对路径");
         }
         if self.video_name.is_empty() {
             ok = false;
-            error!("No video name template found");
+            error!("未设置 video_name 模板");
         }
         if self.page_name.is_empty() {
             ok = false;
-            error!("No page name template found");
+            error!("未设置 page_name 模板");
         }
         let credential = self.credential.load();
-        if let Some(credential) = credential.as_deref() {
-            if credential.sessdata.is_empty()
-                || credential.bili_jct.is_empty()
-                || credential.buvid3.is_empty()
-                || credential.dedeuserid.is_empty()
-                || credential.ac_time_value.is_empty()
-            {
-                ok = false;
-                error!("Credential is incomplete");
+        match credential.as_deref() {
+            Some(credential) => {
+                if credential.sessdata.is_empty()
+                    || credential.bili_jct.is_empty()
+                    || credential.buvid3.is_empty()
+                    || credential.dedeuserid.is_empty()
+                    || credential.ac_time_value.is_empty()
+                {
+                    ok = false;
+                    error!("Credential 信息不完整，请确保填写完整");
+                }
             }
-        } else {
-            warn!("No credential found, can't access high quality video");
+            None => {
+                ok = false;
+                error!("未设置 Credential 信息");
+            }
         }
 
         if !ok {
-            panic!("Config in {} is invalid", CONFIG_DIR.join("config.toml").display());
+            panic!(
+                "位于 {} 的配置文件不合法，请参考提示信息修复后继续运行",
+                CONFIG_DIR.join("config.toml").display()
+            );
         }
     }
 

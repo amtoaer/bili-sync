@@ -26,20 +26,19 @@ async fn main() -> ! {
     loop {
         if anchor != chrono::Local::now().date_naive() {
             if let Err(e) = bili_client.check_refresh().await {
-                error!("Error: {e}");
+                error!("检查刷新 Credential 遇到错误：{e}，等待下一轮执行");
                 tokio::time::sleep(std::time::Duration::from_secs(CONFIG.interval)).await;
                 continue;
             }
             anchor = chrono::Local::now().date_naive();
         }
         for (fid, path) in &CONFIG.favorite_list {
-            let res = process_favorite_list(&bili_client, fid, path, &connection).await;
-            if let Err(e) = res {
-                error!("Error: {e}");
+            if let Err(e) = process_favorite_list(&bili_client, fid, path, &connection).await {
+                // 可预期的错误都被内部处理了，这里漏出来应该是大问题
+                error!("处理收藏夹 {fid} 时遇到非预期的错误：{e}");
             }
         }
-        info!("All favorite lists have been processed, wait for next round.");
-
+        info!("所有收藏夹处理完毕，等待下一轮执行");
         tokio::time::sleep(std::time::Duration::from_secs(CONFIG.interval)).await;
     }
 }

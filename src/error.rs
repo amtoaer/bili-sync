@@ -1,5 +1,9 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-#[error("Bilibili api request too frequently, abort all tasks and try again later")]
+#[error("Request too frequently")]
 pub struct DownloadAbortError();
+
+#[derive(Error, Debug)]
+#[error("Process page error")]
+pub struct ProcessPageError();

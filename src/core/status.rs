@@ -150,7 +150,7 @@ impl PageStatus {
 
     pub fn update_status(&mut self, result: &[Result<()>]) {
         assert!(result.len() == 4, "PageStatus should have 4 status");
-        self.0.update_status(&result)
+        self.0.update_status(result)
     }
 }
 

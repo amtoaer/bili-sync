@@ -24,7 +24,7 @@ use crate::core::utils::{
     create_video_pages, create_videos, exist_labels, filter_unfilled_videos, handle_favorite_info, total_video_count,
 };
 use crate::downloader::Downloader;
-use crate::error::DownloadAbortError;
+use crate::error::{DownloadAbortError, ProcessPageError};
 
 /// 处理某个收藏夹，首先刷新收藏夹信息，然后下载收藏夹中未下载成功的视频
 pub async fn process_favorite_list(
@@ -48,7 +48,7 @@ pub async fn refresh_favorite_list(
     let bili_favorite_list = FavoriteList::new(bili_client, fid.to_owned());
     let favorite_list_info = bili_favorite_list.get_info().await?;
     let favorite_model = handle_favorite_info(&favorite_list_info, path, connection).await?;
-    info!("Scan the favorite: {fid}.");
+    info!("开始扫描收藏夹: {} - {}...", favorite_model.f_id, favorite_model.name);
     // 每十个视频一组，避免太多的数据库操作
     let video_stream = bili_favorite_list.into_video_stream().chunks(10);
     pin_mut!(video_stream);
@@ -64,12 +64,15 @@ pub async fn refresh_favorite_list(
         // 将视频信息写入数据库
         create_videos(&videos_info, &favorite_model, connection).await?;
         if should_break {
-            info!("Reach the last processed processed position, break..");
+            info!("到达上一次处理的位置，提前中止");
             break;
         }
     }
     let total_count = total_video_count(&favorite_model, connection).await? - total_count;
-    info!("Scan the favorite: {fid} done, got {got_count} videos, {total_count} new videos.");
+    info!(
+        "扫描收藏夹: {} - {} 完成, 获取了 {} 条视频, 其中有 {} 条新视频",
+        favorite_model.f_id, favorite_model.name, got_count, total_count
+    );
     Ok(favorite_model)
 }
 
@@ -79,14 +82,20 @@ pub async fn fetch_video_details(
     favorite_model: favorite::Model,
     connection: &DatabaseConnection,
 ) -> Result<favorite::Model> {
-    info!("start to fetch video details in favorite: {}", favorite_model.f_id);
+    info!(
+        "开始获取收藏夹 {} - {} 的视频与分页信息...",
+        favorite_model.f_id, favorite_model.name
+    );
     let videos_model = filter_unfilled_videos(&favorite_model, connection).await?;
     for video_model in videos_model {
         let bili_video = Video::new(bili_client, video_model.bvid.clone());
         let tags = match bili_video.get_tags().await {
             Ok(tags) => tags,
             Err(e) => {
-                error!("failed to get tags for video: {}, {}", &video_model.bvid, e);
+                error!(
+                    "获取视频 {} - {} 的标签失败，错误为：{}",
+                    &video_model.bvid, &video_model.name, e
+                );
                 if let Some(BiliError::RequestFailed(code, _)) = e.downcast_ref::<BiliError>() {
                     if *code == -404 {
                         let mut video_active_model: video::ActiveModel = video_model.into();
@@ -100,7 +109,10 @@ pub async fn fetch_video_details(
         let pages_info = match bili_video.get_pages().await {
             Ok(pages) => pages,
             Err(e) => {
-                error!("failed to get pages for video: {}, {}", &video_model.bvid, e);
+                error!(
+                    "获取视频 {} - {} 的分页信息失败，错误为：{}",
+                    &video_model.bvid, &video_model.name, e
+                );
                 if let Some(BiliError::RequestFailed(code, _)) = e.downcast_ref::<BiliError>() {
                     if *code == -404 {
                         let mut video_active_model: video::ActiveModel = video_model.into();
@@ -121,7 +133,10 @@ pub async fn fetch_video_details(
         video_active_model.save(&txn).await?;
         txn.commit().await?;
     }
-    info!("fetch video details in favorite: {} done.", favorite_model.f_id);
+    info!(
+        "获取收藏夹 {} - {} 的视频与分页信息完成",
+        favorite_model.f_id, favorite_model.name
+    );
     Ok(favorite_model)
 }
 
@@ -131,7 +146,10 @@ pub async fn download_unprocessed_videos(
     favorite_model: favorite::Model,
     connection: &DatabaseConnection,
 ) -> Result<()> {
-    info!("start to download videos in favorite: {}", favorite_model.f_id);
+    info!(
+        "开始下载收藏夹: {} - {} 中所有未处理过的视频...",
+        favorite_model.f_id, favorite_model.name
+    );
     let unhandled_videos_pages = unhandled_videos_pages(&favorite_model, connection).await?;
     // 对于视频，允许五个同时下载（视频内还有分页、不同分页还有多种下载任务）
     let semaphore = Semaphore::new(5);
@@ -164,7 +182,7 @@ pub async fn download_unprocessed_videos(
             }
             Err(e) => {
                 if e.downcast_ref::<DownloadAbortError>().is_some() {
-                    warn!("{e}");
+                    error!("下载视频时触发风控，将终止收藏夹下所有下载任务，等待下一轮执行");
                     break;
                 }
             }
@@ -177,7 +195,10 @@ pub async fn download_unprocessed_videos(
     if !models.is_empty() {
         update_videos_model(models, connection).await?;
     }
-    info!("download videos in favorite: {} done.", favorite_model.f_id);
+    info!(
+        "下载收藏夹: {} - {} 中未处理过的视频完成",
+        favorite_model.f_id, favorite_model.name
+    );
     Ok(())
 }
 
@@ -252,20 +273,20 @@ pub async fn download_video_pages(
     results
         .iter()
         .take(4)
-        .zip(["poster", "video nfo", "upper face", "upper nfo"])
-        .for_each(|(res, task_name)| {
-            if res.is_err() {
-                error!(
-                    "Video {} {} failed: {}",
-                    &video_model.bvid,
-                    task_name,
-                    res.as_ref().unwrap_err()
-                );
-            }
+        .zip(["封面", "视频 nfo", "up 主头像", "up 主 nfo"])
+        .for_each(|(res, task_name)| match res {
+            Ok(_) => info!(
+                "处理视频 {} - {} 的 {} 成功",
+                &video_model.bvid, &video_model.name, task_name
+            ),
+            Err(e) => error!(
+                "处理视频 {} - {} 的 {} 失败: {}",
+                &video_model.bvid, &video_model.name, task_name, e
+            ),
         });
     if let Err(e) = results.into_iter().nth(4).unwrap() {
         if let Ok(e) = e.downcast::<DownloadAbortError>() {
-            bail!(e);
+            return Err(e.into());
         }
     }
     let mut video_active_model: video::ActiveModel = video_model.into();
@@ -291,14 +312,14 @@ pub async fn dispatch_download_page(
         .map(|page_model| download_page(bili_client, video_model, page_model, &child_semaphore, downloader))
         .collect::<FuturesUnordered<_>>();
     let mut models = Vec::with_capacity(10);
-    let mut should_error = false;
+    let (mut should_error, mut is_break) = (false, false);
     while let Some(res) = tasks.next().await {
         match res {
             Ok(model) => {
                 if let Set(status) = model.download_status {
                     let status = PageStatus::new(status);
                     if status.should_run().iter().any(|v| *v) {
-                        // 有一个分页没下载完成，就应该将视频本身标记为未完成
+                        // 有一个分页没变成终止状态（即下载成功或者重试次数达到限制），就应该向上层传递 Error
                         should_error = true;
                     }
                 }
@@ -306,7 +327,7 @@ pub async fn dispatch_download_page(
             }
             Err(e) => {
                 if e.downcast_ref::<DownloadAbortError>().is_some() {
-                    warn!("{e}");
+                    is_break = true;
                     break;
                 }
             }
@@ -319,7 +340,19 @@ pub async fn dispatch_download_page(
         update_pages_model(models, connection).await?;
     }
     if should_error {
-        bail!("Some pages failed to download");
+        if is_break {
+            error!(
+                "下载视频 {} - {} 的分页时触发风控，将异常向上传递...",
+                &video_model.bvid, &video_model.name
+            );
+            bail!(DownloadAbortError());
+        } else {
+            error!(
+                "下载视频 {} - {} 的分页时出现了错误，将在下一轮尝试重新处理",
+                &video_model.bvid, &video_model.name
+            );
+            bail!(ProcessPageError());
+        }
     }
     Ok(())
 }
@@ -418,22 +451,21 @@ pub async fn download_page(
     status.update_status(&results);
     results
         .iter()
-        .zip(["poster", "video", "nfo", "danmaku"])
-        .for_each(|(res, task_name)| {
-            if res.is_err() {
-                error!(
-                    "Video {} page {} {} failed: {}",
-                    &video_model.bvid,
-                    page_model.pid,
-                    task_name,
-                    res.as_ref().unwrap_err()
-                );
-            }
+        .zip(["封面", "视频", "视频 nfo", "弹幕"])
+        .for_each(|(res, task_name)| match res {
+            Ok(_) => info!(
+                "处理视频 {} - {} 第 {} 页的 {} 成功",
+                &video_model.bvid, &video_model.name, page_model.pid, task_name
+            ),
+            Err(e) => error!(
+                "处理视频 {} - {} 第 {} 页的 {} 失败: {}",
+                &video_model.bvid, &video_model.name, page_model.pid, task_name, e
+            ),
         });
     // 查看下载视频的状态，该状态会影响上层是否 break
     if let Err(e) = results.into_iter().nth(1).unwrap() {
         if let Ok(e) = e.downcast::<DownloadAbortError>() {
-            bail!(e);
+            return Err(e.into());
         }
     }
     let mut page_active_model: page::ActiveModel = page_model.into();

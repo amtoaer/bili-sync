@@ -114,16 +114,23 @@ impl<'a> Video<'a> {
     }
 
     async fn get_danmaku_segment(&self, page: &PageInfo, segment_idx: i32) -> Result<Vec<DanmakuElem>> {
-        let res = self
+        let mut res = self
             .client
             .request(Method::GET, "http://api.bilibili.com/x/v2/dm/web/seg.so")
             .query(&[("type", 1), ("oid", page.cid), ("segment_index", segment_idx)])
             .send()
             .await?
-            .error_for_status()?
-            .bytes()
-            .await?;
-        Ok(DmSegMobileReply::decode(res)?.elems)
+            .error_for_status()?;
+        let headers = std::mem::take(res.headers_mut());
+        let content_type = headers.get("content-type");
+        if !content_type.is_some_and(|v| v == "application/octet-stream") {
+            bail!(
+                "unexpected content type: {:?}, body: {:?}",
+                content_type,
+                res.text().await
+            );
+        }
+        Ok(DmSegMobileReply::decode(res.bytes().await?)?.elems)
     }
 
     pub async fn get_page_analyzer(&self, page: &PageInfo) -> Result<PageAnalyzer> {

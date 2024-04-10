@@ -107,7 +107,7 @@ impl<'a> FavoriteList<'a> {
                     },
                 };
                 if !videos["data"]["medias"].is_array() {
-                    error!("no medias found in favorite {} page {}", self.fid, page);
+                    warn!("no medias found in favorite {} page {}", self.fid, page);
                     break;
                 }
                 let videos_info = match serde_json::from_value::<Vec<VideoInfo>>(videos["data"]["medias"].take()) {

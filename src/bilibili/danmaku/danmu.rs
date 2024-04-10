@@ -1,5 +1,5 @@
 //! 一个弹幕实例，但是没有位置信息
-use anyhow::Result;
+use anyhow::{bail, Result};
 
 use super::canvas::CanvasConfig;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -18,7 +18,8 @@ impl DanmuType {
             4 => DanmuType::Bottom,
             5 => DanmuType::Top,
             6 => DanmuType::Reverse,
-            _ => unreachable!(),
+            // 高级弹幕、代码弹幕等，不支持，这里 return error，外面 unwrap_or_default 当成 Float 处理
+            _ => bail!("UnSupported danmu type"),
         })
     }
 }
