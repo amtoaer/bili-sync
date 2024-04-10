@@ -52,7 +52,7 @@ impl Config {
             filter_option: FilterOption::default(),
             danmaku_option: DanmakuOption::default(),
             favorite_list: HashMap::new(),
-            video_name: Cow::Borrowed("{{bvid}}"),
+            video_name: Cow::Borrowed("{{title}}"),
             page_name: Cow::Borrowed("{{bvid}}"),
             interval: 1200,
             upper_path: CONFIG_DIR.join("upper_face"),
