@@ -15,12 +15,16 @@
 支持展示视频封面、名称、加入日期、标签、分页等。
 
 ## 效果演示
-
+### 概览
 ![概览](./assets/overview.png)
-
+### 详情
 ![详情](./assets/detail.png)
+### 播放（使用 infuse）
+![播放](./assets/play.png)
+### 文件排布
+![文件](./assets/dir.png)
 
-## 配置文件
+## 配置文件说明
 
 程序默认会将配置文件存储于 `~/.config/bili-sync/config.toml`，数据库文件存储于 `~/.config/bili-sync/data.sqlite`，如果发现不存在则新建并写入初始配置。
 
@@ -62,7 +66,9 @@ page_name 除支持 video 的全部参数外，还支持 ptitle（分 P 标题�
 
 对于 filter_option 的可选值，请前往 [analyzer.rs](https://github.com/amtoaer/bili-sync/blob/main/src/bilibili/analyzer.rs) 查看。
 
-## 配置文件示例与说明
+对于 danmaku_option 的项含义，请前往 [danmaku/mod.rs](https://github.com/amtoaer/bili-sync/blob/main/src/bilibili/danmaku/canvas/mod.rs) 与 [原项目的说明](https://github.com/gwy15/danmu2ass?tab=readme-ov-file#%E5%91%BD%E4%BB%A4%E8%A1%8C) 查看。
+
+## 配置文件示例
 
 ```toml
 video_name = "{{title}}"
@@ -90,6 +96,21 @@ no_dolby_video = false
 no_dolby_audio = false
 no_hdr = false
 no_hires = false
+
+
+[danmaku_option]
+duration = 12.0
+font = "黑体"
+font_size = 25
+width_ratio = 1.2
+horizontal_gap = 20.0
+lane_size = 32
+float_percentage = 0.5
+bottom_percentage = 0.3
+opacity = 76
+bold = true
+outline = 0.8
+time_offset = 0.0
 
 [favorite_list]
 52642258 = "/home/amtoaer/HDDs/Videos/Bilibilis/混剪"
