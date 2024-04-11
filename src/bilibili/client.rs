@@ -7,6 +7,7 @@ use crate::bilibili::Credential;
 use crate::config::CONFIG;
 
 // 一个对 reqwest::Client 的简单封装，用于 Bilibili 请求
+#[derive(Clone)]
 pub struct Client(reqwest::Client);
 
 impl Client {
@@ -56,7 +57,7 @@ impl Default for Client {
 }
 
 pub struct BiliClient {
-    client: Client,
+    pub client: Client,
 }
 
 impl BiliClient {

@@ -153,7 +153,7 @@ pub async fn download_unprocessed_videos(
     let unhandled_videos_pages = unhandled_videos_pages(&favorite_model, connection).await?;
     // 对于视频，允许五个同时下载（视频内还有分页、不同分页还有多种下载任务）
     let semaphore = Semaphore::new(5);
-    let downloader = Downloader::default();
+    let downloader = Downloader::new(bili_client.client.clone());
     let mut uppers_mutex: HashMap<i64, (Mutex<()>, Mutex<()>)> = HashMap::new();
     for (video_model, _) in &unhandled_videos_pages {
         uppers_mutex.insert(video_model.upper_id, (Mutex::new(()), Mutex::new(())));

@@ -55,9 +55,3 @@ impl Downloader {
         Ok(())
     }
 }
-
-impl Default for Downloader {
-    fn default() -> Self {
-        Self::new(Client::new())
-    }
-}
