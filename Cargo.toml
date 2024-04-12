@@ -1,5 +1,5 @@
 [package]
-name = "bili-sync"
+name = "bili-sync-rs"
 version = "2.0.0"
 edition = "2021"
 
@@ -30,11 +30,14 @@ reqwest = { version = "0.12.0", features = [
   "stream",
   "cookies",
   "gzip",
-] }
+  "charset",
+  "http2",
+  "rustls-tls",
+], default-features = false }
 rsa = { version = "0.9.6", features = ["sha2"] }
 sea-orm = { version = "0.12", features = [
   "sqlx-sqlite",
-  "runtime-tokio-native-tls",
+  "runtime-tokio-rustls",
   "macros",
 ] }
 serde = { version = "1.0.197", features = ["derive"] }

@@ -1,0 +1,129 @@
+name: Build Binary And Release
+
+on:
+  push:
+    tags:
+      - v*
+
+jobs:
+  build:
+    name: Release for ${{ matrix.platform.release_for }}
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      matrix:
+        platform:
+          - release_for: Linux-x86_64
+            os: ubuntu-20.04
+            target: x86_64-unknown-linux-musl
+            bin: bili-sync-rs
+            name: bili-sync-rs-Linux-x86_64-musl.tar.gz
+          - release_for: Linux-aarch64
+            os: ubuntu-20.04
+            target: aarch64-unknown-linux-musl
+            bin: bili-sync-rs
+            name: bili-sync-rs-Linux-aarch64-musl.tar.gz
+          - release_for: macOS-x86_64
+            os: macOS-latest
+            target: x86_64-apple-darwin
+            bin: bili-sync-rs
+            name: bili-sync-rs-Darwin-x86_64.tar.gz
+          - release_for: macOS-aarch64
+            os: macOS-latest
+            target: aarch64-apple-darwin
+            bin: bili-sync-rs
+            name: bili-sync-rs-Darwin-aarch64.tar.gz
+          - release_for: Windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bin: bili-sync-rs.exe
+            name: bili-sync-rs-Windows-x86_64.zip
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+      - name: Install musl-tools
+        run: sudo apt-get update --yes && sudo apt-get install --yes musl-tools
+        if: contains(matrix.platform.target, 'musl')
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v0
+        with:
+          command: build
+          target: ${{ matrix.platform.target }}
+          toolchain: stable
+          args: "--locked --release"
+          strip: true
+      - name: Package as archive
+        shell: bash
+        run: |
+          cp target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} ${{ matrix.platform.release_for }}-${{ matrix.platform.bin }}
+          cd target/${{ matrix.platform.target }}/release
+          if [[ "${{ matrix.platform.target }}" == "x86_64-pc-windows-msvc" ]]; then
+            7z a ../../../${{ matrix.platform.name }} ${{ matrix.platform.bin }}
+          else
+            tar czvf ../../../${{ matrix.platform.name }} ${{ matrix.platform.bin }}
+          fi
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bili-sync-rs-${{ matrix.platform.release_for }}
+          # contains raw binary and compressed archive
+          path: |
+            ${{ github.workspace }}/${{ matrix.platform.release_for }}-${{ matrix.platform.bin }}
+            ${{ github.workspace }}/${{ matrix.platform.name }}
+  release:
+    name: Create GitHub Release & Docker Image
+    needs: build
+    runs-on: ubuntu-20.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Download release artifact
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: bili-sync-rs*
+          tag_name: ${{ github.ref_name }}
+          draft: true
+      - name: Docker Meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/bili-sync-rs
+          tags: |
+            type=raw,value=latest
+            type=raw,value=${{ github.ref_name }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          platforms: |
+            linux/amd64
+            linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha, scope=${{ github.workflow }}
+          cache-to: type=gha, scope=${{ github.workflow }}
+      - name: Update DockerHub description
+        uses: peter-evans/dockerhub-description@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/bili-sync-rs
