@@ -11,7 +11,13 @@ use crate::bilibili::{Credential, DanmakuOption, FilterOption};
 
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     let config = Config::load().unwrap_or_else(|err| {
-        warn!("加载配置失败，错误为： {err}，将使用默认配置...");
+        if err
+            .downcast_ref::<std::io::Error>()
+            .map_or(true, |e| e.kind() != std::io::ErrorKind::NotFound)
+        {
+            panic!("加载配置文件失败，错误为： {err}");
+        }
+        warn!("配置文件不存在，使用默认配置...");
         Config::new()
     });
     // 放到外面，确保新的配置项被保存
