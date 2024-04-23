@@ -4,6 +4,7 @@ use std::path::Path;
 use anyhow::Result;
 use entity::*;
 use filenamify::filenamify;
+use handlebars::handlebars_helper;
 use migration::OnConflict;
 use once_cell::sync::Lazy;
 use quick_xml::events::{BytesCData, BytesText};
@@ -21,6 +22,14 @@ use crate::config::CONFIG;
 
 pub static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
     let mut handlebars = handlebars::Handlebars::new();
+    handlebars_helper!(truncate: |s: String, len: usize| {
+        if s.chars().count() > len {
+            s.chars().take(len).collect::<String>()
+        } else {
+            s.to_string()
+        }
+    });
+    handlebars.register_helper("truncate", Box::new(truncate));
     handlebars
         .register_template_string("video", &CONFIG.video_name)
         .unwrap();
@@ -468,6 +477,7 @@ impl<'a> NFOSerializer<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[tokio::test]
     async fn test_generate_nfo() {
         let video = video::Model {

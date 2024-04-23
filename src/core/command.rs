@@ -643,15 +643,38 @@ async fn generate_nfo(serializer: NFOSerializer<'_>, nfo_path: PathBuf) -> Resul
 
 #[cfg(test)]
 mod tests {
+    use handlebars::handlebars_helper;
+
     use super::*;
 
     #[test]
     fn test_template_usage() {
         let mut template = handlebars::Handlebars::new();
-        let _ = template.register_template_string("video", "{{bvid}}");
+        handlebars_helper!(truncate: |s: String, len: usize| {
+            if s.chars().count() > len {
+                s.chars().take(len).collect::<String>()
+            } else {
+                s.to_string()
+            }
+        });
+        template.register_helper("truncate", Box::new(truncate));
+        let _ = template.register_template_string("video", "test{{bvid}}test");
+        let _ = template.register_template_string("test_truncate", "哈哈，{{ truncate title 30 }}");
         assert_eq!(
             template.render("video", &json!({"bvid": "BV1b5411h7g7"})).unwrap(),
-            "BV1b5411h7g7"
+            "testBV1b5411h7g7test"
+        );
+        assert_eq!(
+            template
+                .render(
+                    "test_truncate",
+                    &json!({"title": "你说得对，但是 Rust 是由 Mozilla 自主研发的一款全新的编译期格斗游戏。\
+                    编译将发生在一个被称作「Cargo」的构建系统中。在这里，被引用的指针将被授予「生命周期」之力，导引对象安全。\
+                    你将扮演一位名为「Rustacean」的神秘角色, 在与「Rustc」的搏斗中邂逅各种骨骼惊奇的傲娇报错。\
+                    征服她们、通过编译同时，逐步发掘「C++」程序崩溃的真相。"})
+                )
+                .unwrap(),
+            "哈哈，你说得对，但是 Rust 是由 Mozilla 自主研发的一"
         );
     }
 }
