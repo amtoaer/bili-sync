@@ -8,6 +8,7 @@ mod database;
 mod downloader;
 mod error;
 
+use env_logger::Env;
 use once_cell::sync::Lazy;
 
 use self::bilibili::BiliClient;
@@ -17,7 +18,7 @@ use self::database::{database_connection, migrate_database};
 
 #[tokio::main]
 async fn main() -> ! {
-    env_logger::init();
+    env_logger::init_from_env(Env::default().default_filter_or("None,bili_sync=info"));
     Lazy::force(&CONFIG);
     let mut anchor = chrono::Local::now().date_naive();
     let bili_client = BiliClient::new();
