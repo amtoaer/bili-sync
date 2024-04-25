@@ -25,7 +25,7 @@ prost = "0.12.4"
 quick-xml = { version = "0.31.0", features = ["async-tokio"] }
 rand = "0.8.5"
 regex = "1.10.3"
-reqwest = { version = "0.12.0", features = [
+reqwest = { version = "0.12.4", features = [
   "json",
   "stream",
   "cookies",
