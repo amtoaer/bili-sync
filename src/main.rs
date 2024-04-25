@@ -13,12 +13,13 @@ use once_cell::sync::Lazy;
 
 use self::bilibili::BiliClient;
 use self::config::CONFIG;
-use self::core::command::process_favorite_list;
+use self::core::command::{process_favorite_list, SCAN_ONLY};
 use self::database::{database_connection, migrate_database};
 
 #[tokio::main]
 async fn main() -> ! {
     env_logger::init_from_env(Env::default().default_filter_or("None,bili_sync=info"));
+    Lazy::force(&SCAN_ONLY);
     Lazy::force(&CONFIG);
     let mut anchor = chrono::Local::now().date_naive();
     let bili_client = BiliClient::new();
