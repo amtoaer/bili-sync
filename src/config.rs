@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::Result;
 use arc_swap::ArcSwapOption;
@@ -54,7 +55,7 @@ impl Default for Config {
 impl Config {
     fn new() -> Self {
         Self {
-            credential: ArcSwapOption::empty(),
+            credential: ArcSwapOption::from(Some(Arc::new(Credential::default()))),
             filter_option: FilterOption::default(),
             danmaku_option: DanmakuOption::default(),
             favorite_list: HashMap::new(),

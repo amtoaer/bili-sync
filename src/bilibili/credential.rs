@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use super::error::BiliError;
 use crate::bilibili::Client;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Credential {
     pub sessdata: String,
     pub bili_jct: String,
@@ -22,16 +22,6 @@ pub struct Credential {
 }
 
 impl Credential {
-    const fn empty() -> Self {
-        Self {
-            sessdata: String::new(),
-            bili_jct: String::new(),
-            buvid3: String::new(),
-            dedeuserid: String::new(),
-            ac_time_value: String::new(),
-        }
-    }
-
     /// 检查凭据是否有效
     pub async fn need_refresh(&self, client: &Client) -> Result<bool> {
         let res = client
@@ -126,7 +116,7 @@ JNrRuoEUXpabUzGB8QIDAQAB
         let set_cookies = headers.get_all(header::SET_COOKIE);
         let mut credential = Self {
             buvid3: self.buvid3.clone(),
-            ..Self::empty()
+            ..Self::default()
         };
         let required_cookies = HashSet::from(["SESSDATA", "bili_jct", "DedeUserID"]);
         let cookies: Vec<Cookie> = set_cookies
