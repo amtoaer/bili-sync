@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::env::{args, var};
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 
@@ -7,6 +8,7 @@ use entity::{favorite, page, video};
 use filenamify::filenamify;
 use futures::stream::{FuturesOrdered, FuturesUnordered};
 use futures::{pin_mut, Future, StreamExt};
+use once_cell::sync::Lazy;
 use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
 use sea_orm::TransactionTrait;
@@ -26,6 +28,8 @@ use crate::core::utils::{
 use crate::downloader::Downloader;
 use crate::error::{DownloadAbortError, ProcessPageError};
 
+pub static SCAN_ONLY: Lazy<bool> = Lazy::new(|| var("SCAN_ONLY").is_ok() || args().any(|arg| arg == "--scan-only"));
+
 /// 处理某个收藏夹，首先刷新收藏夹信息，然后下载收藏夹中未下载成功的视频
 pub async fn process_favorite_list(
     bili_client: &BiliClient,
@@ -35,6 +39,10 @@ pub async fn process_favorite_list(
 ) -> Result<()> {
     let favorite_model = refresh_favorite_list(bili_client, fid, path, connection).await?;
     let favorite_model = fetch_video_details(bili_client, favorite_model, connection).await?;
+    if *SCAN_ONLY {
+        warn!("已开启仅扫描模式，跳过视频下载...");
+        return Ok(());
+    }
     download_unprocessed_videos(bili_client, favorite_model, connection).await
 }
 
