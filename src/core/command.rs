@@ -293,8 +293,8 @@ pub async fn download_video_pages(
             ),
         });
     if let Err(e) = results.into_iter().nth(4).unwrap() {
-        if let Ok(e) = e.downcast::<DownloadAbortError>() {
-            return Err(e.into());
+        if e.downcast_ref::<DownloadAbortError>().is_some() {
+            return Err(e);
         }
     }
     let mut video_active_model: video::ActiveModel = video_model.into();
@@ -335,6 +335,7 @@ pub async fn dispatch_download_page(
             }
             Err(e) => {
                 if e.downcast_ref::<DownloadAbortError>().is_some() {
+                    should_error = true;
                     is_break = true;
                     break;
                 }
@@ -472,8 +473,8 @@ pub async fn download_page(
         });
     // 查看下载视频的状态，该状态会影响上层是否 break
     if let Err(e) = results.into_iter().nth(1).unwrap() {
-        if let Ok(e) = e.downcast::<DownloadAbortError>() {
-            return Err(e.into());
+        if let Ok(BiliError::RiskControlOccurred) = e.downcast::<BiliError>() {
+            bail!(DownloadAbortError());
         }
     }
     let mut page_active_model: page::ActiveModel = page_model.into();

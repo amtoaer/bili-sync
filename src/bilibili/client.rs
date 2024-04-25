@@ -28,6 +28,8 @@ impl Client {
             reqwest::Client::builder()
                 .default_headers(headers)
                 .gzip(true)
+                .connect_timeout(std::time::Duration::from_secs(10))
+                .read_timeout(std::time::Duration::from_secs(30))
                 .build()
                 .unwrap(),
         )
