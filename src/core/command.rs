@@ -335,6 +335,7 @@ pub async fn dispatch_download_page(
             }
             Err(e) => {
                 if e.downcast_ref::<DownloadAbortError>().is_some() {
+                    should_error = true;
                     is_break = true;
                     break;
                 }
