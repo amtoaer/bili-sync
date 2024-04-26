@@ -1,7 +1,8 @@
 //! 一个弹幕实例，但是没有位置信息
 use anyhow::{bail, Result};
 
-use super::canvas::CanvasConfig;
+use crate::bilibili::danmaku::canvas::CanvasConfig;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum DanmuType {
     #[default]

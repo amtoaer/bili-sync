@@ -9,7 +9,7 @@ use rsa::sha2::Sha256;
 use rsa::{Oaep, RsaPublicKey};
 use serde::{Deserialize, Serialize};
 
-use super::error::BiliError;
+use crate::bilibili::error::BiliError;
 use crate::bilibili::Client;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]

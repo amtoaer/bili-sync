@@ -16,14 +16,12 @@ use serde_json::json;
 use tokio::fs;
 use tokio::sync::{Mutex, Semaphore};
 
-use super::status::{PageStatus, VideoStatus};
-use super::utils::{
-    unhandled_videos_pages, update_pages_model, update_videos_model, ModelWrapper, NFOMode, NFOSerializer, TEMPLATE,
-};
 use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, FavoriteList, PageInfo, Video};
 use crate::config::CONFIG;
+use crate::core::status::{PageStatus, VideoStatus};
 use crate::core::utils::{
     create_video_pages, create_videos, exist_labels, filter_unfilled_videos, handle_favorite_info, total_video_count,
+    unhandled_videos_pages, update_pages_model, update_videos_model, ModelWrapper, NFOMode, NFOSerializer, TEMPLATE,
 };
 use crate::downloader::Downloader;
 use crate::error::{DownloadAbortError, ProcessPageError};

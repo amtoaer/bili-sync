@@ -5,8 +5,8 @@ use std::pin::Pin;
 use anyhow::Result;
 use tokio::io::{AsyncWrite, AsyncWriteExt, BufWriter};
 
-use super::canvas::CanvasConfig;
-use crate::bilibili::danmaku::{DrawEffect, Drawable};
+use crate::bilibili::danmaku::canvas::CanvasConfig;
+use crate::bilibili::danmaku::{DanmakuOption, DrawEffect, Drawable};
 
 struct TimePoint {
     t: f64,
@@ -38,7 +38,7 @@ impl fmt::Display for AssEffect {
     }
 }
 
-impl super::DanmakuOption {
+impl DanmakuOption {
     pub fn ass_styles(&self) -> Vec<String> {
         vec![
             // Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, \
@@ -196,6 +196,7 @@ fn escape_text(text: &str) -> Cow<str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn time_point_fmt() {
         assert_eq!(format!("{}", TimePoint { t: 0.0 }), "0:00:00.00");
