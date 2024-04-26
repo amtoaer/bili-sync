@@ -11,10 +11,10 @@ mod error;
 use env_logger::Env;
 use once_cell::sync::Lazy;
 
-use self::bilibili::BiliClient;
-use self::config::CONFIG;
-use self::core::command::{process_favorite_list, SCAN_ONLY};
-use self::database::{database_connection, migrate_database};
+use crate::bilibili::BiliClient;
+use crate::config::CONFIG;
+use crate::core::command::{process_favorite_list, SCAN_ONLY};
+use crate::database::{database_connection, migrate_database};
 
 #[tokio::main]
 async fn main() -> ! {

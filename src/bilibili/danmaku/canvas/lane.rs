@@ -1,4 +1,4 @@
-use super::CanvasConfig;
+use crate::bilibili::danmaku::canvas::CanvasConfig;
 use crate::bilibili::danmaku::Danmu;
 
 pub enum Collision {

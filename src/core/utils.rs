@@ -16,9 +16,9 @@ use sea_orm::QuerySelect;
 use serde_json::json;
 use tokio::io::AsyncWriteExt;
 
-use super::status::Status;
 use crate::bilibili::{FavoriteListInfo, PageInfo, VideoInfo};
 use crate::config::CONFIG;
+use crate::core::status::Status;
 
 pub static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
     let mut handlebars = handlebars::Handlebars::new();

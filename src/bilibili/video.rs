@@ -4,10 +4,9 @@ use futures::TryStreamExt;
 use prost::Message;
 use reqwest::Method;
 
-use super::danmaku::{DanmakuElem, DanmakuWriter};
 use crate::bilibili::analyzer::PageAnalyzer;
 use crate::bilibili::client::BiliClient;
-use crate::bilibili::danmaku::DmSegMobileReply;
+use crate::bilibili::danmaku::{DanmakuElem, DanmakuWriter, DmSegMobileReply};
 use crate::bilibili::error::BiliError;
 
 static MASK_CODE: u64 = 2251799813685247;
