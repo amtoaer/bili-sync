@@ -1,12 +1,11 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use async_stream::stream;
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
 use futures::Stream;
 use serde_json::Value;
 
-use crate::bilibili::error::BiliError;
-use crate::bilibili::BiliClient;
+use crate::bilibili::{BiliClient, Validate};
 pub struct FavoriteList<'a> {
     client: &'a BiliClient,
     fid: String,
@@ -56,20 +55,13 @@ impl<'a> FavoriteList<'a> {
             .await?
             .error_for_status()?
             .json::<serde_json::Value>()
-            .await?;
-        let (code, msg) = match (res["code"].as_i64(), res["message"].as_str()) {
-            (Some(code), Some(msg)) => (code, msg),
-            _ => bail!("no code or message found"),
-        };
-        if code != 0 {
-            bail!(BiliError::RequestFailed(code, msg.to_owned()));
-        }
+            .await?
+            .validate()?;
         Ok(serde_json::from_value(res["data"].take())?)
     }
 
     async fn get_videos(&self, page: u32) -> Result<Value> {
-        let res = self
-            .client
+        self.client
             .request(reqwest::Method::GET, "https://api.bilibili.com/x/v3/fav/resource/list")
             .query(&[
                 ("media_id", self.fid.as_str()),
@@ -83,15 +75,8 @@ impl<'a> FavoriteList<'a> {
             .await?
             .error_for_status()?
             .json::<serde_json::Value>()
-            .await?;
-        let (code, msg) = match (res["code"].as_i64(), res["message"].as_str()) {
-            (Some(code), Some(msg)) => (code, msg),
-            _ => bail!("no code or message found"),
-        };
-        if code != 0 {
-            bail!(BiliError::RequestFailed(code, msg.to_owned()));
-        }
-        Ok(res)
+            .await?
+            .validate()
     }
 
     // 拿到收藏夹的所有权，返回一个收藏夹下的视频流

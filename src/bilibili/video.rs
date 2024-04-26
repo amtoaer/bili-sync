@@ -7,7 +7,7 @@ use reqwest::Method;
 use crate::bilibili::analyzer::PageAnalyzer;
 use crate::bilibili::client::BiliClient;
 use crate::bilibili::danmaku::{DanmakuElem, DanmakuWriter, DmSegMobileReply};
-use crate::bilibili::error::BiliError;
+use crate::bilibili::Validate;
 
 static MASK_CODE: u64 = 2251799813685247;
 static XOR_CODE: u64 = 23442827791579;
@@ -70,14 +70,8 @@ impl<'a> Video<'a> {
             .await?
             .error_for_status()?
             .json::<serde_json::Value>()
-            .await?;
-        let (code, msg) = match (res["code"].as_i64(), res["message"].as_str()) {
-            (Some(code), Some(msg)) => (code, msg),
-            _ => bail!("no code or message found"),
-        };
-        if code != 0 {
-            bail!(BiliError::RequestFailed(code, msg.to_owned()));
-        }
+            .await?
+            .validate()?;
         Ok(serde_json::from_value(res["data"].take())?)
     }
 
@@ -90,14 +84,8 @@ impl<'a> Video<'a> {
             .await?
             .error_for_status()?
             .json::<serde_json::Value>()
-            .await?;
-        let (code, msg) = match (res["code"].as_i64(), res["message"].as_str()) {
-            (Some(code), Some(msg)) => (code, msg),
-            _ => bail!("no code or message found"),
-        };
-        if code != 0 {
-            bail!(BiliError::RequestFailed(code, msg.to_owned()));
-        }
+            .await?
+            .validate()?;
         Ok(serde_json::from_value(res["data"].take())?)
     }
 
@@ -148,14 +136,8 @@ impl<'a> Video<'a> {
             .await?
             .error_for_status()?
             .json::<serde_json::Value>()
-            .await?;
-        let (code, msg) = match (res["code"].as_i64(), res["message"].as_str()) {
-            (Some(code), Some(msg)) => (code, msg),
-            _ => bail!("no code or message found"),
-        };
-        if code != 0 {
-            bail!(BiliError::RequestFailed(code, msg.to_owned()));
-        }
+            .await?
+            .validate()?;
         Ok(PageAnalyzer::new(res["data"].take()))
     }
 }

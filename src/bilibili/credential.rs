@@ -9,8 +9,7 @@ use rsa::sha2::Sha256;
 use rsa::{Oaep, RsaPublicKey};
 use serde::{Deserialize, Serialize};
 
-use crate::bilibili::error::BiliError;
-use crate::bilibili::Client;
+use crate::bilibili::{Client, Validate};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Credential {
@@ -34,14 +33,8 @@ impl Credential {
             .await?
             .error_for_status()?
             .json::<serde_json::Value>()
-            .await?;
-        let (code, msg) = match (res["code"].as_i64(), res["message"].as_str()) {
-            (Some(code), Some(msg)) => (code, msg),
-            _ => bail!("no code or message found"),
-        };
-        if code != 0 {
-            bail!(BiliError::RequestFailed(code, msg.to_owned()));
-        }
+            .await?
+            .validate()?;
         res["data"]["refresh"].as_bool().ok_or(anyhow!("check refresh failed"))
     }
 
@@ -105,14 +98,7 @@ JNrRuoEUXpabUzGB8QIDAQAB
             .error_for_status()?;
         // 必须在 .json 前取出 headers，否则 res 会被消耗
         let headers = std::mem::take(res.headers_mut());
-        let res = res.json::<serde_json::Value>().await?;
-        let (code, msg) = match (res["code"].as_i64(), res["message"].as_str()) {
-            (Some(code), Some(msg)) => (code, msg),
-            _ => bail!("no code or message found"),
-        };
-        if code != 0 {
-            bail!(BiliError::RequestFailed(code, msg.to_owned()));
-        }
+        let res = res.json::<serde_json::Value>().await?.validate()?;
         let set_cookies = headers.get_all(header::SET_COOKIE);
         let mut credential = Self {
             buvid3: self.buvid3.clone(),
@@ -144,7 +130,7 @@ JNrRuoEUXpabUzGB8QIDAQAB
     }
 
     async fn confirm_refresh(&self, client: &Client, new_credential: &Credential) -> Result<()> {
-        let res = client
+        client
             .request(
                 Method::POST,
                 "https://passport.bilibili.com/x/passport-login/web/confirm/refresh",
@@ -159,14 +145,8 @@ JNrRuoEUXpabUzGB8QIDAQAB
             .await?
             .error_for_status()?
             .json::<serde_json::Value>()
-            .await?;
-        let (code, msg) = match (res["code"].as_i64(), res["message"].as_str()) {
-            (Some(code), Some(msg)) => (code, msg),
-            _ => bail!("no code or message found"),
-        };
-        if code != 0 {
-            bail!(BiliError::RequestFailed(code, msg.to_owned()));
-        }
+            .await?
+            .validate()?;
         Ok(())
     }
 }
