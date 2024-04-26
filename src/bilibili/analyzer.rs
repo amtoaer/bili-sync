@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use anyhow::{anyhow, bail, Result};
 use serde::{Deserialize, Serialize};
 
@@ -49,7 +47,7 @@ pub struct FilterOption {
     pub video_min_quality: VideoQuality,
     pub audio_max_quality: AudioQuality,
     pub audio_min_quality: AudioQuality,
-    pub codecs: Arc<Vec<VideoCodecs>>,
+    pub codecs: Vec<VideoCodecs>,
     pub no_dolby_video: bool,
     pub no_dolby_audio: bool,
     pub no_hdr: bool,
@@ -63,7 +61,7 @@ impl Default for FilterOption {
             video_min_quality: VideoQuality::Quality360p,
             audio_max_quality: AudioQuality::QualityHiRES,
             audio_min_quality: AudioQuality::Quality64k,
-            codecs: Arc::new(vec![VideoCodecs::AV1, VideoCodecs::HEV, VideoCodecs::AVC]),
+            codecs: vec![VideoCodecs::AV1, VideoCodecs::HEV, VideoCodecs::AVC],
             no_dolby_video: false,
             no_dolby_audio: false,
             no_hdr: false,

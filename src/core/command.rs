@@ -20,7 +20,7 @@ use super::status::{PageStatus, VideoStatus};
 use super::utils::{
     unhandled_videos_pages, update_pages_model, update_videos_model, ModelWrapper, NFOMode, NFOSerializer, TEMPLATE,
 };
-use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, FavoriteList, FilterOption, PageInfo, Video};
+use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, FavoriteList, PageInfo, Video};
 use crate::config::CONFIG;
 use crate::core::utils::{
     create_video_pages, create_videos, exist_labels, filter_unfilled_videos, handle_favorite_info, total_video_count,
@@ -522,7 +522,7 @@ pub async fn fetch_page_video(
     let streams = bili_video
         .get_page_analyzer(page_info)
         .await?
-        .best_stream(&FilterOption::default())?;
+        .best_stream(&CONFIG.filter_option)?;
     match streams {
         BestStream::Mixed(mix_stream) => {
             downloader.fetch(mix_stream.url(), &page_path).await?;
