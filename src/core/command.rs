@@ -241,6 +241,7 @@ pub async fn download_video_pages(
             &video_model,
             downloader,
             base_path.join("poster.jpg"),
+            base_path.join("fanart.jpg"),
         )),
         // 生成视频信息的 nfo
         Box::pin(generate_video_nfo(
@@ -390,12 +391,13 @@ pub async fn download_page(
             "pid": page_model.pid,
         }),
     )?);
-    let (poster_path, video_path, nfo_path, danmaku_path) = if is_single_page {
+    let (poster_path, video_path, nfo_path, danmaku_path, fanart_path) = if is_single_page {
         (
             base_path.join(format!("{}-poster.jpg", &base_name)),
             base_path.join(format!("{}.mp4", &base_name)),
             base_path.join(format!("{}.nfo", &base_name)),
             base_path.join(format!("{}.zh-CN.default.ass", &base_name)),
+            Some(base_path.join(format!("{}-fanart.jpg", &base_name))),
         )
     } else {
         (
@@ -411,6 +413,8 @@ pub async fn download_page(
             base_path
                 .join("Season 1")
                 .join(format!("{} - S01E{:0>2}.zh-CN.default.ass", &base_name, page_model.pid)),
+            // 对于多页视频，会在上一步 fetch_video_poster 中获取剧集的 fanart，无需在此处下载单集的
+            None,
         )
     };
     let dimension = if page_model.width.is_some() && page_model.height.is_some() {
@@ -435,6 +439,7 @@ pub async fn download_page(
             &page_model,
             downloader,
             poster_path,
+            fanart_path,
         )),
         Box::pin(fetch_page_video(
             seprate_status[1],
@@ -487,6 +492,7 @@ pub async fn fetch_page_poster(
     page_model: &page::Model,
     downloader: &Downloader,
     poster_path: PathBuf,
+    fanart_path: Option<PathBuf>,
 ) -> Result<()> {
     if !should_run {
         return Ok(());
@@ -502,7 +508,11 @@ pub async fn fetch_page_poster(
             None => video_model.cover.as_str(),
         }
     };
-    downloader.fetch(url, &poster_path).await
+    downloader.fetch(url, &poster_path).await?;
+    if let Some(fanart_path) = fanart_path {
+        fs::copy(&poster_path, &fanart_path).await?;
+    }
+    Ok(())
 }
 
 pub async fn fetch_page_video(
@@ -589,11 +599,14 @@ pub async fn fetch_video_poster(
     video_model: &video::Model,
     downloader: &Downloader,
     poster_path: PathBuf,
+    fanart_path: PathBuf,
 ) -> Result<()> {
     if !should_run {
         return Ok(());
     }
-    downloader.fetch(&video_model.cover, &poster_path).await
+    downloader.fetch(&video_model.cover, &poster_path).await?;
+    fs::copy(&poster_path, &fanart_path).await?;
+    Ok(())
 }
 
 pub async fn fetch_upper_face(
