@@ -1,7 +1,10 @@
 [package]
 name = "bili-sync-rs"
-version = "2.0.0"
+version = "2.0.3"
 edition = "2021"
+authors = ["amtoaer <amtoaer@gmail.com>"]
+license = "MIT"
+description = "基于 rust tokio 编写的 bilibili 收藏夹同步下载工具"
 
 [dependencies]
 anyhow = { version = "1.0.81", features = ["backtrace"] }
