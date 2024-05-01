@@ -11,8 +11,7 @@ RUN apk update && apk add --no-cache \
     tzdata \
     ffmpeg \
     && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
-    && echo "Asia/Shanghai" > /etc/timezone \
-    && apk del tzdata
+    && echo "Asia/Shanghai" > /etc/timezone
 
 RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
     mv ./targets/Linux-x86_64-bili-sync-rs ./bili-sync-rs; \
