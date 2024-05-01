@@ -1,5 +1,5 @@
 #[macro_use]
-extern crate log;
+extern crate tracing;
 
 mod bilibili;
 mod config;
@@ -8,8 +8,8 @@ mod database;
 mod downloader;
 mod error;
 
-use env_logger::Env;
 use once_cell::sync::Lazy;
+use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::bilibili::BiliClient;
 use crate::config::CONFIG;
@@ -18,7 +18,15 @@ use crate::database::{database_connection, migrate_database};
 
 #[tokio::main]
 async fn main() -> ! {
-    env_logger::init_from_env(Env::default().default_filter_or("None,bili_sync=info"));
+    let default_log_level = std::env::var("RUST_LOG").unwrap_or("None,bili_sync=info".to_owned());
+    tracing_subscriber::fmt::Subscriber::builder()
+        .with_env_filter(tracing_subscriber::EnvFilter::builder().parse_lossy(default_log_level))
+        .with_timer(tracing_subscriber::fmt::time::ChronoLocal::new(
+            "%Y-%m-%d %H:%M:%S%.3f".to_owned(),
+        ))
+        .finish()
+        .try_init()
+        .expect("初始化日志失败");
     Lazy::force(&SCAN_ONLY);
     Lazy::force(&CONFIG);
     let mut anchor = chrono::Local::now().date_naive();

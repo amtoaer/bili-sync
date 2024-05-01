@@ -14,7 +14,6 @@ chrono = { version = "0.4.35", features = ["serde"] }
 cookie = "0.18.0"
 dirs = "5.0.1"
 entity = { path = "entity" }
-env_logger = "0.11.3"
 filenamify = "0.1.0"
 float-ord = "0.3.2"
 futures = "0.3.30"
@@ -49,6 +48,8 @@ strum = { version = "0.26", features = ["derive"] }
 thiserror = "1.0.58"
 tokio = { version = "1", features = ["full"] }
 toml = "0.8.12"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["chrono"] }
 
 [workspace]
 members = [".", "entity", "migration"]
