@@ -4,12 +4,12 @@ ARG TARGETPLATFORM
 
 WORKDIR /app
 
-COPY ./*-bili-sync-rs ./targets/
-
 RUN apk update && apk add --no-cache \
     ca-certificates \
     tzdata \
     ffmpeg
+
+COPY ./*-bili-sync-rs ./targets/
 
 RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
     mv ./targets/Linux-x86_64-bili-sync-rs ./bili-sync-rs; \
