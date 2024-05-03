@@ -312,7 +312,7 @@ pub async fn dispatch_download_page(
     if !should_run {
         return Ok(());
     }
-    // 对于视频的分页，允许同时下载两个同时下载（绝大部分是单页视频）
+    // 对于视频的分页，允许两个同时下载（绝大部分是单页视频）
     let child_semaphore = Semaphore::new(2);
     let mut tasks = pages
         .into_iter()
