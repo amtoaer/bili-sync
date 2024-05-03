@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_variables)]
+
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -14,7 +16,7 @@ use serde_json::json;
 use tokio::fs;
 use tokio::sync::{Mutex, Semaphore};
 
-use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, FavoriteList, PageInfo, Video};
+use crate::bilibili::{BestStream, BiliClient, BiliError, CollectionItem, Dimension, FavoriteList, PageInfo, Video};
 use crate::config::{ARGS, CONFIG};
 use crate::core::status::{PageStatus, VideoStatus};
 use crate::core::utils::{
@@ -38,6 +40,15 @@ pub async fn process_favorite_list(
         return Ok(());
     }
     download_unprocessed_videos(bili_client, favorite_model, connection).await
+}
+
+pub async fn process_collection(
+    bili_client: &BiliClient,
+    collection: &CollectionItem,
+    path: &Path,
+    connection: &DatabaseConnection,
+) -> Result<()> {
+    unimplemented!()
 }
 
 /// 获取收藏夹 Model，从收藏夹列表中获取所有新添加的视频，将其写入数据库

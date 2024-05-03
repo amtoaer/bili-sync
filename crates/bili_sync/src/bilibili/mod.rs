@@ -1,6 +1,7 @@
 pub use analyzer::{BestStream, FilterOption};
 use anyhow::{bail, Result};
 pub use client::{BiliClient, Client};
+pub use collection::CollectionItem;
 pub use credential::Credential;
 pub use danmaku::DanmakuOption;
 pub use error::BiliError;
@@ -9,6 +10,7 @@ pub use video::{Dimension, PageInfo, Video};
 
 mod analyzer;
 mod client;
+mod collection;
 mod credential;
 mod danmaku;
 mod error;

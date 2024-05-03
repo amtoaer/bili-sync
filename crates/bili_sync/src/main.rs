@@ -16,7 +16,7 @@ use tokio::time;
 
 use crate::bilibili::BiliClient;
 use crate::config::CONFIG;
-use crate::core::command::process_favorite_list;
+use crate::core::command::process_collection, process_favorite_list;
 use crate::core::utils::init_logger;
 use crate::database::{database_connection, migrate_database};
 
@@ -45,11 +45,16 @@ async fn main() {
         }
         for (fid, path) in &CONFIG.favorite_list {
             if let Err(e) = process_favorite_list(&bili_client, fid, path, &connection).await {
-                // 可预期的错误都被内部处理了，这里漏出来应该是大问题
                 error!("处理收藏夹 {fid} 时遇到非预期的错误：{e}");
             }
         }
-        info!("所有收藏夹处理完毕，等待下一轮执行");
-        time::sleep(Duration::from_secs(CONFIG.interval)).await;
+        info!("所有收藏夹处理完毕");
+        for (collection, path) in &CONFIG.collection_list {
+            if let Err(e) = process_collection(&bili_client, collection, path, &connection).await {
+                error!("处理合集 {collection:?} 时遇到非预期的错误：{e}");
+            }
+        }
+        info!("等待 {} 分钟后进行下一次扫描", CONFIG.interval);
+        tokio::time::sleep(std::time::Duration::from_secs(CONFIG.interval)).await;
     }
 }
