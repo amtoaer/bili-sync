@@ -157,8 +157,8 @@ pub async fn download_unprocessed_videos(
         favorite_model.f_id, favorite_model.name
     );
     let unhandled_videos_pages = unhandled_videos_pages(&favorite_model, connection).await?;
-    // 对于视频，允许五个同时下载（视频内还有分页、不同分页还有多种下载任务）
-    let semaphore = Semaphore::new(5);
+    // 对于视频，允许三个同时下载（视频内还有分页、不同分页还有多种下载任务）
+    let semaphore = Semaphore::new(3);
     let downloader = Downloader::new(bili_client.client.clone());
     let mut uppers_mutex: HashMap<i64, (Mutex<()>, Mutex<()>)> = HashMap::new();
     for (video_model, _) in &unhandled_videos_pages {
@@ -312,8 +312,8 @@ pub async fn dispatch_download_page(
     if !should_run {
         return Ok(());
     }
-    // 对于视频的分页，允许同时下载三个同时下载（绝大部分是单页视频）
-    let child_semaphore = Semaphore::new(5);
+    // 对于视频的分页，允许同时下载两个同时下载（绝大部分是单页视频）
+    let child_semaphore = Semaphore::new(2);
     let mut tasks = pages
         .into_iter()
         .map(|page_model| download_page(bili_client, video_model, page_model, &child_semaphore, downloader))
