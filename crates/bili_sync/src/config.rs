@@ -10,7 +10,7 @@ use serde::de::{Deserializer, MapAccess, Visitor};
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Serialize};
 
-use crate::bilibili::{CollectionItem, Credential, DanmakuOption, FilterOption};
+use crate::bilibili::{CollectionItem, CollectionType, Credential, DanmakuOption, FilterOption};
 
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     let config = Config::load().unwrap_or_else(|err| {
@@ -45,6 +45,7 @@ pub struct Config {
     pub danmaku_option: DanmakuOption,
     pub favorite_list: HashMap<String, PathBuf>,
     #[serde(
+        default,
         serialize_with = "serialize_collection_list",
         deserialize_with = "deserialize_collection_list"
     )]
@@ -158,11 +159,11 @@ where
 {
     let mut map = serializer.serialize_map(Some(collection_list.len()))?;
     for (k, v) in collection_list {
-        let key_str = match k {
-            CollectionItem::Series(s) => format!("series:{}", s),
-            CollectionItem::Season(s) => format!("season:{}", s),
+        let prefix = match k.collection_type {
+            CollectionType::Series => "series",
+            CollectionType::Season => "season",
         };
-        map.serialize_entry(&key_str, &v)?;
+        map.serialize_entry(&[prefix, &k.mid, &k.sid].join(":"), v)?;
     }
     map.end()
 }
@@ -186,16 +187,30 @@ where
         {
             let mut collection_list = HashMap::new();
             while let Some((key, value)) = map.next_entry::<String, PathBuf>()? {
-                let (collection_type, collection_id) = match key.split_once(':') {
-                    Some(("series", id)) => (CollectionItem::Series(id.to_string()), value),
-                    Some(("season", id)) => (CollectionItem::Season(id.to_string()), value),
+                let collection_item = match key.split(':').collect::<Vec<&str>>().as_slice() {
+                    [prefix, mid, sid] => {
+                        let collection_type = match *prefix {
+                            "series" => CollectionType::Series,
+                            "season" => CollectionType::Season,
+                            _ => {
+                                return Err(serde::de::Error::custom(
+                                    "invalid collection type, should be series or season",
+                                ))
+                            }
+                        };
+                        CollectionItem {
+                            mid: mid.to_string(),
+                            sid: sid.to_string(),
+                            collection_type,
+                        }
+                    }
                     _ => {
                         return Err(serde::de::Error::custom(
-                            "invalid collection type, should be series or season",
+                            "invalid collection key, should be series:mid:sid or season:mid:sid",
                         ))
                     }
                 };
-                collection_list.insert(collection_type, collection_id);
+                collection_list.insert(collection_item, value);
             }
             Ok(collection_list)
         }

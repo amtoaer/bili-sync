@@ -1,7 +1,7 @@
 pub use analyzer::{BestStream, FilterOption};
 use anyhow::{bail, Result};
 pub use client::{BiliClient, Client};
-pub use collection::CollectionItem;
+pub use collection::{CollectionItem, CollectionType};
 pub use credential::Credential;
 pub use danmaku::DanmakuOption;
 pub use error::BiliError;
