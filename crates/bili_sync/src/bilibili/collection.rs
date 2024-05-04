@@ -86,9 +86,7 @@ impl<'a> Collection<'a> {
             CollectionType::Season => self.get_videos(1).await?["data"]["meta"].take(),
             CollectionType::Series => self.get_series_info().await?["data"]["meta"].take(),
         };
-        let mut collection_info: CollectionInfo = serde_json::from_value(meta)?;
-        collection_info.collection_type = self.collection.collection_type.clone();
-        Ok(collection_info)
+        Ok(serde_json::from_value(meta)?)
     }
 
     async fn get_series_info(&self) -> Result<Value> {
