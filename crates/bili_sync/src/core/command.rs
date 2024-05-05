@@ -42,6 +42,7 @@ pub async fn process_favorite_list(
     download_unprocessed_videos(bili_client, favorite_model, connection).await
 }
 
+/// 处理某个合集，首先刷新信息，然后下载合集中未下载成功的视频
 pub async fn process_collection(
     bili_client: &BiliClient,
     collection: &CollectionItem,
