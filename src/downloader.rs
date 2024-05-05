@@ -40,6 +40,7 @@ impl Downloader {
                 audio_path.to_str().unwrap(),
                 "-c",
                 "copy",
+                "-y",
                 output_path.to_str().unwrap(),
             ])
             .output()
