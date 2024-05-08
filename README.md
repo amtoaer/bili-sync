@@ -144,7 +144,7 @@ services:
     restart: unless-stopped
     network_mode: bridge
     tty: true  # 该选项请仅在日志终端支持彩色输出时启用，否则日志中可能会出现乱码
-    # user: 1000:1000    # 设置宿主机适当用户的uid及gid，以确保文件的权限正确
+    # user: 1000:1000  # 非必需设置项，说明见下
     hostname: bili-sync-rs
     container_name: bili-sync-rs
     volumes:
@@ -154,7 +154,9 @@ services:
     logging:
       driver: "local"
 ```
-执行`id ${user}`以获得`user`用户的uid及gid，了解更多可参阅[Docker文档](https://docs.docker.com/engine/reference/run/#user)及[Understanding PUID and PGID](https://docs.linuxserver.io/general/understanding-puid-and-pgid/)
+### user 的设置
+- 可设置为宿主机适当用户的 uid 及 gid (`$uid:$gid`)，使项目下载的文件的所有者与该处设置的用户保持一致，不设置默认为 root
+- 执行 `id ${user}` 以获得 `user` 用户的 uid 及 gid ，了解更多可参阅 [Docker文档](https://docs.docker.com/engine/reference/run/#user)
 
 ## 路线图
 
