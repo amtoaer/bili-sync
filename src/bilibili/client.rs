@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use reqwest::{header, Method};
 
 use crate::bilibili::Credential;
@@ -84,5 +84,14 @@ impl BiliClient {
         let new_credential = credential.refresh(&self.client).await?;
         CONFIG.credential.store(Some(Arc::new(new_credential)));
         CONFIG.save()
+    }
+
+    /// 检查凭据是否已设置且有效
+    pub async fn is_login(&self) -> Result<()> {
+        let credential = CONFIG.credential.load();
+        let Some(credential) = credential.as_deref() else {
+            bail!("no credential found");
+        };
+        credential.is_login(&self.client).await
     }
 }

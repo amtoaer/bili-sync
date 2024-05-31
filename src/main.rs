@@ -34,6 +34,11 @@ async fn main() -> ! {
     let connection = database_connection().await.unwrap();
     migrate_database(&connection).await.unwrap();
     loop {
+        if let Err(e) = bili_client.is_login().await {
+            error!("检查登录状态时遇到错误：{e}，等待下一轮执行");
+            tokio::time::sleep(std::time::Duration::from_secs(CONFIG.interval)).await;
+            continue;
+        }
         if anchor != chrono::Local::now().date_naive() {
             if let Err(e) = bili_client.check_refresh().await {
                 error!("检查刷新 Credential 遇到错误：{e}，等待下一轮执行");
