@@ -49,7 +49,7 @@ pub struct Config {
 }
 
 #[derive(Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "lowercase")]
 pub enum NFOTimeType {
     #[default]
     FavTime,
