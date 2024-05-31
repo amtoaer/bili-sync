@@ -125,7 +125,7 @@ pub async fn create_videos(
     let video_models = videos_info
         .iter()
         .map(move |v| video::ActiveModel {
-            favorite_id: Set(favorite.id),
+            favorite_id: Set(Some(favorite.id)),
             bvid: Set(v.bvid.clone()),
             name: Set(v.title.clone()),
             path: Set(Path::new(&favorite.path)

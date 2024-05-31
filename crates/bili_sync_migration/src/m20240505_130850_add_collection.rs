@@ -34,6 +34,18 @@ impl MigrationTrait for Migration {
             )
             .await?;
         manager
+            .create_index(
+                Index::create()
+                    .table(Collection::Table)
+                    .name("idx_collection_sid_mid_type")
+                    .col(Collection::SId)
+                    .col(Collection::MId)
+                    .col(Collection::Type)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
+        manager
             .drop_index(
                 Index::drop()
                     .table(Video::Table)

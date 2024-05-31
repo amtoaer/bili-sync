@@ -2,6 +2,7 @@
 
 pub mod prelude;
 
+pub mod collection;
 pub mod favorite;
 pub mod page;
 pub mod video;
