@@ -8,7 +8,10 @@ mod database;
 mod downloader;
 mod error;
 
+use std::time::Duration;
+
 use once_cell::sync::Lazy;
+use tokio::time;
 use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::bilibili::BiliClient;
@@ -34,10 +37,15 @@ async fn main() -> ! {
     let connection = database_connection().await.unwrap();
     migrate_database(&connection).await.unwrap();
     loop {
+        if let Err(e) = bili_client.is_login().await {
+            error!("检查登录状态时遇到错误：{e}，等待下一轮执行");
+            time::sleep(Duration::from_secs(CONFIG.interval)).await;
+            continue;
+        }
         if anchor != chrono::Local::now().date_naive() {
             if let Err(e) = bili_client.check_refresh().await {
                 error!("检查刷新 Credential 遇到错误：{e}，等待下一轮执行");
-                tokio::time::sleep(std::time::Duration::from_secs(CONFIG.interval)).await;
+                time::sleep(Duration::from_secs(CONFIG.interval)).await;
                 continue;
             }
             anchor = chrono::Local::now().date_naive();
@@ -49,6 +57,6 @@ async fn main() -> ! {
             }
         }
         info!("所有收藏夹处理完毕，等待下一轮执行");
-        tokio::time::sleep(std::time::Duration::from_secs(CONFIG.interval)).await;
+        time::sleep(Duration::from_secs(CONFIG.interval)).await;
     }
 }
