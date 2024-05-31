@@ -8,7 +8,7 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     pub video_id: i32,
-    pub cid: i32,
+    pub cid: i64,
     pub pid: i32,
     pub name: String,
     pub width: Option<u32>,

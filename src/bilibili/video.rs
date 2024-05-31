@@ -39,7 +39,7 @@ impl serde::Serialize for Tag {
 }
 #[derive(Debug, serde::Deserialize, Default)]
 pub struct PageInfo {
-    pub cid: i32,
+    pub cid: i64,
     pub page: i32,
     #[serde(rename = "part")]
     pub name: String,
@@ -92,7 +92,7 @@ impl<'a> Video<'a> {
     pub async fn get_danmaku_writer(&self, page: &'a PageInfo) -> Result<DanmakuWriter> {
         let tasks = FuturesUnordered::new();
         for i in 1..=(page.duration + 359) / 360 {
-            tasks.push(self.get_danmaku_segment(page, i as i32));
+            tasks.push(self.get_danmaku_segment(page, i as i64));
         }
         let result: Vec<Vec<DanmakuElem>> = tasks.try_collect().await?;
         let mut result: Vec<DanmakuElem> = result.into_iter().flatten().collect();
@@ -100,7 +100,7 @@ impl<'a> Video<'a> {
         Ok(DanmakuWriter::new(page, result.into_iter().map(|x| x.into()).collect()))
     }
 
-    async fn get_danmaku_segment(&self, page: &PageInfo, segment_idx: i32) -> Result<Vec<DanmakuElem>> {
+    async fn get_danmaku_segment(&self, page: &PageInfo, segment_idx: i64) -> Result<Vec<DanmakuElem>> {
         let mut res = self
             .client
             .request(Method::GET, "http://api.bilibili.com/x/v2/dm/web/seg.so")
