@@ -19,7 +19,7 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
             panic!("加载配置文件失败，错误为： {err}");
         }
         warn!("配置文件不存在，使用默认配置...");
-        Config::new()
+        Config::default()
     });
     // 放到外面，确保新的配置项被保存
     info!("配置加载完毕，覆盖刷新原有配置");
@@ -44,16 +44,20 @@ pub struct Config {
     pub page_name: Cow<'static, str>,
     pub interval: u64,
     pub upper_path: PathBuf,
+    #[serde(default)]
+    pub nfo_time_type: NFOTimeType,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum NFOTimeType {
+    #[default]
+    FavTime,
+    PubTime,
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Config {
-    fn new() -> Self {
         Self {
             credential: ArcSwapOption::from(Some(Arc::new(Credential::default()))),
             filter_option: FilterOption::default(),
@@ -63,9 +67,12 @@ impl Config {
             page_name: Cow::Borrowed("{{bvid}}"),
             interval: 1200,
             upper_path: CONFIG_DIR.join("upper_face"),
+            nfo_time_type: NFOTimeType::FavTime,
         }
     }
+}
 
+impl Config {
     /// 简单的预检查
     pub fn check(&self) {
         let mut ok = true;
