@@ -17,7 +17,7 @@ use serde_json::json;
 use tokio::io::AsyncWriteExt;
 
 use crate::bilibili::{FavoriteListInfo, PageInfo, VideoInfo};
-use crate::config::CONFIG;
+use crate::config::{NFOTimeType, CONFIG};
 use crate::core::status::Status;
 
 pub static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
@@ -274,7 +274,7 @@ pub async fn update_pages_model(pages: Vec<page::ActiveModel>, connection: &Data
 /// serde xml 似乎不太好用，先这么裸着写
 /// （真是又臭又长啊
 impl<'a> NFOSerializer<'a> {
-    pub async fn generate_nfo(self) -> Result<String> {
+    pub async fn generate_nfo(self, nfo_time_type: &NFOTimeType) -> Result<String> {
         let mut buffer = r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 "#
         .as_bytes()
@@ -283,6 +283,10 @@ impl<'a> NFOSerializer<'a> {
         let mut writer = Writer::new_with_indent(&mut tokio_buffer, b' ', 4);
         match self {
             NFOSerializer(ModelWrapper::Video(v), NFOMode::MOVIE) => {
+                let nfo_time = match nfo_time_type {
+                    NFOTimeType::FavTime => v.favtime,
+                    NFOTimeType::PubTime => v.pubtime,
+                };
                 writer
                     .create_element("movie")
                     .write_inner_content_async::<_, _, Error>(|writer| async move {
@@ -316,7 +320,7 @@ impl<'a> NFOSerializer<'a> {
                             .unwrap();
                         writer
                             .create_element("year")
-                            .write_text_content_async(BytesText::new(&v.favtime.format("%Y").to_string()))
+                            .write_text_content_async(BytesText::new(&nfo_time.format("%Y").to_string()))
                             .await
                             .unwrap();
                         if let Some(tags) = &v.tags {
@@ -337,7 +341,7 @@ impl<'a> NFOSerializer<'a> {
                             .unwrap();
                         writer
                             .create_element("aired")
-                            .write_text_content_async(BytesText::new(&v.favtime.format("%Y-%m-%d").to_string()))
+                            .write_text_content_async(BytesText::new(&nfo_time.format("%Y-%m-%d").to_string()))
                             .await
                             .unwrap();
                         Ok(writer)
@@ -346,6 +350,10 @@ impl<'a> NFOSerializer<'a> {
                     .unwrap();
             }
             NFOSerializer(ModelWrapper::Video(v), NFOMode::TVSHOW) => {
+                let nfo_time = match nfo_time_type {
+                    NFOTimeType::FavTime => v.favtime,
+                    NFOTimeType::PubTime => v.pubtime,
+                };
                 writer
                     .create_element("tvshow")
                     .write_inner_content_async::<_, _, Error>(|writer| async move {
@@ -379,7 +387,7 @@ impl<'a> NFOSerializer<'a> {
                             .unwrap();
                         writer
                             .create_element("year")
-                            .write_text_content_async(BytesText::new(&v.favtime.format("%Y").to_string()))
+                            .write_text_content_async(BytesText::new(&nfo_time.format("%Y").to_string()))
                             .await
                             .unwrap();
                         if let Some(tags) = &v.tags {
@@ -400,7 +408,7 @@ impl<'a> NFOSerializer<'a> {
                             .unwrap();
                         writer
                             .create_element("aired")
-                            .write_text_content_async(BytesText::new(&v.favtime.format("%Y-%m-%d").to_string()))
+                            .write_text_content_async(BytesText::new(&nfo_time.format("%Y-%m-%d").to_string()))
                             .await
                             .unwrap();
                         Ok(writer)
@@ -490,8 +498,8 @@ mod tests {
                 chrono::NaiveTime::from_hms_opt(2, 2, 2).unwrap(),
             ),
             pubtime: chrono::NaiveDateTime::new(
-                chrono::NaiveDate::from_ymd_opt(2022, 2, 2).unwrap(),
-                chrono::NaiveTime::from_hms_opt(2, 2, 2).unwrap(),
+                chrono::NaiveDate::from_ymd_opt(2033, 3, 3).unwrap(),
+                chrono::NaiveTime::from_hms_opt(3, 3, 3).unwrap(),
             ),
             bvid: "bvid".to_string(),
             tags: Some(serde_json::json!(["tag1", "tag2"])),
@@ -499,7 +507,7 @@ mod tests {
         };
         assert_eq!(
             NFOSerializer(ModelWrapper::Video(&video), NFOMode::MOVIE)
-                .generate_nfo()
+                .generate_nfo(&NFOTimeType::PubTime)
                 .await
                 .unwrap(),
             r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>
@@ -511,16 +519,16 @@ mod tests {
         <name>1</name>
         <role>upper_name</role>
     </actor>
-    <year>2022</year>
+    <year>2033</year>
     <genre>tag1</genre>
     <genre>tag2</genre>
     <uniqueid type="bilibili">bvid</uniqueid>
-    <aired>2022-02-02</aired>
+    <aired>2033-03-03</aired>
 </movie>"#,
         );
         assert_eq!(
             NFOSerializer(ModelWrapper::Video(&video), NFOMode::TVSHOW)
-                .generate_nfo()
+                .generate_nfo(&NFOTimeType::FavTime)
                 .await
                 .unwrap(),
             r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>
@@ -541,7 +549,7 @@ mod tests {
         );
         assert_eq!(
             NFOSerializer(ModelWrapper::Video(&video), NFOMode::UPPER)
-                .generate_nfo()
+                .generate_nfo(&NFOTimeType::FavTime)
                 .await
                 .unwrap(),
             r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>
@@ -549,7 +557,7 @@ mod tests {
     <plot/>
     <outline/>
     <lockdata>false</lockdata>
-    <dateadded>2022-02-02 02:02:02</dateadded>
+    <dateadded>2033-03-03 03:03:03</dateadded>
     <title>1</title>
     <sorttitle>1</sorttitle>
 </person>"#,
@@ -561,7 +569,7 @@ mod tests {
         };
         assert_eq!(
             NFOSerializer(ModelWrapper::Page(&page), NFOMode::EPOSODE)
-                .generate_nfo()
+                .generate_nfo(&NFOTimeType::FavTime)
                 .await
                 .unwrap(),
             r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>

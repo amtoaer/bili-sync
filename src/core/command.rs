@@ -657,7 +657,11 @@ async fn generate_nfo(serializer: NFOSerializer<'_>, nfo_path: PathBuf) -> Resul
     if let Some(parent) = nfo_path.parent() {
         fs::create_dir_all(parent).await?;
     }
-    fs::write(nfo_path, serializer.generate_nfo().await?.as_bytes()).await?;
+    fs::write(
+        nfo_path,
+        serializer.generate_nfo(&CONFIG.nfo_time_type).await?.as_bytes(),
+    )
+    .await?;
     Ok(())
 }
 
