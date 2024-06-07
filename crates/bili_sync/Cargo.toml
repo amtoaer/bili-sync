@@ -15,6 +15,7 @@ async-stream = { workspace = true }
 bili_sync_entity = { workspace = true }
 bili_sync_migration = { workspace = true }
 chrono = { workspace = true }
+clap = { workspace = true }
 cookie = { workspace = true }
 dirs = { workspace = true }
 filenamify = { workspace = true }
