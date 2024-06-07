@@ -1,0 +1,9 @@
+[package]
+name = "bili_sync_migration"
+version = { workspace = true }
+edition = { workspace = true }
+publish = { workspace = true }
+
+[dependencies]
+async-std = { workspace = true }
+sea-orm-migration = { workspace = true }

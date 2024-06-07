@@ -1,19 +1,27 @@
-[package]
-name = "bili-sync-rs"
+[workspace]
+members = ["crates/*"]
+default-members = ["crates/bili_sync"]
+resolver = "2"
+
+[workspace.package]
 version = "2.0.3"
-edition = "2021"
 authors = ["amtoaer <amtoaer@gmail.com>"]
 license = "MIT"
 description = "基于 rust tokio 编写的 bilibili 收藏夹同步下载工具"
+edition = "2021"
+publish = false
 
-[dependencies]
+[workspace.dependencies]
+bili_sync_entity = { path = "crates/bili_sync_entity" }
+bili_sync_migration = { path = "crates/bili_sync_migration" }
+
 anyhow = { version = "1.0.81", features = ["backtrace"] }
 arc-swap = { version = "1.7", features = ["serde"] }
+async-std = { version = "1", features = ["attributes", "tokio1"] }
 async-stream = "0.3.5"
 chrono = { version = "0.4.35", features = ["serde"] }
 cookie = "0.18.0"
 dirs = "5.0.1"
-entity = { path = "entity" }
 filenamify = "0.1.0"
 float-ord = "0.3.2"
 futures = "0.3.30"
@@ -21,27 +29,27 @@ handlebars = "5.1.2"
 hex = "0.4.3"
 log = "0.4.21"
 memchr = "2.5.0"
-migration = { path = "migration" }
 once_cell = "1.19.0"
 prost = "0.12.4"
 quick-xml = { version = "0.31.0", features = ["async-tokio"] }
 rand = "0.8.5"
 regex = "1.10.3"
 reqwest = { version = "0.12.4", features = [
-  "json",
-  "stream",
+  "charset",
   "cookies",
   "gzip",
-  "charset",
   "http2",
+  "json",
   "rustls-tls",
+  "stream",
 ], default-features = false }
 rsa = { version = "0.9.6", features = ["sha2"] }
 sea-orm = { version = "0.12", features = [
-  "sqlx-sqlite",
-  "runtime-tokio-rustls",
   "macros",
+  "runtime-tokio-rustls",
+  "sqlx-sqlite",
 ] }
+sea-orm-migration = { version = "0.12.0", features = [] }
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0"
 strum = { version = "0.26", features = ["derive"] }
@@ -50,9 +58,6 @@ tokio = { version = "1", features = ["full"] }
 toml = "0.8.12"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["chrono"] }
-
-[workspace]
-members = [".", "entity", "migration"]
 
 [profile.release]
 strip = true

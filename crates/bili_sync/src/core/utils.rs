@@ -2,10 +2,10 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use anyhow::Result;
-use entity::*;
+use bili_sync_entity::*;
+use bili_sync_migration::OnConflict;
 use filenamify::filenamify;
 use handlebars::handlebars_helper;
-use migration::OnConflict;
 use once_cell::sync::Lazy;
 use quick_xml::events::{BytesCData, BytesText};
 use quick_xml::writer::Writer;

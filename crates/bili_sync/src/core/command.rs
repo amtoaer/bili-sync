@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::pin::Pin;
 
 use anyhow::{bail, Result};
-use entity::{favorite, page, video};
+use bili_sync_entity::{favorite, page, video};
 use filenamify::filenamify;
 use futures::stream::{FuturesOrdered, FuturesUnordered};
 use futures::{pin_mut, Future, StreamExt};

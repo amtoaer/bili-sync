@@ -1,5 +1,5 @@
 use anyhow::Result;
-use migration::{Migrator, MigratorTrait};
+use bili_sync_migration::{Migrator, MigratorTrait};
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use tokio::fs;
 
