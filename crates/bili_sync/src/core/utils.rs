@@ -15,6 +15,7 @@ use sea_orm::ActiveValue::Set;
 use sea_orm::QuerySelect;
 use serde_json::json;
 use tokio::io::AsyncWriteExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::bilibili::{FavoriteListInfo, PageInfo, VideoInfo};
 use crate::config::{NFOTimeType, CONFIG};
@@ -480,6 +481,17 @@ impl<'a> NFOSerializer<'a> {
         tokio_buffer.flush().await?;
         Ok(std::str::from_utf8(&buffer).unwrap().to_owned())
     }
+}
+
+pub fn init_logger(log_level: &str) {
+    tracing_subscriber::fmt::Subscriber::builder()
+        .with_env_filter(tracing_subscriber::EnvFilter::builder().parse_lossy(log_level))
+        .with_timer(tracing_subscriber::fmt::time::ChronoLocal::new(
+            "%Y-%m-%d %H:%M:%S%.3f".to_owned(),
+        ))
+        .finish()
+        .try_init()
+        .expect("初始化日志失败");
 }
 
 #[cfg(test)]

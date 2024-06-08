@@ -30,6 +30,8 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     config
 });
 
+pub static ARGS: Lazy<Args> = Lazy::new(Args::parse);
+
 pub static CONFIG_DIR: Lazy<PathBuf> =
     Lazy::new(|| dirs::config_dir().expect("No config path found").join("bili-sync"));
 
@@ -137,4 +139,16 @@ impl Config {
         std::fs::write(config_path, toml::to_string_pretty(self)?)?;
         Ok(())
     }
+}
+
+use clap::Parser;
+
+#[derive(Parser)]
+#[command(version, about, long_about = None)]
+pub struct Args {
+    #[arg(short, long, env = "SCAN_ONLY")]
+    pub scan_only: bool,
+
+    #[arg(short, long, default_value = "None,bili_sync=info", env = "RUST_LOG")]
+    pub log_level: String,
 }
