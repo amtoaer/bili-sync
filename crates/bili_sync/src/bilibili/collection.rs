@@ -189,7 +189,7 @@ mod tests {
     use futures::{pin_mut, StreamExt};
 
     use super::*;
-    use crate::core::utils::init_logging;
+    use crate::core::utils::init_logger;
 
     #[test]
     fn test_collection_info_parse() {
@@ -251,7 +251,7 @@ mod tests {
     #[ignore = "only for manual test"]
     #[tokio::test]
     async fn test_get_info() {
-        init_logging().expect("初始化日志失败");
+        init_logger("None,bili_sync=info");
         let client = BiliClient::new();
         let testcases = vec![
             (

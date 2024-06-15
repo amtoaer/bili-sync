@@ -8,18 +8,15 @@ mod database;
 mod downloader;
 mod error;
 
-use core::utils::init_logging;
-
-use core::utils::init_logging;
-
 use std::time::Duration;
 
 use config::ARGS;
 use once_cell::sync::Lazy;
+use tokio::time;
 
 use crate::bilibili::BiliClient;
 use crate::config::CONFIG;
-use crate::core::command::process_collection, process_favorite_list;
+use crate::core::command::{process_collection, process_favorite_list};
 use crate::core::utils::init_logger;
 use crate::database::{database_connection, migrate_database};
 

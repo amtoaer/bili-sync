@@ -53,19 +53,6 @@ pub enum ModelWrapper<'a> {
 
 pub struct NFOSerializer<'a>(pub ModelWrapper<'a>, pub NFOMode);
 
-// 初始化日志
-pub fn init_logging() -> Result<()> {
-    let default_log_level = std::env::var("RUST_LOG").unwrap_or("None,bili_sync=info".to_owned());
-    tracing_subscriber::fmt::Subscriber::builder()
-        .with_env_filter(tracing_subscriber::EnvFilter::builder().parse_lossy(default_log_level))
-        .with_timer(tracing_subscriber::fmt::time::ChronoLocal::new(
-            "%Y-%m-%d %H:%M:%S%.3f".to_owned(),
-        ))
-        .finish()
-        .try_init()?;
-    Ok(())
-}
-
 /// 根据获得的收藏夹信息，插入或更新数据库中的收藏夹，并返回收藏夹对象
 pub async fn handle_favorite_info(
     info: &FavoriteListInfo,
