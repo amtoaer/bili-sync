@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use std::fmt::{Display, Formatter};
+
 use anyhow::Result;
 use async_stream::stream;
 use chrono::serde::ts_seconds;
@@ -15,6 +17,35 @@ use crate::bilibili::{BiliClient, Validate};
 pub enum CollectionType {
     Series,
     Season,
+}
+
+impl Into<i32> for CollectionType {
+    fn into(self) -> i32 {
+        match self {
+            CollectionType::Series => 1,
+            CollectionType::Season => 2,
+        }
+    }
+}
+
+impl From<i32> for CollectionType {
+    fn from(v: i32) -> Self {
+        match v {
+            1 => CollectionType::Series,
+            2 => CollectionType::Season,
+            _ => panic!("invalid collection type"),
+        }
+    }
+}
+
+impl Display for CollectionType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            CollectionType::Series => "视频列表",
+            CollectionType::Season => "视频合集",
+        };
+        write!(f, "{}", s)
+    }
 }
 
 #[derive(PartialEq, Eq, Hash, Debug)]

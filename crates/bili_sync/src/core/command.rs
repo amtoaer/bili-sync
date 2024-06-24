@@ -20,11 +20,12 @@ use crate::bilibili::{BestStream, BiliClient, BiliError, CollectionItem, Dimensi
 use crate::config::{ARGS, CONFIG};
 use crate::core::status::{PageStatus, VideoStatus};
 use crate::core::utils::{
-    create_video_pages, create_videos, exist_labels, filter_unfilled_videos, handle_favorite_info, total_video_count,
-    unhandled_videos_pages, update_pages_model, update_videos_model, ModelWrapper, NFOMode, NFOSerializer, TEMPLATE,
+    create_video_pages, create_videos, exist_labels, handle_favorite_info, total_video_count, update_pages_model,
+    update_videos_model, ModelWrapper, NFOMode, NFOSerializer, TEMPLATE,
 };
 use crate::downloader::Downloader;
 use crate::error::{DownloadAbortError, ProcessPageError};
+use crate::model::VideoListModel;
 
 /// 处理某个收藏夹，首先刷新收藏夹信息，然后下载收藏夹中未下载成功的视频
 pub async fn process_favorite_list(
@@ -93,14 +94,11 @@ pub async fn refresh_favorite_list(
 /// 筛选出所有没有获取到分页信息和 tag 的视频，请求分页信息和 tag 并写入数据库
 pub async fn fetch_video_details(
     bili_client: &BiliClient,
-    favorite_model: favorite::Model,
+    video_list_model: impl VideoListModel,
     connection: &DatabaseConnection,
-) -> Result<favorite::Model> {
-    info!(
-        "开始获取收藏夹 {} - {} 的视频与分页信息...",
-        favorite_model.f_id, favorite_model.name
-    );
-    let videos_model = filter_unfilled_videos(&favorite_model, connection).await?;
+) -> Result<impl VideoListModel> {
+    video_list_model.log_fetch_video_start();
+    let videos_model = video_list_model.unfilled_videos(connection).await?;
     for video_model in videos_model {
         let bili_video = Video::new(bili_client, video_model.bvid.clone());
         let tags = match bili_video.get_tags().await {
@@ -147,24 +145,18 @@ pub async fn fetch_video_details(
         video_active_model.save(&txn).await?;
         txn.commit().await?;
     }
-    info!(
-        "获取收藏夹 {} - {} 的视频与分页信息完成",
-        favorite_model.f_id, favorite_model.name
-    );
-    Ok(favorite_model)
+    video_list_model.log_fetch_video_end();
+    Ok(video_list_model)
 }
 
 /// 下载所有未处理成功的视频
 pub async fn download_unprocessed_videos(
     bili_client: &BiliClient,
-    favorite_model: favorite::Model,
+    video_list_model: impl VideoListModel,
     connection: &DatabaseConnection,
 ) -> Result<()> {
-    info!(
-        "开始下载收藏夹: {} - {} 中所有未处理过的视频...",
-        favorite_model.f_id, favorite_model.name
-    );
-    let unhandled_videos_pages = unhandled_videos_pages(&favorite_model, connection).await?;
+    video_list_model.log_download_video_start();
+    let unhandled_videos_pages = video_list_model.unhandled_video_pages(connection).await?;
     // 对于视频，允许三个同时下载（视频内还有分页、不同分页还有多种下载任务）
     let semaphore = Semaphore::new(3);
     let downloader = Downloader::new(bili_client.client.clone());
@@ -209,10 +201,7 @@ pub async fn download_unprocessed_videos(
     if !models.is_empty() {
         update_videos_model(models, connection).await?;
     }
-    info!(
-        "下载收藏夹: {} - {} 中未处理过的视频完成",
-        favorite_model.f_id, favorite_model.name
-    );
+    video_list_model.log_download_video_end();
     Ok(())
 }
 

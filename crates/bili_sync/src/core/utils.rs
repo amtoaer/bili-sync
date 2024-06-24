@@ -19,7 +19,6 @@ use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::bilibili::{FavoriteListInfo, PageInfo, VideoInfo};
 use crate::config::{NFOTimeType, CONFIG};
-use crate::core::status::Status;
 
 pub static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
     let mut handlebars = handlebars::Handlebars::new();
@@ -167,24 +166,6 @@ pub async fn total_video_count(favorite_model: &favorite::Model, connection: &Da
         .await?)
 }
 
-/// 筛选所有未
-pub async fn filter_unfilled_videos(
-    favorite_model: &favorite::Model,
-    connection: &DatabaseConnection,
-) -> Result<Vec<video::Model>> {
-    Ok(video::Entity::find()
-        .filter(
-            video::Column::FavoriteId
-                .eq(favorite_model.id)
-                .and(video::Column::Valid.eq(true))
-                .and(video::Column::DownloadStatus.eq(0))
-                .and(video::Column::Category.eq(2))
-                .and(video::Column::SinglePage.is_null()),
-        )
-        .all(connection)
-        .await?)
-}
-
 /// 创建视频的所有分 P
 pub async fn create_video_pages(
     pages_info: &[PageInfo],
@@ -230,24 +211,6 @@ pub async fn create_video_pages(
     Ok(())
 }
 
-/// 获取所有未处理的视频和页
-pub async fn unhandled_videos_pages(
-    favorite_model: &favorite::Model,
-    connection: &DatabaseConnection,
-) -> Result<Vec<(video::Model, Vec<page::Model>)>> {
-    Ok(video::Entity::find()
-        .filter(
-            video::Column::FavoriteId
-                .eq(favorite_model.id)
-                .and(video::Column::Valid.eq(true))
-                .and(video::Column::DownloadStatus.lt(Status::handled()))
-                .and(video::Column::Category.eq(2))
-                .and(video::Column::SinglePage.is_not_null()),
-        )
-        .find_with_related(page::Entity)
-        .all(connection)
-        .await?)
-}
 /// 更新视频 model 的下载状态
 pub async fn update_videos_model(videos: Vec<video::ActiveModel>, connection: &DatabaseConnection) -> Result<()> {
     video::Entity::insert_many(videos)

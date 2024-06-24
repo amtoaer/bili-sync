@@ -7,6 +7,7 @@ mod core;
 mod database;
 mod downloader;
 mod error;
+mod model;
 
 use std::time::Duration;
 
@@ -54,6 +55,7 @@ async fn main() {
                 error!("处理合集 {collection:?} 时遇到非预期的错误：{e}");
             }
         }
+        info!("所有合集处理完毕");
         info!("等待 {} 分钟后进行下一次扫描", CONFIG.interval);
         tokio::time::sleep(std::time::Duration::from_secs(CONFIG.interval)).await;
     }
