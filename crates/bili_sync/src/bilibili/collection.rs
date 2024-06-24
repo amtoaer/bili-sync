@@ -4,14 +4,12 @@ use std::fmt::{Display, Formatter};
 
 use anyhow::Result;
 use async_stream::stream;
-use chrono::serde::ts_seconds;
-use chrono::{DateTime, Utc};
 use futures::Stream;
 use reqwest::Method;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::bilibili::{BiliClient, Validate};
+use crate::bilibili::{BiliClient, Validate, VideoInfo};
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum CollectionType {
@@ -19,9 +17,9 @@ pub enum CollectionType {
     Season,
 }
 
-impl Into<i32> for CollectionType {
-    fn into(self) -> i32 {
-        match self {
+impl From<CollectionType> for i32 {
+    fn from(v: CollectionType) -> Self {
+        match v {
             CollectionType::Series => 1,
             CollectionType::Season => 2,
         }
@@ -95,17 +93,6 @@ impl<'de> Deserialize<'de> for CollectionInfo {
     }
 }
 
-#[derive(Debug, Deserialize)]
-pub struct SimpleVideoInfo {
-    pub bvid: String,
-    #[serde(rename = "pic")]
-    pub cover: String,
-    #[serde(with = "ts_seconds")]
-    pub ctime: DateTime<Utc>,
-    #[serde(rename = "pubdate", with = "ts_seconds")]
-    pub pubtime: DateTime<Utc>,
-}
-
 impl<'a> Collection<'a> {
     pub fn new(client: &'a BiliClient, collection: &'a CollectionItem) -> Self {
         Self { client, collection }
@@ -172,7 +159,7 @@ impl<'a> Collection<'a> {
             .validate()
     }
 
-    pub async fn into_simple_video_stream(self) -> impl Stream<Item = SimpleVideoInfo> + 'a {
+    pub async fn into_simple_video_stream(self) -> impl Stream<Item = VideoInfo> + 'a {
         stream! {
             let mut page = 1;
             loop {
@@ -187,7 +174,7 @@ impl<'a> Collection<'a> {
                     warn!("no videos found in collection {:?} page {}", self.collection, page);
                     break;
                 }
-                let videos_info = match serde_json::from_value::<Vec<SimpleVideoInfo>>(videos["data"]["archives"].take()) {
+                let videos_info = match serde_json::from_value::<Vec<VideoInfo>>(videos["data"]["archives"].take()) {
                     Ok(v) => v,
                     Err(e) => {
                         error!("failed to parse videos of collection {:?} page {}: {}", self.collection, page, e);
@@ -218,6 +205,7 @@ impl<'a> Collection<'a> {
 #[cfg(test)]
 mod tests {
     use futures::{pin_mut, StreamExt};
+    use rsa::sha2::digest::typenum::assert_type;
 
     use super::*;
     use crate::core::utils::init_logger;
@@ -309,7 +297,11 @@ mod tests {
             let videos = simple_video_stream.collect::<Vec<_>>().await;
             assert_eq!(videos.len(), expect);
             // from the newest to the oldest
-            assert!(videos.first().unwrap().pubtime >= videos.last().unwrap().pubtime);
+            assert!(videos.len() >= 2);
+            match (videos.first().unwrap(), videos.last().unwrap()) {
+                (VideoInfo::Simple { pubtime: f, .. }, VideoInfo::Simple { pubtime: l, .. }) => assert!(f >= l),
+                _ => unreachable!(),
+            };
         }
     }
 }

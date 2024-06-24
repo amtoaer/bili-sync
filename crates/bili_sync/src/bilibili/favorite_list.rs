@@ -1,11 +1,9 @@
 use anyhow::Result;
 use async_stream::stream;
-use chrono::serde::ts_seconds;
-use chrono::{DateTime, Utc};
 use futures::Stream;
 use serde_json::Value;
 
-use crate::bilibili::{BiliClient, Validate};
+use crate::bilibili::{BiliClient, Validate, VideoInfo};
 pub struct FavoriteList<'a> {
     client: &'a BiliClient,
     fid: String,
@@ -15,24 +13,6 @@ pub struct FavoriteList<'a> {
 pub struct FavoriteListInfo {
     pub id: i64,
     pub title: String,
-}
-
-#[derive(Debug, serde::Deserialize)]
-pub struct VideoInfo {
-    pub title: String,
-    #[serde(rename = "type")]
-    pub vtype: i32,
-    pub bvid: String,
-    pub intro: String,
-    pub cover: String,
-    pub upper: Upper,
-    #[serde(with = "ts_seconds")]
-    pub ctime: DateTime<Utc>,
-    #[serde(with = "ts_seconds")]
-    pub fav_time: DateTime<Utc>,
-    #[serde(with = "ts_seconds")]
-    pub pubtime: DateTime<Utc>,
-    pub attr: i32,
 }
 
 #[derive(Debug, serde::Deserialize)]

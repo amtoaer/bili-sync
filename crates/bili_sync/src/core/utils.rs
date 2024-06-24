@@ -1,10 +1,9 @@
-use std::collections::HashSet;
 use std::path::Path;
 
 use anyhow::Result;
 use bili_sync_entity::*;
 use bili_sync_migration::OnConflict;
-use filenamify::filenamify;
+use chrono::{DateTime, Utc};
 use handlebars::handlebars_helper;
 use once_cell::sync::Lazy;
 use quick_xml::events::{BytesCData, BytesText};
@@ -12,13 +11,12 @@ use quick_xml::writer::Writer;
 use quick_xml::Error;
 use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
-use sea_orm::QuerySelect;
-use serde_json::json;
 use tokio::io::AsyncWriteExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::bilibili::{FavoriteListInfo, PageInfo, VideoInfo};
 use crate::config::{NFOTimeType, CONFIG};
+use crate::model::VideoListModel;
 
 pub static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
     let mut handlebars = handlebars::Handlebars::new();
@@ -78,75 +76,13 @@ pub async fn handle_favorite_info(
         .unwrap())
 }
 
-/// 获取数据库中存在的与该视频 favorite_id 和 bvid 重合的视频中的 bvid 和 favtime
-/// 如果 bvid 和 favtime 均相同，说明到达了上次处理到的位置
-pub async fn exist_labels(
-    videos_info: &[VideoInfo],
-    favorite_model: &favorite::Model,
-    connection: &DatabaseConnection,
-) -> Result<HashSet<(String, DateTime)>> {
-    let bvids = videos_info.iter().map(|v| v.bvid.clone()).collect::<Vec<String>>();
-    let exist_labels = video::Entity::find()
-        .filter(
-            video::Column::FavoriteId
-                .eq(favorite_model.id)
-                .and(video::Column::Bvid.is_in(bvids)),
-        )
-        .select_only()
-        .columns([video::Column::Bvid, video::Column::Favtime])
-        .into_tuple()
-        .all(connection)
-        .await?
-        .into_iter()
-        .collect::<HashSet<(String, DateTime)>>();
-    Ok(exist_labels)
-}
-
 /// 尝试创建 Video Model，如果发生冲突则忽略
 pub async fn create_videos(
     videos_info: &[VideoInfo],
     favorite: &favorite::Model,
     connection: &DatabaseConnection,
 ) -> Result<()> {
-    let video_models = videos_info
-        .iter()
-        .map(move |v| video::ActiveModel {
-            favorite_id: Set(Some(favorite.id)),
-            bvid: Set(v.bvid.clone()),
-            name: Set(v.title.clone()),
-            path: Set(Path::new(&favorite.path)
-                .join(filenamify(
-                    TEMPLATE
-                        .render(
-                            "video",
-                            &json!({
-                                "bvid": &v.bvid,
-                                "title": &v.title,
-                                "upper_name": &v.upper.name,
-                                "upper_mid": &v.upper.mid,
-                            }),
-                        )
-                        .unwrap_or_else(|_| v.bvid.clone()),
-                ))
-                .to_str()
-                .unwrap()
-                .to_owned()),
-            category: Set(v.vtype),
-            intro: Set(v.intro.clone()),
-            cover: Set(v.cover.clone()),
-            ctime: Set(v.ctime.naive_utc()),
-            pubtime: Set(v.pubtime.naive_utc()),
-            favtime: Set(v.fav_time.naive_utc()),
-            download_status: Set(0),
-            valid: Set(v.attr == 0),
-            tags: Set(None),
-            single_page: Set(None),
-            upper_id: Set(v.upper.mid),
-            upper_name: Set(v.upper.name.clone()),
-            upper_face: Set(v.upper.face.clone()),
-            ..Default::default()
-        })
-        .collect::<Vec<video::ActiveModel>>();
+    let video_models = favorite.video_models_by_info(videos_info)?;
     video::Entity::insert_many(video_models)
         .on_conflict(
             OnConflict::columns([video::Column::FavoriteId, video::Column::Bvid])
@@ -455,6 +391,11 @@ pub fn init_logger(log_level: &str) {
         .finish()
         .try_init()
         .expect("初始化日志失败");
+}
+
+/// 对于视频标记，均由 bvid 和时间戳构成
+pub fn id_time_key(bvid: &String, time: &DateTime<Utc>) -> String {
+    format!("{}-{}", bvid, time.timestamp())
 }
 
 #[cfg(test)]

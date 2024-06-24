@@ -20,7 +20,7 @@ use crate::bilibili::{BestStream, BiliClient, BiliError, CollectionItem, Dimensi
 use crate::config::{ARGS, CONFIG};
 use crate::core::status::{PageStatus, VideoStatus};
 use crate::core::utils::{
-    create_video_pages, create_videos, exist_labels, handle_favorite_info, total_video_count, update_pages_model,
+    create_video_pages, create_videos, handle_favorite_info, total_video_count, update_pages_model,
     update_videos_model, ModelWrapper, NFOMode, NFOSerializer, TEMPLATE,
 };
 use crate::downloader::Downloader;
@@ -71,11 +71,9 @@ pub async fn refresh_favorite_list(
     let total_count = total_video_count(&favorite_model, connection).await?;
     while let Some(videos_info) = video_stream.next().await {
         got_count += videos_info.len();
-        let exist_labels = exist_labels(&videos_info, &favorite_model, connection).await?;
+        let exist_labels = favorite_model.exist_labels(&videos_info, connection).await?;
         // 如果发现有视频的收藏时间和 bvid 和数据库中重合，说明到达了上次处理到的地方，可以直接退出
-        let should_break = videos_info
-            .iter()
-            .any(|v| exist_labels.contains(&(v.bvid.clone(), v.fav_time.naive_utc())));
+        let should_break = videos_info.iter().any(|v| exist_labels.contains(&v.video_key()));
         // 将视频信息写入数据库
         create_videos(&videos_info, &favorite_model, connection).await?;
         if should_break {

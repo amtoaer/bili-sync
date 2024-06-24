@@ -1,10 +1,15 @@
+use std::collections::HashSet;
+
 use anyhow::Result;
 use bili_sync_entity::*;
 use sea_orm::entity::prelude::*;
-use sea_orm::DatabaseConnection;
+use sea_orm::ActiveValue::Set;
+use sea_orm::{DatabaseConnection, QuerySelect};
 
 use super::VideoListModel;
+use crate::bilibili::VideoInfo;
 use crate::core::status::Status;
+use crate::core::utils::id_time_key;
 
 impl VideoListModel for favorite::Model {
     async fn unfilled_videos(&self, connection: &DatabaseConnection) -> Result<Vec<video::Model>> {
@@ -37,6 +42,38 @@ impl VideoListModel for favorite::Model {
             .find_with_related(page::Entity)
             .all(connection)
             .await?)
+    }
+
+    async fn exist_labels(
+        &self,
+        videos_info: &[VideoInfo],
+        connection: &DatabaseConnection,
+    ) -> Result<HashSet<String>> {
+        let bvids = videos_info.iter().map(|v| v.bvid().to_string()).collect::<Vec<_>>();
+        Ok(video::Entity::find()
+            .filter(
+                video::Column::FavoriteId
+                    .eq(self.id)
+                    .and(video::Column::Bvid.is_in(bvids)),
+            )
+            .select_only()
+            .columns([video::Column::Bvid, video::Column::Favtime])
+            .into_tuple()
+            .all(connection)
+            .await?
+            .into_iter()
+            .map(|(bvid, time)| id_time_key(&bvid, &time))
+            .collect::<HashSet<_>>())
+    }
+
+    fn video_models_by_info(&self, videos_info: &[VideoInfo]) -> Result<Vec<video::ActiveModel>> {
+        Ok(videos_info
+            .iter()
+            .map(|v| video::ActiveModel {
+                favorite_id: Set(Some(self.id)),
+                ..v.to_model()
+            })
+            .collect())
     }
 
     fn log_fetch_video_start(&self) {
