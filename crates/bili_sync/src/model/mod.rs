@@ -25,6 +25,7 @@ pub trait VideoListModel {
         -> Result<HashSet<String>>;
 
     /// 获取视频信息对应的视频 model
+    /// FIXME: 这里的实现有点问题，目前还没有正确设置 Path
     fn video_models_by_info(&self, videos_info: &[VideoInfo]) -> Result<Vec<bili_sync_entity::video::ActiveModel>>;
 
     /* 日志相关 */

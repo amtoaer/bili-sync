@@ -205,7 +205,6 @@ impl<'a> Collection<'a> {
 #[cfg(test)]
 mod tests {
     use futures::{pin_mut, StreamExt};
-    use rsa::sha2::digest::typenum::assert_type;
 
     use super::*;
     use crate::core::utils::init_logger;
