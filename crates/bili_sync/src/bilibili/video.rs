@@ -7,7 +7,7 @@ use reqwest::Method;
 use crate::bilibili::analyzer::PageAnalyzer;
 use crate::bilibili::client::BiliClient;
 use crate::bilibili::danmaku::{DanmakuElem, DanmakuWriter, DmSegMobileReply};
-use crate::bilibili::Validate;
+use crate::bilibili::{Validate, VideoInfo};
 
 static MASK_CODE: u64 = 2251799813685247;
 static XOR_CODE: u64 = 23442827791579;
@@ -59,6 +59,21 @@ impl<'a> Video<'a> {
     pub fn new(client: &'a BiliClient, bvid: String) -> Self {
         let aid = bvid_to_aid(&bvid).to_string();
         Self { client, aid, bvid }
+    }
+
+    #[allow(dead_code)]
+    pub async fn get_info(&self) -> Result<VideoInfo> {
+        let mut res = self
+            .client
+            .request(Method::GET, "https://api.bilibili.com/x/web-interface/view")
+            .query(&[("aid", &self.aid), ("bvid", &self.bvid)])
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<serde_json::Value>()
+            .await?
+            .validate()?;
+        Ok(serde_json::from_value(res["data"].take())?)
     }
 
     pub async fn get_pages(&self) -> Result<Vec<PageInfo>> {
