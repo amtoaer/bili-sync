@@ -7,7 +7,7 @@ mod core;
 mod database;
 mod downloader;
 mod error;
-mod model;
+mod adapter;
 
 use std::time::Duration;
 

@@ -62,7 +62,8 @@ impl<'a> Video<'a> {
     }
 
     #[allow(dead_code)]
-    pub async fn get_info(&self) -> Result<VideoInfo> {
+    /// 直接调用视频信息接口获取详细的视频信息
+    pub async fn get_view_info(&self) -> Result<VideoInfo> {
         let mut res = self
             .client
             .request(Method::GET, "https://api.bilibili.com/x/web-interface/view")
@@ -73,6 +74,7 @@ impl<'a> Video<'a> {
             .json::<serde_json::Value>()
             .await?
             .validate()?;
+        println!("{:?}", res["data"]);
         Ok(serde_json::from_value(res["data"].take())?)
     }
 
@@ -173,8 +175,8 @@ fn bvid_to_aid(bvid: &str) -> u64 {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_bvid_to_aid() {
+    #[test]
+    fn test_bvid_to_aid() {
         assert_eq!(bvid_to_aid("BV1Tr421n746"), 1401752220u64);
         assert_eq!(bvid_to_aid("BV1sH4y1s7fe"), 1051892992u64);
     }

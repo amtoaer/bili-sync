@@ -11,21 +11,20 @@ use futures::stream::{FuturesOrdered, FuturesUnordered};
 use futures::{pin_mut, Future, StreamExt};
 use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
-use sea_orm::TransactionTrait;
 use serde_json::json;
 use tokio::fs;
 use tokio::sync::{Mutex, Semaphore};
 
+use crate::adapter::VideoListModel;
 use crate::bilibili::{BestStream, BiliClient, BiliError, CollectionItem, Dimension, FavoriteList, PageInfo, Video};
 use crate::config::{ARGS, CONFIG};
 use crate::core::status::{PageStatus, VideoStatus};
 use crate::core::utils::{
-    create_video_pages, create_videos, handle_favorite_info, total_video_count, update_pages_model,
-    update_videos_model, ModelWrapper, NFOMode, NFOSerializer, TEMPLATE,
+    create_videos, handle_favorite_info, total_video_count, update_pages_model, update_videos_model, ModelWrapper,
+    NFOMode, NFOSerializer, TEMPLATE,
 };
 use crate::downloader::Downloader;
 use crate::error::{DownloadAbortError, ProcessPageError};
-use crate::model::VideoListModel;
 
 /// 处理某个收藏夹，首先刷新收藏夹信息，然后下载收藏夹中未下载成功的视频
 pub async fn process_favorite_list(
@@ -89,7 +88,7 @@ pub async fn refresh_favorite_list(
     Ok(favorite_model)
 }
 
-/// 筛选出所有没有获取到分页信息和 tag 的视频，请求分页信息和 tag 并写入数据库
+/// 筛选出所有未获取到全部信息的视频，尝试补充其详细信息
 pub async fn fetch_video_details(
     bili_client: &BiliClient,
     video_list_model: impl VideoListModel,
@@ -97,53 +96,9 @@ pub async fn fetch_video_details(
 ) -> Result<impl VideoListModel> {
     video_list_model.log_fetch_video_start();
     let videos_model = video_list_model.unfilled_videos(connection).await?;
-    video_list_model.fetch_videos_detail(bili_client, videos_model).await;
-    for video_model in videos_model {
-        let bili_video = Video::new(bili_client, video_model.bvid.clone());
-        let tags = match bili_video.get_tags().await {
-            Ok(tags) => tags,
-            Err(e) => {
-                error!(
-                    "获取视频 {} - {} 的标签失败，错误为：{}",
-                    &video_model.bvid, &video_model.name, e
-                );
-                if let Some(BiliError::RequestFailed(code, _)) = e.downcast_ref::<BiliError>() {
-                    if *code == -404 {
-                        let mut video_active_model: video::ActiveModel = video_model.into();
-                        video_active_model.valid = Set(false);
-                        video_active_model.save(connection).await?;
-                    }
-                }
-                continue;
-            }
-        };
-        let pages_info = match bili_video.get_pages().await {
-            Ok(pages) => pages,
-            Err(e) => {
-                error!(
-                    "获取视频 {} - {} 的分页信息失败，错误为：{}",
-                    &video_model.bvid, &video_model.name, e
-                );
-                if let Some(BiliError::RequestFailed(code, _)) = e.downcast_ref::<BiliError>() {
-                    if *code == -404 {
-                        let mut video_active_model: video::ActiveModel = video_model.into();
-                        video_active_model.valid = Set(false);
-                        video_active_model.save(connection).await?;
-                    }
-                }
-                continue;
-            }
-        };
-        let txn = connection.begin().await?;
-        // 将分页信息写入数据库
-        create_video_pages(&pages_info, &video_model, &txn).await?;
-        // 将页标记和 tag 写入数据库
-        let mut video_active_model: video::ActiveModel = video_model.into();
-        video_active_model.single_page = Set(Some(pages_info.len() == 1));
-        video_active_model.tags = Set(Some(serde_json::to_value(tags).unwrap()));
-        video_active_model.save(&txn).await?;
-        txn.commit().await?;
-    }
+    video_list_model
+        .fetch_videos_detail(bili_client, videos_model, connection)
+        .await?;
     video_list_model.log_fetch_video_end();
     Ok(video_list_model)
 }

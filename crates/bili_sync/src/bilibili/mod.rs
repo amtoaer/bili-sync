@@ -87,6 +87,7 @@ pub enum VideoInfo {
         ctime: DateTime<Utc>,
         #[serde(rename = "pubdate", with = "ts_seconds")]
         pubtime: DateTime<Utc>,
+        pages: Vec<PageInfo>,
         state: i32,
     },
 }
@@ -144,6 +145,7 @@ impl VideoInfo {
                 ctime,
                 pubtime,
                 state,
+                ..
             } => bili_sync_entity::video::ActiveModel {
                 bvid: Set(bvid.clone()),
                 name: Set(title.clone()),
@@ -152,6 +154,7 @@ impl VideoInfo {
                 cover: Set(cover.clone()),
                 ctime: Set(ctime.naive_utc()),
                 pubtime: Set(pubtime.naive_utc()),
+                favtime: Set(pubtime.naive_utc()), // 合集不包括 fav_time，使用发布时间代替
                 download_status: Set(0),
                 valid: Set(*state == 0),
                 tags: Set(None),

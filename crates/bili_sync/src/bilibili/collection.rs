@@ -207,6 +207,7 @@ mod tests {
     use futures::{pin_mut, StreamExt};
 
     use super::*;
+    use crate::bilibili::Video;
     use crate::core::utils::init_logger;
 
     #[test]
@@ -271,6 +272,8 @@ mod tests {
     async fn test_get_info() {
         init_logger("None,bili_sync=info");
         let client = BiliClient::new();
+        let video = Video::new(&client, "BV1pS411A7iD".to_string());
+        println!("{:?}", video.get_view_info().await.unwrap());
         let testcases = vec![
             (
                 CollectionItem {

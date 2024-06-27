@@ -14,9 +14,9 @@ use sea_orm::ActiveValue::Set;
 use tokio::io::AsyncWriteExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
+use crate::adapter::VideoListModel;
 use crate::bilibili::{FavoriteListInfo, PageInfo, VideoInfo};
 use crate::config::{NFOTimeType, CONFIG};
-use crate::model::VideoListModel;
 
 pub static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
     let mut handlebars = handlebars::Handlebars::new();
