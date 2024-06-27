@@ -5,8 +5,7 @@ on:
     branches:
       - main
   pull_request:
-    branches:
-      - "**"
+    types: ['opened', 'reopened', 'synchronize', 'ready_for_review']
 
 concurrency:
   # Allow only one workflow per any non-`main` branch.
@@ -22,6 +21,7 @@ jobs:
   tests:
     name: Run Clippy and tests
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
