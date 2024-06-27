@@ -7,7 +7,7 @@ use sea_orm::ActiveValue::Set;
 use sea_orm::{DatabaseConnection, QuerySelect};
 
 use super::VideoListModel;
-use crate::bilibili::VideoInfo;
+use crate::bilibili::{BiliClient, Video, VideoInfo};
 use crate::core::status::Status;
 use crate::core::utils::id_time_key;
 
@@ -74,6 +74,28 @@ impl VideoListModel for favorite::Model {
                 ..v.to_model()
             })
             .collect())
+    }
+
+    async fn fetch_videos_detail(&self, bili_clent: &BiliClient, videos_model: Vec<video::Model>, connection: &DatabaseConnection) {
+        for video_model in videos_model {
+            let video = Video::new(bili_clent, video_model.bvid.clone());
+            let tags = video.get_tags().await;
+            let pages_info = tags.and_then(|_| video.get_pages().await);
+            match (tags, pages_info){
+                (Ok(tags), Ok(pages_info)) => {
+                    let video_active_model: video::ActiveModel = video_model.into();
+                    video_active_model.tags = Set(Some(tags));
+                    video_active_model.pages = Set(Some(pages_info));
+                    video_active_model.save(connection).await.unwrap();
+                }
+                (tags_res, pages_info_res) => {
+                    error!(
+                        "获取视频 {} - {} 详情失败，错误为：{}",
+                        &video_model.bvid, &video_model.name, e
+                    );
+                    let errors = vec![tags_res, pages_info_res];
+                }
+            };
     }
 
     fn log_fetch_video_start(&self) {

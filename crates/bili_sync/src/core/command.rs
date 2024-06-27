@@ -97,6 +97,7 @@ pub async fn fetch_video_details(
 ) -> Result<impl VideoListModel> {
     video_list_model.log_fetch_video_start();
     let videos_model = video_list_model.unfilled_videos(connection).await?;
+    video_list_model.fetch_videos_detail(bili_client, videos_model).await;
     for video_model in videos_model {
         let bili_video = Video::new(bili_client, video_model.bvid.clone());
         let tags = match bili_video.get_tags().await {

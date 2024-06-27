@@ -76,6 +76,10 @@ impl VideoListModel for collection::Model {
             .collect())
     }
 
+    async fn fetch_videos_detail(&self, bili_clent: &BiliClient, videos_model: Vec<video::Model>) {
+        unimplemented!()
+    }
+
     fn log_fetch_video_start(&self) {
         info!(
             "开始获取{} {} - {} 的视频与分页信息...",

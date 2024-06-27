@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use anyhow::Result;
 use sea_orm::DatabaseConnection;
 
-use crate::bilibili::VideoInfo;
+use crate::bilibili::{BiliClient, VideoInfo};
 
 pub trait VideoListModel {
     /* 逻辑相关 */
@@ -27,6 +27,9 @@ pub trait VideoListModel {
     /// 获取视频信息对应的视频 model
     /// FIXME: 这里的实现有点问题，目前还没有正确设置 Path
     fn video_models_by_info(&self, videos_info: &[VideoInfo]) -> Result<Vec<bili_sync_entity::video::ActiveModel>>;
+
+    /// 获取视频 model 中缺失的信息
+    async fn fetch_videos_detail(&self, bili_client: &BiliClient, videos_model: Vec<bili_sync_entity::video::Model>);
 
     /* 日志相关 */
     fn log_fetch_video_start(&self);
