@@ -1,13 +1,13 @@
 #[macro_use]
 extern crate tracing;
 
+mod adapter;
 mod bilibili;
 mod config;
 mod core;
 mod database;
 mod downloader;
 mod error;
-mod adapter;
 
 use std::time::Duration;
 
