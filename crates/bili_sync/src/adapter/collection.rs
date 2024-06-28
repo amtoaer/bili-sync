@@ -114,7 +114,7 @@ impl VideoListModel for collection::Model {
                     }
                     continue;
                 }
-            }
+            };
         }
         Ok(())
     }
