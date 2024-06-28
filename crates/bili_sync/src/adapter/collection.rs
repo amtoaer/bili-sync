@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use bili_sync_entity::*;
 use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
@@ -84,14 +84,9 @@ impl VideoListModel for collection::Model {
     ) -> Result<()> {
         for video_model in videos_model {
             let video = Video::new(bili_clent, video_model.bvid.clone());
-            let tags = video.get_tags().await;
-            let view_info = if tags.is_ok() {
-                video.get_view_info().await
-            } else {
-                Err(anyhow!(""))
-            };
-            match (tags, view_info) {
-                (Ok(tags), Ok(view_info)) => {
+            let info: Result<_> = async { Ok((video.get_tags().await?, video.get_view_info().await?)) }.await;
+            match info {
+                Ok((tags, view_info)) => {
                     let VideoInfo::View { pages, .. } = &view_info else {
                         unreachable!("view_info must be VideoInfo::View")
                     };
@@ -105,9 +100,7 @@ impl VideoListModel for collection::Model {
                     video_active_model.save(&txn).await?;
                     txn.commit().await?;
                 }
-                (tags_err, pages_err) => {
-                    // 两个值都是 ok 的情况不会执行到这里，因此 unwrap 是安全的
-                    let e = tags_err.err().or(pages_err.err()).unwrap();
+                Err(e) => {
                     error!(
                         "获取视频 {} - {} 的详细信息失败，错误为：{}",
                         &video_model.bvid, &video_model.name, e
@@ -121,7 +114,7 @@ impl VideoListModel for collection::Model {
                     }
                     continue;
                 }
-            };
+            }
         }
         Ok(())
     }

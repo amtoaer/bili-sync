@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use bili_sync_entity::*;
 use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
@@ -84,14 +84,9 @@ impl VideoListModel for favorite::Model {
     ) -> Result<()> {
         for video_model in videos_model {
             let video = Video::new(bili_clent, video_model.bvid.clone());
-            let tags = video.get_tags().await;
-            let pages_info = if tags.is_ok() {
-                video.get_pages().await
-            } else {
-                Err(anyhow!(""))
-            };
-            match (tags, pages_info) {
-                (Ok(tags), Ok(pages_info)) => {
+            let info: Result<_> = async { Ok((video.get_tags().await?, video.get_pages().await?)) }.await;
+            match info {
+                Ok((tags, pages_info)) => {
                     let txn = connection.begin().await?;
                     // 将分页信息写入数据库
                     create_video_pages(&pages_info, &video_model, &txn).await?;
@@ -102,9 +97,7 @@ impl VideoListModel for favorite::Model {
                     video_active_model.save(&txn).await?;
                     txn.commit().await?;
                 }
-                (tags_err, pages_err) => {
-                    // 两个值都是 ok 的情况不会执行到这里，因此 unwrap 是安全的
-                    let e = tags_err.err().or(pages_err.err()).unwrap();
+                Err(e) => {
                     error!(
                         "获取视频 {} - {} 的详细信息失败，错误为：{}",
                         &video_model.bvid, &video_model.name, e
