@@ -3,16 +3,57 @@ use std::path::Path;
 
 use anyhow::Result;
 use bili_sync_entity::*;
+use bili_sync_migration::OnConflict;
 use filenamify::filenamify;
 use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
 use sea_orm::{DatabaseConnection, QuerySelect, TransactionTrait};
 
 use super::VideoListModel;
-use crate::bilibili::{BiliClient, BiliError, CollectionType, Video, VideoInfo};
-use crate::core::status::Status;
-use crate::core::utils::{create_video_pages, id_time_key, TEMPLATE};
+use crate::bilibili::{BiliClient, BiliError, Collection, CollectionItem, CollectionType, Video, VideoInfo};
+use crate::utils::status::Status;
+use crate::utils::utils::{create_video_pages, id_time_key, TEMPLATE};
 
+pub async fn collection_from(
+    collection_item: &CollectionItem,
+    path: &Path,
+    bili_client: &BiliClient,
+    connection: &DatabaseConnection,
+) -> Result<collection::Model> {
+    let collection = Collection::new(bili_client, collection_item);
+    let collection_info = collection.get_info().await?;
+    collection::Entity::insert(collection::ActiveModel {
+        s_id: Set(collection_info.sid),
+        m_id: Set(collection_info.mid),
+        r#type: Set(collection_info.collection_type.into()),
+        name: Set(collection_info.name.clone()),
+        path: Set(path.to_string_lossy().to_string()),
+        ..Default::default()
+    })
+    .on_conflict(
+        OnConflict::columns([
+            collection::Column::SId,
+            collection::Column::MId,
+            collection::Column::Type,
+        ])
+        .update_columns([collection::Column::Name, collection::Column::Path])
+        .to_owned(),
+    )
+    .exec(connection)
+    .await?;
+    Ok(collection::Entity::find()
+        .filter(
+            collection::Column::SId
+                .eq(collection_item.sid.clone())
+                .and(collection::Column::MId.eq(collection_item.mid.clone())),
+        )
+        .one(connection)
+        .await?
+        .unwrap())
+}
+use async_trait::async_trait;
+
+#[async_trait]
 impl VideoListModel for collection::Model {
     async fn unfilled_videos(&self, connection: &DatabaseConnection) -> Result<Vec<video::Model>> {
         Ok(video::Entity::find()

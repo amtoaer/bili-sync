@@ -3,16 +3,48 @@ use std::path::Path;
 
 use anyhow::Result;
 use bili_sync_entity::*;
+use bili_sync_migration::OnConflict;
 use filenamify::filenamify;
 use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
 use sea_orm::{DatabaseConnection, QuerySelect, TransactionTrait};
 
 use super::VideoListModel;
-use crate::bilibili::{BiliClient, BiliError, Video, VideoInfo};
-use crate::core::status::Status;
-use crate::core::utils::{create_video_pages, id_time_key, TEMPLATE};
+use crate::bilibili::{BiliClient, BiliError, FavoriteList, Video, VideoInfo};
+use crate::utils::status::Status;
+use crate::utils::utils::{create_video_pages, id_time_key, TEMPLATE};
 
+pub async fn favorite_from(
+    fid: &str,
+    path: &Path,
+    bili_client: &BiliClient,
+    connection: &DatabaseConnection,
+) -> Result<favorite::Model> {
+    let favorite = FavoriteList::new(bili_client, fid.to_owned());
+    let favorite_info = favorite.get_info().await?;
+    favorite::Entity::insert(favorite::ActiveModel {
+        f_id: Set(favorite_info.id),
+        name: Set(favorite_info.title.clone()),
+        path: Set(path.to_string_lossy().to_string()),
+        ..Default::default()
+    })
+    .on_conflict(
+        OnConflict::column(favorite::Column::FId)
+            .update_columns([favorite::Column::Name, favorite::Column::Path])
+            .to_owned(),
+    )
+    .exec(connection)
+    .await?;
+    Ok(favorite::Entity::find()
+        .filter(favorite::Column::FId.eq(favorite_info.id))
+        .one(connection)
+        .await?
+        .unwrap())
+}
+
+use async_trait::async_trait;
+
+#[async_trait]
 impl VideoListModel for favorite::Model {
     async fn unfilled_videos(&self, connection: &DatabaseConnection) -> Result<Vec<video::Model>> {
         Ok(video::Entity::find()

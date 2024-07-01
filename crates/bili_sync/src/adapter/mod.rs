@@ -1,14 +1,38 @@
 mod collection;
-mod convert;
 mod favorite;
 
 use std::collections::HashSet;
+use std::path::Path;
 
 use anyhow::Result;
+use async_trait::async_trait;
+pub use collection::collection_from;
+pub use favorite::favorite_from;
 use sea_orm::DatabaseConnection;
 
-use crate::bilibili::{BiliClient, VideoInfo};
+use crate::bilibili::{BiliClient, CollectionItem, VideoInfo};
 
+pub enum Args<'a> {
+    Favorite { fid: &'a str },
+    Collection { collection_item: &'a CollectionItem },
+}
+
+pub async fn video_list_from(
+    args: Args<'_>,
+    path: &Path,
+    bili_client: &BiliClient,
+    connection: &DatabaseConnection,
+) -> Result<Box<dyn VideoListModel>> {
+    let video_list_model: Box<dyn VideoListModel> = match args {
+        Args::Favorite { fid } => Box::new(favorite_from(fid, path, bili_client, connection).await?),
+        Args::Collection { collection_item } => {
+            Box::new(collection_from(collection_item, path, bili_client, connection).await?)
+        }
+    };
+    Ok(video_list_model)
+}
+
+#[async_trait]
 pub trait VideoListModel {
     /* 逻辑相关 */
 

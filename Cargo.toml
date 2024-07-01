@@ -19,6 +19,7 @@ anyhow = { version = "1.0.86", features = ["backtrace"] }
 arc-swap = { version = "1.7.1", features = ["serde"] }
 async-std = { version = "1.12.0", features = ["attributes", "tokio1"] }
 async-stream = "0.3.5"
+async-trait = "0.1.80"
 chrono = { version = "0.4.38", features = ["serde"] }
 clap = { version = "4.5.7", features = ["env"] }
 cookie = "0.18.1"

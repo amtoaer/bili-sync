@@ -208,7 +208,7 @@ mod tests {
 
     use super::*;
     use crate::bilibili::Video;
-    use crate::core::utils::init_logger;
+    use crate::utils::utils::init_logger;
 
     #[test]
     fn test_collection_info_parse() {

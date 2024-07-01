@@ -4,22 +4,23 @@ extern crate tracing;
 mod adapter;
 mod bilibili;
 mod config;
-mod core;
 mod database;
 mod downloader;
 mod error;
+mod utils;
 
 use std::time::Duration;
 
+use adapter::Args;
 use config::ARGS;
 use once_cell::sync::Lazy;
 use tokio::time;
+use utils::command::process_video_list;
 
 use crate::bilibili::BiliClient;
 use crate::config::CONFIG;
-use crate::core::command::{process_collection, process_favorite_list};
-use crate::core::utils::init_logger;
 use crate::database::{database_connection, migrate_database};
+use crate::utils::utils::init_logger;
 
 #[tokio::main]
 async fn main() {
@@ -45,14 +46,16 @@ async fn main() {
             anchor = chrono::Local::now().date_naive();
         }
         for (fid, path) in &CONFIG.favorite_list {
-            if let Err(e) = process_favorite_list(&bili_client, fid, path, &connection).await {
+            if let Err(e) = process_video_list(Args::Favorite { fid }, &bili_client, path, &connection).await {
                 error!("处理收藏夹 {fid} 时遇到非预期的错误：{e}");
             }
         }
         info!("所有收藏夹处理完毕");
-        for (collection, path) in &CONFIG.collection_list {
-            if let Err(e) = process_collection(&bili_client, collection, path, &connection).await {
-                error!("处理合集 {collection:?} 时遇到非预期的错误：{e}");
+        for (collection_item, path) in &CONFIG.collection_list {
+            if let Err(e) =
+                process_video_list(Args::Collection { collection_item }, &bili_client, path, &connection).await
+            {
+                error!("处理合集 {collection_item:?} 时遇到非预期的错误：{e}");
             }
         }
         info!("所有合集处理完毕");

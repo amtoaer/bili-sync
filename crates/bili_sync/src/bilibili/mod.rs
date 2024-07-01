@@ -3,7 +3,7 @@ use anyhow::{bail, Result};
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
 pub use client::{BiliClient, Client};
-pub use collection::{CollectionItem, CollectionType};
+pub use collection::{Collection, CollectionItem, CollectionType};
 pub use credential::Credential;
 pub use danmaku::DanmakuOption;
 pub use error::BiliError;

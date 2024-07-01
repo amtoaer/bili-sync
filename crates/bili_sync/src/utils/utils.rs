@@ -83,7 +83,7 @@ pub async fn create_videos(
     connection: &DatabaseConnection,
 ) -> Result<()> {
     let video_models = videos_info
-        .into_iter()
+        .iter()
         .map(|v| favorite.video_model_by_info(v))
         .collect::<Vec<_>>();
     video::Entity::insert_many(video_models)

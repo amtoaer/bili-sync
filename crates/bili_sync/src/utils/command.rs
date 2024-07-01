@@ -15,31 +15,30 @@ use serde_json::json;
 use tokio::fs;
 use tokio::sync::{Mutex, Semaphore};
 
-use crate::adapter::VideoListModel;
+use crate::adapter::{video_list_from, Args, VideoListModel};
 use crate::bilibili::{BestStream, BiliClient, BiliError, CollectionItem, Dimension, FavoriteList, PageInfo, Video};
 use crate::config::{ARGS, CONFIG};
-use crate::core::status::{PageStatus, VideoStatus};
-use crate::core::utils::{
+use crate::downloader::Downloader;
+use crate::error::{DownloadAbortError, ProcessPageError};
+use crate::utils::status::{PageStatus, VideoStatus};
+use crate::utils::utils::{
     create_videos, handle_favorite_info, total_video_count, update_pages_model, update_videos_model, ModelWrapper,
     NFOMode, NFOSerializer, TEMPLATE,
 };
-use crate::downloader::Downloader;
-use crate::error::{DownloadAbortError, ProcessPageError};
 
-/// 处理某个收藏夹，首先刷新收藏夹信息，然后下载收藏夹中未下载成功的视频
-pub async fn process_favorite_list(
+pub async fn process_video_list(
+    args: Args<'_>,
     bili_client: &BiliClient,
-    fid: &str,
     path: &Path,
     connection: &DatabaseConnection,
 ) -> Result<()> {
-    let favorite_model = refresh_favorite_list(bili_client, fid, path, connection).await?;
-    let favorite_model = fetch_video_details(bili_client, favorite_model, connection).await?;
+    let video_list_model = video_list_from(args, path, bili_client, connection).await?;
+    let video_list_model = fetch_video_details(bili_client, video_list_model, connection).await?;
     if ARGS.scan_only {
         warn!("已开启仅扫描模式，跳过视频下载...");
         return Ok(());
     }
-    download_unprocessed_videos(bili_client, favorite_model, connection).await
+    download_unprocessed_videos(bili_client, video_list_model, connection).await
 }
 
 /// 处理某个合集，首先刷新信息，然后下载合集中未下载成功的视频
@@ -91,9 +90,9 @@ pub async fn refresh_favorite_list(
 /// 筛选出所有未获取到全部信息的视频，尝试补充其详细信息
 pub async fn fetch_video_details(
     bili_client: &BiliClient,
-    video_list_model: impl VideoListModel,
+    video_list_model: Box<dyn VideoListModel>,
     connection: &DatabaseConnection,
-) -> Result<impl VideoListModel> {
+) -> Result<Box<dyn VideoListModel>> {
     video_list_model.log_fetch_video_start();
     let videos_model = video_list_model.unfilled_videos(connection).await?;
     video_list_model
@@ -106,7 +105,7 @@ pub async fn fetch_video_details(
 /// 下载所有未处理成功的视频
 pub async fn download_unprocessed_videos(
     bili_client: &BiliClient,
-    video_list_model: impl VideoListModel,
+    video_list_model: Box<dyn VideoListModel>,
     connection: &DatabaseConnection,
 ) -> Result<()> {
     video_list_model.log_download_video_start();
