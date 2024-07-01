@@ -82,7 +82,10 @@ pub async fn create_videos(
     favorite: &favorite::Model,
     connection: &DatabaseConnection,
 ) -> Result<()> {
-    let video_models = favorite.video_models_by_info(videos_info)?;
+    let video_models = videos_info
+        .into_iter()
+        .map(|v| favorite.video_model_by_info(v))
+        .collect::<Vec<_>>();
     video::Entity::insert_many(video_models)
         .on_conflict(
             OnConflict::columns([video::Column::FavoriteId, video::Column::Bvid])

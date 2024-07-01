@@ -26,7 +26,7 @@ pub trait VideoListModel {
         -> Result<HashSet<String>>;
 
     /// 获取视频信息对应的视频 model
-    fn video_models_by_info(&self, videos_info: &[VideoInfo]) -> Result<Vec<bili_sync_entity::video::ActiveModel>>;
+    fn video_model_by_info(&self, video_info: &VideoInfo) -> bili_sync_entity::video::ActiveModel;
 
     /// 获取视频 model 中缺失的信息
     async fn fetch_videos_detail(

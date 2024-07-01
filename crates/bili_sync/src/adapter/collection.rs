@@ -68,27 +68,20 @@ impl VideoListModel for collection::Model {
             .collect::<HashSet<_>>())
     }
 
-    fn video_models_by_info(&self, videos_info: &[VideoInfo]) -> Result<Vec<video::ActiveModel>> {
-        Ok(videos_info
-            .iter()
-            .map(|v| {
-                let mut video_model = video::ActiveModel {
-                    collection_id: Set(Some(self.id)),
-                    ..v.to_model()
-                };
-                if let Some(fmt_args) = &v.to_fmt_args() {
-                    video_model.path = Set(Path::new(&self.path)
-                        .join(filenamify(
-                            TEMPLATE
-                                .render("video", fmt_args)
-                                .unwrap_or_else(|_| v.bvid().to_string()),
-                        ))
-                        .to_string_lossy()
-                        .to_string());
-                }
-                video_model
-            })
-            .collect())
+    fn video_model_by_info(&self, video_info: &VideoInfo) -> video::ActiveModel {
+        let mut video_model = video_info.to_model();
+        video_model.collection_id = Set(Some(self.id));
+        if let Some(fmt_args) = &video_info.to_fmt_args() {
+            video_model.path = Set(Path::new(&self.path)
+                .join(filenamify(
+                    TEMPLATE
+                        .render("video", fmt_args)
+                        .unwrap_or_else(|_| video_info.bvid().to_string()),
+                ))
+                .to_string_lossy()
+                .to_string());
+        }
+        video_model
     }
 
     async fn fetch_videos_detail(
