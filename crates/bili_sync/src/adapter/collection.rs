@@ -1,7 +1,9 @@
 use std::collections::HashSet;
+use std::path::Path;
 
 use anyhow::Result;
 use bili_sync_entity::*;
+use filenamify::filenamify;
 use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
 use sea_orm::{DatabaseConnection, QuerySelect, TransactionTrait};
@@ -9,7 +11,7 @@ use sea_orm::{DatabaseConnection, QuerySelect, TransactionTrait};
 use super::VideoListModel;
 use crate::bilibili::{BiliClient, BiliError, CollectionType, Video, VideoInfo};
 use crate::core::status::Status;
-use crate::core::utils::{create_video_pages, id_time_key};
+use crate::core::utils::{create_video_pages, id_time_key, TEMPLATE};
 
 impl VideoListModel for collection::Model {
     async fn unfilled_videos(&self, connection: &DatabaseConnection) -> Result<Vec<video::Model>> {
@@ -71,6 +73,14 @@ impl VideoListModel for collection::Model {
             .iter()
             .map(|v| video::ActiveModel {
                 collection_id: Set(Some(self.id)),
+                path: Set(Path::new(&self.path)
+                    .join(filenamify(
+                        TEMPLATE
+                            .render("video", &v.to_fmt_args())
+                            .unwrap_or_else(|_| v.bvid().to_string()),
+                    ))
+                    .to_string_lossy()
+                    .to_string()),
                 ..v.to_model()
             })
             .collect())

@@ -1,4 +1,5 @@
 mod collection;
+mod convert;
 mod favorite;
 
 use std::collections::HashSet;
