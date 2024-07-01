@@ -71,17 +71,22 @@ impl VideoListModel for favorite::Model {
     fn video_models_by_info(&self, videos_info: &[VideoInfo]) -> Result<Vec<video::ActiveModel>> {
         Ok(videos_info
             .iter()
-            .map(|v| video::ActiveModel {
-                favorite_id: Set(Some(self.id)),
-                path: Set(Path::new(&self.path)
-                    .join(filenamify(
-                        TEMPLATE
-                            .render("video", &v.to_fmt_args())
-                            .unwrap_or_else(|_| v.bvid().to_string()),
-                    ))
-                    .to_string_lossy()
-                    .to_string()),
-                ..v.to_model()
+            .map(|v| {
+                let mut video_model = video::ActiveModel {
+                    favorite_id: Set(Some(self.id)),
+                    ..v.to_model()
+                };
+                if let Some(fmt_args) = &v.to_fmt_args() {
+                    video_model.path = Set(Path::new(&self.path)
+                        .join(filenamify(
+                            TEMPLATE
+                                .render("video", fmt_args)
+                                .unwrap_or_else(|_| v.bvid().to_string()),
+                        ))
+                        .to_string_lossy()
+                        .to_string());
+                }
+                video_model
             })
             .collect())
     }

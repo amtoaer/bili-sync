@@ -79,21 +79,21 @@ impl VideoInfo {
         }
     }
 
-    pub fn to_fmt_args(&self) -> serde_json::Value {
+    pub fn to_fmt_args(&self) -> Option<serde_json::Value> {
         match self {
-            VideoInfo::Simple { .. } => unreachable!(), // 不能从简单的视频信息中构造格式化参数
-            VideoInfo::Detail { title, bvid, upper, .. } => json!({
+            VideoInfo::Simple { .. } => None, // 不能从简单的视频信息中构造格式化参数
+            VideoInfo::Detail { title, bvid, upper, .. } => Some(json!({
                 "bvid": &bvid,
                 "title": &title,
                 "upper_name": &upper.name,
                 "upper_mid": &upper.mid,
-            }),
-            VideoInfo::View { title, bvid, upper, .. } => json!({
+            })),
+            VideoInfo::View { title, bvid, upper, .. } => Some(json!({
                 "bvid": &bvid,
                 "title": &title,
                 "upper_name": &upper.name,
                 "upper_mid": &upper.mid,
-            }),
+            })),
         }
     }
 

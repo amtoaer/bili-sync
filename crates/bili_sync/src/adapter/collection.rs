@@ -71,17 +71,22 @@ impl VideoListModel for collection::Model {
     fn video_models_by_info(&self, videos_info: &[VideoInfo]) -> Result<Vec<video::ActiveModel>> {
         Ok(videos_info
             .iter()
-            .map(|v| video::ActiveModel {
-                collection_id: Set(Some(self.id)),
-                path: Set(Path::new(&self.path)
-                    .join(filenamify(
-                        TEMPLATE
-                            .render("video", &v.to_fmt_args())
-                            .unwrap_or_else(|_| v.bvid().to_string()),
-                    ))
-                    .to_string_lossy()
-                    .to_string()),
-                ..v.to_model()
+            .map(|v| {
+                let mut video_model = video::ActiveModel {
+                    collection_id: Set(Some(self.id)),
+                    ..v.to_model()
+                };
+                if let Some(fmt_args) = &v.to_fmt_args() {
+                    video_model.path = Set(Path::new(&self.path)
+                        .join(filenamify(
+                            TEMPLATE
+                                .render("video", fmt_args)
+                                .unwrap_or_else(|_| v.bvid().to_string()),
+                        ))
+                        .to_string_lossy()
+                        .to_string());
+                }
+                video_model
             })
             .collect())
     }
@@ -115,12 +120,10 @@ impl VideoListModel for collection::Model {
                         "获取视频 {} - {} 的详细信息失败，错误为：{}",
                         &video_model.bvid, &video_model.name, e
                     );
-                    if let Some(BiliError::RequestFailed(code, _)) = e.downcast_ref::<BiliError>() {
-                        if *code == -404 {
-                            let mut video_active_model: video::ActiveModel = video_model.into();
-                            video_active_model.valid = Set(false);
-                            video_active_model.save(connection).await?;
-                        }
+                    if let Some(BiliError::RequestFailed(-404, _)) = e.downcast_ref::<BiliError>() {
+                        let mut video_active_model: video::ActiveModel = video_model.into();
+                        video_active_model.valid = Set(false);
+                        video_active_model.save(connection).await?;
                     }
                     continue;
                 }
