@@ -1,10 +1,12 @@
 use std::collections::HashSet;
 use std::path::Path;
+use std::pin::Pin;
 
 use anyhow::Result;
 use bili_sync_entity::*;
 use bili_sync_migration::OnConflict;
 use filenamify::filenamify;
+use futures::Stream;
 use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
 use sea_orm::{DatabaseConnection, QuerySelect, TransactionTrait};
@@ -14,12 +16,12 @@ use crate::bilibili::{BiliClient, BiliError, Collection, CollectionItem, Collect
 use crate::utils::status::Status;
 use crate::utils::utils::{create_video_pages, id_time_key, TEMPLATE};
 
-pub async fn collection_from(
-    collection_item: &CollectionItem,
+pub async fn collection_from<'a>(
+    collection_item: &'a CollectionItem,
     path: &Path,
-    bili_client: &BiliClient,
+    bili_client: &'a BiliClient,
     connection: &DatabaseConnection,
-) -> Result<collection::Model> {
+) -> Result<(impl VideoListModel, Pin<Box<impl Stream<Item = VideoInfo> + 'a>>)> {
     let collection = Collection::new(bili_client, collection_item);
     let collection_info = collection.get_info().await?;
     collection::Entity::insert(collection::ActiveModel {
@@ -41,20 +43,30 @@ pub async fn collection_from(
     )
     .exec(connection)
     .await?;
-    Ok(collection::Entity::find()
-        .filter(
-            collection::Column::SId
-                .eq(collection_item.sid.clone())
-                .and(collection::Column::MId.eq(collection_item.mid.clone())),
-        )
-        .one(connection)
-        .await?
-        .unwrap())
+    Ok((
+        collection::Entity::find()
+            .filter(
+                collection::Column::SId
+                    .eq(collection_item.sid.clone())
+                    .and(collection::Column::MId.eq(collection_item.mid.clone())),
+            )
+            .one(connection)
+            .await?
+            .unwrap(),
+        Box::pin(collection.into_simple_video_stream()),
+    ))
 }
 use async_trait::async_trait;
 
 #[async_trait]
 impl VideoListModel for collection::Model {
+    async fn video_count(&self, connection: &DatabaseConnection) -> Result<u64> {
+        Ok(video::Entity::find()
+            .filter(video::Column::CollectionId.eq(self.id))
+            .count(connection)
+            .await?)
+    }
+
     async fn unfilled_videos(&self, connection: &DatabaseConnection) -> Result<Vec<video::Model>> {
         Ok(video::Entity::find()
             .filter(
@@ -196,6 +208,24 @@ impl VideoListModel for collection::Model {
     fn log_download_video_end(&self) {
         info!(
             "下载{}: {} - {} 中未处理过的视频完成",
+            CollectionType::from(self.r#type),
+            self.s_id,
+            self.name
+        );
+    }
+
+    fn log_refresh_video_start(&self) {
+        info!(
+            "开始刷新{}: {} - {} 中所有视频的详细信息...",
+            CollectionType::from(self.r#type),
+            self.s_id,
+            self.name
+        );
+    }
+
+    fn log_refresh_video_end(&self) {
+        info!(
+            "刷新{}: {} - {} 中所有视频的详细信息完成",
             CollectionType::from(self.r#type),
             self.s_id,
             self.name

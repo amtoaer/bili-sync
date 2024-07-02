@@ -159,7 +159,7 @@ impl<'a> Collection<'a> {
             .validate()
     }
 
-    pub async fn into_simple_video_stream(self) -> impl Stream<Item = VideoInfo> + 'a {
+    pub fn into_simple_video_stream(self) -> impl Stream<Item = VideoInfo> + 'a {
         stream! {
             let mut page = 1;
             loop {
@@ -294,7 +294,7 @@ mod tests {
         ];
         for (collection_item, expect) in testcases {
             let collection = Collection::new(&client, &collection_item);
-            let simple_video_stream = collection.into_simple_video_stream().await;
+            let simple_video_stream = collection.into_simple_video_stream();
             pin_mut!(simple_video_stream);
             let videos = simple_video_stream.collect::<Vec<_>>().await;
             assert_eq!(videos.len(), expect);

@@ -7,8 +7,8 @@ pub use collection::{Collection, CollectionItem, CollectionType};
 pub use credential::Credential;
 pub use danmaku::DanmakuOption;
 pub use error::BiliError;
+pub use favorite_list::FavoriteList;
 use favorite_list::Upper;
-pub use favorite_list::{FavoriteList, FavoriteListInfo};
 pub use video::{Dimension, PageInfo, Video};
 
 mod analyzer;

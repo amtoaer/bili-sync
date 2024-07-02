@@ -3,11 +3,13 @@ mod favorite;
 
 use std::collections::HashSet;
 use std::path::Path;
+use std::pin::Pin;
 
 use anyhow::Result;
 use async_trait::async_trait;
 pub use collection::collection_from;
 pub use favorite::favorite_from;
+use futures::Stream;
 use sea_orm::DatabaseConnection;
 
 use crate::bilibili::{BiliClient, CollectionItem, VideoInfo};
@@ -17,24 +19,29 @@ pub enum Args<'a> {
     Collection { collection_item: &'a CollectionItem },
 }
 
-pub async fn video_list_from(
-    args: Args<'_>,
+pub async fn video_list_from<'a>(
+    args: Args<'a>,
     path: &Path,
-    bili_client: &BiliClient,
+    bili_client: &'a BiliClient,
     connection: &DatabaseConnection,
-) -> Result<Box<dyn VideoListModel>> {
-    let video_list_model: Box<dyn VideoListModel> = match args {
-        Args::Favorite { fid } => Box::new(favorite_from(fid, path, bili_client, connection).await?),
-        Args::Collection { collection_item } => {
-            Box::new(collection_from(collection_item, path, bili_client, connection).await?)
+) -> Result<(Box<dyn VideoListModel>, Pin<Box<dyn Stream<Item = VideoInfo> + 'a>>)> {
+    Ok(match args {
+        Args::Favorite { fid } => {
+            let (x, y) = favorite_from(fid, path, bili_client, connection).await?;
+            (Box::new(x), y)
         }
-    };
-    Ok(video_list_model)
+        Args::Collection { collection_item } => {
+            let (x, y) = collection_from(collection_item, path, bili_client, connection).await?;
+            (Box::new(x), y)
+        }
+    })
 }
 
 #[async_trait]
 pub trait VideoListModel {
     /* 逻辑相关 */
+
+    async fn video_count(&self, connection: &DatabaseConnection) -> Result<u64>;
 
     /// 获取未填充的视频
     async fn unfilled_videos(&self, connection: &DatabaseConnection) -> Result<Vec<bili_sync_entity::video::Model>>;
@@ -68,4 +75,8 @@ pub trait VideoListModel {
     fn log_download_video_start(&self);
 
     fn log_download_video_end(&self);
+
+    fn log_refresh_video_start(&self);
+
+    fn log_refresh_video_end(&self);
 }

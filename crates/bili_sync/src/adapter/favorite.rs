@@ -1,10 +1,12 @@
 use std::collections::HashSet;
 use std::path::Path;
+use std::pin::Pin;
 
 use anyhow::Result;
 use bili_sync_entity::*;
 use bili_sync_migration::OnConflict;
 use filenamify::filenamify;
+use futures::Stream;
 use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
 use sea_orm::{DatabaseConnection, QuerySelect, TransactionTrait};
@@ -14,12 +16,12 @@ use crate::bilibili::{BiliClient, BiliError, FavoriteList, Video, VideoInfo};
 use crate::utils::status::Status;
 use crate::utils::utils::{create_video_pages, id_time_key, TEMPLATE};
 
-pub async fn favorite_from(
+pub async fn favorite_from<'a>(
     fid: &str,
     path: &Path,
-    bili_client: &BiliClient,
+    bili_client: &'a BiliClient,
     connection: &DatabaseConnection,
-) -> Result<favorite::Model> {
+) -> Result<(impl VideoListModel, Pin<Box<impl Stream<Item = VideoInfo> + 'a>>)> {
     let favorite = FavoriteList::new(bili_client, fid.to_owned());
     let favorite_info = favorite.get_info().await?;
     favorite::Entity::insert(favorite::ActiveModel {
@@ -35,17 +37,27 @@ pub async fn favorite_from(
     )
     .exec(connection)
     .await?;
-    Ok(favorite::Entity::find()
-        .filter(favorite::Column::FId.eq(favorite_info.id))
-        .one(connection)
-        .await?
-        .unwrap())
+    Ok((
+        favorite::Entity::find()
+            .filter(favorite::Column::FId.eq(favorite_info.id))
+            .one(connection)
+            .await?
+            .unwrap(),
+        Box::pin(favorite.into_video_stream()),
+    ))
 }
 
 use async_trait::async_trait;
 
 #[async_trait]
 impl VideoListModel for favorite::Model {
+    async fn video_count(&self, connection: &DatabaseConnection) -> Result<u64> {
+        Ok(video::Entity::find()
+            .filter(video::Column::FavoriteId.eq(self.id))
+            .count(connection)
+            .await?)
+    }
+
     async fn unfilled_videos(&self, connection: &DatabaseConnection) -> Result<Vec<video::Model>> {
         Ok(video::Entity::find()
             .filter(
@@ -170,5 +182,13 @@ impl VideoListModel for favorite::Model {
 
     fn log_download_video_end(&self) {
         info!("下载收藏夹: {} - {} 中未处理过的视频完成", self.f_id, self.name);
+    }
+
+    fn log_refresh_video_start(&self) {
+        info!("开始刷新收藏夹: {} - {} 中所有视频的详细信息...", self.f_id, self.name);
+    }
+
+    fn log_refresh_video_end(&self) {
+        info!("刷新收藏夹: {} - {} 中所有视频的详细信息完成", self.f_id, self.name);
     }
 }

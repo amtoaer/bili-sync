@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use anyhow::Result;
 use bili_sync_entity::*;
 use bili_sync_migration::OnConflict;
@@ -15,7 +13,7 @@ use tokio::io::AsyncWriteExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::adapter::VideoListModel;
-use crate::bilibili::{FavoriteListInfo, PageInfo, VideoInfo};
+use crate::bilibili::{PageInfo, VideoInfo};
 use crate::config::{NFOTimeType, CONFIG};
 
 pub static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
@@ -50,36 +48,10 @@ pub enum ModelWrapper<'a> {
 
 pub struct NFOSerializer<'a>(pub ModelWrapper<'a>, pub NFOMode);
 
-/// 根据获得的收藏夹信息，插入或更新数据库中的收藏夹，并返回收藏夹对象
-pub async fn handle_favorite_info(
-    info: &FavoriteListInfo,
-    path: &Path,
-    connection: &DatabaseConnection,
-) -> Result<favorite::Model> {
-    favorite::Entity::insert(favorite::ActiveModel {
-        f_id: Set(info.id),
-        name: Set(info.title.clone()),
-        path: Set(path.to_string_lossy().to_string()),
-        ..Default::default()
-    })
-    .on_conflict(
-        OnConflict::column(favorite::Column::FId)
-            .update_columns([favorite::Column::Name, favorite::Column::Path])
-            .to_owned(),
-    )
-    .exec(connection)
-    .await?;
-    Ok(favorite::Entity::find()
-        .filter(favorite::Column::FId.eq(info.id))
-        .one(connection)
-        .await?
-        .unwrap())
-}
-
 /// 尝试创建 Video Model，如果发生冲突则忽略
 pub async fn create_videos(
     videos_info: &[VideoInfo],
-    favorite: &favorite::Model,
+    favorite: &Box<dyn VideoListModel>,
     connection: &DatabaseConnection,
 ) -> Result<()> {
     let video_models = videos_info
@@ -96,13 +68,6 @@ pub async fn create_videos(
         .exec(connection)
         .await?;
     Ok(())
-}
-
-pub async fn total_video_count(favorite_model: &favorite::Model, connection: &DatabaseConnection) -> Result<u64> {
-    Ok(video::Entity::find()
-        .filter(video::Column::FavoriteId.eq(favorite_model.id))
-        .count(connection)
-        .await?)
 }
 
 /// 创建视频的所有分 P
