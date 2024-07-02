@@ -19,8 +19,9 @@ anyhow = { version = "1.0.86", features = ["backtrace"] }
 arc-swap = { version = "1.7.1", features = ["serde"] }
 async-std = { version = "1.12.0", features = ["attributes", "tokio1"] }
 async-stream = "0.3.5"
+async-trait = "0.1.80"
 chrono = { version = "0.4.38", features = ["serde"] }
-clap = { version = "4.5.7", features = ["env"] }
+clap = { version = "4.5.8", features = ["env"] }
 cookie = "0.18.1"
 dirs = "5.0.1"
 filenamify = "0.1.0"
@@ -28,11 +29,10 @@ float-ord = "0.3.2"
 futures = "0.3.30"
 handlebars = "5.1.2"
 hex = "0.4.3"
-log = "0.4.22"
 memchr = "2.7.4"
 once_cell = "1.19.0"
 prost = "0.12.6"
-quick-xml = { version = "0.34.0", features = ["async-tokio"] }
+quick-xml = { version = "0.35.0", features = ["async-tokio"] }
 rand = "0.8.5"
 regex = "1.10.5"
 reqwest = { version = "0.12.5", features = [
@@ -52,7 +52,7 @@ sea-orm = { version = "0.12.15", features = [
 ] }
 sea-orm-migration = { version = "0.12.15", features = [] }
 serde = { version = "1.0.203", features = ["derive"] }
-serde_json = "1.0.118"
+serde_json = "1.0.120"
 strum = { version = "0.26.3", features = ["derive"] }
 thiserror = "1.0.61"
 tokio = { version = "1.38.0", features = ["full"] }
