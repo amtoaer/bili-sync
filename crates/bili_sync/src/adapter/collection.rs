@@ -23,7 +23,7 @@ pub async fn collection_from<'a>(
     path: &Path,
     bili_client: &'a BiliClient,
     connection: &DatabaseConnection,
-) -> Result<(impl VideoListModel, Pin<Box<impl Stream<Item = VideoInfo> + 'a>>)> {
+) -> Result<(Box<dyn VideoListModel>, Pin<Box<dyn Stream<Item = VideoInfo> + 'a>>)> {
     let collection = Collection::new(bili_client, collection_item);
     let collection_info = collection.get_info().await?;
     collection::Entity::insert(collection::ActiveModel {
@@ -46,15 +46,18 @@ pub async fn collection_from<'a>(
     .exec(connection)
     .await?;
     Ok((
-        collection::Entity::find()
-            .filter(
-                collection::Column::SId
-                    .eq(collection_item.sid.clone())
-                    .and(collection::Column::MId.eq(collection_item.mid.clone())),
-            )
-            .one(connection)
-            .await?
-            .unwrap(),
+        Box::new(
+            collection::Entity::find()
+                .filter(
+                    collection::Column::SId
+                        .eq(collection_item.sid.clone())
+                        .and(collection::Column::MId.eq(collection_item.mid.clone()))
+                        .and(collection::Column::Type.eq(Into::<i32>::into(collection_item.collection_type.clone()))),
+                )
+                .one(connection)
+                .await?
+                .unwrap(),
+        ),
         Box::pin(collection.into_simple_video_stream()),
     ))
 }

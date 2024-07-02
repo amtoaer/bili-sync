@@ -7,6 +7,7 @@ use std::pin::Pin;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use bili_sync_migration::IntoIden;
 pub use collection::collection_from;
 pub use favorite::favorite_from;
 use futures::Stream;
@@ -25,16 +26,18 @@ pub async fn video_list_from<'a>(
     bili_client: &'a BiliClient,
     connection: &DatabaseConnection,
 ) -> Result<(Box<dyn VideoListModel>, Pin<Box<dyn Stream<Item = VideoInfo> + 'a>>)> {
-    Ok(match args {
-        Args::Favorite { fid } => {
-            let (x, y) = favorite_from(fid, path, bili_client, connection).await?;
-            (Box::new(x), y)
-        }
-        Args::Collection { collection_item } => {
-            let (x, y) = collection_from(collection_item, path, bili_client, connection).await?;
-            (Box::new(x), y)
-        }
-    })
+    match args {
+        Args::Favorite { fid } => favorite_from(fid, path, bili_client, connection).await,
+        Args::Collection { collection_item } => collection_from(collection_item, path, bili_client, connection).await,
+    }
+}
+
+pub const fn unique_video_columns() -> impl IntoIterator<Item = impl IntoIden> {
+    [
+        bili_sync_entity::video::Column::CollectionId,
+        bili_sync_entity::video::Column::FavoriteId,
+        bili_sync_entity::video::Column::Bvid,
+    ]
 }
 
 #[async_trait]

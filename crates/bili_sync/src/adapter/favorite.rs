@@ -23,7 +23,7 @@ pub async fn favorite_from<'a>(
     path: &Path,
     bili_client: &'a BiliClient,
     connection: &DatabaseConnection,
-) -> Result<(impl VideoListModel, Pin<Box<impl Stream<Item = VideoInfo> + 'a>>)> {
+) -> Result<(Box<dyn VideoListModel>, Pin<Box<dyn Stream<Item = VideoInfo> + 'a>>)> {
     let favorite = FavoriteList::new(bili_client, fid.to_owned());
     let favorite_info = favorite.get_info().await?;
     favorite::Entity::insert(favorite::ActiveModel {
@@ -40,11 +40,13 @@ pub async fn favorite_from<'a>(
     .exec(connection)
     .await?;
     Ok((
-        favorite::Entity::find()
-            .filter(favorite::Column::FId.eq(favorite_info.id))
-            .one(connection)
-            .await?
-            .unwrap(),
+        Box::new(
+            favorite::Entity::find()
+                .filter(favorite::Column::FId.eq(favorite_info.id))
+                .one(connection)
+                .await?
+                .unwrap(),
+        ),
         Box::pin(favorite.into_video_stream()),
     ))
 }

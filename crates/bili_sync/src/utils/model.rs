@@ -4,25 +4,21 @@ use bili_sync_migration::OnConflict;
 use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
 
-use crate::adapter::VideoListModel;
+use crate::adapter::{unique_video_columns, VideoListModel};
 use crate::bilibili::{PageInfo, VideoInfo};
 
 /// 尝试创建 Video Model，如果发生冲突则忽略
 pub async fn create_videos(
     videos_info: &[VideoInfo],
-    favorite: &dyn VideoListModel,
+    video_list_model: &dyn VideoListModel,
     connection: &DatabaseConnection,
 ) -> Result<()> {
     let video_models = videos_info
         .iter()
-        .map(|v| favorite.video_model_by_info(v))
+        .map(|v| video_list_model.video_model_by_info(v))
         .collect::<Vec<_>>();
     video::Entity::insert_many(video_models)
-        .on_conflict(
-            OnConflict::columns([video::Column::FavoriteId, video::Column::Bvid])
-                .do_nothing()
-                .to_owned(),
-        )
+        .on_conflict(OnConflict::columns(unique_video_columns()).do_nothing().to_owned())
         .do_nothing()
         .exec(connection)
         .await?;
