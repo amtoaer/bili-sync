@@ -204,11 +204,7 @@ impl<'a> Collection<'a> {
 
 #[cfg(test)]
 mod tests {
-    use futures::{pin_mut, StreamExt};
-
     use super::*;
-    use crate::bilibili::Video;
-    use crate::utils::utils::init_logger;
 
     #[test]
     fn test_collection_info_parse() {
@@ -264,46 +260,6 @@ mod tests {
         for (json, expect) in testcases {
             let info: CollectionInfo = serde_json::from_str(json).unwrap();
             assert_eq!(info, expect);
-        }
-    }
-
-    #[ignore = "only for manual test"]
-    #[tokio::test]
-    async fn test_get_info() {
-        init_logger("None,bili_sync=info");
-        let client = BiliClient::new();
-        let video = Video::new(&client, "BV1pS411A7iD".to_string());
-        println!("{:?}", video.get_view_info().await.unwrap());
-        let testcases = vec![
-            (
-                CollectionItem {
-                    mid: "521722088".to_owned(),
-                    sid: "4523".to_owned(),
-                    collection_type: CollectionType::Season,
-                },
-                133,
-            ),
-            (
-                CollectionItem {
-                    mid: "521722088".to_owned(),
-                    sid: "387210".to_owned(),
-                    collection_type: CollectionType::Series,
-                },
-                90,
-            ),
-        ];
-        for (collection_item, expect) in testcases {
-            let collection = Collection::new(&client, &collection_item);
-            let simple_video_stream = collection.into_simple_video_stream();
-            pin_mut!(simple_video_stream);
-            let videos = simple_video_stream.collect::<Vec<_>>().await;
-            assert_eq!(videos.len(), expect);
-            // from the newest to the oldest
-            assert!(videos.len() >= 2);
-            match (videos.first().unwrap(), videos.last().unwrap()) {
-                (VideoInfo::Simple { pubtime: f, .. }, VideoInfo::Simple { pubtime: l, .. }) => assert!(f >= l),
-                _ => unreachable!(),
-            };
         }
     }
 }

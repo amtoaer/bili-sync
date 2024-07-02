@@ -19,7 +19,7 @@ use tokio::time;
 use crate::bilibili::BiliClient;
 use crate::config::CONFIG;
 use crate::database::{database_connection, migrate_database};
-use crate::utils::utils::init_logger;
+use crate::utils::init_logger;
 use crate::workflow::process_video_list;
 
 #[tokio::main]

@@ -17,13 +17,12 @@ use tokio::sync::{Mutex, Semaphore};
 
 use crate::adapter::{video_list_from, Args, VideoListModel};
 use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, PageInfo, Video, VideoInfo};
-use crate::config::{ARGS, CONFIG};
+use crate::config::{ARGS, CONFIG, TEMPLATE};
 use crate::downloader::Downloader;
 use crate::error::{DownloadAbortError, ProcessPageError};
+use crate::utils::model::{create_videos, update_pages_model, update_videos_model};
+use crate::utils::nfo::{ModelWrapper, NFOMode, NFOSerializer};
 use crate::utils::status::{PageStatus, VideoStatus};
-use crate::utils::utils::{
-    create_videos, update_pages_model, update_videos_model, ModelWrapper, NFOMode, NFOSerializer, TEMPLATE,
-};
 
 pub async fn process_video_list(
     args: Args<'_>,
@@ -51,21 +50,21 @@ pub async fn refresh_video_list<'a>(
     video_list_model.log_refresh_video_start();
     let mut video_streams = video_streams.chunks(10);
     let mut got_count = 0;
-    let mut total_count = video_list_model.video_count(connection).await?;
+    let mut new_count = video_list_model.video_count(connection).await?;
     while let Some(videos_info) = video_streams.next().await {
         got_count += videos_info.len();
         let exist_labels = video_list_model.exist_labels(&videos_info, connection).await?;
         // 如果发现有视频的收藏时间和 bvid 和数据库中重合，说明到达了上次处理到的地方，可以直接退出
         let should_break = videos_info.iter().any(|v| exist_labels.contains(&v.video_key()));
         // 将视频信息写入数据库
-        create_videos(&videos_info, &video_list_model, connection).await?;
+        create_videos(&videos_info, video_list_model.as_ref(), connection).await?;
         if should_break {
             info!("到达上一次处理的位置，提前中止");
             break;
         }
     }
-    total_count = video_list_model.video_count(connection).await? - total_count;
-
+    new_count = video_list_model.video_count(connection).await? - new_count;
+    video_list_model.log_refresh_video_end(got_count, new_count);
     Ok(video_list_model)
 }
 

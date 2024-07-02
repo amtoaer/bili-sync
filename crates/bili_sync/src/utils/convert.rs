@@ -2,7 +2,7 @@ use sea_orm::ActiveValue::Set;
 use serde_json::json;
 
 use crate::bilibili::VideoInfo;
-use crate::utils::utils::id_time_key;
+use crate::utils::id_time_key;
 
 impl VideoInfo {
     pub fn to_model(&self) -> bili_sync_entity::video::ActiveModel {

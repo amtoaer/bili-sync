@@ -13,8 +13,10 @@ use sea_orm::{DatabaseConnection, QuerySelect, TransactionTrait};
 
 use super::VideoListModel;
 use crate::bilibili::{BiliClient, BiliError, Collection, CollectionItem, CollectionType, Video, VideoInfo};
+use crate::config::TEMPLATE;
+use crate::utils::id_time_key;
+use crate::utils::model::create_video_pages;
 use crate::utils::status::Status;
-use crate::utils::utils::{create_video_pages, id_time_key, TEMPLATE};
 
 pub async fn collection_from<'a>(
     collection_item: &'a CollectionItem,
@@ -216,19 +218,21 @@ impl VideoListModel for collection::Model {
 
     fn log_refresh_video_start(&self) {
         info!(
-            "开始刷新{}: {} - {} 中所有视频的详细信息...",
+            "开始扫描{}: {} - {} 的新视频...",
             CollectionType::from(self.r#type),
             self.s_id,
             self.name
         );
     }
 
-    fn log_refresh_video_end(&self) {
+    fn log_refresh_video_end(&self, got_count: usize, new_count: u64) {
         info!(
-            "刷新{}: {} - {} 中所有视频的详细信息完成",
+            "扫描{}: {} - {} 的新视频完成，获取了 {} 条新视频，其中有 {} 条新视频",
             CollectionType::from(self.r#type),
             self.s_id,
-            self.name
+            self.name,
+            got_count,
+            new_count,
         );
     }
 }

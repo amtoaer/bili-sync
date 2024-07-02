@@ -78,5 +78,5 @@ pub trait VideoListModel {
 
     fn log_refresh_video_start(&self);
 
-    fn log_refresh_video_end(&self);
+    fn log_refresh_video_end(&self, got_count: usize, new_count: u64);
 }

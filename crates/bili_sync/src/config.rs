@@ -5,12 +5,30 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use arc_swap::ArcSwapOption;
+use handlebars::handlebars_helper;
 use once_cell::sync::Lazy;
 use serde::de::{Deserializer, MapAccess, Visitor};
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::bilibili::{CollectionItem, CollectionType, Credential, DanmakuOption, FilterOption};
+
+pub static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
+    let mut handlebars = handlebars::Handlebars::new();
+    handlebars_helper!(truncate: |s: String, len: usize| {
+        if s.chars().count() > len {
+            s.chars().take(len).collect::<String>()
+        } else {
+            s.to_string()
+        }
+    });
+    handlebars.register_helper("truncate", Box::new(truncate));
+    handlebars
+        .register_template_string("video", &CONFIG.video_name)
+        .unwrap();
+    handlebars.register_template_string("page", &CONFIG.page_name).unwrap();
+    handlebars
+});
 
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     let config = Config::load().unwrap_or_else(|err| {

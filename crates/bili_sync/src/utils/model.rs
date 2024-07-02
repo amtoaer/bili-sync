@@ -1,25 +1,16 @@
 use anyhow::Result;
 use bili_sync_entity::*;
 use bili_sync_migration::OnConflict;
-use chrono::{DateTime, Utc};
-use handlebars::handlebars_helper;
-use once_cell::sync::Lazy;
-use quick_xml::events::{BytesCData, BytesText};
-use quick_xml::writer::Writer;
-use quick_xml::Error;
 use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
-use tokio::io::AsyncWriteExt;
-use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::adapter::VideoListModel;
 use crate::bilibili::{PageInfo, VideoInfo};
-use crate::config::{NFOTimeType, CONFIG};
 
 /// 尝试创建 Video Model，如果发生冲突则忽略
 pub async fn create_videos(
     videos_info: &[VideoInfo],
-    favorite: &Box<dyn VideoListModel>,
+    favorite: &dyn VideoListModel,
     connection: &DatabaseConnection,
 ) -> Result<()> {
     let video_models = videos_info

@@ -13,8 +13,10 @@ use sea_orm::{DatabaseConnection, QuerySelect, TransactionTrait};
 
 use super::VideoListModel;
 use crate::bilibili::{BiliClient, BiliError, FavoriteList, Video, VideoInfo};
+use crate::config::TEMPLATE;
+use crate::utils::id_time_key;
+use crate::utils::model::create_video_pages;
 use crate::utils::status::Status;
-use crate::utils::utils::{create_video_pages, id_time_key, TEMPLATE};
 
 pub async fn favorite_from<'a>(
     fid: &str,
@@ -185,10 +187,13 @@ impl VideoListModel for favorite::Model {
     }
 
     fn log_refresh_video_start(&self) {
-        info!("开始刷新收藏夹: {} - {} 中所有视频的详细信息...", self.f_id, self.name);
+        info!("开始扫描收藏夹: {} - {} 的新视频...", self.f_id, self.name);
     }
 
-    fn log_refresh_video_end(&self) {
-        info!("刷新收藏夹: {} - {} 中所有视频的详细信息完成", self.f_id, self.name);
+    fn log_refresh_video_end(&self, got_count: usize, new_count: u64) {
+        info!(
+            "扫描收藏夹: {} - {} 的新视频完成，获取了 {} 条新视频，其中有 {} 条新视频",
+            self.f_id, self.name, got_count, new_count
+        );
     }
 }

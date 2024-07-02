@@ -1,37 +1,11 @@
 use anyhow::Result;
 use bili_sync_entity::*;
-use bili_sync_migration::OnConflict;
-use chrono::{DateTime, Utc};
-use handlebars::handlebars_helper;
-use once_cell::sync::Lazy;
 use quick_xml::events::{BytesCData, BytesText};
 use quick_xml::writer::Writer;
 use quick_xml::Error;
-use sea_orm::entity::prelude::*;
-use sea_orm::ActiveValue::Set;
 use tokio::io::AsyncWriteExt;
-use tracing_subscriber::util::SubscriberInitExt;
 
-use crate::adapter::VideoListModel;
-use crate::bilibili::{PageInfo, VideoInfo};
-use crate::config::{NFOTimeType, CONFIG};
-
-pub static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
-    let mut handlebars = handlebars::Handlebars::new();
-    handlebars_helper!(truncate: |s: String, len: usize| {
-        if s.chars().count() > len {
-            s.chars().take(len).collect::<String>()
-        } else {
-            s.to_string()
-        }
-    });
-    handlebars.register_helper("truncate", Box::new(truncate));
-    handlebars
-        .register_template_string("video", &CONFIG.video_name)
-        .unwrap();
-    handlebars.register_template_string("page", &CONFIG.page_name).unwrap();
-    handlebars
-});
+use crate::config::NFOTimeType;
 
 #[allow(clippy::upper_case_acronyms)]
 pub enum NFOMode {
@@ -257,22 +231,6 @@ impl<'a> NFOSerializer<'a> {
         tokio_buffer.flush().await?;
         Ok(std::str::from_utf8(&buffer).unwrap().to_owned())
     }
-}
-
-pub fn init_logger(log_level: &str) {
-    tracing_subscriber::fmt::Subscriber::builder()
-        .with_env_filter(tracing_subscriber::EnvFilter::builder().parse_lossy(log_level))
-        .with_timer(tracing_subscriber::fmt::time::ChronoLocal::new(
-            "%Y-%m-%d %H:%M:%S%.3f".to_owned(),
-        ))
-        .finish()
-        .try_init()
-        .expect("初始化日志失败");
-}
-
-/// 对于视频标记，均由 bvid 和时间戳构成
-pub fn id_time_key(bvid: &String, time: &DateTime<Utc>) -> String {
-    format!("{}-{}", bvid, time.timestamp())
 }
 
 #[cfg(test)]
