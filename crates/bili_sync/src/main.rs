@@ -8,19 +8,19 @@ mod database;
 mod downloader;
 mod error;
 mod utils;
-
+mod workflow;
 use std::time::Duration;
 
 use adapter::Args;
 use config::ARGS;
 use once_cell::sync::Lazy;
 use tokio::time;
-use utils::command::process_video_list;
 
 use crate::bilibili::BiliClient;
 use crate::config::CONFIG;
 use crate::database::{database_connection, migrate_database};
 use crate::utils::utils::init_logger;
+use crate::workflow::process_video_list;
 
 #[tokio::main]
 async fn main() {
