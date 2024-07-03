@@ -8,7 +8,7 @@ use bili_sync_migration::OnConflict;
 use filenamify::filenamify;
 use futures::Stream;
 use sea_orm::entity::prelude::*;
-use sea_orm::ActiveValue::Set;
+use sea_orm::ActiveValue::{NotSet, Set};
 use sea_orm::{DatabaseConnection, QuerySelect, TransactionTrait};
 
 use super::VideoListModel;
@@ -118,6 +118,7 @@ impl VideoListModel for favorite::Model {
 
     fn video_model_by_info(&self, video_info: &VideoInfo) -> video::ActiveModel {
         let mut video_model = video_info.to_model();
+        video_model.id = NotSet;
         video_model.favorite_id = Set(Some(self.id));
         if let Some(fmt_args) = &video_info.to_fmt_args() {
             video_model.path = Set(Path::new(&self.path)
@@ -158,12 +159,10 @@ impl VideoListModel for favorite::Model {
                         "获取视频 {} - {} 的详细信息失败，错误为：{}",
                         &video_model.bvid, &video_model.name, e
                     );
-                    if let Some(BiliError::RequestFailed(code, _)) = e.downcast_ref::<BiliError>() {
-                        if *code == -404 {
-                            let mut video_active_model: video::ActiveModel = video_model.into();
-                            video_active_model.valid = Set(false);
-                            video_active_model.save(connection).await?;
-                        }
+                    if let Some(BiliError::RequestFailed(-404, _)) = e.downcast_ref::<BiliError>() {
+                        let mut video_active_model: video::ActiveModel = video_model.into();
+                        video_active_model.valid = Set(false);
+                        video_active_model.save(connection).await?;
                     }
                     continue;
                 }

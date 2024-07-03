@@ -9,7 +9,7 @@ use filenamify::filenamify;
 use futures::Stream;
 use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
-use sea_orm::{DatabaseConnection, QuerySelect, TransactionTrait};
+use sea_orm::{DatabaseConnection, QuerySelect, TransactionTrait, Unchanged};
 
 use super::VideoListModel;
 use crate::bilibili::{BiliClient, BiliError, Collection, CollectionItem, CollectionType, Video, VideoInfo};
@@ -161,6 +161,7 @@ impl VideoListModel for collection::Model {
                     create_video_pages(pages, &video_model, &txn).await?;
                     // 将页标记和 tag 写入数据库
                     let mut video_active_model = view_info.to_model();
+                    video_active_model.id = Unchanged(video_model.id);
                     video_active_model.single_page = Set(Some(pages.len() == 1));
                     video_active_model.tags = Set(Some(serde_json::to_value(tags).unwrap()));
                     video_active_model.save(&txn).await?;

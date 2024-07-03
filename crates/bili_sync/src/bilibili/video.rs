@@ -74,7 +74,6 @@ impl<'a> Video<'a> {
             .json::<serde_json::Value>()
             .await?
             .validate()?;
-        println!("{:?}", res["data"]);
         Ok(serde_json::from_value(res["data"].take())?)
     }
 

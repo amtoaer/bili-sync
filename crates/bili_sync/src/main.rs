@@ -11,26 +11,24 @@ mod utils;
 mod workflow;
 use std::time::Duration;
 
-use adapter::Args;
-use config::ARGS;
 use once_cell::sync::Lazy;
 use tokio::time;
 
+use crate::adapter::Args;
 use crate::bilibili::BiliClient;
-use crate::config::CONFIG;
+use crate::config::{ARGS, CONFIG};
 use crate::database::{database_connection, migrate_database};
 use crate::utils::init_logger;
 use crate::workflow::process_video_list;
 
 #[tokio::main]
 async fn main() {
-    Lazy::force(&ARGS);
     init_logger(&ARGS.log_level);
     Lazy::force(&CONFIG);
+    migrate_database().await.expect("数据库迁移失败");
+    let connection = database_connection().await.expect("获取数据库连接失败");
     let mut anchor = chrono::Local::now().date_naive();
     let bili_client = BiliClient::new();
-    let connection = database_connection().await.unwrap();
-    migrate_database(&connection).await.unwrap();
     loop {
         if let Err(e) = bili_client.is_login().await {
             error!("检查登录状态时遇到错误：{e}，等待下一轮执行");
