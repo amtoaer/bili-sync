@@ -9,7 +9,7 @@ use filenamify::filenamify;
 use futures::Stream;
 use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
-use sea_orm::{DatabaseConnection, QuerySelect, TransactionTrait, Unchanged};
+use sea_orm::{DatabaseConnection, QuerySelect, TransactionTrait};
 
 use super::VideoListModel;
 use crate::bilibili::{BiliClient, BiliError, Collection, CollectionItem, CollectionType, Video, VideoInfo};
@@ -126,8 +126,8 @@ impl VideoListModel for collection::Model {
             .collect::<HashSet<_>>())
     }
 
-    fn video_model_by_info(&self, video_info: &VideoInfo) -> video::ActiveModel {
-        let mut video_model = video_info.to_model();
+    fn video_model_by_info(&self, video_info: &VideoInfo, base_model: Option<video::Model>) -> video::ActiveModel {
+        let mut video_model = video_info.to_model(base_model);
         video_model.collection_id = Set(Some(self.id));
         if let Some(fmt_args) = &video_info.to_fmt_args() {
             video_model.path = Set(Path::new(&self.path)
@@ -160,8 +160,7 @@ impl VideoListModel for collection::Model {
                     // 将分页信息写入数据库
                     create_video_pages(pages, &video_model, &txn).await?;
                     // 将页标记和 tag 写入数据库
-                    let mut video_active_model = view_info.to_model();
-                    video_active_model.id = Unchanged(video_model.id);
+                    let mut video_active_model = self.video_model_by_info(&view_info, Some(video_model));
                     video_active_model.single_page = Set(Some(pages.len() == 1));
                     video_active_model.tags = Set(Some(serde_json::to_value(tags).unwrap()));
                     video_active_model.save(&txn).await?;

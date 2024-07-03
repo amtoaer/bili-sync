@@ -8,7 +8,7 @@ use bili_sync_migration::OnConflict;
 use filenamify::filenamify;
 use futures::Stream;
 use sea_orm::entity::prelude::*;
-use sea_orm::ActiveValue::{NotSet, Set};
+use sea_orm::ActiveValue::Set;
 use sea_orm::{DatabaseConnection, QuerySelect, TransactionTrait};
 
 use super::VideoListModel;
@@ -116,9 +116,8 @@ impl VideoListModel for favorite::Model {
             .collect::<HashSet<_>>())
     }
 
-    fn video_model_by_info(&self, video_info: &VideoInfo) -> video::ActiveModel {
-        let mut video_model = video_info.to_model();
-        video_model.id = NotSet;
+    fn video_model_by_info(&self, video_info: &VideoInfo, base_model: Option<video::Model>) -> video::ActiveModel {
+        let mut video_model = video_info.to_model(base_model);
         video_model.favorite_id = Set(Some(self.id));
         if let Some(fmt_args) = &video_info.to_fmt_args() {
             video_model.path = Set(Path::new(&self.path)

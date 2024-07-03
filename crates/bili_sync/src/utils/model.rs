@@ -15,7 +15,7 @@ pub async fn create_videos(
 ) -> Result<()> {
     let video_models = videos_info
         .iter()
-        .map(|v| video_list_model.video_model_by_info(v))
+        .map(|v| video_list_model.video_model_by_info(v, None))
         .collect::<Vec<_>>();
     video::Entity::insert_many(video_models)
         .on_conflict(OnConflict::columns(unique_video_columns()).do_nothing().to_owned())

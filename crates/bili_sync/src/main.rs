@@ -57,7 +57,7 @@ async fn main() {
             }
         }
         info!("所有合集处理完毕");
-        info!("等待 {} 分钟后进行下一次扫描", CONFIG.interval);
+        info!("本轮任务执行完毕，等待下一轮执行");
         tokio::time::sleep(std::time::Duration::from_secs(CONFIG.interval)).await;
     }
 }
