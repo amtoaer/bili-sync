@@ -4,7 +4,7 @@ use bili_sync_migration::OnConflict;
 use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
 
-use crate::adapter::{unique_video_columns, VideoListModel};
+use crate::adapter::VideoListModel;
 use crate::bilibili::{PageInfo, VideoInfo};
 
 /// 尝试创建 Video Model，如果发生冲突则忽略
@@ -18,7 +18,8 @@ pub async fn create_videos(
         .map(|v| video_list_model.video_model_by_info(v, None))
         .collect::<Vec<_>>();
     video::Entity::insert_many(video_models)
-        .on_conflict(OnConflict::columns(unique_video_columns()).do_nothing().to_owned())
+        // 这里想表达的是 on 索引名，但 sea-orm 的 api 似乎只支持列名而不支持索引名，好在留空可以达到相同的目的
+        .on_conflict(OnConflict::new().do_nothing().to_owned())
         .do_nothing()
         .exec(connection)
         .await?;
