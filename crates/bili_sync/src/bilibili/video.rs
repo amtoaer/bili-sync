@@ -7,7 +7,7 @@ use reqwest::Method;
 use crate::bilibili::analyzer::PageAnalyzer;
 use crate::bilibili::client::BiliClient;
 use crate::bilibili::danmaku::{DanmakuElem, DanmakuWriter, DmSegMobileReply};
-use crate::bilibili::Validate;
+use crate::bilibili::{Validate, VideoInfo};
 
 static MASK_CODE: u64 = 2251799813685247;
 static XOR_CODE: u64 = 23442827791579;
@@ -59,6 +59,22 @@ impl<'a> Video<'a> {
     pub fn new(client: &'a BiliClient, bvid: String) -> Self {
         let aid = bvid_to_aid(&bvid).to_string();
         Self { client, aid, bvid }
+    }
+
+    #[allow(dead_code)]
+    /// 直接调用视频信息接口获取详细的视频信息
+    pub async fn get_view_info(&self) -> Result<VideoInfo> {
+        let mut res = self
+            .client
+            .request(Method::GET, "https://api.bilibili.com/x/web-interface/view")
+            .query(&[("aid", &self.aid), ("bvid", &self.bvid)])
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<serde_json::Value>()
+            .await?
+            .validate()?;
+        Ok(serde_json::from_value(res["data"].take())?)
     }
 
     pub async fn get_pages(&self) -> Result<Vec<PageInfo>> {
@@ -158,8 +174,8 @@ fn bvid_to_aid(bvid: &str) -> u64 {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_bvid_to_aid() {
+    #[test]
+    fn test_bvid_to_aid() {
         assert_eq!(bvid_to_aid("BV1Tr421n746"), 1401752220u64);
         assert_eq!(bvid_to_aid("BV1sH4y1s7fe"), 1051892992u64);
     }

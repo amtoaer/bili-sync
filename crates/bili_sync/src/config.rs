@@ -5,10 +5,30 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use arc_swap::ArcSwapOption;
+use handlebars::handlebars_helper;
 use once_cell::sync::Lazy;
+use serde::de::{Deserializer, MapAccess, Visitor};
+use serde::ser::SerializeMap;
 use serde::{Deserialize, Serialize};
 
-use crate::bilibili::{Credential, DanmakuOption, FilterOption};
+use crate::bilibili::{CollectionItem, CollectionType, Credential, DanmakuOption, FilterOption};
+
+pub static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
+    let mut handlebars = handlebars::Handlebars::new();
+    handlebars_helper!(truncate: |s: String, len: usize| {
+        if s.chars().count() > len {
+            s.chars().take(len).collect::<String>()
+        } else {
+            s.to_string()
+        }
+    });
+    handlebars.register_helper("truncate", Box::new(truncate));
+    handlebars
+        .register_template_string("video", &CONFIG.video_name)
+        .unwrap();
+    handlebars.register_template_string("page", &CONFIG.page_name).unwrap();
+    handlebars
+});
 
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     let config = Config::load().unwrap_or_else(|err| {
@@ -42,6 +62,12 @@ pub struct Config {
     #[serde(default)]
     pub danmaku_option: DanmakuOption,
     pub favorite_list: HashMap<String, PathBuf>,
+    #[serde(
+        default,
+        serialize_with = "serialize_collection_list",
+        deserialize_with = "deserialize_collection_list"
+    )]
+    pub collection_list: HashMap<CollectionItem, PathBuf>,
     pub video_name: Cow<'static, str>,
     pub page_name: Cow<'static, str>,
     pub interval: u64,
@@ -65,6 +91,7 @@ impl Default for Config {
             filter_option: FilterOption::default(),
             danmaku_option: DanmakuOption::default(),
             favorite_list: HashMap::new(),
+            collection_list: HashMap::new(),
             video_name: Cow::Borrowed("{{title}}"),
             page_name: Cow::Borrowed("{{bvid}}"),
             interval: 1200,
@@ -78,9 +105,9 @@ impl Config {
     /// 简单的预检查
     pub fn check(&self) {
         let mut ok = true;
-        if self.favorite_list.is_empty() {
+        if self.favorite_list.is_empty() && self.collection_list.is_empty() {
             ok = false;
-            error!("未设置需监听的收藏夹，程序空转没有意义");
+            error!("未设置需监听的收藏夹或视频合集，程序空转没有意义");
         }
         for path in self.favorite_list.values() {
             if !path.is_absolute() {
@@ -139,6 +166,75 @@ impl Config {
         std::fs::write(config_path, toml::to_string_pretty(self)?)?;
         Ok(())
     }
+}
+
+fn serialize_collection_list<S>(
+    collection_list: &HashMap<CollectionItem, PathBuf>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let mut map = serializer.serialize_map(Some(collection_list.len()))?;
+    for (k, v) in collection_list {
+        let prefix = match k.collection_type {
+            CollectionType::Series => "series",
+            CollectionType::Season => "season",
+        };
+        map.serialize_entry(&[prefix, &k.mid, &k.sid].join(":"), v)?;
+    }
+    map.end()
+}
+
+fn deserialize_collection_list<'de, D>(deserializer: D) -> Result<HashMap<CollectionItem, PathBuf>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct CollectionListVisitor;
+
+    impl<'de> Visitor<'de> for CollectionListVisitor {
+        type Value = HashMap<CollectionItem, PathBuf>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("a map of collection list")
+        }
+
+        fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+        where
+            A: MapAccess<'de>,
+        {
+            let mut collection_list = HashMap::new();
+            while let Some((key, value)) = map.next_entry::<String, PathBuf>()? {
+                let collection_item = match key.split(':').collect::<Vec<&str>>().as_slice() {
+                    [prefix, mid, sid] => {
+                        let collection_type = match *prefix {
+                            "series" => CollectionType::Series,
+                            "season" => CollectionType::Season,
+                            _ => {
+                                return Err(serde::de::Error::custom(
+                                    "invalid collection type, should be series or season",
+                                ))
+                            }
+                        };
+                        CollectionItem {
+                            mid: mid.to_string(),
+                            sid: sid.to_string(),
+                            collection_type,
+                        }
+                    }
+                    _ => {
+                        return Err(serde::de::Error::custom(
+                            "invalid collection key, should be series:mid:sid or season:mid:sid",
+                        ))
+                    }
+                };
+                collection_list.insert(collection_item, value);
+            }
+            Ok(collection_list)
+        }
+    }
+
+    deserializer.deserialize_map(CollectionListVisitor)
 }
 
 use clap::Parser;
