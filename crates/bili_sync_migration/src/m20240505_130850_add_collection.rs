@@ -87,18 +87,10 @@ impl MigrationTrait for Migration {
                     .to_owned(),
             )
             .await?;
-        manager
-            .create_index(
-                Index::create()
-                    .table(Video::Table)
-                    .name("idx_video_cid_fid_bvid")
-                    .col(Video::CollectionId)
-                    .col(Video::FavoriteId)
-                    .col(Video::Bvid)
-                    .unique()
-                    .to_owned(),
-            )
-            .await
+        // 在唯一索引中，NULL 不等于 NULL，所以需要使用 ifnull 函数排除空的情况
+        db.execute_unprepared("CREATE UNIQUE INDEX `idx_video_cid_fid_bvid` ON `video` (ifnull(`collection_id`, -1), ifnull(`favorite_id`, -1), `bvid`)")
+            .await?;
+        Ok(())
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {

@@ -12,8 +12,9 @@ impl VideoInfo {
             Some(base_model) => base_model.into_active_model(),
             None => {
                 let mut tmp_model = bili_sync_entity::video::Model::default().into_active_model();
-                // 注意此处要把 id 设置成 NotSet，否则 id 会是 Unchanged(0)
+                // 注意此处要把 id 和 created_at 设置为 NotSet，方便在 sql 中忽略这些字段，交由数据库自动生成
                 tmp_model.id = NotSet;
+                tmp_model.created_at = NotSet;
                 tmp_model
             }
         };

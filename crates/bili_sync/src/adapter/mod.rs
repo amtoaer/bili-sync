@@ -7,7 +7,6 @@ use std::pin::Pin;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use bili_sync_migration::IntoIden;
 pub use collection::collection_from;
 pub use favorite::favorite_from;
 use futures::Stream;
@@ -32,18 +31,11 @@ pub async fn video_list_from<'a>(
     }
 }
 
-pub const fn unique_video_columns() -> impl IntoIterator<Item = impl IntoIden> {
-    [
-        bili_sync_entity::video::Column::CollectionId,
-        bili_sync_entity::video::Column::FavoriteId,
-        bili_sync_entity::video::Column::Bvid,
-    ]
-}
-
 #[async_trait]
 pub trait VideoListModel {
     /* 逻辑相关 */
 
+    /// 获取与视频列表关联的视频总数
     async fn video_count(&self, connection: &DatabaseConnection) -> Result<u64>;
 
     /// 获取未填充的视频
