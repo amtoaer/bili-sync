@@ -1,7 +1,6 @@
 **/target
 auth_data
 *.sqlite
-*.json
 video
 debug*
 node_modules
