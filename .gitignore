@@ -1,6 +1,8 @@
 **/target
 auth_data
 *.sqlite
-*.json
 video
 debug*
+node_modules
+docs/.vitepress/cache
+docs/.vitepress/dist
