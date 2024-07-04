@@ -4,3 +4,6 @@ auth_data
 *.json
 video
 debug*
+node_modules
+docs/.vitepress/cache
+docs/.vitepress/dist
