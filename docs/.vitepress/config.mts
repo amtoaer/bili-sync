@@ -5,7 +5,6 @@ import taskLists from "markdown-it-task-lists";
 export default defineConfig({
 	title: "bili-sync",
 	description: "基于 rust tokio 的哔哩哔哩同步工具",
-	base: "/bili-sync/",
 	lang: "zh-Hans",
 	sitemap: {
 		hostname: "https://bili-sync.github.io",
