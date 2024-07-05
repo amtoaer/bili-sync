@@ -4,7 +4,7 @@ import taskLists from "markdown-it-task-lists";
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
 	title: "bili-sync",
-	description: "基于 rust tokio 的哔哩哔哩同步工具",
+	description: "由 Rust & Tokio 驱动的哔哩哔哩同步工具",
 	lang: "zh-Hans",
 	sitemap: {
 		hostname: "https://bili-sync.github.io",
@@ -21,14 +21,14 @@ export default defineConfig({
 		nav: [
 			{ text: "主页", link: "/" },
 			{
-				text: "更新日志",
+				text: "v2.0.7",
 				items: [
 					{
-						text: "程序本体",
+						text: "程序更新",
 						link: "https://github.com/amtoaer/bili-sync/releases",
 					},
 					{
-						text: "文档页面",
+						text: "文档更新",
 						link: "https://github.com/search?q=repo:amtoaer/bili-sync+docs&type=commits",
 					},
 				],

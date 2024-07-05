@@ -7,7 +7,7 @@ resolver = "2"
 version = "2.0.7"
 authors = ["amtoaer <amtoaer@gmail.com>"]
 license = "MIT"
-description = "基于 rust tokio 编写的 bilibili 收藏夹同步下载工具"
+description = "由 Rust & Tokio 驱动的哔哩哔哩同步工具"
 edition = "2021"
 publish = false
 
@@ -62,7 +62,7 @@ tracing-subscriber = { version = "0.3.18", features = ["chrono"] }
 
 [workspace.metadata.release]
 release = false
-tag-message = "chore: 发布 bili-sync 版本 {{version}}"
+tag-message = "chore: 发布 bili-sync {{version}}"
 tag-prefix = ""
 publish = false
 

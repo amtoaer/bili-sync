@@ -3,17 +3,11 @@
 ## 简介
 
 > [!NOTE]
-> 此为 v2.x 版本文档，v1.x 版本文档请前往[此处](https://github.com/amtoaer/bili-sync/tree/v1.x)查看。
+> [点击此处](https://bili-sync.allwens.work/)查看文档
 
-
-为 NAS 用户编写的 BILIBILI 收藏夹同步工具，可使用 EMBY 等媒体库工具浏览。
-
-支持展示视频封面、名称、加入日期、标签、分页等。
-
+bili-sync 是一款专为 NAS 用户编写的哔哩哔哩同步工具，由 Rust & Tokio 驱动。
 
 ## 效果演示
-
-**注：因为可能同时存在单页视频和多页视频，媒体库类型请选择“混合内容”。**
 
 ### 概览
 ![概览](./assets/overview.png)
