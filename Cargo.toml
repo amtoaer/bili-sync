@@ -62,9 +62,14 @@ tracing-subscriber = { version = "0.3.18", features = ["chrono"] }
 
 [workspace.metadata.release]
 release = false
-tag-message = "chore: 发布 bili-sync {{version}}"
+tag-message = ""
 tag-prefix = ""
+pre-release-commit-message = "chore: 发布 bili-sync {{version}}"
 publish = false
+pre-release-replacements = [
+  { file = "../../docs/.vitepress/config.mts", search = "\"v[0-9\\.]+\"", replace = "\"v{{version}}\"", exactly = 1 },
+  { file = "../../docs/introduction.md", search = " v[0-9\\.]+，", replace = " v{{version}}，", exactly = 1 },
+]
 
 [profile.release]
 strip = true
