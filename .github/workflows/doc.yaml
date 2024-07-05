@@ -37,3 +37,4 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: docs/.vitepress/dist
           force_orphan: true
+          commit_message: 部署来自 main 的最新文档变更：
