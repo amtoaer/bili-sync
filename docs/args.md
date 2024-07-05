@@ -3,9 +3,9 @@
 程序支持有限的命令行参数，可以通过执行 `bili-sync-rs --help` 查看说明。
 
 ```shell
-bili-sync/target/debug docs_vitepress* ⇡
+bili-sync/target/debug main* ⇡
 ❯ ./bili-sync-rs --help
-基于 rust tokio 编写的 bilibili 收藏夹同步下载工具
+由 Rust & Tokio 驱动的哔哩哔哩同步工具
 
 Usage: bili-sync-rs [OPTIONS]
 
