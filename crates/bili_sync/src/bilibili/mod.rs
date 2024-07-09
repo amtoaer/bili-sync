@@ -19,6 +19,7 @@ mod danmaku;
 mod error;
 mod favorite_list;
 mod video;
+mod watch_later;
 
 pub(crate) trait Validate {
     type Output;

@@ -1,5 +1,6 @@
 mod collection;
 mod favorite;
+mod watch_later;
 
 use std::collections::HashSet;
 use std::path::Path;
@@ -11,12 +12,14 @@ pub use collection::collection_from;
 pub use favorite::favorite_from;
 use futures::Stream;
 use sea_orm::DatabaseConnection;
+use watch_later::watch_later_from;
 
 use crate::bilibili::{BiliClient, CollectionItem, VideoInfo};
 
 pub enum Args<'a> {
     Favorite { fid: &'a str },
     Collection { collection_item: &'a CollectionItem },
+    WatchLater,
 }
 
 pub async fn video_list_from<'a>(
@@ -28,6 +31,7 @@ pub async fn video_list_from<'a>(
     match args {
         Args::Favorite { fid } => favorite_from(fid, path, bili_client, connection).await,
         Args::Collection { collection_item } => collection_from(collection_item, path, bili_client, connection).await,
+        Args::WatchLater => watch_later_from(path, bili_client, connection).await,
     }
 }
 

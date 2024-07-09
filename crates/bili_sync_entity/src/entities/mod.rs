@@ -6,3 +6,4 @@ pub mod collection;
 pub mod favorite;
 pub mod page;
 pub mod video;
+pub mod watch_later;
