@@ -117,7 +117,7 @@ impl VideoListModel for collection::Model {
                     .and(video::Column::Bvid.is_in(bvids)),
             )
             .select_only()
-            .columns([video::Column::Bvid, video::Column::Favtime])
+            .columns([video::Column::Bvid, video::Column::Pubtime])
             .into_tuple()
             .all(connection)
             .await?
