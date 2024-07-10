@@ -68,12 +68,20 @@ pub struct Config {
         deserialize_with = "deserialize_collection_list"
     )]
     pub collection_list: HashMap<CollectionItem, PathBuf>,
+    #[serde(default)]
+    pub watch_later: WatchLaterConfig,
     pub video_name: Cow<'static, str>,
     pub page_name: Cow<'static, str>,
     pub interval: u64,
     pub upper_path: PathBuf,
     #[serde(default)]
     pub nfo_time_type: NFOTimeType,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct WatchLaterConfig {
+    pub enabled: bool,
+    pub path: PathBuf,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -92,6 +100,7 @@ impl Default for Config {
             danmaku_option: DanmakuOption::default(),
             favorite_list: HashMap::new(),
             collection_list: HashMap::new(),
+            watch_later: Default::default(),
             video_name: Cow::Borrowed("{{title}}"),
             page_name: Cow::Borrowed("{{bvid}}"),
             interval: 1200,
@@ -105,9 +114,15 @@ impl Config {
     /// 简单的预检查
     pub fn check(&self) {
         let mut ok = true;
-        if self.favorite_list.is_empty() && self.collection_list.is_empty() {
+        if self.favorite_list.is_empty() && self.collection_list.is_empty() && !self.watch_later.enabled {
             ok = false;
-            error!("未设置需监听的收藏夹或视频合集，程序空转没有意义");
+            error!("没有配置任何需要扫描的内容，程序空转没有意义");
+        }
+        if self.watch_later.enabled && !self.watch_later.path.is_absolute() {
+            error!(
+                "稍后再看保存的路径应为绝对路径，检测到：{}",
+                self.watch_later.path.display()
+            );
         }
         for path in self.favorite_list.values() {
             if !path.is_absolute() {

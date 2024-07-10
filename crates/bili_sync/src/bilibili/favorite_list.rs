@@ -82,7 +82,7 @@ impl<'a> FavoriteList<'a> {
                         break;
                     },
                 };
-                for video_info in videos_info.into_iter(){
+                for video_info in videos_info{
                     yield video_info;
                 }
                 if videos["data"]["has_more"].is_boolean() && videos["data"]["has_more"].as_bool().unwrap(){

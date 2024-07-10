@@ -10,6 +10,7 @@ pub use error::BiliError;
 pub use favorite_list::FavoriteList;
 use favorite_list::Upper;
 pub use video::{Dimension, PageInfo, Video};
+pub use watch_later::WatchLater;
 
 mod analyzer;
 mod client;
@@ -92,4 +93,36 @@ pub enum VideoInfo {
         #[serde(rename = "pubdate", with = "ts_seconds")]
         pubtime: DateTime<Utc>,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use futures::StreamExt;
+    use tokio::pin;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn assert_video_info() {
+        let bili_client = BiliClient::new();
+        let video = Video::new(&bili_client, "BV1Z54y1C7ZB".to_string());
+        assert!(matches!(video.get_view_info().await, Ok(VideoInfo::View { .. })));
+        let collection_item = CollectionItem {
+            mid: "521722088".to_string(),
+            sid: "387214".to_string(),
+            collection_type: CollectionType::Series,
+        };
+        let collection = Collection::new(&bili_client, &collection_item);
+        let stream = collection.into_simple_video_stream();
+        pin!(stream);
+        assert!(matches!(stream.next().await, Some(VideoInfo::Simple { .. })));
+        let favorite = FavoriteList::new(&bili_client, "3084505258".to_string());
+        let stream = favorite.into_video_stream();
+        pin!(stream);
+        assert!(matches!(stream.next().await, Some(VideoInfo::Detail { .. })));
+        let watch_later = WatchLater::new(&bili_client);
+        let stream = watch_later.into_video_stream();
+        pin!(stream);
+        assert!(matches!(stream.next().await, Some(VideoInfo::Simple { .. })));
+    }
 }
