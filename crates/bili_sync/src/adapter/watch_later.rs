@@ -103,7 +103,7 @@ impl VideoListModel for watch_later::Model {
                     .and(video::Column::Bvid.is_in(bvids)),
             )
             .select_only()
-            .columns([video::Column::Bvid, video::Column::Pubtime])
+            .columns([video::Column::Bvid, video::Column::Favtime])
             .into_tuple()
             .all(connection)
             .await?
@@ -136,18 +136,15 @@ impl VideoListModel for watch_later::Model {
     ) -> Result<()> {
         for video_model in videos_model {
             let video = Video::new(bili_clent, video_model.bvid.clone());
-            let info: Result<_> = async { Ok((video.get_tags().await?, video.get_view_info().await?)) }.await;
+            let info: Result<_> = async { Ok((video.get_tags().await?, video.get_pages().await?)) }.await;
             match info {
-                Ok((tags, view_info)) => {
-                    let VideoInfo::View { pages, .. } = &view_info else {
-                        unreachable!("view_info must be VideoInfo::View")
-                    };
+                Ok((tags, pages_info)) => {
                     let txn = connection.begin().await?;
                     // 将分页信息写入数据库
-                    create_video_pages(pages, &video_model, &txn).await?;
+                    create_video_pages(&pages_info, &video_model, &txn).await?;
                     // 将页标记和 tag 写入数据库
-                    let mut video_active_model = self.video_model_by_info(&view_info, Some(video_model));
-                    video_active_model.single_page = Set(Some(pages.len() == 1));
+                    let mut video_active_model: video::ActiveModel = video_model.into();
+                    video_active_model.single_page = Set(Some(pages_info.len() == 1));
                     video_active_model.tags = Set(Some(serde_json::to_value(tags).unwrap()));
                     video_active_model.save(&txn).await?;
                     txn.commit().await?;

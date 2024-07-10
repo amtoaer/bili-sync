@@ -65,6 +65,7 @@ async fn main() {
                 error!("处理稍后再看时遇到非预期的错误：{e}");
             }
         }
+        info!("稍后再看处理完毕");
         info!("本轮任务执行完毕，等待下一轮执行");
         tokio::time::sleep(std::time::Duration::from_secs(CONFIG.interval)).await;
     }

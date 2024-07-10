@@ -83,6 +83,24 @@ pub enum VideoInfo {
         pubtime: DateTime<Utc>,
         attr: i32,
     },
+    /// 从稍后再看中获取的视频信息
+    WatchLater {
+        title: String,
+        bvid: String,
+        #[serde(rename = "desc")]
+        intro: String,
+        #[serde(rename = "pic")]
+        cover: String,
+        #[serde(rename = "owner")]
+        upper: Upper,
+        #[serde(with = "ts_seconds")]
+        ctime: DateTime<Utc>,
+        #[serde(rename = "add_at", with = "ts_seconds")]
+        fav_time: DateTime<Utc>,
+        #[serde(rename = "pubdate", with = "ts_seconds")]
+        pubtime: DateTime<Utc>,
+        state: i32,
+    },
     /// 从视频列表中获取的视频信息
     Simple {
         bvid: String,
@@ -97,11 +115,11 @@ pub enum VideoInfo {
 
 #[cfg(test)]
 mod tests {
-    use futures::StreamExt;
-    use tokio::pin;
+    use futures::{pin_mut, StreamExt};
 
     use super::*;
 
+    #[ignore = "only for manual test"]
     #[tokio::test]
     async fn assert_video_info() {
         let bili_client = BiliClient::new();
@@ -114,15 +132,16 @@ mod tests {
         };
         let collection = Collection::new(&bili_client, &collection_item);
         let stream = collection.into_simple_video_stream();
-        pin!(stream);
+        pin_mut!(stream);
         assert!(matches!(stream.next().await, Some(VideoInfo::Simple { .. })));
         let favorite = FavoriteList::new(&bili_client, "3084505258".to_string());
         let stream = favorite.into_video_stream();
-        pin!(stream);
+        pin_mut!(stream);
         assert!(matches!(stream.next().await, Some(VideoInfo::Detail { .. })));
         let watch_later = WatchLater::new(&bili_client);
         let stream = watch_later.into_video_stream();
-        pin!(stream);
-        assert!(matches!(stream.next().await, Some(VideoInfo::Simple { .. })));
+        pin_mut!(stream);
+        println!("{:?}", stream.next().await);
+        assert!(matches!(stream.next().await, Some(VideoInfo::WatchLater { .. })));
     }
 }
