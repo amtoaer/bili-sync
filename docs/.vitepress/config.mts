@@ -47,6 +47,7 @@ export default defineConfig({
 				items: [
 					{ text: "配置文件", link: "/configuration" },
 					{ text: "命令行参数", link: "/args" },
+					{ text: "工作原理", link: "/design" },
 				],
 			},
 			{
