@@ -111,15 +111,7 @@ enabled = false
 path = ""
 ```
 
-看起来很长，但绝大部分选项是不需要做修改的。正常情况下，我们只需要关注：
-+ `interval`
-+ `upper_path`
-+ `credential`
-+ `codecs`
-+ `favorite_list`
-+ `collection_list`
-
-以下逐条说明。
+虽然配置文件看起来很长，但绝大部分选项是不需要做修改的。一般来说，我们只需要关注其中的少数几个，以下逐条说明。
 
 ### `interval`
 
