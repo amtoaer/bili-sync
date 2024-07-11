@@ -179,3 +179,14 @@ UP 主头像和信息的保存位置。对于使用 Emby、Jellyfin 媒体服务
 ```
 
 具体说明可以参考[这里](/collection)。
+
+## `watch_later`
+
+设置稍后再看的扫描开关与保存位置。
+
+如果你希望下载稍后再看列表中的视频，可以将 `enabled` 设置为 `true`，并填写 `path`。
+
+```toml
+enabled = true
+path = "/home/amtoaer/Downloads/bili-sync/稍后再看"
+```
