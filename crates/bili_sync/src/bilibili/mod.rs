@@ -121,7 +121,7 @@ mod tests {
 
     #[ignore = "only for manual test"]
     #[tokio::test]
-    async fn assert_video_info() {
+    async fn assert_video_info_type() {
         let bili_client = BiliClient::new();
         let video = Video::new(&bili_client, "BV1Z54y1C7ZB".to_string());
         assert!(matches!(video.get_view_info().await, Ok(VideoInfo::View { .. })));
@@ -141,7 +141,6 @@ mod tests {
         let watch_later = WatchLater::new(&bili_client);
         let stream = watch_later.into_video_stream();
         pin_mut!(stream);
-        println!("{:?}", stream.next().await);
         assert!(matches!(stream.next().await, Some(VideoInfo::WatchLater { .. })));
     }
 }
