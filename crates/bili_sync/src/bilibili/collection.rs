@@ -181,7 +181,7 @@ impl<'a> Collection<'a> {
                         break;
                     },
                 };
-                for video_info in videos_info.into_iter(){
+                for video_info in videos_info{
                     yield video_info;
                 }
                 let fields = match self.collection.collection_type{

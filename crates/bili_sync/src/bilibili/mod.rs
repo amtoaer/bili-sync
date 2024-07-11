@@ -10,6 +10,7 @@ pub use error::BiliError;
 pub use favorite_list::FavoriteList;
 use favorite_list::Upper;
 pub use video::{Dimension, PageInfo, Video};
+pub use watch_later::WatchLater;
 
 mod analyzer;
 mod client;
@@ -19,6 +20,7 @@ mod danmaku;
 mod error;
 mod favorite_list;
 mod video;
+mod watch_later;
 
 pub(crate) trait Validate {
     type Output;
@@ -81,6 +83,24 @@ pub enum VideoInfo {
         pubtime: DateTime<Utc>,
         attr: i32,
     },
+    /// 从稍后再看中获取的视频信息
+    WatchLater {
+        title: String,
+        bvid: String,
+        #[serde(rename = "desc")]
+        intro: String,
+        #[serde(rename = "pic")]
+        cover: String,
+        #[serde(rename = "owner")]
+        upper: Upper,
+        #[serde(with = "ts_seconds")]
+        ctime: DateTime<Utc>,
+        #[serde(rename = "add_at", with = "ts_seconds")]
+        fav_time: DateTime<Utc>,
+        #[serde(rename = "pubdate", with = "ts_seconds")]
+        pubtime: DateTime<Utc>,
+        state: i32,
+    },
     /// 从视频列表中获取的视频信息
     Simple {
         bvid: String,
@@ -91,4 +111,36 @@ pub enum VideoInfo {
         #[serde(rename = "pubdate", with = "ts_seconds")]
         pubtime: DateTime<Utc>,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use futures::{pin_mut, StreamExt};
+
+    use super::*;
+
+    #[ignore = "only for manual test"]
+    #[tokio::test]
+    async fn assert_video_info_type() {
+        let bili_client = BiliClient::new();
+        let video = Video::new(&bili_client, "BV1Z54y1C7ZB".to_string());
+        assert!(matches!(video.get_view_info().await, Ok(VideoInfo::View { .. })));
+        let collection_item = CollectionItem {
+            mid: "521722088".to_string(),
+            sid: "387214".to_string(),
+            collection_type: CollectionType::Series,
+        };
+        let collection = Collection::new(&bili_client, &collection_item);
+        let stream = collection.into_simple_video_stream();
+        pin_mut!(stream);
+        assert!(matches!(stream.next().await, Some(VideoInfo::Simple { .. })));
+        let favorite = FavoriteList::new(&bili_client, "3084505258".to_string());
+        let stream = favorite.into_video_stream();
+        pin_mut!(stream);
+        assert!(matches!(stream.next().await, Some(VideoInfo::Detail { .. })));
+        let watch_later = WatchLater::new(&bili_client);
+        let stream = watch_later.into_video_stream();
+        pin_mut!(stream);
+        assert!(matches!(stream.next().await, Some(VideoInfo::WatchLater { .. })));
+    }
 }

@@ -29,6 +29,7 @@ async fn main() {
     let connection = database_connection().await.expect("获取数据库连接失败");
     let mut anchor = chrono::Local::now().date_naive();
     let bili_client = BiliClient::new();
+    let watch_later_config = &CONFIG.watch_later;
     loop {
         if let Err(e) = bili_client.is_login().await {
             error!("检查登录状态时遇到错误：{e}，等待下一轮执行");
@@ -57,6 +58,14 @@ async fn main() {
             }
         }
         info!("所有合集处理完毕");
+        if watch_later_config.enabled {
+            if let Err(e) =
+                process_video_list(Args::WatchLater, &bili_client, &watch_later_config.path, &connection).await
+            {
+                error!("处理稍后再看时遇到非预期的错误：{e}");
+            }
+        }
+        info!("稍后再看处理完毕");
         info!("本轮任务执行完毕，等待下一轮执行");
         tokio::time::sleep(std::time::Duration::from_secs(CONFIG.interval)).await;
     }

@@ -90,6 +90,34 @@ impl VideoInfo {
                 upper_face: Set(upper.face.clone()),
                 ..base_model
             },
+            VideoInfo::WatchLater {
+                title,
+                bvid,
+                intro,
+                cover,
+                upper,
+                ctime,
+                fav_time,
+                pubtime,
+                state,
+            } => bili_sync_entity::video::ActiveModel {
+                bvid: Set(bvid.clone()),
+                name: Set(title.clone()),
+                category: Set(2), // 稍后再看里的内容类型肯定是视频
+                intro: Set(intro.clone()),
+                cover: Set(cover.clone()),
+                ctime: Set(ctime.naive_utc()),
+                pubtime: Set(pubtime.naive_utc()),
+                favtime: Set(fav_time.naive_utc()),
+                download_status: Set(0),
+                valid: Set(*state == 0),
+                tags: Set(None),
+                single_page: Set(None),
+                upper_id: Set(upper.mid),
+                upper_name: Set(upper.name.clone()),
+                upper_face: Set(upper.face.clone()),
+                ..base_model
+            },
         }
     }
 
@@ -108,6 +136,12 @@ impl VideoInfo {
                 "upper_name": &upper.name,
                 "upper_mid": &upper.mid,
             })),
+            VideoInfo::WatchLater { title, bvid, upper, .. } => Some(json!({
+                "bvid": &bvid,
+                "title": &title,
+                "upper_name": &upper.name,
+                "upper_mid": &upper.mid,
+            })),
         }
     }
 
@@ -116,6 +150,7 @@ impl VideoInfo {
             // 对于合集没有 fav_time，只能用 pubtime 代替
             VideoInfo::Simple { bvid, pubtime, .. } => id_time_key(bvid, pubtime),
             VideoInfo::Detail { bvid, fav_time, .. } => id_time_key(bvid, fav_time),
+            VideoInfo::WatchLater { bvid, fav_time, .. } => id_time_key(bvid, fav_time),
             // 详情接口返回的数据仅用于填充详情，不会被作为 video_key
             _ => unreachable!(),
         }
@@ -125,6 +160,7 @@ impl VideoInfo {
         match self {
             VideoInfo::Simple { bvid, .. } => bvid,
             VideoInfo::Detail { bvid, .. } => bvid,
+            VideoInfo::WatchLater { bvid, .. } => bvid,
             // 同上
             _ => unreachable!(),
         }
