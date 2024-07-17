@@ -3,13 +3,16 @@
 use std::fmt::{Display, Formatter};
 
 use anyhow::Result;
+use arc_swap::access::Access;
 use async_stream::stream;
 use futures::Stream;
 use reqwest::Method;
 use serde::Deserialize;
 use serde_json::Value;
 
+use super::credential::encoded_query;
 use crate::bilibili::{BiliClient, Validate, VideoInfo};
+use crate::config::MIXIN_KEY;
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum CollectionType {
@@ -124,33 +127,41 @@ impl<'a> Collection<'a> {
     }
 
     async fn get_videos(&self, page: i32) -> Result<Value> {
+        // 在外层检查过，直接 unwrap 是安全的
+        let mixin_key = MIXIN_KEY.load();
+        let mixin_key = mixin_key.as_deref().unwrap();
         let page = page.to_string();
-        let (url, query) = match self.collection.collection_type {
-            CollectionType::Series => (
-                "https://api.bilibili.com/x/series/archives",
-                vec![
-                    ("mid", self.collection.mid.as_str()),
-                    ("series_id", self.collection.sid.as_str()),
-                    ("only_normal", "true"),
-                    ("sort", "desc"),
-                    ("pn", page.as_str()),
-                    ("ps", "30"),
-                ],
+        let url = match self.collection.collection_type {
+            CollectionType::Series => format!(
+                "https://api.bilibili.com/x/series/archives?{}",
+                encoded_query(
+                    vec![
+                        ("mid", self.collection.mid.as_str()),
+                        ("series_id", self.collection.sid.as_str()),
+                        ("only_normal", "true"),
+                        ("sort", "desc"),
+                        ("pn", page.as_str()),
+                        ("ps", "30"),
+                    ],
+                    mixin_key
+                )
             ),
-            CollectionType::Season => (
-                "https://api.bilibili.com/x/polymer/web-space/seasons_archives_list",
-                vec![
-                    ("mid", self.collection.mid.as_str()),
-                    ("season_id", self.collection.sid.as_str()),
-                    ("sort_reverse", "true"),
-                    ("page_num", page.as_str()),
-                    ("page_size", "30"),
-                ],
+            CollectionType::Season => format!(
+                "https://api.bilibili.com/x/polymer/web-space/seasons_archives_list?{}",
+                encoded_query(
+                    vec![
+                        ("mid", self.collection.mid.as_str()),
+                        ("season_id", self.collection.sid.as_str()),
+                        ("sort_reverse", "true"),
+                        ("page_num", page.as_str()),
+                        ("page_size", "30"),
+                    ],
+                    mixin_key
+                )
             ),
         };
         self.client
-            .request(Method::GET, url)
-            .query(&query)
+            .request(Method::GET, &url)
             .send()
             .await?
             .error_for_status()?

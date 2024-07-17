@@ -24,6 +24,7 @@ float-ord = { workspace = true }
 futures = { workspace = true }
 handlebars = { workspace = true }
 hex = { workspace = true }
+md5 = { workspace = true }
 memchr = { workspace = true }
 once_cell = { workspace = true }
 prost = { workspace = true }
@@ -35,6 +36,7 @@ rsa = { workspace = true }
 sea-orm = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_urlencoded = { workspace = true }
 strum = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
