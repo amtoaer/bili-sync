@@ -26,7 +26,7 @@ mod favorite_list;
 mod video;
 mod watch_later;
 
-static MIXIN_KEY: Lazy<ArcSwapOption<String>> = Lazy::new(|| Default::default());
+static MIXIN_KEY: Lazy<ArcSwapOption<String>> = Lazy::new(Default::default);
 
 pub(crate) fn set_global_mixin_key(key: String) {
     MIXIN_KEY.store(Some(Arc::new(key)));
