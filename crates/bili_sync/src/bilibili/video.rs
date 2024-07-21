@@ -4,12 +4,11 @@ use futures::TryStreamExt;
 use prost::Message;
 use reqwest::Method;
 
-use super::credential::encoded_query;
-use super::MIXIN_KEY;
 use crate::bilibili::analyzer::PageAnalyzer;
 use crate::bilibili::client::BiliClient;
+use crate::bilibili::credential::encoded_query;
 use crate::bilibili::danmaku::{DanmakuElem, DanmakuWriter, DmSegMobileReply};
-use crate::bilibili::{Validate, VideoInfo};
+use crate::bilibili::{Validate, VideoInfo, MIXIN_KEY};
 
 static MASK_CODE: u64 = 2251799813685247;
 static XOR_CODE: u64 = 23442827791579;
@@ -63,7 +62,6 @@ impl<'a> Video<'a> {
         Self { client, aid, bvid }
     }
 
-    #[allow(dead_code)]
     /// 直接调用视频信息接口获取详细的视频信息
     pub async fn get_view_info(&self) -> Result<VideoInfo> {
         let mut res = self

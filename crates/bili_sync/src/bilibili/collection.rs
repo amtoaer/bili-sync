@@ -3,7 +3,6 @@
 use std::fmt::{Display, Formatter};
 
 use anyhow::Result;
-use arc_swap::access::Access;
 use async_stream::stream;
 use futures::Stream;
 use reqwest::Method;

@@ -11,7 +11,7 @@ use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
 use sea_orm::{DatabaseConnection, QuerySelect, TransactionTrait};
 
-use super::VideoListModel;
+use crate::adapter::VideoListModel;
 use crate::bilibili::{BiliClient, BiliError, Collection, CollectionItem, CollectionType, Video, VideoInfo};
 use crate::config::TEMPLATE;
 use crate::utils::id_time_key;
