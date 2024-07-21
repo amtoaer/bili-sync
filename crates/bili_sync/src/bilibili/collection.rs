@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 
-use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
 
-use anyhow::{bail, Result};
+use anyhow::Result;
+use arc_swap::access::Access;
 use async_stream::stream;
 use futures::Stream;
 use reqwest::Method;
@@ -11,7 +11,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::bilibili::credential::encoded_query;
-use crate::bilibili::{BiliClient, Validate, VideoInfo};
+use crate::bilibili::{BiliClient, Validate, VideoInfo, MIXIN_KEY};
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum CollectionType {
@@ -58,7 +58,6 @@ pub struct CollectionItem {
 pub struct Collection<'a> {
     client: &'a BiliClient,
     collection: &'a CollectionItem,
-    mixin_key: Cow<'a, str>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -97,24 +96,8 @@ impl<'de> Deserialize<'de> for CollectionInfo {
 }
 
 impl<'a> Collection<'a> {
-    pub async fn build(client: &'a BiliClient, collection: &'a CollectionItem) -> Result<Self> {
-        let wbi_img = client.wbi_img().await?;
-        let Some(mixin_key) = wbi_img.into_mixin_key() else {
-            bail!("failed to get mixin key");
-        };
-        Ok(Self {
-            client,
-            collection,
-            mixin_key: Cow::Owned(mixin_key),
-        })
-    }
-
-    pub fn new(client: &'a BiliClient, collection: &'a CollectionItem, mixin_key: &'a str) -> Self {
-        Self {
-            client,
-            collection,
-            mixin_key: Cow::Borrowed(mixin_key),
-        }
+    pub fn new(client: &'a BiliClient, collection: &'a CollectionItem) -> Self {
+        Self { client, collection }
     }
 
     pub async fn get_info(&self) -> Result<CollectionInfo> {
@@ -140,7 +123,6 @@ impl<'a> Collection<'a> {
 
     async fn get_videos(&self, page: i32) -> Result<Value> {
         let page = page.to_string();
-        let mixin_key = self.mixin_key.as_ref();
         let (url, query) = match self.collection.collection_type {
             CollectionType::Series => (
                 "https://api.bilibili.com/x/series/archives",
@@ -153,7 +135,7 @@ impl<'a> Collection<'a> {
                         ("pn", page.as_str()),
                         ("ps", "30"),
                     ],
-                    mixin_key,
+                    MIXIN_KEY.load().as_ref().unwrap(),
                 ),
             ),
             CollectionType::Season => (
@@ -166,7 +148,7 @@ impl<'a> Collection<'a> {
                         ("page_num", page.as_str()),
                         ("page_size", "30"),
                     ],
-                    mixin_key,
+                    MIXIN_KEY.load().as_ref().unwrap(),
                 ),
             ),
         };

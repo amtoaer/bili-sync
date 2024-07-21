@@ -67,24 +67,6 @@ impl Credential {
         res["data"]["refresh"].as_bool().ok_or(anyhow!("check refresh failed"))
     }
 
-    /// 需要使用一个需要鉴权的接口来检查是否登录
-    /// 此处使用查看用户状态数的接口，该接口返回内容少，请求成本低
-    pub async fn is_login(&self, client: &Client) -> Result<()> {
-        client
-            .request(
-                Method::GET,
-                "https://api.bilibili.com/x/web-interface/nav/stat",
-                Some(self),
-            )
-            .send()
-            .await?
-            .error_for_status()?
-            .json::<serde_json::Value>()
-            .await?
-            .validate()?;
-        Ok(())
-    }
-
     pub async fn refresh(&self, client: &Client) -> Result<Self> {
         let correspond_path = Self::get_correspond_path();
         let csrf = self.get_refresh_csrf(client, correspond_path).await?;

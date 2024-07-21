@@ -4,6 +4,8 @@ use futures::TryStreamExt;
 use prost::Message;
 use reqwest::Method;
 
+use super::credential::encoded_query;
+use super::MIXIN_KEY;
 use crate::bilibili::analyzer::PageAnalyzer;
 use crate::bilibili::client::BiliClient;
 use crate::bilibili::danmaku::{DanmakuElem, DanmakuWriter, DmSegMobileReply};
@@ -140,14 +142,17 @@ impl<'a> Video<'a> {
         let mut res = self
             .client
             .request(Method::GET, "https://api.bilibili.com/x/player/wbi/playurl")
-            .query(&[
-                ("avid", self.aid.as_str()),
-                ("cid", page.cid.to_string().as_str()),
-                ("qn", "127"),
-                ("otype", "json"),
-                ("fnval", "4048"),
-                ("fourk", "1"),
-            ])
+            .query(&encoded_query(
+                vec![
+                    ("avid", self.aid.as_str()),
+                    ("cid", page.cid.to_string().as_str()),
+                    ("qn", "127"),
+                    ("otype", "json"),
+                    ("fnval", "4048"),
+                    ("fourk", "1"),
+                ],
+                MIXIN_KEY.load().as_ref().unwrap(),
+            ))
             .send()
             .await?
             .error_for_status()?
