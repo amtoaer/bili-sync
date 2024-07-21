@@ -87,15 +87,6 @@ impl BiliClient {
         CONFIG.save()
     }
 
-    /// 检查凭据是否已设置且有效
-    pub async fn is_login(&self) -> Result<()> {
-        let credential = CONFIG.credential.load();
-        let Some(credential) = credential.as_deref() else {
-            bail!("no credential found");
-        };
-        credential.is_login(&self.client).await
-    }
-
     /// 获取 wbi img，用于生成请求签名
     pub async fn wbi_img(&self) -> Result<WbiImg> {
         let credential = CONFIG.credential.load();

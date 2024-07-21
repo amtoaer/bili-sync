@@ -17,13 +17,8 @@ use watch_later::watch_later_from;
 use crate::bilibili::{BiliClient, CollectionItem, VideoInfo};
 
 pub enum Args<'a> {
-    Favorite {
-        fid: &'a str,
-    },
-    Collection {
-        collection_item: &'a CollectionItem,
-        mixin_key: &'a str,
-    },
+    Favorite { fid: &'a str },
+    Collection { collection_item: &'a CollectionItem },
     WatchLater,
 }
 
@@ -35,10 +30,7 @@ pub async fn video_list_from<'a>(
 ) -> Result<(Box<dyn VideoListModel>, Pin<Box<dyn Stream<Item = VideoInfo> + 'a>>)> {
     match args {
         Args::Favorite { fid } => favorite_from(fid, path, bili_client, connection).await,
-        Args::Collection {
-            collection_item,
-            mixin_key,
-        } => collection_from(collection_item, mixin_key, path, bili_client, connection).await,
+        Args::Collection { collection_item } => collection_from(collection_item, path, bili_client, connection).await,
         Args::WatchLater => watch_later_from(path, bili_client, connection).await,
     }
 }

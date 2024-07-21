@@ -1,5 +1,8 @@
+use std::sync::Arc;
+
 pub use analyzer::{BestStream, FilterOption};
 use anyhow::{bail, Result};
+use arc_swap::ArcSwapOption;
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
 pub use client::{BiliClient, Client};
@@ -9,6 +12,7 @@ pub use danmaku::DanmakuOption;
 pub use error::BiliError;
 pub use favorite_list::FavoriteList;
 use favorite_list::Upper;
+use once_cell::sync::Lazy;
 pub use video::{Dimension, PageInfo, Video};
 pub use watch_later::WatchLater;
 
@@ -21,6 +25,12 @@ mod error;
 mod favorite_list;
 mod video;
 mod watch_later;
+
+static MIXIN_KEY: Lazy<ArcSwapOption<String>> = Lazy::new(|| Default::default());
+
+pub(crate) fn set_global_mixin_key(key: String) {
+    MIXIN_KEY.store(Some(Arc::new(key)));
+}
 
 pub(crate) trait Validate {
     type Output;
@@ -130,7 +140,7 @@ mod tests {
             sid: "387214".to_string(),
             collection_type: CollectionType::Series,
         };
-        let collection = Collection::build(&bili_client, &collection_item).await.unwrap();
+        let collection = Collection::new(&bili_client, &collection_item);
         let stream = collection.into_simple_video_stream();
         pin_mut!(stream);
         assert!(matches!(stream.next().await, Some(VideoInfo::Simple { .. })));
