@@ -32,6 +32,12 @@ pub struct WbiImg {
     sub_url: String,
 }
 
+impl WbiImg {
+    pub fn into_mixin_key(self) -> Option<String> {
+        get_mixin_key(self)
+    }
+}
+
 impl Credential {
     pub async fn wbi_img(&self, client: &Client) -> Result<WbiImg> {
         let mut res = client
@@ -210,7 +216,7 @@ fn get_filename(url: &str) -> Option<&str> {
         .map(|(s, _)| s)
 }
 
-pub fn get_mixin_key(wbi_img: WbiImg) -> Option<String> {
+fn get_mixin_key(wbi_img: WbiImg) -> Option<String> {
     let key = match (
         get_filename(wbi_img.img_url.as_str()),
         get_filename(wbi_img.sub_url.as_str()),

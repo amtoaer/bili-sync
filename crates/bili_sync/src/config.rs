@@ -55,8 +55,6 @@ pub static ARGS: Lazy<Args> = Lazy::new(Args::parse);
 pub static CONFIG_DIR: Lazy<PathBuf> =
     Lazy::new(|| dirs::config_dir().expect("No config path found").join("bili-sync"));
 
-pub static MIXIN_KEY: Lazy<ArcSwapOption<String>> = Lazy::new(Default::default);
-
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     pub credential: ArcSwapOption<Credential>,

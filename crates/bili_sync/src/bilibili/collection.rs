@@ -1,18 +1,17 @@
 #![allow(dead_code)]
 
+use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
 
-use anyhow::Result;
-use arc_swap::access::Access;
+use anyhow::{bail, Result};
 use async_stream::stream;
 use futures::Stream;
 use reqwest::Method;
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::credential::encoded_query;
+use crate::bilibili::credential::encoded_query;
 use crate::bilibili::{BiliClient, Validate, VideoInfo};
-use crate::config::MIXIN_KEY;
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum CollectionType {
@@ -59,6 +58,7 @@ pub struct CollectionItem {
 pub struct Collection<'a> {
     client: &'a BiliClient,
     collection: &'a CollectionItem,
+    mixin_key: Cow<'a, str>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -97,8 +97,24 @@ impl<'de> Deserialize<'de> for CollectionInfo {
 }
 
 impl<'a> Collection<'a> {
-    pub fn new(client: &'a BiliClient, collection: &'a CollectionItem) -> Self {
-        Self { client, collection }
+    pub async fn build(client: &'a BiliClient, collection: &'a CollectionItem) -> Result<Self> {
+        let wbi_img = client.wbi_img().await?;
+        let Some(mixin_key) = wbi_img.into_mixin_key() else {
+            bail!("failed to get mixin key");
+        };
+        Ok(Self {
+            client,
+            collection,
+            mixin_key: Cow::Owned(mixin_key),
+        })
+    }
+
+    pub fn new(client: &'a BiliClient, collection: &'a CollectionItem, mixin_key: &'a str) -> Self {
+        Self {
+            client,
+            collection,
+            mixin_key: Cow::Borrowed(mixin_key),
+        }
     }
 
     pub async fn get_info(&self) -> Result<CollectionInfo> {
@@ -111,10 +127,6 @@ impl<'a> Collection<'a> {
     }
 
     async fn get_series_info(&self) -> Result<Value> {
-        assert!(
-            self.collection.collection_type == CollectionType::Series,
-            "collection type is not series"
-        );
         self.client
             .request(Method::GET, "https://api.bilibili.com/x/series/series")
             .query(&[("series_id", self.collection.sid.as_str())])
@@ -127,10 +139,8 @@ impl<'a> Collection<'a> {
     }
 
     async fn get_videos(&self, page: i32) -> Result<Value> {
-        // 在外层检查过，直接 unwrap 是安全的
-        let mixin_key = MIXIN_KEY.load();
-        let mixin_key = mixin_key.as_deref().unwrap();
         let page = page.to_string();
+        let mixin_key = self.mixin_key.as_ref();
         let (url, query) = match self.collection.collection_type {
             CollectionType::Series => (
                 "https://api.bilibili.com/x/series/archives",
@@ -161,7 +171,7 @@ impl<'a> Collection<'a> {
             ),
         };
         self.client
-            .request(Method::GET, &url)
+            .request(Method::GET, url)
             .query(&query)
             .send()
             .await?
