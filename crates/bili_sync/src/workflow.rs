@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_variables)]
-
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -31,7 +29,7 @@ pub async fn process_video_list(
     connection: &DatabaseConnection,
 ) -> Result<()> {
     let (video_list_model, video_streams) = video_list_from(args, path, bili_client, connection).await?;
-    let video_list_model = refresh_video_list(bili_client, video_list_model, video_streams, connection).await?;
+    let video_list_model = refresh_video_list(video_list_model, video_streams, connection).await?;
     let video_list_model = fetch_video_details(bili_client, video_list_model, connection).await?;
     if ARGS.scan_only {
         warn!("已开启仅扫描模式，跳过视频下载...");
@@ -42,7 +40,6 @@ pub async fn process_video_list(
 
 /// 请求接口，获取视频列表中所有新添加的视频信息，将其写入数据库
 pub async fn refresh_video_list<'a>(
-    bili_client: &'a BiliClient,
     video_list_model: Box<dyn VideoListModel>,
     video_streams: Pin<Box<dyn Stream<Item = VideoInfo> + 'a>>,
     connection: &DatabaseConnection,

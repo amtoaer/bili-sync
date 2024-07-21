@@ -13,7 +13,7 @@ pub struct Status(u32);
 impl Status {
     /// 如果 status 整体大于等于 1 << 31，则表示任务已经被处理过，不再需要重试。
     /// 数据库可以使用 status < Status::handled() 来筛选需要处理的内容。
-    pub fn handled() -> u32 {
+    pub const fn handled() -> u32 {
         1 << 31
     }
 
@@ -32,19 +32,16 @@ impl Status {
 
     /// 从低到高检查状态，如果该位置的任务应该继续尝试执行，则返回 true，否则返回 false
     fn should_run(&self, size: usize) -> Vec<bool> {
-        assert!(size < 10, "u32 can only store 10 status");
         (0..size).map(|x| self.check_continue(x)).collect()
     }
 
     /// 如果任务的执行次数小于 STATUS_MAX_RETRY，说明可以继续运行
     fn check_continue(&self, offset: usize) -> bool {
-        assert!(offset < 10, "u32 can only store 10 status");
         self.get_status(offset) < STATUS_MAX_RETRY
     }
 
     /// 根据任务结果更新状态，如果任务成功，设置为 STATUS_OK，否则加一
     fn update_status(&mut self, result: &[Result<()>]) {
-        assert!(result.len() < 10, "u32 can only store 10 status");
         for (i, res) in result.iter().enumerate() {
             self.set_result(res, i);
         }
@@ -65,27 +62,12 @@ impl Status {
         }
     }
 
-    /// 根据 mask 设置状态，如果 mask 为 false，则清除对应的状态
-    fn set_mask(&mut self, mask: &[bool]) {
-        assert!(mask.len() < 10, "u32 can only store 10 status");
-        for (i, &m) in mask.iter().enumerate() {
-            if !m {
-                self.clear(i);
-                self.set_flag(false);
-            }
-        }
-    }
-
     fn plus_one(&mut self, offset: usize) {
         self.0 += 1 << (3 * offset);
     }
 
     fn set_ok(&mut self, offset: usize) {
         self.0 |= STATUS_OK << (3 * offset);
-    }
-
-    fn clear(&mut self, offset: usize) {
-        self.0 &= !(STATUS_OK << (3 * offset));
     }
 
     fn get_status(&self, offset: usize) -> u32 {
@@ -107,11 +89,6 @@ pub struct VideoStatus(Status);
 impl VideoStatus {
     pub fn new(status: u32) -> Self {
         Self(Status::new(status))
-    }
-
-    pub fn set_mask(&mut self, clear: &[bool]) {
-        assert!(clear.len() == 5, "VideoStatus should have 5 status");
-        self.0.set_mask(clear)
     }
 
     pub fn should_run(&self) -> Vec<bool> {
@@ -137,11 +114,6 @@ pub struct PageStatus(Status);
 impl PageStatus {
     pub fn new(status: u32) -> Self {
         Self(Status::new(status))
-    }
-
-    pub fn set_mask(&mut self, clear: &[bool]) {
-        assert!(clear.len() == 4, "PageStatus should have 4 status");
-        self.0.set_mask(clear)
     }
 
     pub fn should_run(&self) -> Vec<bool> {

@@ -133,6 +133,14 @@ mod tests {
     #[tokio::test]
     async fn test_video_info_type() {
         let bili_client = BiliClient::new();
+        set_global_mixin_key(
+            bili_client
+                .wbi_img()
+                .await
+                .map(|x| x.into_mixin_key())
+                .unwrap()
+                .unwrap(),
+        );
         let video = Video::new(&bili_client, "BV1Z54y1C7ZB".to_string());
         assert!(matches!(video.get_view_info().await, Ok(VideoInfo::View { .. })));
         let collection_item = CollectionItem {
