@@ -131,9 +131,9 @@ impl<'a> Collection<'a> {
         let mixin_key = MIXIN_KEY.load();
         let mixin_key = mixin_key.as_deref().unwrap();
         let page = page.to_string();
-        let url = match self.collection.collection_type {
-            CollectionType::Series => format!(
-                "https://api.bilibili.com/x/series/archives?{}",
+        let (url, query) = match self.collection.collection_type {
+            CollectionType::Series => (
+                "https://api.bilibili.com/x/series/archives",
                 encoded_query(
                     vec![
                         ("mid", self.collection.mid.as_str()),
@@ -143,11 +143,11 @@ impl<'a> Collection<'a> {
                         ("pn", page.as_str()),
                         ("ps", "30"),
                     ],
-                    mixin_key
-                )
+                    mixin_key,
+                ),
             ),
-            CollectionType::Season => format!(
-                "https://api.bilibili.com/x/polymer/web-space/seasons_archives_list?{}",
+            CollectionType::Season => (
+                "https://api.bilibili.com/x/polymer/web-space/seasons_archives_list",
                 encoded_query(
                     vec![
                         ("mid", self.collection.mid.as_str()),
@@ -156,12 +156,13 @@ impl<'a> Collection<'a> {
                         ("page_num", page.as_str()),
                         ("page_size", "30"),
                     ],
-                    mixin_key
-                )
+                    mixin_key,
+                ),
             ),
         };
         self.client
             .request(Method::GET, &url)
+            .query(&query)
             .send()
             .await?
             .error_for_status()?

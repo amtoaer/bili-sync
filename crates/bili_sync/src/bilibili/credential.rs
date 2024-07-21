@@ -222,16 +222,21 @@ pub fn get_mixin_key(wbi_img: WbiImg) -> Option<String> {
     Some(MIXIN_KEY_ENC_TAB.iter().take(32).map(|&x| key[x] as char).collect())
 }
 
-pub fn encoded_query(params: Vec<(&str, &str)>, mixin_key: &str) -> String {
-    _encoded_query(params, mixin_key, chrono::Local::now().timestamp().to_string().as_str())
+pub fn encoded_query<'a>(params: Vec<(&'a str, impl Into<String>)>, mixin_key: &str) -> Vec<(&'a str, String)> {
+    let params = params.into_iter().map(|(k, v)| (k, v.into())).collect();
+    _encoded_query(params, mixin_key, chrono::Local::now().timestamp().to_string())
 }
 
-fn _encoded_query<'a>(mut params: Vec<(&str, &'a str)>, mixin_key: &str, timestamp: &'a str) -> String {
+fn _encoded_query<'a>(params: Vec<(&'a str, String)>, mixin_key: &str, timestamp: String) -> Vec<(&'a str, String)> {
+    let mut params: Vec<(&'a str, String)> = params
+        .into_iter()
+        .map(|(k, v)| (k, v.chars().filter(|&x| !"!'()*".contains(x)).collect::<String>()))
+        .collect();
     params.push(("wts", timestamp));
     params.sort_by(|a, b| a.0.cmp(b.0));
-    let query = serde_urlencoded::to_string(params).unwrap().replace('+', "%20");
-    let w_rid = md5::compute(query.clone() + mixin_key);
-    query + &format!("&w_rid={:?}", w_rid)
+    let query = serde_urlencoded::to_string(&params).unwrap().replace('+', "%20");
+    params.push(("w_rid", format!("{:x}", md5::compute(query.clone() + mixin_key))));
+    params
 }
 
 #[cfg(test)]
@@ -276,11 +281,21 @@ mod tests {
         assert_eq!(mixin_key, Some("ea1db124af3c7062474693fa704f4ff8".to_string()));
         assert_eq!(
             _encoded_query(
-                vec![("foo", "114"), ("bar", "514"), ("zab", "1919810")],
+                vec![
+                    ("foo", "114".to_string()),
+                    ("bar", "514".to_string()),
+                    ("zab", "1919810".to_string())
+                ],
                 &mixin_key.unwrap(),
-                "1702204169",
+                "1702204169".to_string(),
             ),
-            "bar=514&foo=114&wts=1702204169&zab=1919810&w_rid=8f6f2b5b3d485fe1886cec6a0be8c5d4"
+            vec![
+                ("bar", "514".to_string()),
+                ("foo", "114".to_string()),
+                ("wts", "1702204169".to_string()),
+                ("zab", "1919810".to_string()),
+                ("w_rid", "8f6f2b5b3d485fe1886cec6a0be8c5d4".to_string()),
+            ]
         )
     }
 }

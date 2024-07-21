@@ -96,7 +96,7 @@ impl BiliClient {
         credential.is_login(&self.client).await
     }
 
-    /// 获取 wbi key，用于生成请求签名
+    /// 获取 wbi img，用于生成请求签名
     pub async fn wbi_img(&self) -> Result<WbiImg> {
         let credential = CONFIG.credential.load();
         let Some(credential) = credential.as_deref() else {
