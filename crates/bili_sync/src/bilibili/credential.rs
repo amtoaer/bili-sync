@@ -11,6 +11,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::bilibili::{Client, Validate};
 
+const MIXIN_KEY_ENC_TAB: [usize; 64] = [
+    46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49, 33, 9, 42, 19, 29, 28, 14, 39, 12, 38,
+    41, 13, 37, 48, 7, 16, 24, 55, 40, 61, 26, 17, 0, 1, 60, 51, 30, 4, 22, 25, 54, 21, 56, 59, 6, 63, 57, 62, 11, 36,
+    20, 34, 44, 52,
+];
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Credential {
     pub sessdata: String,
@@ -20,7 +26,30 @@ pub struct Credential {
     pub ac_time_value: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct WbiImg {
+    img_url: String,
+    sub_url: String,
+}
+
+impl WbiImg {
+    pub fn into_mixin_key(self) -> Option<String> {
+        get_mixin_key(self)
+    }
+}
+
 impl Credential {
+    pub async fn wbi_img(&self, client: &Client) -> Result<WbiImg> {
+        let mut res = client
+            .request(Method::GET, "https://api.bilibili.com/x/web-interface/nav", Some(self))
+            .send()
+            .await?
+            .json::<serde_json::Value>()
+            .await?
+            .validate()?;
+        Ok(serde_json::from_value(res["data"]["wbi_img"].take())?)
+    }
+
     /// 检查凭据是否有效
     pub async fn need_refresh(&self, client: &Client) -> Result<bool> {
         let res = client
@@ -181,6 +210,41 @@ fn regex_find(pattern: &str, doc: &str) -> Result<String> {
         .to_string())
 }
 
+fn get_filename(url: &str) -> Option<&str> {
+    url.rsplit_once('/')
+        .and_then(|(_, s)| s.rsplit_once('.'))
+        .map(|(s, _)| s)
+}
+
+fn get_mixin_key(wbi_img: WbiImg) -> Option<String> {
+    let key = match (
+        get_filename(wbi_img.img_url.as_str()),
+        get_filename(wbi_img.sub_url.as_str()),
+    ) {
+        (Some(img_key), Some(sub_key)) => img_key.to_string() + sub_key,
+        _ => return None,
+    };
+    let key = key.as_bytes();
+    Some(MIXIN_KEY_ENC_TAB.iter().take(32).map(|&x| key[x] as char).collect())
+}
+
+pub fn encoded_query<'a>(params: Vec<(&'a str, impl Into<String>)>, mixin_key: &str) -> Vec<(&'a str, String)> {
+    let params = params.into_iter().map(|(k, v)| (k, v.into())).collect();
+    _encoded_query(params, mixin_key, chrono::Local::now().timestamp().to_string())
+}
+
+fn _encoded_query<'a>(params: Vec<(&'a str, String)>, mixin_key: &str, timestamp: String) -> Vec<(&'a str, String)> {
+    let mut params: Vec<(&'a str, String)> = params
+        .into_iter()
+        .map(|(k, v)| (k, v.chars().filter(|&x| !"!'()*".contains(x)).collect::<String>()))
+        .collect();
+    params.push(("wts", timestamp));
+    params.sort_by(|a, b| a.0.cmp(b.0));
+    let query = serde_urlencoded::to_string(&params).unwrap().replace('+', "%20");
+    params.push(("w_rid", format!("{:x}", md5::compute(query.clone() + mixin_key))));
+    params
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -198,5 +262,46 @@ mod tests {
             regex_find(r#"<div id="1-name">(.+?)</div>"#, doc).unwrap(),
             "b0cc8411ded2f9db2cff2edb3123acac",
         );
+    }
+
+    #[test]
+    fn test_encode_query() {
+        let query = vec![
+            ("bar", "五一四".to_string()),
+            ("baz", "1919810".to_string()),
+            ("foo", "one one four".to_string()),
+        ];
+        assert_eq!(
+            serde_urlencoded::to_string(query).unwrap().replace('+', "%20"),
+            "bar=%E4%BA%94%E4%B8%80%E5%9B%9B&baz=1919810&foo=one%20one%20four"
+        );
+    }
+
+    #[test]
+    fn test_wbi_key() {
+        let key = WbiImg {
+            img_url: "https://i0.hdslb.com/bfs/wbi/7cd084941338484aae1ad9425b84077c.png".to_string(),
+            sub_url: "https://i0.hdslb.com/bfs/wbi/4932caff0ff746eab6f01bf08b70ac45.png".to_string(),
+        };
+        let mixin_key = get_mixin_key(key);
+        assert_eq!(mixin_key, Some("ea1db124af3c7062474693fa704f4ff8".to_string()));
+        assert_eq!(
+            _encoded_query(
+                vec![
+                    ("foo", "114".to_string()),
+                    ("bar", "514".to_string()),
+                    ("zab", "1919810".to_string())
+                ],
+                &mixin_key.unwrap(),
+                "1702204169".to_string(),
+            ),
+            vec![
+                ("bar", "514".to_string()),
+                ("foo", "114".to_string()),
+                ("wts", "1702204169".to_string()),
+                ("zab", "1919810".to_string()),
+                ("w_rid", "8f6f2b5b3d485fe1886cec6a0be8c5d4".to_string()),
+            ]
+        )
     }
 }

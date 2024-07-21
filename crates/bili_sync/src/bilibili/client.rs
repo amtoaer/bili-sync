@@ -3,6 +3,7 @@ use std::sync::Arc;
 use anyhow::{bail, Result};
 use reqwest::{header, Method};
 
+use crate::bilibili::credential::WbiImg;
 use crate::bilibili::Credential;
 use crate::config::CONFIG;
 
@@ -93,5 +94,14 @@ impl BiliClient {
             bail!("no credential found");
         };
         credential.is_login(&self.client).await
+    }
+
+    /// 获取 wbi img，用于生成请求签名
+    pub async fn wbi_img(&self) -> Result<WbiImg> {
+        let credential = CONFIG.credential.load();
+        let Some(credential) = credential.as_deref() else {
+            bail!("no credential found");
+        };
+        credential.wbi_img(&self.client).await
     }
 }

@@ -50,11 +50,26 @@ async fn main() {
             }
         }
         info!("所有收藏夹处理完毕");
-        for (collection_item, path) in &CONFIG.collection_list {
-            if let Err(e) =
-                process_video_list(Args::Collection { collection_item }, &bili_client, path, &connection).await
-            {
-                error!("处理合集 {collection_item:?} 时遇到非预期的错误：{e}");
+        match bili_client.wbi_img().await.map(|wbi_img| wbi_img.into_mixin_key()) {
+            Ok(Some(mixin_key)) => {
+                for (collection_item, path) in &CONFIG.collection_list {
+                    if let Err(e) = process_video_list(
+                        Args::Collection {
+                            collection_item,
+                            mixin_key: &mixin_key,
+                        },
+                        &bili_client,
+                        path,
+                        &connection,
+                    )
+                    .await
+                    {
+                        error!("处理合集 {collection_item:?} 时遇到非预期的错误：{e}");
+                    }
+                }
+            }
+            _ => {
+                error!("获取 mixin key 失败，无法进行 wbi 签名，跳过本轮合集处理");
             }
         }
         info!("所有合集处理完毕");

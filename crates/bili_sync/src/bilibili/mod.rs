@@ -121,7 +121,7 @@ mod tests {
 
     #[ignore = "only for manual test"]
     #[tokio::test]
-    async fn assert_video_info_type() {
+    async fn test_video_info_type() {
         let bili_client = BiliClient::new();
         let video = Video::new(&bili_client, "BV1Z54y1C7ZB".to_string());
         assert!(matches!(video.get_view_info().await, Ok(VideoInfo::View { .. })));
@@ -130,7 +130,7 @@ mod tests {
             sid: "387214".to_string(),
             collection_type: CollectionType::Series,
         };
-        let collection = Collection::new(&bili_client, &collection_item);
+        let collection = Collection::build(&bili_client, &collection_item).await.unwrap();
         let stream = collection.into_simple_video_stream();
         pin_mut!(stream);
         assert!(matches!(stream.next().await, Some(VideoInfo::Simple { .. })));
