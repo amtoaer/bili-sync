@@ -47,12 +47,21 @@ services:
 
 ## 程序配置
 
-> [!NOTE]
-> 在 Docker 环境中，`~` 会被展开为 `/app`。
-
 你是否遇到了程序的 panic？别担心，这是正常情况。
 
-程序默认会将配置文件存储于 `~/.config/bili-sync/config.toml`，数据库文件存储于 `~/.config/bili-sync/data.sqlite`。
+程序默认会将配置文件存储于 `${config_dir}/bili-sync/config.toml`，数据库文件存储于 `${config_dir}/bili-sync/data.sqlite`。
+
+> [!CAUTION]
+>
+> 请注意，`config_dir` 的实际位置与操作系统和用户名有关。
+> 
+> 对于名为 Alice 的用户，`config_dir` 指向的位置是：
+> 
+> + Lin: `/home/Alice/.config`
+> + Win: `C:\Users\Alice\AppData\Roaming`
+> + Mac: `/Users/Alice/Library/Application Support`
+>
+> 特别的，在 Docker 环境中，`config_dir` 会被展开为 `/app/.config`。
 
 在启动时程序会尝试加载配置文件，如果发现不存在会新建并写入默认配置。
 
