@@ -13,10 +13,10 @@ use sea_orm::{DatabaseConnection, QuerySelect, TransactionTrait};
 
 use crate::adapter::VideoListModel;
 use crate::bilibili::{BiliClient, BiliError, Video, VideoInfo, WatchLater};
-use crate::config::TEMPLATE;
-use crate::utils::id_time_key;
+use crate::config::{CONFIG, TEMPLATE};
 use crate::utils::model::create_video_pages;
 use crate::utils::status::Status;
+use crate::utils::{delay, id_time_key};
 
 pub async fn watch_later_from<'a>(
     path: &Path,
@@ -159,9 +159,9 @@ impl VideoListModel for watch_later::Model {
                         video_active_model.valid = Set(false);
                         video_active_model.save(connection).await?;
                     }
-                    continue;
                 }
             };
+            delay(CONFIG.delay.fetch_video_detail.as_ref()).await;
         }
         Ok(())
     }

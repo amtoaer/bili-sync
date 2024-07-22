@@ -9,7 +9,6 @@ mod downloader;
 mod error;
 mod utils;
 mod workflow;
-use std::time::Duration;
 
 use once_cell::sync::Lazy;
 use tokio::time;
@@ -74,6 +73,6 @@ async fn main() {
             info!("稍后再看处理完毕");
             info!("本轮任务执行完毕，等待下一轮执行");
         }
-        time::sleep(Duration::from_secs(CONFIG.interval)).await;
+        time::sleep(time::Duration::from_secs(CONFIG.interval)).await;
     }
 }
