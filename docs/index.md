@@ -20,7 +20,7 @@ hero:
       text: GitHub
       link: https://github.com/amtoaer/bili-sync
   image:
-    src: /logo.png
+    src: /logo.webp
     alt: bili-sync
 
 features:

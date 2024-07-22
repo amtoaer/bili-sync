@@ -11,7 +11,7 @@
 2. 两者的图标不同
 
 如下图所示，“合集【命运方舟全剧情解说】”是视频合集，而“阿拉德冒险记”是视频列表。
-![image](./assets/collection.png)
+![image](./assets/collection.webp)
 
 在 bili-sync 的设计中，视频合集的 key 为 `season:{mid}:{season_id}`，而视频列表的 key 为 `series:{mid}:{series_id}`。
 
@@ -21,12 +21,12 @@
 
 ### 视频合集
 
-![image](./assets/season.png)
+![image](./assets/season.webp)
 
 该视频合集的 key 为 `season:521722088:1987140`。
 
 ### 视频列表
 
-![image](./assets/series.png)
+![image](./assets/series.webp)
 
 该视频列表的 key 为 `series:521722088:387214`。
