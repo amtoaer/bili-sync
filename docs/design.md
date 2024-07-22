@@ -15,9 +15,9 @@
 一个非常容易混淆的点是视频合集/视频列表与多页视频的区别：
 
 > [!NOTE]
-> ![bili_collection](./assets/bili_collection.jpg)
+> ![bili_collection](./assets/bili_collection.webp)
 >
->![bili_video](./assets/bili_video.jpg)
+>![bili_video](./assets/bili_video.webp)
 
 这两张图中，上图是视频合集，下图是多页视频。这两者在展示上区别较小，但在结构上有相当大的不同。结合上面对 b 站视频结构的介绍，这个区别可以简单总结为：
 
@@ -41,13 +41,13 @@ EMBY 的一般结构是： `媒体库 - 文件夹 - 电影/电视剧 - 分季/�
 
 ### 单 page 的 video
 
-![single_page](./assets/single_page.png)
+![single_page](./assets/single_page.webp)
 
 ### 多 page 的 video
 
-![multi_page](./assets/multi_page.png)
+![multi_page](./assets/multi_page.webp)
 
-![multi_page_detail](./assets/multi_page_detail.png)
+![multi_page_detail](./assets/multi_page_detail.webp)
 
 ## 数据库设计
 
