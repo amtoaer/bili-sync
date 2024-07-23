@@ -11,12 +11,12 @@ use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
 use sea_orm::{DatabaseConnection, QuerySelect, TransactionTrait};
 
-use crate::adapter::VideoListModel;
-use crate::bilibili::{BiliClient, BiliError, Collection, CollectionItem, CollectionType, Video, VideoInfo};
-use crate::config::{CONFIG, TEMPLATE};
+use crate::adapter::{error_fetch_video_detail, VideoListModel};
+use crate::bilibili::{self, BiliClient, Collection, CollectionItem, CollectionType, VideoInfo};
+use crate::config::TEMPLATE;
+use crate::utils::id_time_key;
 use crate::utils::model::create_video_pages;
 use crate::utils::status::Status;
-use crate::utils::{delay, id_time_key};
 
 pub async fn collection_from<'a>(
     collection_item: &'a CollectionItem,
@@ -144,42 +144,30 @@ impl VideoListModel for collection::Model {
 
     async fn fetch_videos_detail(
         &self,
-        bili_clent: &BiliClient,
-        videos_model: Vec<video::Model>,
+        video: bilibili::Video<'_>,
+        video_model: video::Model,
         connection: &DatabaseConnection,
     ) -> Result<()> {
-        for video_model in videos_model {
-            let video = Video::new(bili_clent, video_model.bvid.clone());
-            let info: Result<_> = async { Ok((video.get_tags().await?, video.get_view_info().await?)) }.await;
-            match info {
-                Ok((tags, view_info)) => {
-                    let VideoInfo::View { pages, .. } = &view_info else {
-                        unreachable!("view_info must be VideoInfo::View")
-                    };
-                    let txn = connection.begin().await?;
-                    // 将分页信息写入数据库
-                    create_video_pages(pages, &video_model, &txn).await?;
-                    // 将页标记和 tag 写入数据库
-                    let mut video_active_model = self.video_model_by_info(&view_info, Some(video_model));
-                    video_active_model.single_page = Set(Some(pages.len() == 1));
-                    video_active_model.tags = Set(Some(serde_json::to_value(tags).unwrap()));
-                    video_active_model.save(&txn).await?;
-                    txn.commit().await?;
-                }
-                Err(e) => {
-                    error!(
-                        "获取视频 {} - {} 的详细信息失败，错误为：{}",
-                        &video_model.bvid, &video_model.name, e
-                    );
-                    if let Some(BiliError::RequestFailed(-404, _)) = e.downcast_ref::<BiliError>() {
-                        let mut video_active_model: video::ActiveModel = video_model.into();
-                        video_active_model.valid = Set(false);
-                        video_active_model.save(connection).await?;
-                    }
-                }
-            };
-            delay(CONFIG.delay.fetch_video_detail.as_ref()).await;
-        }
+        let info: Result<_> = async { Ok((video.get_tags().await?, video.get_view_info().await?)) }.await;
+        match info {
+            Ok((tags, view_info)) => {
+                let VideoInfo::View { pages, .. } = &view_info else {
+                    unreachable!("view_info must be VideoInfo::View")
+                };
+                let txn = connection.begin().await?;
+                // 将分页信息写入数据库
+                create_video_pages(pages, &video_model, &txn).await?;
+                // 将页标记和 tag 写入数据库
+                let mut video_active_model = self.video_model_by_info(&view_info, Some(video_model));
+                video_active_model.single_page = Set(Some(pages.len() == 1));
+                video_active_model.tags = Set(Some(serde_json::to_value(tags).unwrap()));
+                video_active_model.save(&txn).await?;
+                txn.commit().await?;
+            }
+            Err(e) => {
+                error_fetch_video_detail(e, video_model, connection).await?;
+            }
+        };
         Ok(())
     }
 
