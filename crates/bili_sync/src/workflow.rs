@@ -75,9 +75,13 @@ pub async fn fetch_video_details(
 ) -> Result<Box<dyn VideoListModel>> {
     video_list_model.log_fetch_video_start();
     let videos_model = video_list_model.unfilled_videos(connection).await?;
-    video_list_model
-        .fetch_videos_detail(bili_client, videos_model, connection)
-        .await?;
+    for video_model in videos_model {
+        let video = Video::new(bili_client, video_model.bvid.clone());
+        video_list_model
+            .fetch_videos_detail(video, video_model, connection)
+            .await?;
+        delay(CONFIG.delay.fetch_video_detail.as_ref()).await;
+    }
     video_list_model.log_fetch_video_end();
     Ok(video_list_model)
 }

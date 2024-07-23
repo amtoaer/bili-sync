@@ -11,10 +11,12 @@ use async_trait::async_trait;
 pub use collection::collection_from;
 pub use favorite::favorite_from;
 use futures::Stream;
+use sea_orm::entity::prelude::*;
+use sea_orm::ActiveValue::Set;
 use sea_orm::DatabaseConnection;
 use watch_later::watch_later_from;
 
-use crate::bilibili::{BiliClient, CollectionItem, VideoInfo};
+use crate::bilibili::{self, BiliClient, BiliError, CollectionItem, VideoInfo};
 
 pub enum Args<'a> {
     Favorite { fid: &'a str },
@@ -33,6 +35,23 @@ pub async fn video_list_from<'a>(
         Args::Collection { collection_item } => collection_from(collection_item, path, bili_client, connection).await,
         Args::WatchLater => watch_later_from(path, bili_client, connection).await,
     }
+}
+
+async fn error_fetch_video_detail(
+    e: anyhow::Error,
+    video_model: bili_sync_entity::video::Model,
+    connection: &DatabaseConnection,
+) -> Result<()> {
+    error!(
+        "获取视频 {} - {} 的详细信息失败，错误为：{}",
+        &video_model.bvid, &video_model.name, e
+    );
+    if let Some(BiliError::RequestFailed(-404, _)) = e.downcast_ref::<BiliError>() {
+        let mut video_active_model: bili_sync_entity::video::ActiveModel = video_model.into();
+        video_active_model.valid = Set(false);
+        video_active_model.save(connection).await?;
+    }
+    Ok(())
 }
 
 #[async_trait]
@@ -65,8 +84,8 @@ pub trait VideoListModel {
     /// 获取视频 model 中缺失的信息
     async fn fetch_videos_detail(
         &self,
-        bili_client: &BiliClient,
-        videos_model: Vec<bili_sync_entity::video::Model>,
+        video: bilibili::Video<'_>,
+        video_model: bili_sync_entity::video::Model,
         connection: &DatabaseConnection,
     ) -> Result<()>;
 
