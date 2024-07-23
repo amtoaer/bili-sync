@@ -2,6 +2,7 @@
 	"dependencies": {},
 	"devDependencies": {
 		"markdown-it-task-lists": "^2.1.1",
+		"medium-zoom": "^1.1.0",
 		"vitepress": "^1.2.3"
 	},
 	"scripts": {
