@@ -3,6 +3,7 @@ use sea_orm::{IntoActiveModel, Set};
 use serde_json::json;
 
 use crate::bilibili::VideoInfo;
+use crate::config::CONFIG;
 use crate::utils::id_time_key;
 
 impl VideoInfo {
@@ -124,24 +125,46 @@ impl VideoInfo {
     pub fn to_fmt_args(&self) -> Option<serde_json::Value> {
         match self {
             VideoInfo::Simple { .. } => None, // 不能从简单的视频信息中构造格式化参数
-            VideoInfo::Detail { title, bvid, upper, .. } => Some(json!({
+            VideoInfo::Detail {
+                title,
+                bvid,
+                upper,
+                pubtime,
+                fav_time,
+                ..
+            }
+            | VideoInfo::WatchLater {
+                title,
+                bvid,
+                upper,
+                pubtime,
+                fav_time,
+                ..
+            } => Some(json!({
                 "bvid": &bvid,
                 "title": &title,
                 "upper_name": &upper.name,
                 "upper_mid": &upper.mid,
+                "pubtime": pubtime.format(&CONFIG.time_format).to_string(),
+                "fav_time": fav_time.format(&CONFIG.time_format).to_string(),
             })),
-            VideoInfo::View { title, bvid, upper, .. } => Some(json!({
-                "bvid": &bvid,
-                "title": &title,
-                "upper_name": &upper.name,
-                "upper_mid": &upper.mid,
-            })),
-            VideoInfo::WatchLater { title, bvid, upper, .. } => Some(json!({
-                "bvid": &bvid,
-                "title": &title,
-                "upper_name": &upper.name,
-                "upper_mid": &upper.mid,
-            })),
+            VideoInfo::View {
+                title,
+                bvid,
+                upper,
+                pubtime,
+                ..
+            } => {
+                let pubtime = pubtime.format(&CONFIG.time_format).to_string();
+                Some(json!({
+                    "bvid": &bvid,
+                    "title": &title,
+                    "upper_name": &upper.name,
+                    "upper_mid": &upper.mid,
+                    "pubtime": &pubtime,
+                    "fav_time": &pubtime,
+                }))
+            }
         }
     }
 

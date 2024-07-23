@@ -78,6 +78,12 @@ pub struct Config {
     pub nfo_time_type: NFOTimeType,
     #[serde(default)]
     pub delay: DelayConfig,
+    #[serde(default = "default_time_format")]
+    pub time_format: String,
+}
+
+fn default_time_format() -> String {
+    "%Y-%m-%d".to_string()
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -124,6 +130,7 @@ impl Default for Config {
             upper_path: CONFIG_DIR.join("upper_face"),
             nfo_time_type: NFOTimeType::FavTime,
             delay: Default::default(),
+            time_format: default_time_format(),
         }
     }
 }

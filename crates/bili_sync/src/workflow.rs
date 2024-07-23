@@ -324,6 +324,8 @@ pub async fn download_page(
             "upper_mid": &video_model.upper_id,
             "ptitle": &page_model.name,
             "pid": page_model.pid,
+            "pubtime": video_model.pubtime.format(&CONFIG.time_format).to_string(),
+            "fav_time": video_model.favtime.format(&CONFIG.time_format).to_string(),
         }),
     )?);
     let (poster_path, video_path, nfo_path, danmaku_path, fanart_path) = if is_single_page {
