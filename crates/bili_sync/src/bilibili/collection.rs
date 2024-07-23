@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::fmt::{Display, Formatter};
 
 use anyhow::Result;

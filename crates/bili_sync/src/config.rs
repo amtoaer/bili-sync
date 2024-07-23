@@ -76,12 +76,29 @@ pub struct Config {
     pub upper_path: PathBuf,
     #[serde(default)]
     pub nfo_time_type: NFOTimeType,
+    #[serde(default)]
+    pub delay: DelayConfig,
 }
 
 #[derive(Serialize, Deserialize, Default)]
 pub struct WatchLaterConfig {
     pub enabled: bool,
     pub path: PathBuf,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct DelayConfig {
+    pub refresh_video_list: Option<Delay>,
+    pub fetch_video_detail: Option<Delay>,
+    pub download_video: Option<Delay>,
+    pub download_page: Option<Delay>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(untagged, rename_all = "lowercase")]
+pub enum Delay {
+    Random { min: u64, max: u64 },
+    Fixed(u64),
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -106,6 +123,7 @@ impl Default for Config {
             interval: 1200,
             upper_path: CONFIG_DIR.join("upper_face"),
             nfo_time_type: NFOTimeType::FavTime,
+            delay: Default::default(),
         }
     }
 }
@@ -160,7 +178,22 @@ impl Config {
                 error!("未设置 Credential 信息");
             }
         }
-
+        for delay_config in [
+            &self.delay.refresh_video_list,
+            &self.delay.fetch_video_detail,
+            &self.delay.download_video,
+            &self.delay.download_page,
+        ]
+        .iter()
+        .filter_map(|x| x.as_ref())
+        {
+            if let Delay::Random { min, max } = delay_config {
+                if min >= max {
+                    ok = false;
+                    error!("随机延迟的最小值应小于最大值");
+                }
+            }
+        }
         if !ok {
             panic!(
                 "位于 {} 的配置文件不合法，请参考提示信息修复后继续运行",
