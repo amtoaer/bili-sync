@@ -3,91 +3,54 @@ use std::path::Path;
 use std::pin::Pin;
 
 use anyhow::Result;
+use async_trait::async_trait;
 use bili_sync_entity::*;
-use bili_sync_migration::OnConflict;
-use filenamify::filenamify;
 use futures::Stream;
 use sea_orm::entity::prelude::*;
+use sea_orm::sea_query::{IntoCondition, OnConflict};
 use sea_orm::ActiveValue::Set;
-use sea_orm::{DatabaseConnection, QuerySelect, TransactionTrait};
+use sea_orm::{DatabaseConnection, TransactionTrait};
 
-use crate::adapter::{error_fetch_video_detail, VideoListModel};
+use crate::adapter::helper::video_with_path;
+use crate::adapter::{helper, VideoListModel};
 use crate::bilibili::{self, BiliClient, VideoInfo, WatchLater};
-use crate::config::TEMPLATE;
-use crate::utils::id_time_key;
-use crate::utils::model::create_video_pages;
 use crate::utils::status::Status;
-
-pub async fn watch_later_from<'a>(
-    path: &Path,
-    bili_client: &'a BiliClient,
-    connection: &DatabaseConnection,
-) -> Result<(Box<dyn VideoListModel>, Pin<Box<dyn Stream<Item = VideoInfo> + 'a>>)> {
-    let watch_later = WatchLater::new(bili_client);
-    watch_later::Entity::insert(watch_later::ActiveModel {
-        id: Set(1),
-        path: Set(path.to_string_lossy().to_string()),
-        ..Default::default()
-    })
-    .on_conflict(
-        OnConflict::column(watch_later::Column::Id)
-            .update_column(watch_later::Column::Path)
-            .to_owned(),
-    )
-    .exec(connection)
-    .await?;
-    Ok((
-        Box::new(
-            watch_later::Entity::find()
-                .filter(watch_later::Column::Id.eq(1))
-                .one(connection)
-                .await?
-                .unwrap(),
-        ),
-        Box::pin(watch_later.into_video_stream()),
-    ))
-}
-use async_trait::async_trait;
 
 #[async_trait]
 impl VideoListModel for watch_later::Model {
     async fn video_count(&self, connection: &DatabaseConnection) -> Result<u64> {
-        Ok(video::Entity::find()
-            .filter(video::Column::WatchLaterId.eq(self.id))
-            .count(connection)
-            .await?)
+        helper::count_videos(video::Column::WatchLaterId.eq(self.id).into_condition(), connection).await
     }
 
     async fn unfilled_videos(&self, connection: &DatabaseConnection) -> Result<Vec<video::Model>> {
-        Ok(video::Entity::find()
-            .filter(
-                video::Column::WatchLaterId
-                    .eq(self.id)
-                    .and(video::Column::Valid.eq(true))
-                    .and(video::Column::DownloadStatus.eq(0))
-                    .and(video::Column::Category.eq(2))
-                    .and(video::Column::SinglePage.is_null()),
-            )
-            .all(connection)
-            .await?)
+        helper::filter_videos(
+            video::Column::WatchLaterId
+                .eq(self.id)
+                .and(video::Column::Valid.eq(true))
+                .and(video::Column::DownloadStatus.eq(0))
+                .and(video::Column::Category.eq(2))
+                .and(video::Column::SinglePage.is_null())
+                .into_condition(),
+            connection,
+        )
+        .await
     }
 
     async fn unhandled_video_pages(
         &self,
         connection: &DatabaseConnection,
     ) -> Result<Vec<(video::Model, Vec<page::Model>)>> {
-        Ok(video::Entity::find()
-            .filter(
-                video::Column::WatchLaterId
-                    .eq(self.id)
-                    .and(video::Column::Valid.eq(true))
-                    .and(video::Column::DownloadStatus.lt(Status::handled()))
-                    .and(video::Column::Category.eq(2))
-                    .and(video::Column::SinglePage.is_not_null()),
-            )
-            .find_with_related(page::Entity)
-            .all(connection)
-            .await?)
+        helper::filter_videos_with_pages(
+            video::Column::WatchLaterId
+                .eq(self.id)
+                .and(video::Column::Valid.eq(true))
+                .and(video::Column::DownloadStatus.lt(Status::handled()))
+                .and(video::Column::Category.eq(2))
+                .and(video::Column::SinglePage.is_not_null())
+                .into_condition(),
+            connection,
+        )
+        .await
     }
 
     async fn exist_labels(
@@ -95,37 +58,13 @@ impl VideoListModel for watch_later::Model {
         videos_info: &[VideoInfo],
         connection: &DatabaseConnection,
     ) -> Result<HashSet<String>> {
-        let bvids = videos_info.iter().map(|v| v.bvid().to_string()).collect::<Vec<_>>();
-        Ok(video::Entity::find()
-            .filter(
-                video::Column::WatchLaterId
-                    .eq(self.id)
-                    .and(video::Column::Bvid.is_in(bvids)),
-            )
-            .select_only()
-            .columns([video::Column::Bvid, video::Column::Favtime])
-            .into_tuple()
-            .all(connection)
-            .await?
-            .into_iter()
-            .map(|(bvid, time)| id_time_key(&bvid, &time))
-            .collect::<HashSet<_>>())
+        helper::video_keys(videos_info, [video::Column::Bvid, video::Column::Favtime], connection).await
     }
 
     fn video_model_by_info(&self, video_info: &VideoInfo, base_model: Option<video::Model>) -> video::ActiveModel {
         let mut video_model = video_info.to_model(base_model);
         video_model.watch_later_id = Set(Some(self.id));
-        if let Some(fmt_args) = &video_info.to_fmt_args() {
-            video_model.path = Set(Path::new(&self.path)
-                .join(filenamify(
-                    TEMPLATE
-                        .render("video", fmt_args)
-                        .unwrap_or_else(|_| video_info.bvid().to_string()),
-                ))
-                .to_string_lossy()
-                .to_string());
-        }
-        video_model
+        video_with_path(video_model, &self.path, video_info)
     }
 
     async fn fetch_videos_detail(
@@ -139,7 +78,7 @@ impl VideoListModel for watch_later::Model {
             Ok((tags, pages_info)) => {
                 let txn = connection.begin().await?;
                 // 将分页信息写入数据库
-                create_video_pages(&pages_info, &video_model, &txn).await?;
+                helper::create_video_pages(&pages_info, &video_model, &txn).await?;
                 // 将页标记和 tag 写入数据库
                 let mut video_active_model: video::ActiveModel = video_model.into();
                 video_active_model.single_page = Set(Some(pages_info.len() == 1));
@@ -148,7 +87,7 @@ impl VideoListModel for watch_later::Model {
                 txn.commit().await?;
             }
             Err(e) => {
-                error_fetch_video_detail(e, video_model, connection).await?;
+                helper::error_fetch_video_detail(e, video_model, connection).await?;
             }
         };
         Ok(())
@@ -180,4 +119,34 @@ impl VideoListModel for watch_later::Model {
             got_count, new_count,
         );
     }
+}
+
+pub(super) async fn watch_later_from<'a>(
+    path: &Path,
+    bili_client: &'a BiliClient,
+    connection: &DatabaseConnection,
+) -> Result<(Box<dyn VideoListModel>, Pin<Box<dyn Stream<Item = VideoInfo> + 'a>>)> {
+    let watch_later = WatchLater::new(bili_client);
+    watch_later::Entity::insert(watch_later::ActiveModel {
+        id: Set(1),
+        path: Set(path.to_string_lossy().to_string()),
+        ..Default::default()
+    })
+    .on_conflict(
+        OnConflict::column(watch_later::Column::Id)
+            .update_column(watch_later::Column::Path)
+            .to_owned(),
+    )
+    .exec(connection)
+    .await?;
+    Ok((
+        Box::new(
+            watch_later::Entity::find()
+                .filter(watch_later::Column::Id.eq(1))
+                .one(connection)
+                .await?
+                .unwrap(),
+        ),
+        Box::pin(watch_later.into_video_stream()),
+    ))
 }

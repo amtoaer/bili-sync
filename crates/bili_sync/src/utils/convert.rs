@@ -1,5 +1,5 @@
-use sea_orm::ActiveValue::NotSet;
-use sea_orm::{IntoActiveModel, Set};
+use sea_orm::ActiveValue::{NotSet, Set};
+use sea_orm::IntoActiveModel;
 use serde_json::json;
 
 use crate::bilibili::VideoInfo;
