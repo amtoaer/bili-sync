@@ -1,11 +1,10 @@
 use anyhow::Result;
 use bili_sync_entity::*;
-use bili_sync_migration::OnConflict;
 use sea_orm::entity::prelude::*;
-use sea_orm::ActiveValue::Set;
+use sea_orm::sea_query::OnConflict;
 
 use crate::adapter::VideoListModel;
-use crate::bilibili::{PageInfo, VideoInfo};
+use crate::bilibili::VideoInfo;
 
 /// 尝试创建 Video Model，如果发生冲突则忽略
 pub async fn create_videos(
@@ -20,51 +19,6 @@ pub async fn create_videos(
     video::Entity::insert_many(video_models)
         // 这里想表达的是 on 索引名，但 sea-orm 的 api 似乎只支持列名而不支持索引名，好在留空可以达到相同的目的
         .on_conflict(OnConflict::new().do_nothing().to_owned())
-        .do_nothing()
-        .exec(connection)
-        .await?;
-    Ok(())
-}
-
-/// 创建视频的所有分 P
-pub async fn create_video_pages(
-    pages_info: &[PageInfo],
-    video_model: &video::Model,
-    connection: &impl ConnectionTrait,
-) -> Result<()> {
-    let page_models = pages_info
-        .iter()
-        .map(move |p| {
-            let (width, height) = match &p.dimension {
-                Some(d) => {
-                    if d.rotate == 0 {
-                        (Some(d.width), Some(d.height))
-                    } else {
-                        (Some(d.height), Some(d.width))
-                    }
-                }
-                None => (None, None),
-            };
-            page::ActiveModel {
-                video_id: Set(video_model.id),
-                cid: Set(p.cid),
-                pid: Set(p.page),
-                name: Set(p.name.clone()),
-                width: Set(width),
-                height: Set(height),
-                duration: Set(p.duration),
-                image: Set(p.first_frame.clone()),
-                download_status: Set(0),
-                ..Default::default()
-            }
-        })
-        .collect::<Vec<page::ActiveModel>>();
-    page::Entity::insert_many(page_models)
-        .on_conflict(
-            OnConflict::columns([page::Column::VideoId, page::Column::Pid])
-                .do_nothing()
-                .to_owned(),
-        )
         .do_nothing()
         .exec(connection)
         .await?;

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::pin::Pin;
 
 use anyhow::{bail, Result};
-use bili_sync_entity::{page, video};
+use bili_sync_entity::*;
 use filenamify::filenamify;
 use futures::stream::{FuturesOrdered, FuturesUnordered};
 use futures::{Future, Stream, StreamExt};
