@@ -23,6 +23,7 @@ mod credential;
 mod danmaku;
 mod error;
 mod favorite_list;
+mod submission;
 mod video;
 mod watch_later;
 
