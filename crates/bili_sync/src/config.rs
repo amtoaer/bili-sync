@@ -69,6 +69,8 @@ pub struct Config {
     )]
     pub collection_list: HashMap<CollectionItem, PathBuf>,
     #[serde(default)]
+    pub submission_list: HashMap<String, PathBuf>,
+    #[serde(default)]
     pub watch_later: WatchLaterConfig,
     pub video_name: Cow<'static, str>,
     pub page_name: Cow<'static, str>,
@@ -123,6 +125,7 @@ impl Default for Config {
             danmaku_option: DanmakuOption::default(),
             favorite_list: HashMap::new(),
             collection_list: HashMap::new(),
+            submission_list: HashMap::new(),
             watch_later: Default::default(),
             video_name: Cow::Borrowed("{{title}}"),
             page_name: Cow::Borrowed("{{bvid}}"),
