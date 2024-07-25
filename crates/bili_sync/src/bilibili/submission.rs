@@ -6,15 +6,30 @@ use reqwest::Method;
 use serde_json::Value;
 
 use crate::bilibili::credential::encoded_query;
+use crate::bilibili::favorite_list::Upper;
 use crate::bilibili::{BiliClient, Validate, VideoInfo, MIXIN_KEY};
 pub struct Submission<'a> {
     client: &'a BiliClient,
-    upper_id: i64,
+    upper_id: String,
 }
 
 impl<'a> Submission<'a> {
-    pub fn new(client: &'a BiliClient, upper_id: i64) -> Self {
+    pub fn new(client: &'a BiliClient, upper_id: String) -> Self {
         Self { client, upper_id }
+    }
+
+    pub async fn get_info(&self) -> Result<Upper> {
+        let mut res = self
+            .client
+            .request(Method::GET, "https://api.bilibili.com/x/web-interface/card")
+            .query(&[("mid", self.upper_id.as_str())])
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<serde_json::Value>()
+            .await?
+            .validate()?;
+        Ok(serde_json::from_value(res["data"]["card"].take())?)
     }
 
     async fn get_videos(&self, page: i32) -> Result<Value> {
@@ -22,7 +37,7 @@ impl<'a> Submission<'a> {
             .request(Method::GET, "https://api.bilibili.com/x/space/wbi/arc/search")
             .query(&encoded_query(
                 vec![
-                    ("mid", self.upper_id.to_string()),
+                    ("mid", self.upper_id.clone()),
                     ("order", "pubdate".to_string()),
                     ("order_avoided", "true".to_string()),
                     ("platform", "web".to_string()),
