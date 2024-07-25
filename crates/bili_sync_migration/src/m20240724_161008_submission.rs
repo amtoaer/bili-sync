@@ -19,7 +19,8 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(Submission::UpperId).unsigned().not_null())
+                    .col(ColumnDef::new(Submission::UpperId).unique_key().unsigned().not_null())
+                    .col(ColumnDef::new(Submission::UpperName).string().not_null())
                     .col(ColumnDef::new(Submission::Path).string().not_null())
                     .col(
                         ColumnDef::new(Submission::CreatedAt)
@@ -74,6 +75,7 @@ enum Submission {
     Table,
     Id,
     UpperId,
+    UpperName,
     Path,
     CreatedAt,
 }
