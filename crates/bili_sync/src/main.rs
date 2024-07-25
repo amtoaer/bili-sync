@@ -71,6 +71,12 @@ async fn main() {
                 }
             }
             info!("稍后再看处理完毕");
+            for (upper_id, path) in &CONFIG.submission_list {
+                if let Err(e) = process_video_list(Args::Submission { upper_id }, &bili_client, path, &connection).await
+                {
+                    error!("处理 UP 主 {upper_id} 投稿时遇到非预期的错误：{e}");
+                }
+            }
             info!("本轮任务执行完毕，等待下一轮执行");
         }
         time::sleep(time::Duration::from_secs(CONFIG.interval)).await;
