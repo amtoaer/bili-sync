@@ -5,7 +5,7 @@ use anyhow::Result;
 use bili_sync_entity::*;
 use filenamify::filenamify;
 use sea_orm::entity::prelude::*;
-use sea_orm::sea_query::OnConflict;
+use sea_orm::sea_query::{OnConflict, SimpleExpr};
 use sea_orm::ActiveValue::Set;
 use sea_orm::{Condition, QuerySelect};
 
@@ -37,12 +37,17 @@ pub(super) async fn filter_videos_with_pages(
 
 /// 返回 videos_info 存在于视频表里那部分对应的 key
 pub(super) async fn video_keys(
+    expr: SimpleExpr,
     videos_info: &[VideoInfo],
     columns: [video::Column; 2],
     conn: &DatabaseConnection,
 ) -> Result<HashSet<String>> {
     Ok(video::Entity::find()
-        .filter(video::Column::Bvid.is_in(videos_info.iter().map(|v| v.bvid().to_string())))
+        .filter(
+            video::Column::Bvid
+                .is_in(videos_info.iter().map(|v| v.bvid().to_string()))
+                .and(expr),
+        )
         .select_only()
         .columns(columns)
         .into_tuple()

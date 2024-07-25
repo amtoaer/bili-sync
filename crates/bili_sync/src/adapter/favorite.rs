@@ -57,7 +57,13 @@ impl VideoListModel for favorite::Model {
         videos_info: &[VideoInfo],
         connection: &DatabaseConnection,
     ) -> Result<HashSet<String>> {
-        helper::video_keys(videos_info, [video::Column::Bvid, video::Column::Favtime], connection).await
+        helper::video_keys(
+            video::Column::FavoriteId.eq(self.id),
+            videos_info,
+            [video::Column::Bvid, video::Column::Favtime],
+            connection,
+        )
+        .await
     }
 
     fn video_model_by_info(&self, video_info: &VideoInfo, base_model: Option<video::Model>) -> video::ActiveModel {
