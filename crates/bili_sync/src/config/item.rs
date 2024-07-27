@@ -1,0 +1,129 @@
+use std::collections::HashMap;
+use std::path::PathBuf;
+
+use serde::de::{Deserializer, MapAccess, Visitor};
+use serde::ser::SerializeMap;
+use serde::{Deserialize, Serialize};
+
+use crate::bilibili::{CollectionItem, CollectionType};
+
+/// 稍后再看的配置
+#[derive(Serialize, Deserialize, Default)]
+pub struct WatchLaterConfig {
+    pub enabled: bool,
+    pub path: PathBuf,
+}
+
+/// 每次执行操作后的延迟配置
+#[derive(Serialize, Deserialize, Default)]
+pub struct DelayConfig {
+    pub refresh_video_list: Option<Delay>,
+    pub fetch_video_detail: Option<Delay>,
+    pub download_video: Option<Delay>,
+    pub download_page: Option<Delay>,
+}
+
+/// 延迟的定义，支持固定时间和随机时间
+#[derive(Serialize, Deserialize)]
+#[serde(untagged, rename_all = "lowercase")]
+pub enum Delay {
+    Random { min: u64, max: u64 },
+    Fixed(u64),
+}
+
+/// NFO 文件使用的时间类型
+#[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum NFOTimeType {
+    #[default]
+    FavTime,
+    PubTime,
+}
+
+/// 并发下载相关的配置
+#[derive(Serialize, Deserialize)]
+pub struct ConcurrentLimit {
+    pub video: usize,
+    pub page: usize,
+    pub delay: DelayConfig,
+}
+
+impl Default for ConcurrentLimit {
+    fn default() -> Self {
+        Self {
+            video: 3,
+            page: 2,
+            delay: DelayConfig::default(),
+        }
+    }
+}
+
+/* 后面是用于自定义 Collection 的序列化、反序列化的样板代码 */
+pub(super) fn serialize_collection_list<S>(
+    collection_list: &HashMap<CollectionItem, PathBuf>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let mut map = serializer.serialize_map(Some(collection_list.len()))?;
+    for (k, v) in collection_list {
+        let prefix = match k.collection_type {
+            CollectionType::Series => "series",
+            CollectionType::Season => "season",
+        };
+        map.serialize_entry(&[prefix, &k.mid, &k.sid].join(":"), v)?;
+    }
+    map.end()
+}
+
+pub(super) fn deserialize_collection_list<'de, D>(deserializer: D) -> Result<HashMap<CollectionItem, PathBuf>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct CollectionListVisitor;
+
+    impl<'de> Visitor<'de> for CollectionListVisitor {
+        type Value = HashMap<CollectionItem, PathBuf>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("a map of collection list")
+        }
+
+        fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+        where
+            A: MapAccess<'de>,
+        {
+            let mut collection_list = HashMap::new();
+            while let Some((key, value)) = map.next_entry::<String, PathBuf>()? {
+                let collection_item = match key.split(':').collect::<Vec<&str>>().as_slice() {
+                    [prefix, mid, sid] => {
+                        let collection_type = match *prefix {
+                            "series" => CollectionType::Series,
+                            "season" => CollectionType::Season,
+                            _ => {
+                                return Err(serde::de::Error::custom(
+                                    "invalid collection type, should be series or season",
+                                ))
+                            }
+                        };
+                        CollectionItem {
+                            mid: mid.to_string(),
+                            sid: sid.to_string(),
+                            collection_type,
+                        }
+                    }
+                    _ => {
+                        return Err(serde::de::Error::custom(
+                            "invalid collection key, should be series:mid:sid or season:mid:sid",
+                        ))
+                    }
+                };
+                collection_list.insert(collection_item, value);
+            }
+            Ok(collection_list)
+        }
+    }
+
+    deserializer.deserialize_map(CollectionListVisitor)
+}
