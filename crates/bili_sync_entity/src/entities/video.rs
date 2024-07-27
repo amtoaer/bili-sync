@@ -10,6 +10,7 @@ pub struct Model {
     pub collection_id: Option<i32>,
     pub favorite_id: Option<i32>,
     pub watch_later_id: Option<i32>,
+    pub submission_id: Option<i32>,
     pub upper_id: i64,
     pub upper_name: String,
     pub upper_face: String,

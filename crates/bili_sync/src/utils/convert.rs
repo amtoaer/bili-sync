@@ -119,12 +119,28 @@ impl VideoInfo {
                 upper_face: Set(upper.face.clone()),
                 ..base_model
             },
+            VideoInfo::Submission {
+                title,
+                bvid,
+                intro,
+                cover,
+                ctime,
+            } => bili_sync_entity::video::ActiveModel {
+                bvid: Set(bvid.clone()),
+                name: Set(title.clone()),
+                intro: Set(intro.clone()),
+                cover: Set(cover.clone()),
+                ctime: Set(ctime.naive_utc()),
+                category: Set(2), // 投稿视频的内容类型肯定是视频
+                valid: Set(true),
+                ..base_model
+            },
         }
     }
 
     pub fn to_fmt_args(&self) -> Option<serde_json::Value> {
         match self {
-            VideoInfo::Simple { .. } => None, // 不能从简单的视频信息中构造格式化参数
+            VideoInfo::Simple { .. } | VideoInfo::Submission { .. } => None, // 不能从简单视频信息中构造格式化参数
             VideoInfo::Detail {
                 title,
                 bvid,
@@ -171,9 +187,16 @@ impl VideoInfo {
     pub fn video_key(&self) -> String {
         match self {
             // 对于合集没有 fav_time，只能用 pubtime 代替
-            VideoInfo::Simple { bvid, pubtime, .. } => id_time_key(bvid, pubtime),
-            VideoInfo::Detail { bvid, fav_time, .. } => id_time_key(bvid, fav_time),
-            VideoInfo::WatchLater { bvid, fav_time, .. } => id_time_key(bvid, fav_time),
+            VideoInfo::Simple {
+                bvid, pubtime: time, ..
+            }
+            | VideoInfo::Detail {
+                bvid, fav_time: time, ..
+            }
+            | VideoInfo::WatchLater {
+                bvid, fav_time: time, ..
+            }
+            | VideoInfo::Submission { bvid, ctime: time, .. } => id_time_key(bvid, time),
             // 详情接口返回的数据仅用于填充详情，不会被作为 video_key
             _ => unreachable!(),
         }
@@ -181,9 +204,10 @@ impl VideoInfo {
 
     pub fn bvid(&self) -> &str {
         match self {
-            VideoInfo::Simple { bvid, .. } => bvid,
-            VideoInfo::Detail { bvid, .. } => bvid,
-            VideoInfo::WatchLater { bvid, .. } => bvid,
+            VideoInfo::Simple { bvid, .. }
+            | VideoInfo::Detail { bvid, .. }
+            | VideoInfo::WatchLater { bvid, .. }
+            | VideoInfo::Submission { bvid, .. } => bvid,
             // 同上
             _ => unreachable!(),
         }

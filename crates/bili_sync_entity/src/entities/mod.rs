@@ -5,5 +5,6 @@ pub mod prelude;
 pub mod collection;
 pub mod favorite;
 pub mod page;
+pub mod submission;
 pub mod video;
 pub mod watch_later;

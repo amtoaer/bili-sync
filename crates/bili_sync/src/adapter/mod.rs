@@ -1,6 +1,7 @@
 mod collection;
 mod favorite;
 mod helper;
+mod submission;
 mod watch_later;
 
 use std::collections::HashSet;
@@ -9,19 +10,21 @@ use std::pin::Pin;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use collection::collection_from;
-use favorite::favorite_from;
 use futures::Stream;
 use sea_orm::entity::prelude::*;
 use sea_orm::DatabaseConnection;
-use watch_later::watch_later_from;
 
+use crate::adapter::collection::collection_from;
+use crate::adapter::favorite::favorite_from;
+use crate::adapter::submission::submission_from;
+use crate::adapter::watch_later::watch_later_from;
 use crate::bilibili::{self, BiliClient, CollectionItem, VideoInfo};
 
 pub enum Args<'a> {
     Favorite { fid: &'a str },
     Collection { collection_item: &'a CollectionItem },
     WatchLater,
+    Submission { upper_id: &'a str },
 }
 
 pub async fn video_list_from<'a>(
@@ -34,6 +37,7 @@ pub async fn video_list_from<'a>(
         Args::Favorite { fid } => favorite_from(fid, path, bili_client, connection).await,
         Args::Collection { collection_item } => collection_from(collection_item, path, bili_client, connection).await,
         Args::WatchLater => watch_later_from(path, bili_client, connection).await,
+        Args::Submission { upper_id } => submission_from(upper_id, path, bili_client, connection).await,
     }
 }
 

@@ -13,6 +13,7 @@ pub use error::BiliError;
 pub use favorite_list::FavoriteList;
 use favorite_list::Upper;
 use once_cell::sync::Lazy;
+pub use submission::Submission;
 pub use video::{Dimension, PageInfo, Video};
 pub use watch_later::WatchLater;
 
@@ -23,6 +24,7 @@ mod credential;
 mod danmaku;
 mod error;
 mod favorite_list;
+mod submission;
 mod video;
 mod watch_later;
 
@@ -121,6 +123,16 @@ pub enum VideoInfo {
         #[serde(rename = "pubdate", with = "ts_seconds")]
         pubtime: DateTime<Utc>,
     },
+    Submission {
+        title: String,
+        bvid: String,
+        #[serde(rename = "description")]
+        intro: String,
+        #[serde(rename = "pic")]
+        cover: String,
+        #[serde(rename = "created", with = "ts_seconds")]
+        ctime: DateTime<Utc>,
+    },
 }
 
 #[cfg(test)]
@@ -160,5 +172,9 @@ mod tests {
         let stream = watch_later.into_video_stream();
         pin_mut!(stream);
         assert!(matches!(stream.next().await, Some(VideoInfo::WatchLater { .. })));
+        let submission = Submission::new(&bili_client, "956761".to_string());
+        let stream = submission.into_video_stream();
+        pin_mut!(stream);
+        assert!(matches!(stream.next().await, Some(VideoInfo::Submission { .. })));
     }
 }

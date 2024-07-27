@@ -11,19 +11,20 @@ use sea_orm::sea_query::{IntoCondition, OnConflict};
 use sea_orm::ActiveValue::Set;
 use sea_orm::{DatabaseConnection, TransactionTrait};
 
+use crate::adapter::helper::video_with_path;
 use crate::adapter::{helper, VideoListModel};
-use crate::bilibili::{self, BiliClient, Collection, CollectionItem, CollectionType, VideoInfo};
+use crate::bilibili::{self, BiliClient, Submission, VideoInfo};
 use crate::utils::status::Status;
 
 #[async_trait]
-impl VideoListModel for collection::Model {
+impl VideoListModel for submission::Model {
     async fn video_count(&self, connection: &DatabaseConnection) -> Result<u64> {
-        helper::count_videos(video::Column::CollectionId.eq(self.id).into_condition(), connection).await
+        helper::count_videos(video::Column::SubmissionId.eq(self.id).into_condition(), connection).await
     }
 
     async fn unfilled_videos(&self, connection: &DatabaseConnection) -> Result<Vec<video::Model>> {
         helper::filter_videos(
-            video::Column::CollectionId
+            video::Column::SubmissionId
                 .eq(self.id)
                 .and(video::Column::Valid.eq(true))
                 .and(video::Column::DownloadStatus.eq(0))
@@ -40,7 +41,7 @@ impl VideoListModel for collection::Model {
         connection: &DatabaseConnection,
     ) -> Result<Vec<(video::Model, Vec<page::Model>)>> {
         helper::filter_videos_with_pages(
-            video::Column::CollectionId
+            video::Column::SubmissionId
                 .eq(self.id)
                 .and(video::Column::Valid.eq(true))
                 .and(video::Column::DownloadStatus.lt(Status::handled()))
@@ -58,9 +59,9 @@ impl VideoListModel for collection::Model {
         connection: &DatabaseConnection,
     ) -> Result<HashSet<String>> {
         helper::video_keys(
-            video::Column::CollectionId.eq(self.id),
+            video::Column::SubmissionId.eq(self.id),
             videos_info,
-            [video::Column::Bvid, video::Column::Pubtime],
+            [video::Column::Bvid, video::Column::Ctime],
             connection,
         )
         .await
@@ -68,8 +69,8 @@ impl VideoListModel for collection::Model {
 
     fn video_model_by_info(&self, video_info: &VideoInfo, base_model: Option<video::Model>) -> video::ActiveModel {
         let mut video_model = video_info.to_model(base_model);
-        video_model.collection_id = Set(Some(self.id));
-        helper::video_with_path(video_model, &self.path, video_info)
+        video_model.submission_id = Set(Some(self.id));
+        video_with_path(video_model, &self.path, video_info)
     }
 
     async fn fetch_videos_detail(
@@ -103,101 +104,74 @@ impl VideoListModel for collection::Model {
 
     fn log_fetch_video_start(&self) {
         info!(
-            "开始获取{} {} - {} 的视频与分页信息...",
-            CollectionType::from(self.r#type),
-            self.s_id,
-            self.name
+            "开始获取 UP 主 {} - {} 投稿的视频与分页信息...",
+            self.upper_id, self.upper_name
         );
     }
 
     fn log_fetch_video_end(&self) {
+        info!("获取稍后再看的视频与分页信息完成");
         info!(
-            "获取{} {} - {} 的视频与分页信息完成",
-            CollectionType::from(self.r#type),
-            self.s_id,
-            self.name
+            "获取 UP 主 {} - {} 投稿的视频与分页信息完成",
+            self.upper_id, self.upper_name
         );
     }
 
     fn log_download_video_start(&self) {
         info!(
-            "开始下载{}: {} - {} 中所有未处理过的视频...",
-            CollectionType::from(self.r#type),
-            self.s_id,
-            self.name
+            "开始下载 UP 主 {} - {} 投稿的所有未处理过的视频...",
+            self.upper_id, self.upper_name
         );
     }
 
     fn log_download_video_end(&self) {
         info!(
-            "下载{}: {} - {} 中未处理过的视频完成",
-            CollectionType::from(self.r#type),
-            self.s_id,
-            self.name
+            "下载 UP 主 {} - {} 投稿的所有未处理过的视频完成",
+            self.upper_id, self.upper_name
         );
     }
 
     fn log_refresh_video_start(&self) {
-        info!(
-            "开始扫描{}: {} - {} 的新视频...",
-            CollectionType::from(self.r#type),
-            self.s_id,
-            self.name
-        );
+        info!("开始扫描 UP 主 {} - {} 投稿的新视频...", self.upper_id, self.upper_name);
     }
 
     fn log_refresh_video_end(&self, got_count: usize, new_count: u64) {
         info!(
-            "扫描{}: {} - {} 的新视频完成，获取了 {} 条新视频，其中有 {} 条新视频",
-            CollectionType::from(self.r#type),
-            self.s_id,
-            self.name,
-            got_count,
-            new_count,
+            "扫描 UP 主 {} - {} 投稿的新视频完成，获取了 {} 条新视频，其中有 {} 条新视频",
+            self.upper_id, self.upper_name, got_count, new_count,
         );
     }
 }
 
-pub(super) async fn collection_from<'a>(
-    collection_item: &'a CollectionItem,
+pub(super) async fn submission_from<'a>(
+    upper_id: &str,
     path: &Path,
     bili_client: &'a BiliClient,
     connection: &DatabaseConnection,
 ) -> Result<(Box<dyn VideoListModel>, Pin<Box<dyn Stream<Item = VideoInfo> + 'a>>)> {
-    let collection = Collection::new(bili_client, collection_item);
-    let collection_info = collection.get_info().await?;
-    collection::Entity::insert(collection::ActiveModel {
-        s_id: Set(collection_info.sid),
-        m_id: Set(collection_info.mid),
-        r#type: Set(collection_info.collection_type.into()),
-        name: Set(collection_info.name.clone()),
+    let submission = Submission::new(bili_client, upper_id.to_owned());
+    let upper = submission.get_info().await?;
+    submission::Entity::insert(submission::ActiveModel {
+        upper_id: Set(upper.mid),
+        upper_name: Set(upper.name),
         path: Set(path.to_string_lossy().to_string()),
         ..Default::default()
     })
     .on_conflict(
-        OnConflict::columns([
-            collection::Column::SId,
-            collection::Column::MId,
-            collection::Column::Type,
-        ])
-        .update_columns([collection::Column::Name, collection::Column::Path])
-        .to_owned(),
+        OnConflict::column(submission::Column::UpperId)
+            .update_columns([submission::Column::UpperName, submission::Column::Path])
+            .to_owned(),
     )
     .exec(connection)
     .await?;
     Ok((
         Box::new(
-            collection::Entity::find()
-                .filter(
-                    collection::Column::SId
-                        .eq(collection_item.sid.clone())
-                        .and(collection::Column::MId.eq(collection_item.mid.clone()))
-                        .and(collection::Column::Type.eq(Into::<i32>::into(collection_item.collection_type.clone()))),
-                )
+            submission::Entity::find()
+                .filter(submission::Column::UpperId.eq(upper.mid))
                 .one(connection)
                 .await?
                 .unwrap(),
         ),
-        Box::pin(collection.into_simple_video_stream()),
+        Box::pin(submission.into_video_stream()),
     ))
 }
