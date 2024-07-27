@@ -3,7 +3,6 @@ use std::path::Path;
 
 use anyhow::Result;
 use bili_sync_entity::*;
-use filenamify::filenamify;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::{OnConflict, SimpleExpr};
 use sea_orm::ActiveValue::Set;
@@ -11,6 +10,7 @@ use sea_orm::{Condition, QuerySelect};
 
 use crate::bilibili::{BiliError, PageInfo, VideoInfo};
 use crate::config::TEMPLATE;
+use crate::utils::filenamify::filenamify;
 use crate::utils::id_time_key;
 
 /// 使用 condition 筛选视频，返回视频数量

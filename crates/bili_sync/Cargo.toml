@@ -19,7 +19,6 @@ chrono = { workspace = true }
 clap = { workspace = true }
 cookie = { workspace = true }
 dirs = { workspace = true }
-filenamify = { workspace = true }
 float-ord = { workspace = true }
 futures = { workspace = true }
 handlebars = { workspace = true }

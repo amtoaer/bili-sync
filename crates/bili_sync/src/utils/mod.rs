@@ -1,4 +1,5 @@
 pub mod convert;
+pub mod filenamify;
 pub mod model;
 pub mod nfo;
 pub mod status;
