@@ -24,7 +24,6 @@ chrono = { version = "0.4.38", features = ["serde"] }
 clap = { version = "4.5.9", features = ["env"] }
 cookie = "0.18.1"
 dirs = "5.0.1"
-filenamify = "0.1.1"
 float-ord = "0.3.2"
 futures = "0.3.30"
 handlebars = "6.0.0"

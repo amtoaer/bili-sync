@@ -4,7 +4,6 @@ use std::pin::Pin;
 
 use anyhow::{bail, Result};
 use bili_sync_entity::*;
-use filenamify::filenamify;
 use futures::stream::{FuturesOrdered, FuturesUnordered};
 use futures::{Future, Stream, StreamExt};
 use sea_orm::entity::prelude::*;
@@ -19,6 +18,7 @@ use crate::config::{ARGS, CONFIG, TEMPLATE};
 use crate::downloader::Downloader;
 use crate::error::{DownloadAbortError, ProcessPageError};
 use crate::utils::delay;
+use crate::utils::filenamify::filenamify;
 use crate::utils::model::{create_videos, update_pages_model, update_videos_model};
 use crate::utils::nfo::{ModelWrapper, NFOMode, NFOSerializer};
 use crate::utils::status::{PageStatus, VideoStatus};
