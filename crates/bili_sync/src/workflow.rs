@@ -60,7 +60,7 @@ pub async fn refresh_video_list<'a>(
             info!("到达上一次处理的位置，提前中止");
             break;
         }
-        delay(CONFIG.delay.refresh_video_list.as_ref()).await;
+        delay(CONFIG.concurrent_limit.delay.refresh_video_list.as_ref()).await;
     }
     new_count = video_list_model.video_count(connection).await? - new_count;
     video_list_model.log_refresh_video_end(got_count, new_count);
@@ -80,7 +80,7 @@ pub async fn fetch_video_details(
         video_list_model
             .fetch_videos_detail(video, video_model, connection)
             .await?;
-        delay(CONFIG.delay.fetch_video_detail.as_ref()).await;
+        delay(CONFIG.concurrent_limit.delay.fetch_video_detail.as_ref()).await;
     }
     video_list_model.log_fetch_video_end();
     Ok(video_list_model)
@@ -94,8 +94,7 @@ pub async fn download_unprocessed_videos(
 ) -> Result<()> {
     video_list_model.log_download_video_start();
     let unhandled_videos_pages = video_list_model.unhandled_video_pages(connection).await?;
-    // 对于视频，允许三个同时下载（视频内还有分页、不同分页还有多种下载任务）
-    let semaphore = Semaphore::new(3);
+    let semaphore = Semaphore::new(CONFIG.concurrent_limit.video);
     let downloader = Downloader::new(bili_client.client.clone());
     let mut uppers_mutex: HashMap<i64, (Mutex<()>, Mutex<()>)> = HashMap::new();
     for (video_model, _) in &unhandled_videos_pages {
@@ -232,7 +231,7 @@ pub async fn download_video_pages(
     }
     let mut video_active_model: video::ActiveModel = video_model.into();
     video_active_model.download_status = Set(status.into());
-    delay(CONFIG.delay.download_video.as_ref()).await;
+    delay(CONFIG.concurrent_limit.delay.download_video.as_ref()).await;
     Ok(video_active_model)
 }
 
@@ -247,8 +246,7 @@ pub async fn dispatch_download_page(
     if !should_run {
         return Ok(());
     }
-    // 对于视频的分页，允许两个同时下载（绝大部分是单页视频）
-    let child_semaphore = Semaphore::new(2);
+    let child_semaphore = Semaphore::new(CONFIG.concurrent_limit.page);
     let mut tasks = pages
         .into_iter()
         .map(|page_model| download_page(bili_client, video_model, page_model, &child_semaphore, downloader))
@@ -420,7 +418,7 @@ pub async fn download_page(
     let mut page_active_model: page::ActiveModel = page_model.into();
     page_active_model.download_status = Set(status.into());
     page_active_model.path = Set(Some(video_path.to_str().unwrap().to_string()));
-    delay(CONFIG.delay.download_page.as_ref()).await;
+    delay(CONFIG.concurrent_limit.delay.download_page.as_ref()).await;
     Ok(page_active_model)
 }
 
