@@ -51,8 +51,6 @@ impl Downloader {
                 _ => Err(anyhow!("ffmpeg error")),
             };
         }
-        let _ = fs::remove_file(video_path).await;
-        let _ = fs::remove_file(audio_path).await;
         Ok(())
     }
 }

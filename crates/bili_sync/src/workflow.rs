@@ -485,9 +485,14 @@ pub async fn fetch_page_video(
                 page_path.with_extension("tmp_video"),
                 page_path.with_extension("tmp_audio"),
             );
-            downloader.fetch(video_stream.url(), &tmp_video_path).await?;
-            downloader.fetch(audio_stream.url(), &tmp_audio_path).await?;
-            downloader.merge(&tmp_video_path, &tmp_audio_path, &page_path).await?;
+            let res = {
+                downloader.fetch(video_stream.url(), &tmp_video_path).await?;
+                downloader.fetch(audio_stream.url(), &tmp_audio_path).await?;
+                downloader.merge(&tmp_video_path, &tmp_audio_path, &page_path).await
+            };
+            let _ = fs::remove_file(tmp_video_path).await;
+            let _ = fs::remove_file(tmp_audio_path).await;
+            res?;
         }
     }
     Ok(())
