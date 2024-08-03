@@ -6,7 +6,7 @@ use bili_sync_entity::*;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::{OnConflict, SimpleExpr};
 use sea_orm::ActiveValue::Set;
-use sea_orm::{Condition, QuerySelect};
+use sea_orm::{Condition, DatabaseTransaction, QuerySelect};
 
 use crate::bilibili::{BiliError, PageInfo, VideoInfo};
 use crate::config::TEMPLATE;
@@ -99,7 +99,7 @@ pub(super) async fn error_fetch_video_detail(
 pub(crate) async fn create_video_pages(
     pages_info: &[PageInfo],
     video_model: &video::Model,
-    connection: &impl ConnectionTrait,
+    connection: &DatabaseTransaction,
 ) -> Result<()> {
     let page_models = pages_info
         .iter()
@@ -128,14 +128,16 @@ pub(crate) async fn create_video_pages(
             }
         })
         .collect::<Vec<page::ActiveModel>>();
-    page::Entity::insert_many(page_models)
-        .on_conflict(
-            OnConflict::columns([page::Column::VideoId, page::Column::Pid])
-                .do_nothing()
-                .to_owned(),
-        )
-        .do_nothing()
-        .exec(connection)
-        .await?;
+    for page_chunk in page_models.chunks(50) {
+        page::Entity::insert_many(page_chunk.to_vec())
+            .on_conflict(
+                OnConflict::columns([page::Column::VideoId, page::Column::Pid])
+                    .do_nothing()
+                    .to_owned(),
+            )
+            .do_nothing()
+            .exec(connection)
+            .await?;
+    }
     Ok(())
 }
