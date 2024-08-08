@@ -9,8 +9,7 @@ use sea_orm::ActiveValue::Set;
 use sea_orm::{Condition, DatabaseTransaction, QuerySelect};
 
 use crate::bilibili::{BiliError, PageInfo, VideoInfo};
-use crate::config::TEMPLATE;
-use crate::utils::filenamify::filenamify;
+use crate::config::{PathSafeTemplate, TEMPLATE};
 use crate::utils::id_time_key;
 
 /// 使用 condition 筛选视频，返回视频数量
@@ -66,11 +65,7 @@ pub(super) fn video_with_path(
 ) -> video::ActiveModel {
     if let Some(fmt_args) = &video_info.to_fmt_args() {
         video_model.path = Set(Path::new(base_path)
-            .join(filenamify(
-                TEMPLATE
-                    .render("video", fmt_args)
-                    .unwrap_or_else(|_| video_info.bvid().to_string()),
-            ))
+            .join(TEMPLATE.path_safe_render("video", fmt_args).unwrap())
             .to_string_lossy()
             .to_string());
     }

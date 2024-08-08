@@ -5,6 +5,7 @@ use handlebars::handlebars_helper;
 use once_cell::sync::Lazy;
 
 use crate::config::clap::Args;
+use crate::config::item::PathSafeTemplate;
 use crate::config::Config;
 
 /// 全局的 CONFIG，可以从中读取配置信息
@@ -39,10 +40,8 @@ pub static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
         }
     });
     handlebars.register_helper("truncate", Box::new(truncate));
-    handlebars
-        .register_template_string("video", &CONFIG.video_name)
-        .unwrap();
-    handlebars.register_template_string("page", &CONFIG.page_name).unwrap();
+    handlebars.path_safe_register("video", &CONFIG.video_name).unwrap();
+    handlebars.path_safe_register("page", &CONFIG.page_name).unwrap();
     handlebars
 });
 

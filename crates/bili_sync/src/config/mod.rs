@@ -14,7 +14,7 @@ mod item;
 use crate::bilibili::{CollectionItem, Credential, DanmakuOption, FilterOption};
 pub use crate::config::global::{ARGS, CONFIG, CONFIG_DIR, TEMPLATE};
 use crate::config::item::{deserialize_collection_list, serialize_collection_list, ConcurrentLimit};
-pub use crate::config::item::{Delay, NFOTimeType, WatchLaterConfig};
+pub use crate::config::item::{Delay, NFOTimeType, PathSafeTemplate, WatchLaterConfig};
 
 fn default_time_format() -> String {
     "%Y-%m-%d".to_string()
