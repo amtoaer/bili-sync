@@ -14,11 +14,10 @@ use tokio::sync::{Mutex, Semaphore};
 
 use crate::adapter::{video_list_from, Args, VideoListModel};
 use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, PageInfo, Video, VideoInfo};
-use crate::config::{ARGS, CONFIG, TEMPLATE};
+use crate::config::{PathSafeTemplate, ARGS, CONFIG, TEMPLATE};
 use crate::downloader::Downloader;
 use crate::error::{DownloadAbortError, ProcessPageError};
 use crate::utils::delay;
-use crate::utils::filenamify::filenamify;
 use crate::utils::model::{create_videos, update_pages_model, update_videos_model};
 use crate::utils::nfo::{ModelWrapper, NFOMode, NFOSerializer};
 use crate::utils::status::{PageStatus, VideoStatus};
@@ -313,7 +312,7 @@ pub async fn download_page(
     let seprate_status = status.should_run();
     let is_single_page = video_model.single_page.unwrap();
     let base_path = Path::new(&video_model.path);
-    let base_name = filenamify(TEMPLATE.render(
+    let base_name = TEMPLATE.path_safe_render(
         "page",
         &json!({
             "bvid": &video_model.bvid,
@@ -325,7 +324,7 @@ pub async fn download_page(
             "pubtime": video_model.pubtime.format(&CONFIG.time_format).to_string(),
             "fav_time": video_model.favtime.format(&CONFIG.time_format).to_string(),
         }),
-    )?);
+    )?;
     let (poster_path, video_path, nfo_path, danmaku_path, fanart_path) = if is_single_page {
         (
             base_path.join(format!("{}-poster.jpg", &base_name)),
@@ -623,15 +622,49 @@ mod tests {
             }
         });
         template.register_helper("truncate", Box::new(truncate));
-        let _ = template.register_template_string("video", "test{{bvid}}test");
-        let _ = template.register_template_string("test_truncate", "哈哈，{{ truncate title 30 }}");
+        let _ = template.path_safe_register("video", "test{{bvid}}test");
+        let _ = template.path_safe_register("test_truncate", "哈哈，{{ truncate title 30 }}");
+        let _ = template.path_safe_register("test_path_unix", "{{ truncate title 7 }}/test/a");
+        let _ = template.path_safe_register("test_path_windows", r"{{ truncate title 7 }}\\test\\a");
+        #[cfg(not(windows))]
+        {
+            assert_eq!(
+                template
+                    .path_safe_render("test_path_unix", &json!({"title": "关注/永雏塔菲喵"}))
+                    .unwrap(),
+                "关注_永雏塔菲/test/a"
+            );
+            assert_eq!(
+                template
+                    .path_safe_render("test_path_windows", &json!({"title": "关注/永雏塔菲喵"}))
+                    .unwrap(),
+                "关注_永雏塔菲_test_a"
+            );
+        }
+        #[cfg(windows)]
+        {
+            assert_eq!(
+                template
+                    .path_safe_render("test_path_unix", &json!({"title": "关注/永雏塔菲喵"}))
+                    .unwrap(),
+                "关注_永雏塔菲_test_a"
+            );
+            assert_eq!(
+                template
+                    .path_safe_render("test_path_windows", &json!({"title": "关注永雏/塔菲喵"}))
+                    .unwrap(),
+                r"关注_永雏塔菲\\test\\a"
+            );
+        }
         assert_eq!(
-            template.render("video", &json!({"bvid": "BV1b5411h7g7"})).unwrap(),
+            template
+                .path_safe_render("video", &json!({"bvid": "BV1b5411h7g7"}))
+                .unwrap(),
             "testBV1b5411h7g7test"
         );
         assert_eq!(
             template
-                .render(
+                .path_safe_render(
                     "test_truncate",
                     &json!({"title": "你说得对，但是 Rust 是由 Mozilla 自主研发的一款全新的编译期格斗游戏。\
                     编译将发生在一个被称作「Cargo」的构建系统中。在这里，被引用的指针将被授予「生命周期」之力，导引对象安全。\

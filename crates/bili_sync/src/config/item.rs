@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use anyhow::Result;
 use serde::de::{Deserializer, MapAccess, Visitor};
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::bilibili::{CollectionItem, CollectionType};
+use crate::utils::filenamify::filenamify;
 
 /// 稍后再看的配置
 #[derive(Serialize, Deserialize, Default)]
@@ -58,6 +60,21 @@ impl Default for ConcurrentLimit {
     }
 }
 
+pub trait PathSafeTemplate {
+    fn path_safe_register(&mut self, name: &'static str, template: &'static str) -> Result<()>;
+    fn path_safe_render(&self, name: &'static str, data: &serde_json::Value) -> Result<String>;
+}
+
+/// 通过将模板字符串中的分隔符替换为自定义的字符串，使得模板字符串中的分隔符得以保留
+impl PathSafeTemplate for handlebars::Handlebars<'_> {
+    fn path_safe_register(&mut self, name: &'static str, template: &'static str) -> Result<()> {
+        Ok(self.register_template_string(name, template.replace(std::path::MAIN_SEPARATOR_STR, "__SEP__"))?)
+    }
+
+    fn path_safe_render(&self, name: &'static str, data: &serde_json::Value) -> Result<String> {
+        Ok(filenamify(&self.render(name, data)?).replace("__SEP__", std::path::MAIN_SEPARATOR_STR))
+    }
+}
 /* 后面是用于自定义 Collection 的序列化、反序列化的样板代码 */
 pub(super) fn serialize_collection_list<S>(
     collection_list: &HashMap<CollectionItem, PathBuf>,
