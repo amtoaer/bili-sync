@@ -110,7 +110,6 @@ impl VideoListModel for submission::Model {
     }
 
     fn log_fetch_video_end(&self) {
-        info!("获取稍后再看的视频与分页信息完成");
         info!(
             "获取 UP 主 {} - {} 投稿的视频与分页信息完成",
             self.upper_id, self.upper_name
