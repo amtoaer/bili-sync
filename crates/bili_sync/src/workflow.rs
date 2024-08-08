@@ -651,7 +651,7 @@ mod tests {
             );
             assert_eq!(
                 template
-                    .path_safe_render("test_path_windows", &json!({"title": "关注永雏/塔菲喵"}))
+                    .path_safe_render("test_path_windows", &json!({"title": "关注/永雏塔菲喵"}))
                     .unwrap(),
                 r"关注_永雏塔菲\\test\\a"
             );
