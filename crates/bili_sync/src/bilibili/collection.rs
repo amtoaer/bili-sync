@@ -109,6 +109,7 @@ impl<'a> Collection<'a> {
     async fn get_series_info(&self) -> Result<Value> {
         self.client
             .request(Method::GET, "https://api.bilibili.com/x/series/series")
+            .await
             .query(&[("series_id", self.collection.sid.as_str())])
             .send()
             .await?
@@ -151,6 +152,7 @@ impl<'a> Collection<'a> {
         };
         self.client
             .request(Method::GET, url)
+            .await
             .query(&query)
             .send()
             .await?

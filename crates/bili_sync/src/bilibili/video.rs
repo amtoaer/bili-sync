@@ -67,6 +67,7 @@ impl<'a> Video<'a> {
         let mut res = self
             .client
             .request(Method::GET, "https://api.bilibili.com/x/web-interface/view")
+            .await
             .query(&[("aid", &self.aid), ("bvid", &self.bvid)])
             .send()
             .await?
@@ -81,6 +82,7 @@ impl<'a> Video<'a> {
         let mut res = self
             .client
             .request(Method::GET, "https://api.bilibili.com/x/player/pagelist")
+            .await
             .query(&[("aid", &self.aid), ("bvid", &self.bvid)])
             .send()
             .await?
@@ -95,6 +97,7 @@ impl<'a> Video<'a> {
         let mut res = self
             .client
             .request(Method::GET, "https://api.bilibili.com/x/web-interface/view/detail/tag")
+            .await
             .query(&[("aid", &self.aid), ("bvid", &self.bvid)])
             .send()
             .await?
@@ -120,6 +123,7 @@ impl<'a> Video<'a> {
         let mut res = self
             .client
             .request(Method::GET, "http://api.bilibili.com/x/v2/dm/web/seg.so")
+            .await
             .query(&[("type", 1), ("oid", page.cid), ("segment_index", segment_idx)])
             .send()
             .await?
@@ -140,6 +144,7 @@ impl<'a> Video<'a> {
         let mut res = self
             .client
             .request(Method::GET, "https://api.bilibili.com/x/player/wbi/playurl")
+            .await
             .query(&encoded_query(
                 vec![
                     ("avid", self.aid.as_str()),

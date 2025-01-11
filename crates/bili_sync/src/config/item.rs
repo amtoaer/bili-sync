@@ -35,7 +35,7 @@ pub struct ConcurrentLimit {
 
 #[derive(Serialize, Deserialize)]
 pub struct RateLimit {
-    pub limit: u64,
+    pub limit: usize,
     pub duration: u64,
 }
 

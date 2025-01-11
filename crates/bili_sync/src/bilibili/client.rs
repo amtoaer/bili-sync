@@ -1,11 +1,13 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::{bail, Result};
+use leaky_bucket::RateLimiter;
 use reqwest::{header, Method};
 
 use crate::bilibili::credential::WbiImg;
 use crate::bilibili::Credential;
-use crate::config::CONFIG;
+use crate::config::{RateLimit, CONFIG};
 
 // 一个对 reqwest::Client 的简单封装，用于 Bilibili 请求
 #[derive(Clone)]
@@ -61,15 +63,31 @@ impl Default for Client {
 
 pub struct BiliClient {
     pub client: Client,
+    limiter: Option<RateLimiter>,
 }
 
 impl BiliClient {
     pub fn new() -> Self {
         let client = Client::new();
-        Self { client }
+        let limiter = match CONFIG.concurrent_limit.rate_limit {
+            Some(RateLimit { limit, duration }) => Some(
+                RateLimiter::builder()
+                    .initial(limit)
+                    .refill(limit)
+                    .max(limit)
+                    .interval(Duration::from_secs(duration))
+                    .build(),
+            ),
+            None => None,
+        };
+        Self { client, limiter }
     }
 
-    pub fn request(&self, method: Method, url: &str) -> reqwest::RequestBuilder {
+    /// 获取一个预构建的请求，通过该方法获取请求时会检查并等待速率限制
+    pub async fn request(&self, method: Method, url: &str) -> reqwest::RequestBuilder {
+        if let Some(limiter) = &self.limiter {
+            limiter.acquire_one().await;
+        }
         let credential = CONFIG.credential.load();
         self.client.request(method, url, credential.as_deref())
     }
