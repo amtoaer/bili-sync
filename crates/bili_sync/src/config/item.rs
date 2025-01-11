@@ -16,23 +16,6 @@ pub struct WatchLaterConfig {
     pub path: PathBuf,
 }
 
-/// 每次执行操作后的延迟配置
-#[derive(Serialize, Deserialize, Default)]
-pub struct DelayConfig {
-    pub refresh_video_list: Option<Delay>,
-    pub fetch_video_detail: Option<Delay>,
-    pub download_video: Option<Delay>,
-    pub download_page: Option<Delay>,
-}
-
-/// 延迟的定义，支持固定时间和随机时间
-#[derive(Serialize, Deserialize)]
-#[serde(untagged, rename_all = "lowercase")]
-pub enum Delay {
-    Random { min: u64, max: u64 },
-    Fixed(u64),
-}
-
 /// NFO 文件使用的时间类型
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
@@ -47,7 +30,13 @@ pub enum NFOTimeType {
 pub struct ConcurrentLimit {
     pub video: usize,
     pub page: usize,
-    pub delay: DelayConfig,
+    pub rate_limit: Option<RateLimit>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct RateLimit {
+    pub limit: usize,
+    pub duration: u64,
 }
 
 impl Default for ConcurrentLimit {
@@ -55,7 +44,7 @@ impl Default for ConcurrentLimit {
         Self {
             video: 3,
             page: 2,
-            delay: DelayConfig::default(),
+            rate_limit: None,
         }
     }
 }

@@ -30,6 +30,7 @@ impl<'a> FavoriteList<'a> {
         let mut res = self
             .client
             .request(reqwest::Method::GET, "https://api.bilibili.com/x/v3/fav/folder/info")
+            .await
             .query(&[("media_id", &self.fid)])
             .send()
             .await?
@@ -43,6 +44,7 @@ impl<'a> FavoriteList<'a> {
     async fn get_videos(&self, page: u32) -> Result<Value> {
         self.client
             .request(reqwest::Method::GET, "https://api.bilibili.com/x/v3/fav/resource/list")
+            .await
             .query(&[
                 ("media_id", self.fid.as_str()),
                 ("pn", &page.to_string()),

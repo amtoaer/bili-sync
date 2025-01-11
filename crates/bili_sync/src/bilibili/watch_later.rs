@@ -16,6 +16,7 @@ impl<'a> WatchLater<'a> {
     async fn get_videos(&self) -> Result<Value> {
         self.client
             .request(reqwest::Method::GET, "https://api.bilibili.com/x/v2/history/toview")
+            .await
             .send()
             .await?
             .error_for_status()?

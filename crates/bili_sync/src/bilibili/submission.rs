@@ -22,6 +22,7 @@ impl<'a> Submission<'a> {
         let mut res = self
             .client
             .request(Method::GET, "https://api.bilibili.com/x/web-interface/card")
+            .await
             .query(&[("mid", self.upper_id.as_str())])
             .send()
             .await?
@@ -35,6 +36,7 @@ impl<'a> Submission<'a> {
     async fn get_videos(&self, page: i32) -> Result<Value> {
         self.client
             .request(Method::GET, "https://api.bilibili.com/x/space/wbi/arc/search")
+            .await
             .query(&encoded_query(
                 vec![
                     ("mid", self.upper_id.clone()),
