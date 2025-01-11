@@ -24,7 +24,7 @@ pub struct NFOSerializer<'a>(pub ModelWrapper<'a>, pub NFOMode);
 
 /// serde xml 似乎不太好用，先这么裸着写
 /// （真是又臭又长啊
-impl<'a> NFOSerializer<'a> {
+impl NFOSerializer<'_> {
     pub async fn generate_nfo(self, nfo_time_type: &NFOTimeType) -> Result<String> {
         let mut buffer = r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 "#

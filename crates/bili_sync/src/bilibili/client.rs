@@ -69,17 +69,18 @@ pub struct BiliClient {
 impl BiliClient {
     pub fn new() -> Self {
         let client = Client::new();
-        let limiter = match CONFIG.concurrent_limit.rate_limit {
-            Some(RateLimit { limit, duration }) => Some(
+        let limiter = CONFIG
+            .concurrent_limit
+            .rate_limit
+            .as_ref()
+            .map(|RateLimit { limit, duration }| {
                 RateLimiter::builder()
-                    .initial(limit)
-                    .refill(limit)
-                    .max(limit)
-                    .interval(Duration::from_secs(duration))
-                    .build(),
-            ),
-            None => None,
-        };
+                    .initial(*limit)
+                    .refill(*limit)
+                    .max(*limit)
+                    .interval(Duration::from_secs(*duration))
+                    .build()
+            });
         Self { client, limiter }
     }
 

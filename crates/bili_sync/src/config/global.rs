@@ -13,7 +13,7 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     let config = Config::load().unwrap_or_else(|err| {
         if err
             .downcast_ref::<std::io::Error>()
-            .map_or(true, |e| e.kind() != std::io::ErrorKind::NotFound)
+            .is_none_or(|e| e.kind() != std::io::ErrorKind::NotFound)
         {
             panic!("加载配置文件失败，错误为： {err}");
         }

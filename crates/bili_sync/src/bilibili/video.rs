@@ -130,7 +130,7 @@ impl<'a> Video<'a> {
             .error_for_status()?;
         let headers = std::mem::take(res.headers_mut());
         let content_type = headers.get("content-type");
-        if !content_type.is_some_and(|v| v == "application/octet-stream") {
+        if content_type.is_none_or(|v| v != "application/octet-stream") {
             bail!(
                 "unexpected content type: {:?}, body: {:?}",
                 content_type,
