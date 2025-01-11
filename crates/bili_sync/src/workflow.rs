@@ -17,7 +17,6 @@ use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, PageInfo, Vi
 use crate::config::{PathSafeTemplate, ARGS, CONFIG, TEMPLATE};
 use crate::downloader::Downloader;
 use crate::error::{DownloadAbortError, ProcessPageError};
-use crate::utils::delay;
 use crate::utils::model::{create_videos, update_pages_model, update_videos_model};
 use crate::utils::nfo::{ModelWrapper, NFOMode, NFOSerializer};
 use crate::utils::status::{PageStatus, VideoStatus};
@@ -59,7 +58,6 @@ pub async fn refresh_video_list<'a>(
             info!("到达上一次处理的位置，提前中止");
             break;
         }
-        delay(CONFIG.concurrent_limit.delay.refresh_video_list.as_ref()).await;
     }
     new_count = video_list_model.video_count(connection).await? - new_count;
     video_list_model.log_refresh_video_end(got_count, new_count);
@@ -79,7 +77,6 @@ pub async fn fetch_video_details(
         video_list_model
             .fetch_videos_detail(video, video_model, connection)
             .await?;
-        delay(CONFIG.concurrent_limit.delay.fetch_video_detail.as_ref()).await;
     }
     video_list_model.log_fetch_video_end();
     Ok(video_list_model)
@@ -230,7 +227,6 @@ pub async fn download_video_pages(
     }
     let mut video_active_model: video::ActiveModel = video_model.into();
     video_active_model.download_status = Set(status.into());
-    delay(CONFIG.concurrent_limit.delay.download_video.as_ref()).await;
     Ok(video_active_model)
 }
 
@@ -417,7 +413,6 @@ pub async fn download_page(
     let mut page_active_model: page::ActiveModel = page_model.into();
     page_active_model.download_status = Set(status.into());
     page_active_model.path = Set(Some(video_path.to_str().unwrap().to_string()));
-    delay(CONFIG.concurrent_limit.delay.download_page.as_ref()).await;
     Ok(page_active_model)
 }
 

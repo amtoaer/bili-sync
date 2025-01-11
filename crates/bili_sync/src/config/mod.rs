@@ -14,7 +14,7 @@ mod item;
 use crate::bilibili::{CollectionItem, Credential, DanmakuOption, FilterOption};
 pub use crate::config::global::{ARGS, CONFIG, CONFIG_DIR, TEMPLATE};
 use crate::config::item::{deserialize_collection_list, serialize_collection_list, ConcurrentLimit};
-pub use crate::config::item::{Delay, NFOTimeType, PathSafeTemplate, WatchLaterConfig};
+pub use crate::config::item::{NFOTimeType, PathSafeTemplate, WatchLaterConfig};
 
 fn default_time_format() -> String {
     "%Y-%m-%d".to_string()
@@ -135,22 +135,6 @@ impl Config {
         if !(self.concurrent_limit.video > 0 && self.concurrent_limit.page > 0) {
             ok = false;
             error!("允许的并发数必须大于 0");
-        }
-        for delay_config in [
-            &self.concurrent_limit.delay.refresh_video_list,
-            &self.concurrent_limit.delay.fetch_video_detail,
-            &self.concurrent_limit.delay.download_video,
-            &self.concurrent_limit.delay.download_page,
-        ]
-        .iter()
-        .filter_map(|x| x.as_ref())
-        {
-            if let Delay::Random { min, max } = delay_config {
-                if min >= max {
-                    ok = false;
-                    error!("随机延迟的最小值应小于最大值");
-                }
-            }
         }
         if !ok {
             panic!(
