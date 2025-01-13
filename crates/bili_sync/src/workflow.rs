@@ -462,15 +462,11 @@ pub async fn fetch_page_video(
         .await?
         .best_stream(&CONFIG.filter_option)?;
     match streams {
-        BestStream::Mixed(mix_stream) => {
-            downloader.fetch(mix_stream.url(), &page_path).await?;
-        }
+        BestStream::Mixed(mix_stream) => downloader.fetch(mix_stream.url(), &page_path).await,
         BestStream::VideoAudio {
             video: video_stream,
             audio: None,
-        } => {
-            downloader.fetch(video_stream.url(), &page_path).await?;
-        }
+        } => downloader.fetch(video_stream.url(), &page_path).await,
         BestStream::VideoAudio {
             video: video_stream,
             audio: Some(audio_stream),
@@ -479,17 +475,17 @@ pub async fn fetch_page_video(
                 page_path.with_extension("tmp_video"),
                 page_path.with_extension("tmp_audio"),
             );
-            let res = {
+            let res = async {
                 downloader.fetch(video_stream.url(), &tmp_video_path).await?;
                 downloader.fetch(audio_stream.url(), &tmp_audio_path).await?;
                 downloader.merge(&tmp_video_path, &tmp_audio_path, &page_path).await
-            };
+            }
+            .await;
             let _ = fs::remove_file(tmp_video_path).await;
             let _ = fs::remove_file(tmp_audio_path).await;
-            res?;
+            res
         }
     }
-    Ok(())
 }
 
 pub async fn fetch_page_danmaku(
@@ -507,8 +503,7 @@ pub async fn fetch_page_danmaku(
         .get_danmaku_writer(page_info)
         .await?
         .write(danmaku_path)
-        .await?;
-    Ok(())
+        .await
 }
 
 pub async fn generate_page_nfo(
