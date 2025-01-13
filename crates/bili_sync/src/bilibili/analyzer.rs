@@ -298,3 +298,33 @@ impl PageAnalyzer {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_quality_order() {
+        assert!([
+            VideoQuality::Quality360p,
+            VideoQuality::Quality480p,
+            VideoQuality::Quality720p,
+            VideoQuality::Quality1080p,
+            VideoQuality::Quality1080pPLUS,
+            VideoQuality::Quality1080p60,
+            VideoQuality::Quality4k,
+            VideoQuality::QualityHdr,
+            VideoQuality::QualityDolby,
+            VideoQuality::Quality8k
+        ]
+        .is_sorted());
+        assert!([
+            AudioQuality::Quality64k,
+            AudioQuality::Quality132k,
+            AudioQuality::Quality192k,
+            AudioQuality::QualityDolby,
+            AudioQuality::QualityHiRES,
+        ]
+        .is_sorted());
+    }
+}
