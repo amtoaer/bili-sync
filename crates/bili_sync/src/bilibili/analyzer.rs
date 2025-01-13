@@ -189,17 +189,12 @@ impl PageAnalyzer {
             };
             let quality = VideoQuality::from_repr(quality as usize).ok_or(anyhow!("invalid video stream quality"))?;
             // 从视频流的 codecs 字段中获取编码格式，此处并非精确匹配而是判断包含，比如 codecs 是 av1.42c01e，需要匹配为 av1
-            let codecs = match [VideoCodecs::HEV, VideoCodecs::AVC, VideoCodecs::AV1]
+            let Some(codecs) = [VideoCodecs::HEV, VideoCodecs::AVC, VideoCodecs::AV1]
                 .into_iter()
                 .find(|c| codecs.contains(c.as_ref()))
-            {
-                Some(codecs) => codecs,
-                None => {
-                    // 极少数情况会走到此处，打印一条日志并跳过，
-                    // 如 BV1Mm4y1P7JV 存在 codecs 为 dvh1.08.09 的视频流
-                    warn!("unknown video codecs: {}", codecs);
-                    continue;
-                }
+            else {
+                // 少数情况会走到此处，如 codecs 为 dvh1.08.09、hvc1.2.4.L123.90 等，直接跳过，不影响流程
+                continue;
             };
             if !filter_option.codecs.contains(&codecs)
                 || quality < filter_option.video_min_quality
