@@ -16,8 +16,8 @@ pub struct FavoriteListInfo {
 }
 
 #[derive(Debug, serde::Deserialize)]
-pub struct Upper {
-    pub mid: i64,
+pub struct Upper<T> {
+    pub mid: T,
     pub name: String,
     pub face: String,
 }

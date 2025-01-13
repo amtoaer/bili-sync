@@ -151,7 +151,7 @@ pub(super) async fn submission_from<'a>(
     let submission = Submission::new(bili_client, upper_id.to_owned());
     let upper = submission.get_info().await?;
     submission::Entity::insert(submission::ActiveModel {
-        upper_id: Set(upper.mid),
+        upper_id: Set(upper.mid.parse()?),
         upper_name: Set(upper.name),
         path: Set(path.to_string_lossy().to_string()),
         ..Default::default()

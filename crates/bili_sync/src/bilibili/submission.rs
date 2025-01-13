@@ -18,7 +18,7 @@ impl<'a> Submission<'a> {
         Self { client, upper_id }
     }
 
-    pub async fn get_info(&self) -> Result<Upper> {
+    pub async fn get_info(&self) -> Result<Upper<String>> {
         let mut res = self
             .client
             .request(Method::GET, "https://api.bilibili.com/x/web-interface/card")
