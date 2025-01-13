@@ -78,7 +78,7 @@ impl BiliClient {
                     .initial(*limit)
                     .refill(*limit)
                     .max(*limit)
-                    .interval(Duration::from_secs(*duration))
+                    .interval(Duration::from_millis(*duration))
                     .build()
             });
         Self { client, limiter }

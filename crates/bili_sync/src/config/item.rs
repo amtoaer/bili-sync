@@ -44,7 +44,11 @@ impl Default for ConcurrentLimit {
         Self {
             video: 3,
             page: 2,
-            rate_limit: None,
+            // 默认的限速配置，每 250ms 允许请求 4 次
+            rate_limit: Some(RateLimit {
+                limit: 4,
+                duration: 250,
+            }),
         }
     }
 }
