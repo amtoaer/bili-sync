@@ -189,10 +189,18 @@ impl PageAnalyzer {
             };
             let quality = VideoQuality::from_repr(quality as usize).ok_or(anyhow!("invalid video stream quality"))?;
             // 从视频流的 codecs 字段中获取编码格式，此处并非精确匹配而是判断包含，比如 codecs 是 av1.42c01e，需要匹配为 av1
-            let codecs = [VideoCodecs::HEV, VideoCodecs::AVC, VideoCodecs::AV1]
+            let codecs = match [VideoCodecs::HEV, VideoCodecs::AVC, VideoCodecs::AV1]
                 .into_iter()
                 .find(|c| codecs.contains(c.as_ref()))
-                .ok_or(anyhow!("invalid video stream codecs"))?;
+            {
+                Some(codecs) => codecs,
+                None => {
+                    // 极少数情况会走到此处，打印一条日志并跳过，
+                    // 如 BV1Mm4y1P7JV 存在 codecs 为 dvh1.08.09 的视频流
+                    warn!("unknown video codecs: {}", codecs);
+                    continue;
+                }
+            };
             if !filter_option.codecs.contains(&codecs)
                 || quality < filter_option.video_min_quality
                 || quality > filter_option.video_max_quality
@@ -302,6 +310,8 @@ impl PageAnalyzer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bilibili::{BiliClient, Video};
+    use crate::config::CONFIG;
 
     #[test]
     fn test_quality_order() {
@@ -326,5 +336,55 @@ mod tests {
             AudioQuality::QualityHiRES,
         ]
         .is_sorted());
+    }
+
+    #[ignore = "only for manual test"]
+    #[tokio::test]
+    async fn test_best_stream() {
+        let testcases = [
+            // 随便一个 8k + hires 视频
+            (
+                "BV1xRChYUE2R",
+                VideoQuality::Quality8k,
+                Some(AudioQuality::QualityHiRES),
+            ),
+            // 一个没有声音的纯视频
+            ("BV1J7411H7KQ", VideoQuality::Quality720p, None),
+            // 一个杜比全景声的演示片
+            (
+                "BV1Mm4y1P7JV",
+                VideoQuality::Quality4k,
+                Some(AudioQuality::QualityDolby),
+            ),
+        ];
+        for (bvid, video_quality, audio_quality) in testcases.into_iter() {
+            let client = BiliClient::new();
+            let video = Video::new(&client, bvid.to_owned());
+            let pages = video.get_pages().await.expect("failed to get pages");
+            let first_page = pages.into_iter().next().expect("no page found");
+            let best_stream = video
+                .get_page_analyzer(&first_page)
+                .await
+                .expect("failed to get page analyzer")
+                .best_stream(&CONFIG.filter_option)
+                .expect("failed to get best stream");
+            dbg!(bvid, &best_stream);
+            match best_stream {
+                BestStream::VideoAudio {
+                    video: Stream::DashVideo { quality, .. },
+                    audio,
+                } => {
+                    assert_eq!(quality, video_quality);
+                    assert_eq!(
+                        audio.map(|audio_stream| match audio_stream {
+                            Stream::DashAudio { quality, .. } => quality,
+                            _ => unreachable!(),
+                        }),
+                        audio_quality,
+                    );
+                }
+                _ => unreachable!(),
+            }
+        }
     }
 }

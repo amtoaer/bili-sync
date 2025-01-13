@@ -71,12 +71,6 @@ impl Default for Config {
 }
 
 impl Config {
-    fn load() -> Result<Self> {
-        let config_path = CONFIG_DIR.join("config.toml");
-        let config_content = std::fs::read_to_string(config_path)?;
-        Ok(toml::from_str(&config_content)?)
-    }
-
     pub fn save(&self) -> Result<()> {
         let config_path = CONFIG_DIR.join("config.toml");
         std::fs::create_dir_all(&*CONFIG_DIR)?;
@@ -84,6 +78,14 @@ impl Config {
         Ok(())
     }
 
+    #[cfg(not(test))]
+    fn load() -> Result<Self> {
+        let config_path = CONFIG_DIR.join("config.toml");
+        let config_content = std::fs::read_to_string(config_path)?;
+        Ok(toml::from_str(&config_content)?)
+    }
+
+    #[cfg(not(test))]
     pub fn check(&self) {
         let mut ok = true;
         if self.favorite_list.is_empty() && self.collection_list.is_empty() && !self.watch_later.enabled {
