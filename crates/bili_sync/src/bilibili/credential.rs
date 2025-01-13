@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashSet;
 
 use anyhow::{anyhow, bail, Result};
@@ -32,9 +33,18 @@ pub struct WbiImg {
     sub_url: String,
 }
 
-impl WbiImg {
-    pub fn into_mixin_key(self) -> Option<String> {
-        get_mixin_key(self)
+impl From<WbiImg> for Option<String> {
+    /// 尝试将 WbiImg 转换成 mixin_key
+    fn from(value: WbiImg) -> Self {
+        let key = match (
+            get_filename(value.img_url.as_str()),
+            get_filename(value.sub_url.as_str()),
+        ) {
+            (Some(img_key), Some(sub_key)) => img_key.to_string() + sub_key,
+            _ => return None,
+        };
+        let key = key.as_bytes();
+        Some(MIXIN_KEY_ENC_TAB.iter().take(32).map(|&x| key[x] as char).collect())
     }
 }
 
@@ -198,32 +208,40 @@ fn get_filename(url: &str) -> Option<&str> {
         .map(|(s, _)| s)
 }
 
-fn get_mixin_key(wbi_img: WbiImg) -> Option<String> {
-    let key = match (
-        get_filename(wbi_img.img_url.as_str()),
-        get_filename(wbi_img.sub_url.as_str()),
-    ) {
-        (Some(img_key), Some(sub_key)) => img_key.to_string() + sub_key,
-        _ => return None,
-    };
-    let key = key.as_bytes();
-    Some(MIXIN_KEY_ENC_TAB.iter().take(32).map(|&x| key[x] as char).collect())
+pub fn encoded_query<'a>(
+    params: Vec<(&'a str, impl Into<Cow<'a, str>>)>,
+    mixin_key: Option<&str>,
+) -> Vec<(&'a str, Cow<'a, str>)> {
+    match mixin_key {
+        Some(key) => _encoded_query(params, key, chrono::Local::now().timestamp().to_string()),
+        None => params.into_iter().map(|(k, v)| (k, v.into())).collect(),
+    }
 }
 
-pub fn encoded_query<'a>(params: Vec<(&'a str, impl Into<String>)>, mixin_key: &str) -> Vec<(&'a str, String)> {
-    let params = params.into_iter().map(|(k, v)| (k, v.into())).collect();
-    _encoded_query(params, mixin_key, chrono::Local::now().timestamp().to_string())
-}
-
-fn _encoded_query<'a>(params: Vec<(&'a str, String)>, mixin_key: &str, timestamp: String) -> Vec<(&'a str, String)> {
-    let mut params: Vec<(&'a str, String)> = params
+#[inline]
+fn _encoded_query<'a>(
+    params: Vec<(&'a str, impl Into<Cow<'a, str>>)>,
+    mixin_key: &str,
+    timestamp: String,
+) -> Vec<(&'a str, Cow<'a, str>)> {
+    let mut params: Vec<(&'a str, Cow<'a, str>)> = params
         .into_iter()
-        .map(|(k, v)| (k, v.chars().filter(|&x| !"!'()*".contains(x)).collect::<String>()))
+        .map(|(k, v)| {
+            (
+                k,
+                // FIXME: 总感觉这里不太好，即使 v 是 &str 也会被转换成 String
+                v.into()
+                    .chars()
+                    .filter(|&x| !"!'()*".contains(x))
+                    .collect::<String>()
+                    .into(),
+            )
+        })
         .collect();
-    params.push(("wts", timestamp));
+    params.push(("wts", timestamp.into()));
     params.sort_by(|a, b| a.0.cmp(b.0));
     let query = serde_urlencoded::to_string(&params).unwrap().replace('+', "%20");
-    params.push(("w_rid", format!("{:x}", md5::compute(query.clone() + mixin_key))));
+    params.push(("w_rid", format!("{:x}", md5::compute(query.clone() + mixin_key)).into()));
     params
 }
 
@@ -265,25 +283,22 @@ mod tests {
             img_url: "https://i0.hdslb.com/bfs/wbi/7cd084941338484aae1ad9425b84077c.png".to_string(),
             sub_url: "https://i0.hdslb.com/bfs/wbi/4932caff0ff746eab6f01bf08b70ac45.png".to_string(),
         };
-        let mixin_key = get_mixin_key(key);
-        assert_eq!(mixin_key, Some("ea1db124af3c7062474693fa704f4ff8".to_string()));
+        let key = Option::<String>::from(key).expect("fail to convert key");
+        assert_eq!(key.as_str(), "ea1db124af3c7062474693fa704f4ff8");
         assert_eq!(
-            _encoded_query(
-                vec![
-                    ("foo", "114".to_string()),
-                    ("bar", "514".to_string()),
-                    ("zab", "1919810".to_string())
-                ],
-                &mixin_key.unwrap(),
+            dbg!(_encoded_query(
+                vec![("foo", "114"), ("bar", "514"), ("zab", "1919810")],
+                key.as_str(),
                 "1702204169".to_string(),
-            ),
+            )),
+            // 上面产生的结果全是 Cow::Owned，但 eq 只会比较值，这样写比较方便
             vec![
-                ("bar", "514".to_string()),
-                ("foo", "114".to_string()),
-                ("wts", "1702204169".to_string()),
-                ("zab", "1919810".to_string()),
-                ("w_rid", "8f6f2b5b3d485fe1886cec6a0be8c5d4".to_string()),
+                ("bar", Cow::Borrowed("514")),
+                ("foo", Cow::Borrowed("114")),
+                ("wts", Cow::Borrowed("1702204169")),
+                ("zab", Cow::Borrowed("1919810")),
+                ("w_rid", Cow::Borrowed("8f6f2b5b3d485fe1886cec6a0be8c5d4")),
             ]
-        )
+        );
     }
 }

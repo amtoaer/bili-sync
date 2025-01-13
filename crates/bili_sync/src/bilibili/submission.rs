@@ -47,7 +47,7 @@ impl<'a> Submission<'a> {
                     ("pn", page.to_string()),
                     ("ps", "30".to_string()),
                 ],
-                MIXIN_KEY.load().as_ref().unwrap(),
+                MIXIN_KEY.load().as_deref().map(|x| x.as_str()),
             ))
             .send()
             .await?

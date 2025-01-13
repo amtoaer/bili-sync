@@ -9,25 +9,7 @@ use crate::config::item::PathSafeTemplate;
 use crate::config::Config;
 
 /// 全局的 CONFIG，可以从中读取配置信息
-pub static CONFIG: Lazy<Config> = Lazy::new(|| {
-    let config = Config::load().unwrap_or_else(|err| {
-        if err
-            .downcast_ref::<std::io::Error>()
-            .is_none_or(|e| e.kind() != std::io::ErrorKind::NotFound)
-        {
-            panic!("加载配置文件失败，错误为： {err}");
-        }
-        warn!("配置文件不存在，使用默认配置...");
-        Config::default()
-    });
-    // 放到外面，确保新的配置项被保存
-    info!("配置加载完毕，覆盖刷新原有配置");
-    config.save().unwrap();
-    // 检查配置文件内容
-    info!("校验配置文件内容...");
-    config.check();
-    config
-});
+pub static CONFIG: Lazy<Config> = Lazy::new(load_config);
 
 /// 全局的 TEMPLATE，用来渲染 video_name 和 page_name 模板
 pub static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
@@ -51,3 +33,52 @@ pub static ARGS: Lazy<Args> = Lazy::new(Args::parse);
 /// 全局的 CONFIG_DIR，表示配置文件夹的路径
 pub static CONFIG_DIR: Lazy<PathBuf> =
     Lazy::new(|| dirs::config_dir().expect("No config path found").join("bili-sync"));
+
+#[cfg(not(test))]
+#[inline]
+fn load_config() -> Config {
+    let config = Config::load().unwrap_or_else(|err| {
+        if err
+            .downcast_ref::<std::io::Error>()
+            .is_none_or(|e| e.kind() != std::io::ErrorKind::NotFound)
+        {
+            panic!("加载配置文件失败，错误为： {err}");
+        }
+        warn!("配置文件不存在，使用默认配置...");
+        Config::default()
+    });
+    // 放到外面，确保新的配置项被保存
+    info!("配置加载完毕，覆盖刷新原有配置");
+    config.save().unwrap();
+    // 检查配置文件内容
+    info!("校验配置文件内容...");
+    config.check();
+    config
+}
+
+#[cfg(test)]
+#[inline]
+fn load_config() -> Config {
+    let credential = match (
+        std::env::var("TEST_SESSDATA"),
+        std::env::var("TEST_BILI_JCT"),
+        std::env::var("TEST_BUVID3"),
+        std::env::var("TEST_DEDEUSERID"),
+        std::env::var("TEST_AC_TIME_VALUE"),
+    ) {
+        (Ok(sessdata), Ok(bili_jct), Ok(buvid3), Ok(dedeuserid), Ok(ac_time_value)) => {
+            Some(std::sync::Arc::new(crate::bilibili::Credential {
+                sessdata,
+                bili_jct,
+                buvid3,
+                dedeuserid,
+                ac_time_value,
+            }))
+        }
+        _ => None,
+    };
+    Config {
+        credential: arc_swap::ArcSwapOption::from(credential),
+        ..Default::default()
+    }
+}

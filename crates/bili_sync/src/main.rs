@@ -31,7 +31,7 @@ async fn main() {
     let watch_later_config = &CONFIG.watch_later;
     loop {
         'inner: {
-            match bili_client.wbi_img().await.map(|wbi_img| wbi_img.into_mixin_key()) {
+            match bili_client.wbi_img().await.map(|wbi_img| wbi_img.into()) {
                 Ok(Some(mixin_key)) => bilibili::set_global_mixin_key(mixin_key),
                 Ok(_) => {
                     error!("获取 mixin key 失败，无法进行 wbi 签名，等待下一轮执行");
