@@ -77,6 +77,7 @@ async fn main() {
                     error!("处理 UP 主 {upper_id} 投稿时遇到非预期的错误：{e}");
                 }
             }
+            info!("所有 UP 主投稿处理完毕");
             info!("本轮任务执行完毕，等待下一轮执行");
         }
         time::sleep(time::Duration::from_secs(CONFIG.interval)).await;
