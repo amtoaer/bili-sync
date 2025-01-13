@@ -58,6 +58,7 @@ export default defineConfig({
 						text: "获取视频合集/视频列表信息",
 						link: "/collection",
 					},
+					{ text: "获取投稿信息", link: "/submission" },
 				],
 			},
 		],

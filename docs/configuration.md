@@ -32,11 +32,22 @@
 
 这两个参数支持使用模板，其中用 <code v-pre>{{  }}</code> 包裹的模板变量在执行时会被动态替换为对应的内容。
 
-对于 `video_name`，支持设置 bvid（视频编号）、title（视频标题）、upper_name（up 主名称）、upper_mid（up 主 id）。
+对于 `video_name`，支持设置 bvid（视频编号）、title（视频标题）、upper_name（up 主名称）、upper_mid（up 主 id）、pubtime（视频发布时间）、fav_time（视频收藏时间）。
 
 对于 `page_name`，除支持 video 的全部参数外，还支持 ptitle（分 P 标题）、pid（分 P 页号）。
 
 为了解决文件名可能过长的问题，程序为模板引入了 `truncate` 函数。如 <code v-pre>{{ truncate title 10 }}</code> 表示截取 `title` 的前 10 个字符。
+
+> [!TIP]
+> 1. 仅收藏夹视频会区分 `fav_time` 和 `pubtime`，其它类型下载两者的取值是完全相同的；
+> 2. `fav_time` 和 `pubtime` 的格式受 `time_format` 参数控制，详情可参考 [time_format 小节](#time-format)。
+
+此外，`video_name` 和 `page_name` 还支持使用路径分割符，如 <code v-pre>{{ upper_mid }}/{{ title }}_{{ pubtime }}</code> 表示视频会根据 UP 主 id 将视频分到不同的文件夹中。
+
+推荐仅在 `video_name` 中使用路径分割符，暂不清楚在 `page_name` 中使用路径分割符导致分页存储到子文件夹后是否还能被媒体服务器正确识别。
+
+> [!CAUTION]
+> **路径分隔符**在不同平台定义不同，Windows 下为 `\`，MacOS 和 Linux 下为 `/`。
 
 ## `interval`
 
@@ -50,7 +61,11 @@ UP 主头像和信息的保存位置。对于使用 Emby、Jellyfin 媒体服务
 
 表示在视频信息中使用的时间类型，可选值为 `favtime`（收藏时间）和 `pubtime`（发布时间）。
 
-视频合集/视频列表不存在 `favtime`，程序实现中将 `favtime` 设置为与 `pubtime` 相同，因此该设置对视频合集/视频列表没有影响。
+仅收藏夹视频会区分 `fav_time` 和 `pubtime`，其它类型下载两者取值相同。
+
+## `time_format`
+
+时间格式，用于设置 `fav_time` 和 `pubtime` 在 `video_name`、 `page_name` 中使用时的显示格式，支持的格式符号可以参考 [chrono strftime 文档](https://docs.rs/chrono/latest/chrono/format/strftime/index.html)。
 
 ## `credential`
 
@@ -180,6 +195,14 @@ UP 主头像和信息的保存位置。对于使用 Emby、Jellyfin 媒体服务
 
 具体说明可以参考[这里](/collection)。
 
+## `submission_list`
+
+你想要下载的 UP 主投稿与想要保存的位置。简单示例：
+```toml
+9183758 = "/home/amtoaer/Downloads/bili-sync/测试投稿"
+```
+UP 主 ID 的获取方式可以参考[这里](/submission)。
+
 ## `watch_later`
 
 设置稍后再看的扫描开关与保存位置。
@@ -190,3 +213,26 @@ UP 主头像和信息的保存位置。对于使用 Emby、Jellyfin 媒体服务
 enabled = true
 path = "/home/amtoaer/Downloads/bili-sync/稍后再看"
 ```
+
+## `concurrent_limit`
+
+对 bili-sync 的并发下载进行多方面的限制，避免 api 请求过于频繁导致的风控。其中 video 和 page 表示下载任务的并发数，rate_limit 表示 api 请求的流量限制。默认取值为：
+```toml
+[concurrent_limit]
+video = 3
+page = 2
+
+[concurrent_limit.rate_limit]
+limit = 4
+duration = 250
+```
+
+具体来说，程序的处理逻辑是严格从上到下的，即程序会首先并发处理多个 video，每个 video 内再并发处理多个 page，程序的并行度可以简单衡量为 `video * page`（很多 video 都只有单个 page，实际会更接近 `video * 1`），配置项中的 `video` 和 `page` 两个参数就是控制此处的，调节这两个参数可以宏观上控制程序的并行度。
+
+另一方面，每个执行的任务内部都会发起若干 api 请求以获取信息，这些请求的整体频率受到 `rate_limit` 的限制，使用漏桶算法实现。如默认配置表示的是每 250ms 允许 4 个 api 请求，超过这个频率的请求会被暂时阻塞，直到漏桶中有空间为止。调节 `rate_limit` 可以从微观上控制程序的并行度，同时也是最直接、最显著的控制 api 请求频率的方法。
+
+据观察 b 站风控限制大多集中在主站，因此目前 `rate_limit` 仅作用于主站的各类请求，如请求各类视频列表、视频信息、获取流下载地址等，对实际的视频、图片下载过程不做限制。
+
+> [!TIP]
+> 1. 一般来说，`video` 和 `page` 的值不需要过大；
+> 2. `rate_limit` 的值可以根据网络环境和 api 请求频率进行调整，如果经常遇到风控可以优先调小 limit。
