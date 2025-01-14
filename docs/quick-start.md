@@ -54,9 +54,9 @@ services:
 > [!CAUTION]
 >
 > 请注意，`config_dir` 的实际位置与操作系统和用户名有关。
-> 
+>
 > 对于名为 Alice 的用户，`config_dir` 指向的位置是：
-> 
+>
 > + Lin: `/home/Alice/.config`
 > + Win: `C:\Users\Alice\AppData\Roaming`
 > + Mac: `/Users/Alice/Library/Application Support`
@@ -74,6 +74,7 @@ page_name = "{{bvid}}"
 interval = 1200
 upper_path = "/Users/amtoaer/Library/Application Support/bili-sync/upper_face"
 nfo_time_type = "favtime"
+time_format = "%Y-%m-%d"
 
 [credential]
 sessdata = ""
@@ -115,9 +116,19 @@ time_offset = 0.0
 
 [collection_list]
 
+[submission_list]
+
 [watch_later]
 enabled = false
 path = ""
+
+[concurrent_limit]
+video = 3
+page = 2
+
+[concurrent_limit.rate_limit]
+limit = 4
+duration = 250
 ```
 
 虽然配置文件看起来很长，但绝大部分选项是不需要做修改的。一般来说，我们只需要关注其中的少数几个，以下逐条说明。
@@ -165,6 +176,14 @@ UP 主头像和信息的保存位置。对于使用 Emby、Jellyfin 媒体服务
 ```
 
 具体说明可以参考[这里](/collection)。
+
+### `submission_list`
+
+你想要下载的 UP 主投稿与想要保存的位置。简单示例：
+```toml
+9183758 = "/home/amtoaer/Downloads/bili-sync/测试投稿"
+```
+UP 主 ID 的获取方式可以参考[这里](/submission)。
 
 ### `watch_later`
 
