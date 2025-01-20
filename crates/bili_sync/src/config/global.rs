@@ -45,11 +45,13 @@ fn load_config() -> Config {
             panic!("加载配置文件失败，错误为： {err}");
         }
         warn!("配置文件不存在，使用默认配置...");
-        Config::default()
+        let default_config = Config::default();
+        if let Err(err) = default_config.save() {
+            panic!("保存默认配置时遇到错误： {err}");
+        }
+        info!("已将默认配置写入文件，请在修改后重新启动程序...");
+        std::process::exit(1);
     });
-    // 放到外面，确保新的配置项被保存
-    info!("配置加载完毕，覆盖刷新原有配置");
-    config.save().unwrap();
     // 检查配置文件内容
     info!("校验配置文件内容...");
     config.check();
