@@ -136,7 +136,7 @@ impl Config {
         }
         if !(self.concurrent_limit.video > 0 && self.concurrent_limit.page > 0) {
             ok = false;
-            error!("允许的并发数必须大于 0");
+            error!("video 和 page 允许的并发数必须大于 0");
         }
         if !ok {
             panic!(

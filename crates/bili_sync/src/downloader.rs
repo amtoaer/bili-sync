@@ -35,13 +35,13 @@ impl Downloader {
         let output = tokio::process::Command::new("ffmpeg")
             .args([
                 "-i",
-                video_path.to_str().unwrap(),
+                video_path.to_string_lossy().as_ref(),
                 "-i",
-                audio_path.to_str().unwrap(),
+                audio_path.to_string_lossy().as_ref(),
                 "-c",
                 "copy",
                 "-y",
-                output_path.to_str().unwrap(),
+                output_path.to_string_lossy().as_ref(),
             ])
             .output()
             .await?;

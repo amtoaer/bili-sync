@@ -46,11 +46,9 @@ fn load_config() -> Config {
         }
         warn!("配置文件不存在，使用默认配置...");
         let default_config = Config::default();
-        if let Err(err) = default_config.save() {
-            panic!("保存默认配置时遇到错误： {err}");
-        }
-        info!("已将默认配置写入文件，请在修改后重新启动程序...");
-        std::process::exit(1);
+        default_config.save().expect("保存默认配置时遇到错误");
+        info!("已将默认配置写入 {}", CONFIG_DIR.join("config.toml").display());
+        default_config
     });
     // 检查配置文件内容
     info!("校验配置文件内容...");

@@ -133,7 +133,7 @@ impl<'a> Collection<'a> {
                         ("pn", page.as_str()),
                         ("ps", "30"),
                     ],
-                    MIXIN_KEY.load().as_deref().map(|x| x.as_str()),
+                    MIXIN_KEY.load().as_deref(),
                 ),
             ),
             CollectionType::Season => (
@@ -146,7 +146,7 @@ impl<'a> Collection<'a> {
                         ("page_num", page.as_str()),
                         ("page_size", "30"),
                     ],
-                    MIXIN_KEY.load().as_deref().map(|x| x.as_str()),
+                    MIXIN_KEY.load().as_deref(),
                 ),
             ),
         };

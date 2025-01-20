@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use bili_sync_entity::*;
 use futures::stream::{FuturesOrdered, FuturesUnordered};
 use futures::{Future, Stream, StreamExt};
@@ -94,12 +94,14 @@ pub async fn download_unprocessed_videos(
     let downloader = Downloader::new(bili_client.client.clone());
     let mut uppers_mutex: HashMap<i64, (Mutex<()>, Mutex<()>)> = HashMap::new();
     for (video_model, _) in &unhandled_videos_pages {
-        uppers_mutex.insert(video_model.upper_id, (Mutex::new(()), Mutex::new(())));
+        uppers_mutex
+            .entry(video_model.upper_id)
+            .or_insert_with(|| (Mutex::new(()), Mutex::new(())));
     }
     let mut tasks = unhandled_videos_pages
         .into_iter()
         .map(|(video_model, pages_model)| {
-            let upper_mutex = uppers_mutex.get(&video_model.upper_id).unwrap();
+            let upper_mutex = uppers_mutex.get(&video_model.upper_id).expect("upper mutex not found");
             download_video_pages(
                 bili_client,
                 video_model,
@@ -158,9 +160,9 @@ pub async fn download_video_pages(
     let base_path = Path::new(&video_model.path);
     let upper_id = video_model.upper_id.to_string();
     let base_upper_path = upper_path
-        .join(upper_id.chars().next().unwrap().to_string())
+        .join(upper_id.chars().next().ok_or(anyhow!("upper_id is empty"))?.to_string())
         .join(upper_id);
-    let is_single_page = video_model.single_page.unwrap();
+    let is_single_page = video_model.single_page.ok_or(anyhow!("single_page is null"))?;
     // 对于单页视频，page 的下载已经足够
     // 对于多页视频，page 下载仅包含了分集内容，需要额外补上视频的 poster 的 tvshow.nfo
     let tasks: Vec<Pin<Box<dyn Future<Output = Result<()>>>>> = vec![
@@ -220,7 +222,7 @@ pub async fn download_video_pages(
                 &video_model.bvid, &video_model.name, task_name, e
             ),
         });
-    if let Err(e) = results.into_iter().nth(4).unwrap() {
+    if let Err(e) = results.into_iter().nth(4).expect("not enough results") {
         if e.downcast_ref::<DownloadAbortError>().is_some() {
             return Err(e);
         }
@@ -306,7 +308,7 @@ pub async fn download_page(
     }
     let mut status = PageStatus::new(page_model.download_status);
     let seprate_status = status.should_run();
-    let is_single_page = video_model.single_page.unwrap();
+    let is_single_page = video_model.single_page.ok_or(anyhow!("single_page is null"))?;
     let base_path = Path::new(&video_model.path);
     let base_name = TEMPLATE.path_safe_render(
         "page",
@@ -347,14 +349,13 @@ pub async fn download_page(
             None,
         )
     };
-    let dimension = if page_model.width.is_some() && page_model.height.is_some() {
-        Some(Dimension {
-            width: page_model.width.unwrap(),
-            height: page_model.height.unwrap(),
+    let dimension = match (page_model.width, page_model.height) {
+        (Some(width), Some(height)) => Some(Dimension {
+            width,
+            height,
             rotate: 0,
-        })
-    } else {
-        None
+        }),
+        _ => None,
     };
     let page_info = PageInfo {
         cid: page_model.cid,
@@ -405,14 +406,14 @@ pub async fn download_page(
             ),
         });
     // 查看下载视频的状态，该状态会影响上层是否 break
-    if let Err(e) = results.into_iter().nth(1).unwrap() {
+    if let Err(e) = results.into_iter().nth(1).expect("not enough results") {
         if let Ok(BiliError::RiskControlOccurred) = e.downcast::<BiliError>() {
             bail!(DownloadAbortError());
         }
     }
     let mut page_active_model: page::ActiveModel = page_model.into();
     page_active_model.download_status = Set(status.into());
-    page_active_model.path = Set(Some(video_path.to_str().unwrap().to_string()));
+    page_active_model.path = Set(Some(video_path.to_string_lossy().to_string()));
     Ok(page_active_model)
 }
 
@@ -427,7 +428,7 @@ pub async fn fetch_page_poster(
     if !should_run {
         return Ok(());
     }
-    let single_page = video_model.single_page.unwrap();
+    let single_page = video_model.single_page.ok_or(anyhow!("single_page is null"))?;
     let url = if single_page {
         // 单页视频直接用视频的封面
         video_model.cover.as_str()
@@ -515,7 +516,7 @@ pub async fn generate_page_nfo(
     if !should_run {
         return Ok(());
     }
-    let single_page = video_model.single_page.unwrap();
+    let single_page = video_model.single_page.ok_or(anyhow!("single_page is null"))?;
     let nfo_serializer = if single_page {
         NFOSerializer(ModelWrapper::Video(video_model), NFOMode::MOVIE)
     } else {

@@ -210,10 +210,10 @@ fn get_filename(url: &str) -> Option<&str> {
 
 pub fn encoded_query<'a>(
     params: Vec<(&'a str, impl Into<Cow<'a, str>>)>,
-    mixin_key: Option<&str>,
+    mixin_key: Option<impl AsRef<str>>,
 ) -> Vec<(&'a str, Cow<'a, str>)> {
     match mixin_key {
-        Some(key) => _encoded_query(params, key, chrono::Local::now().timestamp().to_string()),
+        Some(key) => _encoded_query(params, key.as_ref(), chrono::Local::now().timestamp().to_string()),
         None => params.into_iter().map(|(k, v)| (k, v.into())).collect(),
     }
 }

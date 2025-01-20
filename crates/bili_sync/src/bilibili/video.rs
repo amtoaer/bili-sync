@@ -154,7 +154,7 @@ impl<'a> Video<'a> {
                     ("fnval", "4048"),
                     ("fourk", "1"),
                 ],
-                MIXIN_KEY.load().as_deref().map(|x| x.as_str()),
+                MIXIN_KEY.load().as_deref(),
             ))
             .send()
             .await?
