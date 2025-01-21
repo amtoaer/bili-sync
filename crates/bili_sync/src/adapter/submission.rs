@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::pin::Pin;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use bili_sync_entity::*;
 use futures::Stream;
@@ -91,7 +91,7 @@ impl VideoListModel for submission::Model {
                 // 将页标记和 tag 写入数据库
                 let mut video_active_model = self.video_model_by_info(&view_info, Some(video_model));
                 video_active_model.single_page = Set(Some(pages.len() == 1));
-                video_active_model.tags = Set(Some(serde_json::to_value(tags).unwrap()));
+                video_active_model.tags = Set(Some(serde_json::to_value(tags)?));
                 video_active_model.save(&txn).await?;
                 txn.commit().await?;
             }
@@ -169,7 +169,7 @@ pub(super) async fn submission_from<'a>(
                 .filter(submission::Column::UpperId.eq(upper.mid))
                 .one(connection)
                 .await?
-                .unwrap(),
+                .ok_or(anyhow!("submission not found"))?,
         ),
         Box::pin(submission.into_video_stream()),
     ))

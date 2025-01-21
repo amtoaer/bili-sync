@@ -65,7 +65,11 @@ pub(super) fn video_with_path(
 ) -> video::ActiveModel {
     if let Some(fmt_args) = &video_info.to_fmt_args() {
         video_model.path = Set(Path::new(base_path)
-            .join(TEMPLATE.path_safe_render("video", fmt_args).unwrap())
+            .join(
+                TEMPLATE
+                    .path_safe_render("video", fmt_args)
+                    .expect("template render failed"),
+            )
             .to_string_lossy()
             .to_string());
     }

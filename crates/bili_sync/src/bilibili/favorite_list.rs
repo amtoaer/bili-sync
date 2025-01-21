@@ -71,23 +71,25 @@ impl<'a> FavoriteList<'a> {
                     Err(e) => {
                         error!("failed to get videos of favorite {} page {}: {}", self.fid, page, e);
                         break;
-                    },
+                    }
                 };
-                if !videos["data"]["medias"].is_array() {
-                    warn!("no medias found in favorite {} page {}", self.fid, page);
+                let medias = &mut videos["data"]["medias"];
+                if medias.as_array().is_none_or(|v| v.is_empty()) {
+                    error!("no medias found in favorite {} page {}", self.fid, page);
                     break;
                 }
-                let videos_info = match serde_json::from_value::<Vec<VideoInfo>>(videos["data"]["medias"].take()) {
+                let videos_info: Vec<VideoInfo> = match serde_json::from_value(medias.take()) {
                     Ok(v) => v,
                     Err(e) => {
                         error!("failed to parse videos of favorite {} page {}: {}", self.fid, page, e);
                         break;
-                    },
+                    }
                 };
-                for video_info in videos_info{
+                for video_info in videos_info {
                     yield video_info;
                 }
-                if videos["data"]["has_more"].is_boolean() && videos["data"]["has_more"].as_bool().unwrap(){
+                let has_more = &videos["data"]["has_more"];
+                if has_more.as_bool().is_some_and(|v| v) {
                     page += 1;
                     continue;
                 }

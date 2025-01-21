@@ -169,37 +169,49 @@ impl<'a> Collection<'a> {
                 let mut videos = match self.get_videos(page).await {
                     Ok(v) => v,
                     Err(e) => {
-                        error!("failed to get videos of collection {:?} page {}: {}", self.collection, page, e);
+                        error!(
+                            "failed to get videos of collection {:?} page {}: {}",
+                            self.collection, page, e
+                        );
                         break;
-                    },
+                    }
                 };
-                if !videos["data"]["archives"].is_array() {
-                    warn!("no videos found in collection {:?} page {}", self.collection, page);
+                let archives = &mut videos["data"]["archives"];
+                if archives.as_array().is_none_or(|v| v.is_empty()) {
+                    error!("no videos found in collection {:?} page {}", self.collection, page);
                     break;
                 }
-                let videos_info = match serde_json::from_value::<Vec<VideoInfo>>(videos["data"]["archives"].take()) {
+                let videos_info: Vec<VideoInfo> = match serde_json::from_value(archives.take()) {
                     Ok(v) => v,
                     Err(e) => {
-                        error!("failed to parse videos of collection {:?} page {}: {}", self.collection, page, e);
+                        error!(
+                            "failed to parse videos of collection {:?} page {}: {}",
+                            self.collection, page, e
+                        );
                         break;
-                    },
+                    }
                 };
-                for video_info in videos_info{
+                for video_info in videos_info {
                     yield video_info;
                 }
-                let fields = match self.collection.collection_type{
+                let page_info = &videos["data"]["page"];
+                let fields = match self.collection.collection_type {
                     CollectionType::Series => ["num", "size", "total"],
                     CollectionType::Season => ["page_num", "page_size", "total"],
                 };
-                let fields  = fields.into_iter().map(|f| videos["data"]["page"][f].as_i64()).collect::<Option<Vec<i64>>>().map(|v| (v[0], v[1], v[2]));
-                let Some((num, size, total)) = fields else {
-                    error!("failed to get pages of collection {:?} page {}: {:?}", self.collection, page, fields);
-                    break;
-                };
-                if num * size >= total {
-                    break;
+                let values = fields.iter().map(|f| page_info[f].as_i64()).collect::<Vec<Option<i64>>>();
+                if let [Some(num), Some(size), Some(total)] = values[..] {
+                    if num * size < total {
+                        page += 1;
+                        continue;
+                    }
+                } else {
+                    error!(
+                        "invalid page info of collection {:?} page {}: read {:?} from {}",
+                        self.collection, page, fields, page_info
+                    );
                 }
-                page += 1;
+                break;
             }
         }
     }

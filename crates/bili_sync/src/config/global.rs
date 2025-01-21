@@ -22,8 +22,12 @@ pub static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
         }
     });
     handlebars.register_helper("truncate", Box::new(truncate));
-    handlebars.path_safe_register("video", &CONFIG.video_name).unwrap();
-    handlebars.path_safe_register("page", &CONFIG.page_name).unwrap();
+    handlebars
+        .path_safe_register("video", &CONFIG.video_name)
+        .expect("failed to register video template");
+    handlebars
+        .path_safe_register("page", &CONFIG.page_name)
+        .expect("failed to register page template");
     handlebars
 });
 

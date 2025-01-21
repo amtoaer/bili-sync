@@ -66,23 +66,25 @@ impl<'a> Submission<'a> {
                     Err(e) => {
                         error!("failed to get videos of upper {} page {}: {}", self.upper_id, page, e);
                         break;
-                    },
+                    }
                 };
-                if !videos["data"]["list"]["vlist"].is_array() {
-                    warn!("no medias found in upper {} page {}", self.upper_id, page);
+                let vlist = &mut videos["data"]["list"]["vlist"];
+                if vlist.as_array().is_none_or(|v| v.is_empty()) {
+                    error!("no medias found in upper {} page {}", self.upper_id, page);
                     break;
                 }
-                let videos_info = match serde_json::from_value::<Vec<VideoInfo>>(videos["data"]["list"]["vlist"].take()) {
+                let videos_info: Vec<VideoInfo> = match serde_json::from_value(vlist.take()) {
                     Ok(v) => v,
                     Err(e) => {
                         error!("failed to parse videos of upper {} page {}: {}", self.upper_id, page, e);
                         break;
-                    },
+                    }
                 };
-                for video_info in videos_info{
+                for video_info in videos_info {
                     yield video_info;
                 }
-                if videos["data"]["page"]["count"].is_i64() && videos["data"]["page"]["count"].as_i64().unwrap() > (page * 30) as i64 {
+                let count = &videos["data"]["page"]["count"];
+                if count.as_i64().is_some_and(|v| v > (page * 30) as i64) {
                     page += 1;
                     continue;
                 }

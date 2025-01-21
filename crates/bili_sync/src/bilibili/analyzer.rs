@@ -7,7 +7,7 @@ pub struct PageAnalyzer {
     info: serde_json::Value,
 }
 
-#[derive(Debug, strum::FromRepr, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[derive(Debug, strum::FromRepr, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum VideoQuality {
     Quality360p = 16,
     Quality480p = 32,
@@ -21,13 +21,25 @@ pub enum VideoQuality {
     Quality8k = 127,
 }
 
-#[derive(Debug, Clone, Copy, strum::FromRepr, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, strum::FromRepr, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AudioQuality {
     Quality64k = 30216,
     Quality132k = 30232,
     QualityDolby = 30250,
     QualityHiRES = 30251,
     Quality192k = 30280,
+}
+
+impl Ord for AudioQuality {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.as_sort_key().cmp(&other.as_sort_key())
+    }
+}
+
+impl PartialOrd for AudioQuality {
+    fn partial_cmp(&self, other: &AudioQuality) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 impl AudioQuality {
@@ -38,12 +50,6 @@ impl AudioQuality {
             Self::QualityHiRES | Self::QualityDolby => (*self as isize) + 40,
             _ => *self as isize,
         }
-    }
-}
-
-impl PartialOrd<AudioQuality> for AudioQuality {
-    fn partial_cmp(&self, other: &AudioQuality) -> Option<std::cmp::Ordering> {
-        self.as_sort_key().partial_cmp(&other.as_sort_key())
     }
 }
 
@@ -281,7 +287,7 @@ impl PageAnalyzer {
                     },
                 ) => {
                     if a_quality != b_quality {
-                        return a_quality.partial_cmp(b_quality).unwrap();
+                        return a_quality.cmp(b_quality);
                     };
                     filter_option
                         .codecs
@@ -294,7 +300,7 @@ impl PageAnalyzer {
             .ok_or(anyhow!("no video stream found"))?,
             audio: Iterator::max_by(audios.into_iter(), |a, b| match (a, b) {
                 (Stream::DashAudio { quality: a_quality, .. }, Stream::DashAudio { quality: b_quality, .. }) => {
-                    a_quality.partial_cmp(b_quality).unwrap()
+                    a_quality.cmp(b_quality)
                 }
                 _ => unreachable!(),
             }),

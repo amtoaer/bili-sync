@@ -172,7 +172,7 @@ fn bvid_to_aid(bvid: &str) -> u64 {
     (bvid[4], bvid[7]) = (bvid[7], bvid[4]);
     let mut tmp = 0u64;
     for char in bvid.into_iter().skip(3) {
-        let idx = DATA.iter().position(|&x| x == char).unwrap();
+        let idx = DATA.iter().position(|&x| x == char).expect("invalid bvid");
         tmp = tmp * BASE + idx as u64;
     }
     (tmp & MASK_CODE) ^ XOR_CODE

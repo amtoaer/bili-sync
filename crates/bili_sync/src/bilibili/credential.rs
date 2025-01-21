@@ -95,11 +95,13 @@ nzPjfdTcqMz7djHum0qSZA0AyCBDABUqCrfNgCiJ00Ra7GmRj+YCK1NJEuewlb40
 JNrRuoEUXpabUzGB8QIDAQAB
 -----END PUBLIC KEY-----",
         )
-        .unwrap();
+        .expect("fail to decode public key");
         let ts = chrono::Local::now().timestamp_millis();
         let data = format!("refresh_{}", ts).into_bytes();
         let mut rng = rand::rngs::OsRng;
-        let encrypted = key.encrypt(&mut rng, Oaep::new::<Sha256>(), &data).unwrap();
+        let encrypted = key
+            .encrypt(&mut rng, Oaep::new::<Sha256>(), &data)
+            .expect("fail to encrypt");
         hex::encode(encrypted)
     }
 
@@ -161,10 +163,10 @@ JNrRuoEUXpabUzGB8QIDAQAB
                 _ => unreachable!(),
             }
         }
-        if !res["data"]["refresh_token"].is_string() {
-            bail!("refresh_token not found");
+        match res["data"]["refresh_token"].as_str() {
+            Some(token) => credential.ac_time_value = token.to_string(),
+            None => bail!("refresh_token not found"),
         }
-        credential.ac_time_value = res["data"]["refresh_token"].as_str().unwrap().to_string();
         Ok(credential)
     }
 
@@ -195,9 +197,9 @@ fn regex_find(pattern: &str, doc: &str) -> Result<String> {
     let re = Regex::new(pattern)?;
     Ok(re
         .captures(doc)
-        .ok_or(anyhow!("pattern not match"))?
+        .ok_or_else(|| anyhow!("no match found"))?
         .get(1)
-        .unwrap()
+        .ok_or_else(|| anyhow!("no capture found"))?
         .as_str()
         .to_string())
 }
@@ -240,7 +242,9 @@ fn _encoded_query<'a>(
         .collect();
     params.push(("wts", timestamp.into()));
     params.sort_by(|a, b| a.0.cmp(b.0));
-    let query = serde_urlencoded::to_string(&params).unwrap().replace('+', "%20");
+    let query = serde_urlencoded::to_string(&params)
+        .expect("fail to encode query")
+        .replace('+', "%20");
     params.push(("w_rid", format!("{:x}", md5::compute(query.clone() + mixin_key)).into()));
     params
 }

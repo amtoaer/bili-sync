@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::pin::Pin;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use bili_sync_entity::*;
 use futures::Stream;
@@ -88,7 +88,7 @@ impl VideoListModel for watch_later::Model {
                 // 将页标记和 tag 写入数据库
                 let mut video_active_model: video::ActiveModel = video_model.into();
                 video_active_model.single_page = Set(Some(pages_info.len() == 1));
-                video_active_model.tags = Set(Some(serde_json::to_value(tags).unwrap()));
+                video_active_model.tags = Set(Some(serde_json::to_value(tags)?));
                 video_active_model.save(&txn).await?;
                 txn.commit().await?;
             }
@@ -151,7 +151,7 @@ pub(super) async fn watch_later_from<'a>(
                 .filter(watch_later::Column::Id.eq(1))
                 .one(connection)
                 .await?
-                .unwrap(),
+                .ok_or(anyhow!("watch_later not found"))?,
         ),
         Box::pin(watch_later.into_video_stream()),
     ))
