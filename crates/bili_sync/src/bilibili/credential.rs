@@ -3,6 +3,7 @@ use std::collections::HashSet;
 
 use anyhow::{bail, ensure, Context, Result};
 use cookie::Cookie;
+use cow_utils::CowUtils;
 use regex::Regex;
 use reqwest::{header, Method};
 use rsa::pkcs8::DecodePublicKey;
@@ -227,17 +228,16 @@ fn _encoded_query<'a>(
     mixin_key: &str,
     timestamp: String,
 ) -> Vec<(&'a str, Cow<'a, str>)> {
+    let disallowed = ['!', '\'', '(', ')', '*'];
     let mut params: Vec<(&'a str, Cow<'a, str>)> = params
         .into_iter()
         .map(|(k, v)| {
             (
                 k,
-                // FIXME: 总感觉这里不太好，即使 v 是 &str 也会被转换成 String
-                v.into()
-                    .chars()
-                    .filter(|&x| !"!'()*".contains(x))
-                    .collect::<String>()
-                    .into(),
+                match Into::<Cow<'a, str>>::into(v) {
+                    Cow::Borrowed(v) => v.cow_replace(&disallowed[..], ""),
+                    Cow::Owned(v) => v.replace(&disallowed[..], "").into(),
+                },
             )
         })
         .collect();
@@ -252,6 +252,8 @@ fn _encoded_query<'a>(
 
 #[cfg(test)]
 mod tests {
+    use assert_matches::assert_matches;
+
     use super::*;
 
     #[test]
@@ -290,20 +292,47 @@ mod tests {
         };
         let key = Option::<String>::from(key).expect("fail to convert key");
         assert_eq!(key.as_str(), "ea1db124af3c7062474693fa704f4ff8");
-        assert_eq!(
-            dbg!(_encoded_query(
+        // 没有特殊字符
+        assert_matches!(
+            &_encoded_query(
                 vec![("foo", "114"), ("bar", "514"), ("zab", "1919810")],
                 key.as_str(),
                 "1702204169".to_string(),
-            )),
-            // 上面产生的结果全是 Cow::Owned，但 eq 只会比较值，这样写比较方便
-            vec![
-                ("bar", Cow::Borrowed("514")),
-                ("foo", Cow::Borrowed("114")),
-                ("wts", Cow::Borrowed("1702204169")),
-                ("zab", Cow::Borrowed("1919810")),
-                ("w_rid", Cow::Borrowed("8f6f2b5b3d485fe1886cec6a0be8c5d4")),
-            ]
+            )[..],
+            [
+                ("bar", Cow::Borrowed(a)),
+                ("foo", Cow::Borrowed(b)),
+                ("wts", Cow::Owned(c)),
+                ("zab", Cow::Borrowed(d)),
+                ("w_rid", Cow::Owned(e)),
+            ] => {
+                assert_eq!(*a, "514");
+                assert_eq!(*b, "114");
+                assert_eq!(c, "1702204169");
+                assert_eq!(*d, "1919810");
+                assert_eq!(e, "8f6f2b5b3d485fe1886cec6a0be8c5d4");
+            }
+        );
+        // 有特殊字符
+        assert_matches!(
+            &_encoded_query(
+                vec![("foo", "'1(1)4'"), ("bar", "!5*1!14"), ("zab", "1919810")],
+                key.as_str(),
+                "1702204169".to_string(),
+            )[..],
+            [
+                ("bar", Cow::Owned(a)),
+                ("foo", Cow::Owned(b)),
+                ("wts", Cow::Owned(c)),
+                ("zab", Cow::Borrowed(d)),
+                ("w_rid", Cow::Owned(e)),
+            ] => {
+                assert_eq!(a, "5114");
+                assert_eq!(b, "114");
+                assert_eq!(c, "1702204169");
+                assert_eq!(*d, "1919810");
+                assert_eq!(e, "6a2c86c4b0648ce062ba0dac2de91a85");
+            }
         );
     }
 }
