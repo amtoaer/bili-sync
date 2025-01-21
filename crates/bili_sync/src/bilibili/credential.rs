@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::collections::HashSet;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, ensure, Context, Result};
 use cookie::Cookie;
 use regex::Regex;
 use reqwest::{header, Method};
@@ -74,7 +74,7 @@ impl Credential {
             .json::<serde_json::Value>()
             .await?
             .validate()?;
-        res["data"]["refresh"].as_bool().ok_or(anyhow!("check refresh failed"))
+        res["data"]["refresh"].as_bool().context("check refresh failed")
     }
 
     pub async fn refresh(&self, client: &Client) -> Result<Self> {
@@ -152,9 +152,10 @@ JNrRuoEUXpabUzGB8QIDAQAB
             .filter_map(|x| Cookie::parse(x).ok())
             .filter(|x| required_cookies.contains(x.name()))
             .collect();
-        if cookies.len() != required_cookies.len() {
-            bail!("not all required cookies found");
-        }
+        ensure!(
+            cookies.len() == required_cookies.len(),
+            "not all required cookies found"
+        );
         for cookie in cookies {
             match cookie.name() {
                 "SESSDATA" => credential.sessdata = cookie.value().to_string(),
@@ -197,9 +198,9 @@ fn regex_find(pattern: &str, doc: &str) -> Result<String> {
     let re = Regex::new(pattern)?;
     Ok(re
         .captures(doc)
-        .ok_or_else(|| anyhow!("no match found"))?
+        .context("no match found")?
         .get(1)
-        .ok_or_else(|| anyhow!("no capture found"))?
+        .context("no capture found")?
         .as_str()
         .to_string())
 }

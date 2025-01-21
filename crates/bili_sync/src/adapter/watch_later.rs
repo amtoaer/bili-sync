@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::pin::Pin;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use bili_sync_entity::*;
 use futures::Stream;
@@ -151,7 +151,7 @@ pub(super) async fn watch_later_from<'a>(
                 .filter(watch_later::Column::Id.eq(1))
                 .one(connection)
                 .await?
-                .ok_or(anyhow!("watch_later not found"))?,
+                .context("watch_later not found")?,
         ),
         Box::pin(watch_later.into_video_stream()),
     ))

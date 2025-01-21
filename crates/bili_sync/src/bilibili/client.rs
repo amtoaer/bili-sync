@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::{bail, Result};
+use anyhow::{Context, Result};
 use leaky_bucket::RateLimiter;
 use reqwest::{header, Method};
 
@@ -109,9 +109,7 @@ impl BiliClient {
     /// 获取 wbi img，用于生成请求签名
     pub async fn wbi_img(&self) -> Result<WbiImg> {
         let credential = CONFIG.credential.load();
-        let Some(credential) = credential.as_deref() else {
-            bail!("no credential found");
-        };
+        let credential = credential.as_deref().context("no credential found")?;
         credential.wbi_img(&self.client).await
     }
 }

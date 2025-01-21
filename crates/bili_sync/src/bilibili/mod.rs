@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 pub use analyzer::{BestStream, FilterOption};
-use anyhow::{bail, Result};
+use anyhow::{bail, ensure, Result};
 use arc_swap::ArcSwapOption;
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
@@ -49,9 +49,7 @@ impl Validate for serde_json::Value {
             (Some(code), Some(msg)) => (code, msg),
             _ => bail!("no code or message found"),
         };
-        if code != 0 {
-            bail!(BiliError::RequestFailed(code, msg.to_owned()));
-        }
+        ensure!(code == 0, BiliError::RequestFailed(code, msg.to_owned()));
         Ok(self)
     }
 }

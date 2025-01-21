@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::bilibili::error::BiliError;
@@ -160,7 +160,7 @@ impl PageAnalyzer {
             return Ok(vec![Stream::Flv(
                 self.info["durl"][0]["url"]
                     .as_str()
-                    .ok_or(anyhow!("invalid flv stream"))?
+                    .context("invalid flv stream")?
                     .to_string(),
             )]);
         }
@@ -168,7 +168,7 @@ impl PageAnalyzer {
             return Ok(vec![Stream::Html5Mp4(
                 self.info["durl"][0]["url"]
                     .as_str()
-                    .ok_or(anyhow!("invalid html5 mp4 stream"))?
+                    .context("invalid html5 mp4 stream")?
                     .to_string(),
             )]);
         }
@@ -176,7 +176,7 @@ impl PageAnalyzer {
             return Ok(vec![Stream::EpositeTryMp4(
                 self.info["durl"][0]["url"]
                     .as_str()
-                    .ok_or(anyhow!("invalid episode try mp4 stream"))?
+                    .context("invalid episode try mp4 stream")?
                     .to_string(),
             )]);
         }
@@ -193,7 +193,7 @@ impl PageAnalyzer {
             ) else {
                 continue;
             };
-            let quality = VideoQuality::from_repr(quality as usize).ok_or(anyhow!("invalid video stream quality"))?;
+            let quality = VideoQuality::from_repr(quality as usize).context("invalid video stream quality")?;
             // 从视频流的 codecs 字段中获取编码格式，此处并非精确匹配而是判断包含，比如 codecs 是 av1.42c01e，需要匹配为 av1
             let Some(codecs) = [VideoCodecs::HEV, VideoCodecs::AVC, VideoCodecs::AV1]
                 .into_iter()
@@ -221,8 +221,7 @@ impl PageAnalyzer {
                 let (Some(url), Some(quality)) = (audio["baseUrl"].as_str(), audio["id"].as_u64()) else {
                     continue;
                 };
-                let quality =
-                    AudioQuality::from_repr(quality as usize).ok_or(anyhow!("invalid audio stream quality"))?;
+                let quality = AudioQuality::from_repr(quality as usize).context("invalid audio stream quality")?;
                 if quality < filter_option.audio_min_quality || quality > filter_option.audio_max_quality {
                     continue;
                 }
@@ -237,7 +236,7 @@ impl PageAnalyzer {
             let (Some(url), Some(quality)) = (flac["baseUrl"].as_str(), flac["id"].as_u64()) else {
                 bail!("invalid flac stream");
             };
-            let quality = AudioQuality::from_repr(quality as usize).ok_or(anyhow!("invalid flac stream quality"))?;
+            let quality = AudioQuality::from_repr(quality as usize).context("invalid flac stream quality")?;
             if quality >= filter_option.audio_min_quality && quality <= filter_option.audio_max_quality {
                 streams.push(Stream::DashAudio {
                     url: url.to_string(),
@@ -250,8 +249,7 @@ impl PageAnalyzer {
             let (Some(url), Some(quality)) = (dolby_audio["baseUrl"].as_str(), dolby_audio["id"].as_u64()) else {
                 bail!("invalid dolby audio stream");
             };
-            let quality =
-                AudioQuality::from_repr(quality as usize).ok_or(anyhow!("invalid dolby audio stream quality"))?;
+            let quality = AudioQuality::from_repr(quality as usize).context("invalid dolby audio stream quality")?;
             if quality >= filter_option.audio_min_quality && quality <= filter_option.audio_max_quality {
                 streams.push(Stream::DashAudio {
                     url: url.to_string(),
@@ -267,7 +265,7 @@ impl PageAnalyzer {
         if self.is_flv_stream() || self.is_html5_mp4_stream() || self.is_episode_try_mp4_stream() {
             // 按照 streams 中的假设，符合这三种情况的流只有一个，直接取
             return Ok(BestStream::Mixed(
-                streams.into_iter().next().ok_or(anyhow!("no stream found"))?,
+                streams.into_iter().next().context("no stream found")?,
             ));
         }
         let (videos, audios): (Vec<Stream>, Vec<Stream>) =
@@ -297,7 +295,7 @@ impl PageAnalyzer {
                 }
                 _ => unreachable!(),
             })
-            .ok_or(anyhow!("no video stream found"))?,
+            .context("no video stream found")?,
             audio: Iterator::max_by(audios.into_iter(), |a, b| match (a, b) {
                 (Stream::DashAudio { quality: a_quality, .. }, Stream::DashAudio { quality: b_quality, .. }) => {
                     a_quality.cmp(b_quality)

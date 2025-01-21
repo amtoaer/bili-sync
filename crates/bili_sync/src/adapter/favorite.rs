@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::pin::Pin;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use bili_sync_entity::*;
 use futures::Stream;
@@ -153,7 +153,7 @@ pub(super) async fn favorite_from<'a>(
                 .filter(favorite::Column::FId.eq(favorite_info.id))
                 .one(connection)
                 .await?
-                .ok_or(anyhow!("favorite not found"))?,
+                .context("favorite not found")?,
         ),
         Box::pin(favorite.into_video_stream()),
     ))

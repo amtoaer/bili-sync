@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Context, Result};
 use bili_sync_entity::*;
 use futures::stream::{FuturesOrdered, FuturesUnordered};
 use futures::{Future, Stream, StreamExt};
@@ -151,18 +151,15 @@ pub async fn download_video_pages(
     upper_path: &Path,
     upper_mutex: &(Mutex<()>, Mutex<()>),
 ) -> Result<video::ActiveModel> {
-    let permit = semaphore.acquire().await;
-    if let Err(e) = permit {
-        bail!(e);
-    }
+    let _permit = semaphore.acquire().await.context("acquire semaphore failed")?;
     let mut status = VideoStatus::new(video_model.download_status);
     let seprate_status = status.should_run();
     let base_path = Path::new(&video_model.path);
     let upper_id = video_model.upper_id.to_string();
     let base_upper_path = upper_path
-        .join(upper_id.chars().next().ok_or(anyhow!("upper_id is empty"))?.to_string())
+        .join(upper_id.chars().next().context("upper_id is empty")?.to_string())
         .join(upper_id);
-    let is_single_page = video_model.single_page.ok_or(anyhow!("single_page is null"))?;
+    let is_single_page = video_model.single_page.context("single_page is null")?;
     // 对于单页视频，page 的下载已经足够
     // 对于多页视频，page 下载仅包含了分集内容，需要额外补上视频的 poster 的 tvshow.nfo
     let tasks: Vec<Pin<Box<dyn Future<Output = Result<()>>>>> = vec![
@@ -308,7 +305,7 @@ pub async fn download_page(
     }
     let mut status = PageStatus::new(page_model.download_status);
     let seprate_status = status.should_run();
-    let is_single_page = video_model.single_page.ok_or(anyhow!("single_page is null"))?;
+    let is_single_page = video_model.single_page.context("single_page is null")?;
     let base_path = Path::new(&video_model.path);
     let base_name = TEMPLATE.path_safe_render(
         "page",
@@ -428,7 +425,7 @@ pub async fn fetch_page_poster(
     if !should_run {
         return Ok(());
     }
-    let single_page = video_model.single_page.ok_or(anyhow!("single_page is null"))?;
+    let single_page = video_model.single_page.context("single_page is null")?;
     let url = if single_page {
         // 单页视频直接用视频的封面
         video_model.cover.as_str()
@@ -516,7 +513,7 @@ pub async fn generate_page_nfo(
     if !should_run {
         return Ok(());
     }
-    let single_page = video_model.single_page.ok_or(anyhow!("single_page is null"))?;
+    let single_page = video_model.single_page.context("single_page is null")?;
     let nfo_serializer = if single_page {
         NFOSerializer(ModelWrapper::Video(video_model), NFOMode::MOVIE)
     } else {

@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::pin::Pin;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use bili_sync_entity::*;
 use futures::Stream;
@@ -196,7 +196,7 @@ pub(super) async fn collection_from<'a>(
                 )
                 .one(connection)
                 .await?
-                .ok_or(anyhow!("collection not found"))?,
+                .context("collection not found")?,
         ),
         Box::pin(collection.into_simple_video_stream()),
     ))

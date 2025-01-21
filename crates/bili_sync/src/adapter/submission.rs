@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::pin::Pin;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use bili_sync_entity::*;
 use futures::Stream;
@@ -169,7 +169,7 @@ pub(super) async fn submission_from<'a>(
                 .filter(submission::Column::UpperId.eq(upper.mid))
                 .one(connection)
                 .await?
-                .ok_or(anyhow!("submission not found"))?,
+                .context("submission not found")?,
         ),
         Box::pin(submission.into_video_stream()),
     ))
