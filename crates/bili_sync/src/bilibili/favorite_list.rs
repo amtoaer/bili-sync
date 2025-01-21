@@ -47,7 +47,7 @@ impl<'a> FavoriteList<'a> {
             .await
             .query(&[
                 ("media_id", self.fid.as_str()),
-                ("pn", &page.to_string()),
+                ("pn", page.to_string().as_str()),
                 ("ps", "20"),
                 ("order", "mtime"),
                 ("type", "0"),

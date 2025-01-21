@@ -39,13 +39,13 @@ impl<'a> Submission<'a> {
             .await
             .query(&encoded_query(
                 vec![
-                    ("mid", self.upper_id.clone()),
-                    ("order", "pubdate".to_string()),
-                    ("order_avoided", "true".to_string()),
-                    ("platform", "web".to_string()),
-                    ("web_location", "1550101".to_string()),
-                    ("pn", page.to_string()),
-                    ("ps", "30".to_string()),
+                    ("mid", self.upper_id.as_str()),
+                    ("order", "pubdate"),
+                    ("order_avoided", "true"),
+                    ("platform", "web"),
+                    ("web_location", "1550101"),
+                    ("pn", page.to_string().as_str()),
+                    ("ps", "30"),
                 ],
                 MIXIN_KEY.load().as_deref(),
             ))
