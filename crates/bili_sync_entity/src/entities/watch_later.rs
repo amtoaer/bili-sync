@@ -9,6 +9,7 @@ pub struct Model {
     pub id: i32,
     pub path: String,
     pub created_at: String,
+    pub latest_row_at: DateTime,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
