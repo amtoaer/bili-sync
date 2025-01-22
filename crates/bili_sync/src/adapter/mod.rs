@@ -4,7 +4,6 @@ mod helper;
 mod submission;
 mod watch_later;
 
-use std::collections::HashSet;
 use std::path::Path;
 use std::pin::Pin;
 
@@ -43,9 +42,6 @@ pub async fn video_list_from<'a>(
 
 #[async_trait]
 pub trait VideoListModel {
-    /// 与视频列表关联的视频总数
-    async fn video_count(&self, connection: &DatabaseConnection) -> Result<u64>;
-
     /// 未填充的视频
     async fn unfilled_videos(&self, connection: &DatabaseConnection) -> Result<Vec<bili_sync_entity::video::Model>>;
 
@@ -54,10 +50,6 @@ pub trait VideoListModel {
         &self,
         connection: &DatabaseConnection,
     ) -> Result<Vec<(bili_sync_entity::video::Model, Vec<bili_sync_entity::page::Model>)>>;
-
-    /// 该批次视频的存在标记
-    async fn exist_labels(&self, videos_info: &[VideoInfo], connection: &DatabaseConnection)
-        -> Result<HashSet<String>>;
 
     /// 视频信息对应的视频 model
     fn video_model_by_info(
@@ -73,6 +65,12 @@ pub trait VideoListModel {
         video_model: bili_sync_entity::video::Model,
         connection: &DatabaseConnection,
     ) -> Result<()>;
+
+    /// 获取视频 model 中记录的最新时间
+    fn get_latest_row_at(&self) -> DateTime;
+
+    /// 更新视频 model 中记录的最新时间
+    async fn update_latest_row_at(&self, datetime: DateTime, connection: &DatabaseConnection) -> Result<()>;
 
     /// 开始获取视频
     fn log_fetch_video_start(&self);
@@ -90,5 +88,5 @@ pub trait VideoListModel {
     fn log_refresh_video_start(&self);
 
     /// 结束刷新视频
-    fn log_refresh_video_end(&self, got_count: usize, new_count: u64);
+    fn log_refresh_video_end(&self, count: usize);
 }

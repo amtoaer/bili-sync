@@ -27,49 +27,62 @@ pub async fn process_video_list(
     path: &Path,
     connection: &DatabaseConnection,
 ) -> Result<()> {
+    // 从参数中获取视频列表的 Model 与视频流
     let (video_list_model, video_streams) = video_list_from(args, path, bili_client, connection).await?;
-    let video_list_model = refresh_video_list(video_list_model, video_streams, connection).await?;
-    let video_list_model = fetch_video_details(bili_client, video_list_model, connection).await?;
+    // 从视频流中获取新视频的简要信息，写入数据库
+    refresh_video_list(video_list_model.as_ref(), video_streams, connection).await?;
+    // 单独请求视频详情接口，获取视频的详情信息与所有的分页，写入数据库
+    fetch_video_details(bili_client, video_list_model.as_ref(), connection).await?;
     if ARGS.scan_only {
         warn!("已开启仅扫描模式，跳过视频下载...");
-        return Ok(());
+    } else {
+        // 从数据库中查找所有未下载的视频与分页，下载并处理
+        download_unprocessed_videos(bili_client, video_list_model.as_ref(), connection).await?;
     }
-    download_unprocessed_videos(bili_client, video_list_model, connection).await
+    Ok(())
 }
 
 /// 请求接口，获取视频列表中所有新添加的视频信息，将其写入数据库
 pub async fn refresh_video_list<'a>(
-    video_list_model: Box<dyn VideoListModel>,
+    video_list_model: &dyn VideoListModel,
     video_streams: Pin<Box<dyn Stream<Item = VideoInfo> + 'a>>,
     connection: &DatabaseConnection,
-) -> Result<Box<dyn VideoListModel>> {
+) -> Result<()> {
     video_list_model.log_refresh_video_start();
-    let mut video_streams = video_streams.chunks(10);
-    let mut got_count = 0;
-    let mut new_count = video_list_model.video_count(connection).await?;
+    let latest_row_at = video_list_model.get_latest_row_at().and_utc();
+    let mut max_datetime = latest_row_at;
+    let mut video_streams = video_streams
+        .take_while(|v| {
+            // 虽然 video_streams 是从新到旧的，但由于此处是分页请求，极端情况下可能发生访问完第一页时插入了两整页视频的情况
+            // 此时获取到的第二页视频比第一页的还要新，因此为了确保正确，理应对每一页的第一个视频进行时间比较
+            // 但在 streams 的抽象下，无法判断具体是在哪里分页的，所以暂且对每个视频都进行比较，希望不会有太大性能损失
+            let release_datetime = v.release_datetime();
+            if release_datetime > &max_datetime {
+                max_datetime = *release_datetime;
+            }
+            futures::future::ready(release_datetime > &latest_row_at)
+        })
+        .chunks(10);
+    let mut count = 0;
     while let Some(videos_info) = video_streams.next().await {
-        got_count += videos_info.len();
-        let exist_labels = video_list_model.exist_labels(&videos_info, connection).await?;
-        // 如果发现有视频的收藏时间和 bvid 和数据库中重合，说明到达了上次处理到的地方，可以直接退出
-        let should_break = videos_info.iter().any(|v| exist_labels.contains(&v.video_key()));
-        // 将视频信息写入数据库
-        create_videos(&videos_info, video_list_model.as_ref(), connection).await?;
-        if should_break {
-            info!("到达上一次处理的位置，提前中止");
-            break;
-        }
+        count += videos_info.len();
+        create_videos(&videos_info, video_list_model, connection).await?;
     }
-    new_count = video_list_model.video_count(connection).await? - new_count;
-    video_list_model.log_refresh_video_end(got_count, new_count);
-    Ok(video_list_model)
+    if max_datetime != latest_row_at {
+        video_list_model
+            .update_latest_row_at(max_datetime.naive_utc(), connection)
+            .await?;
+    }
+    video_list_model.log_refresh_video_end(count);
+    Ok(())
 }
 
 /// 筛选出所有未获取到全部信息的视频，尝试补充其详细信息
 pub async fn fetch_video_details(
     bili_client: &BiliClient,
-    video_list_model: Box<dyn VideoListModel>,
+    video_list_model: &dyn VideoListModel,
     connection: &DatabaseConnection,
-) -> Result<Box<dyn VideoListModel>> {
+) -> Result<()> {
     video_list_model.log_fetch_video_start();
     let videos_model = video_list_model.unfilled_videos(connection).await?;
     for video_model in videos_model {
@@ -79,13 +92,13 @@ pub async fn fetch_video_details(
             .await?;
     }
     video_list_model.log_fetch_video_end();
-    Ok(video_list_model)
+    Ok(())
 }
 
 /// 下载所有未处理成功的视频
 pub async fn download_unprocessed_videos(
     bili_client: &BiliClient,
-    video_list_model: Box<dyn VideoListModel>,
+    video_list_model: &dyn VideoListModel,
     connection: &DatabaseConnection,
 ) -> Result<()> {
     video_list_model.log_download_video_start();

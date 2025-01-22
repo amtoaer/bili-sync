@@ -61,7 +61,7 @@ impl Validate for serde_json::Value {
 /// > Serde will try to match the data against each variant in order and the first one that deserializes successfully is the one returned.
 pub enum VideoInfo {
     /// 从视频详情接口获取的视频信息
-    View {
+    Detail {
         title: String,
         bvid: String,
         #[serde(rename = "desc")]
@@ -77,8 +77,8 @@ pub enum VideoInfo {
         pages: Vec<PageInfo>,
         state: i32,
     },
-    /// 从收藏夹中获取的视频信息
-    Detail {
+    /// 从收藏夹接口获取的视频信息
+    Favorite {
         title: String,
         #[serde(rename = "type")]
         vtype: i32,
@@ -94,7 +94,7 @@ pub enum VideoInfo {
         pubtime: DateTime<Utc>,
         attr: i32,
     },
-    /// 从稍后再看中获取的视频信息
+    /// 从稍后再看接口获取的视频信息
     WatchLater {
         title: String,
         bvid: String,
@@ -112,8 +112,8 @@ pub enum VideoInfo {
         pubtime: DateTime<Utc>,
         state: i32,
     },
-    /// 从视频列表中获取的视频信息
-    Simple {
+    /// 从视频合集/视频列表接口获取的视频信息
+    Collection {
         bvid: String,
         #[serde(rename = "pic")]
         cover: String,
@@ -122,6 +122,7 @@ pub enum VideoInfo {
         #[serde(rename = "pubdate", with = "ts_seconds")]
         pubtime: DateTime<Utc>,
     },
+    // 从用户投稿接口获取的视频信息
     Submission {
         title: String,
         bvid: String,
@@ -152,7 +153,7 @@ mod tests {
         };
         set_global_mixin_key(mixin_key);
         let video = Video::new(&bili_client, "BV1Z54y1C7ZB".to_string());
-        assert!(matches!(video.get_view_info().await, Ok(VideoInfo::View { .. })));
+        assert!(matches!(video.get_view_info().await, Ok(VideoInfo::Detail { .. })));
         let collection_item = CollectionItem {
             mid: "521722088".to_string(),
             sid: "387214".to_string(),
@@ -161,11 +162,11 @@ mod tests {
         let collection = Collection::new(&bili_client, &collection_item);
         let stream = collection.into_simple_video_stream();
         pin_mut!(stream);
-        assert!(matches!(stream.next().await, Some(VideoInfo::Simple { .. })));
+        assert!(matches!(stream.next().await, Some(VideoInfo::Collection { .. })));
         let favorite = FavoriteList::new(&bili_client, "3084505258".to_string());
         let stream = favorite.into_video_stream();
         pin_mut!(stream);
-        assert!(matches!(stream.next().await, Some(VideoInfo::Detail { .. })));
+        assert!(matches!(stream.next().await, Some(VideoInfo::Favorite { .. })));
         let watch_later = WatchLater::new(&bili_client);
         let stream = watch_later.into_video_stream();
         pin_mut!(stream);

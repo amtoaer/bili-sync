@@ -1,10 +1,10 @@
+use chrono::{DateTime, Utc};
 use sea_orm::ActiveValue::{NotSet, Set};
 use sea_orm::IntoActiveModel;
 use serde_json::json;
 
 use crate::bilibili::VideoInfo;
 use crate::config::CONFIG;
-use crate::utils::id_time_key;
 
 impl VideoInfo {
     /// 将 VideoInfo 转换为 ActiveModel
@@ -20,7 +20,7 @@ impl VideoInfo {
             }
         };
         match self {
-            VideoInfo::Simple {
+            VideoInfo::Collection {
                 bvid,
                 cover,
                 ctime,
@@ -34,7 +34,7 @@ impl VideoInfo {
                 valid: Set(true),
                 ..base_model
             },
-            VideoInfo::Detail {
+            VideoInfo::Favorite {
                 title,
                 vtype,
                 bvid,
@@ -63,7 +63,7 @@ impl VideoInfo {
                 upper_face: Set(upper.face.clone()),
                 ..base_model
             },
-            VideoInfo::View {
+            VideoInfo::Detail {
                 title,
                 bvid,
                 intro,
@@ -140,8 +140,8 @@ impl VideoInfo {
 
     pub fn to_fmt_args(&self) -> Option<serde_json::Value> {
         match self {
-            VideoInfo::Simple { .. } | VideoInfo::Submission { .. } => None, // 不能从简单视频信息中构造格式化参数
-            VideoInfo::Detail {
+            VideoInfo::Collection { .. } | VideoInfo::Submission { .. } => None, // 不能从简单视频信息中构造格式化参数
+            VideoInfo::Favorite {
                 title,
                 bvid,
                 upper,
@@ -164,7 +164,7 @@ impl VideoInfo {
                 "pubtime": pubtime.format(&CONFIG.time_format).to_string(),
                 "fav_time": fav_time.format(&CONFIG.time_format).to_string(),
             })),
-            VideoInfo::View {
+            VideoInfo::Detail {
                 title,
                 bvid,
                 upper,
@@ -184,31 +184,12 @@ impl VideoInfo {
         }
     }
 
-    pub fn video_key(&self) -> String {
+    pub fn release_datetime(&self) -> &DateTime<Utc> {
         match self {
-            // 对于合集没有 fav_time，只能用 pubtime 代替
-            VideoInfo::Simple {
-                bvid, pubtime: time, ..
-            }
-            | VideoInfo::Detail {
-                bvid, fav_time: time, ..
-            }
-            | VideoInfo::WatchLater {
-                bvid, fav_time: time, ..
-            }
-            | VideoInfo::Submission { bvid, ctime: time, .. } => id_time_key(bvid, time),
-            // 详情接口返回的数据仅用于填充详情，不会被作为 video_key
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn bvid(&self) -> &str {
-        match self {
-            VideoInfo::Simple { bvid, .. }
-            | VideoInfo::Detail { bvid, .. }
-            | VideoInfo::WatchLater { bvid, .. }
-            | VideoInfo::Submission { bvid, .. } => bvid,
-            // 同上
+            VideoInfo::Collection { pubtime: time, .. }
+            | VideoInfo::Favorite { fav_time: time, .. }
+            | VideoInfo::WatchLater { fav_time: time, .. }
+            | VideoInfo::Submission { ctime: time, .. } => time,
             _ => unreachable!(),
         }
     }

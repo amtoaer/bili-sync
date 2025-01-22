@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::path::Path;
 use std::pin::Pin;
 
@@ -9,7 +8,7 @@ use futures::Stream;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::{IntoCondition, OnConflict};
 use sea_orm::ActiveValue::Set;
-use sea_orm::{DatabaseConnection, TransactionTrait};
+use sea_orm::{DatabaseConnection, TransactionTrait, Unchanged};
 
 use crate::adapter::helper::video_with_path;
 use crate::adapter::{helper, VideoListModel};
@@ -18,10 +17,6 @@ use crate::utils::status::Status;
 
 #[async_trait]
 impl VideoListModel for watch_later::Model {
-    async fn video_count(&self, connection: &DatabaseConnection) -> Result<u64> {
-        helper::count_videos(video::Column::WatchLaterId.eq(self.id).into_condition(), connection).await
-    }
-
     async fn unfilled_videos(&self, connection: &DatabaseConnection) -> Result<Vec<video::Model>> {
         helper::filter_videos(
             video::Column::WatchLaterId
@@ -48,20 +43,6 @@ impl VideoListModel for watch_later::Model {
                 .and(video::Column::Category.eq(2))
                 .and(video::Column::SinglePage.is_not_null())
                 .into_condition(),
-            connection,
-        )
-        .await
-    }
-
-    async fn exist_labels(
-        &self,
-        videos_info: &[VideoInfo],
-        connection: &DatabaseConnection,
-    ) -> Result<HashSet<String>> {
-        helper::video_keys(
-            video::Column::WatchLaterId.eq(self.id),
-            videos_info,
-            [video::Column::Bvid, video::Column::Favtime],
             connection,
         )
         .await
@@ -99,6 +80,21 @@ impl VideoListModel for watch_later::Model {
         Ok(())
     }
 
+    fn get_latest_row_at(&self) -> DateTime {
+        self.latest_row_at
+    }
+
+    async fn update_latest_row_at(&self, datetime: DateTime, connection: &DatabaseConnection) -> Result<()> {
+        watch_later::ActiveModel {
+            id: Unchanged(self.id),
+            latest_row_at: Set(datetime),
+            ..Default::default()
+        }
+        .update(connection)
+        .await?;
+        Ok(())
+    }
+
     fn log_fetch_video_start(&self) {
         info!("开始获取稍后再看的视频与分页信息...");
     }
@@ -119,11 +115,8 @@ impl VideoListModel for watch_later::Model {
         info!("开始扫描稍后再看的新视频...");
     }
 
-    fn log_refresh_video_end(&self, got_count: usize, new_count: u64) {
-        info!(
-            "扫描稍后再看的新视频完成，获取了 {} 条新视频，其中有 {} 条新视频",
-            got_count, new_count,
-        );
+    fn log_refresh_video_end(&self, count: usize) {
+        info!("扫描稍后再看的新视频完成，获取了 {} 条新视频", count);
     }
 }
 
