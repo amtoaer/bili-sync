@@ -1,21 +1,14 @@
-use std::collections::HashSet;
 use std::path::Path;
 
 use anyhow::Result;
 use bili_sync_entity::*;
 use sea_orm::entity::prelude::*;
-use sea_orm::sea_query::{OnConflict, SimpleExpr};
+use sea_orm::sea_query::OnConflict;
 use sea_orm::ActiveValue::Set;
-use sea_orm::{Condition, DatabaseTransaction, QuerySelect};
+use sea_orm::{Condition, DatabaseTransaction};
 
 use crate::bilibili::{BiliError, PageInfo, VideoInfo};
 use crate::config::{PathSafeTemplate, TEMPLATE};
-use crate::utils::id_time_key;
-
-/// 使用 condition 筛选视频，返回视频数量
-pub(super) async fn count_videos(condition: Condition, conn: &DatabaseConnection) -> Result<u64> {
-    Ok(video::Entity::find().filter(condition).count(conn).await?)
-}
 
 /// 使用 condition 筛选视频，返回视频列表
 pub(super) async fn filter_videos(condition: Condition, conn: &DatabaseConnection) -> Result<Vec<video::Model>> {
@@ -32,29 +25,6 @@ pub(super) async fn filter_videos_with_pages(
         .find_with_related(page::Entity)
         .all(conn)
         .await?)
-}
-
-/// 返回 videos_info 存在于视频表里那部分对应的 key
-pub(super) async fn video_keys(
-    expr: SimpleExpr,
-    videos_info: &[VideoInfo],
-    columns: [video::Column; 2],
-    conn: &DatabaseConnection,
-) -> Result<HashSet<String>> {
-    Ok(video::Entity::find()
-        .filter(
-            video::Column::Bvid
-                .is_in(videos_info.iter().map(|v| v.bvid().to_string()))
-                .and(expr),
-        )
-        .select_only()
-        .columns(columns)
-        .into_tuple()
-        .all(conn)
-        .await?
-        .into_iter()
-        .map(|(bvid, time)| id_time_key(&bvid, &time))
-        .collect())
 }
 
 /// 返回设置了 path 的视频

@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::path::Path;
 use std::pin::Pin;
 
@@ -9,7 +8,7 @@ use futures::Stream;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::{IntoCondition, OnConflict};
 use sea_orm::ActiveValue::Set;
-use sea_orm::{DatabaseConnection, TransactionTrait};
+use sea_orm::{DatabaseConnection, TransactionTrait, Unchanged};
 
 use crate::adapter::{helper, VideoListModel};
 use crate::bilibili::{self, BiliClient, FavoriteList, VideoInfo};
@@ -17,10 +16,6 @@ use crate::utils::status::Status;
 
 #[async_trait]
 impl VideoListModel for favorite::Model {
-    async fn video_count(&self, connection: &DatabaseConnection) -> Result<u64> {
-        helper::count_videos(video::Column::FavoriteId.eq(self.id).into_condition(), connection).await
-    }
-
     async fn unfilled_videos(&self, connection: &DatabaseConnection) -> Result<Vec<video::Model>> {
         helper::filter_videos(
             video::Column::FavoriteId
@@ -47,20 +42,6 @@ impl VideoListModel for favorite::Model {
                 .and(video::Column::Category.eq(2))
                 .and(video::Column::SinglePage.is_not_null())
                 .into_condition(),
-            connection,
-        )
-        .await
-    }
-
-    async fn exist_labels(
-        &self,
-        videos_info: &[VideoInfo],
-        connection: &DatabaseConnection,
-    ) -> Result<HashSet<String>> {
-        helper::video_keys(
-            video::Column::FavoriteId.eq(self.id),
-            videos_info,
-            [video::Column::Bvid, video::Column::Favtime],
             connection,
         )
         .await
@@ -98,6 +79,21 @@ impl VideoListModel for favorite::Model {
         Ok(())
     }
 
+    fn get_latest_row_at(&self) -> DateTime {
+        self.latest_row_at
+    }
+
+    async fn update_latest_row_at(&self, datetime: DateTime, connection: &DatabaseConnection) -> Result<()> {
+        favorite::ActiveModel {
+            id: Unchanged(self.id),
+            latest_row_at: Set(datetime),
+            ..Default::default()
+        }
+        .update(connection)
+        .await?;
+        Ok(())
+    }
+
     fn log_fetch_video_start(&self) {
         info!("开始获取收藏夹 {} - {} 的视频与分页信息...", self.f_id, self.name);
     }
@@ -118,10 +114,10 @@ impl VideoListModel for favorite::Model {
         info!("开始扫描收藏夹: {} - {} 的新视频...", self.f_id, self.name);
     }
 
-    fn log_refresh_video_end(&self, got_count: usize, new_count: u64) {
+    fn log_refresh_video_end(&self, count: usize) {
         info!(
-            "扫描收藏夹: {} - {} 的新视频完成，获取了 {} 条新视频，其中有 {} 条新视频",
-            self.f_id, self.name, got_count, new_count
+            "扫描收藏夹: {} - {} 的新视频完成，获取了 {} 条新视频",
+            self.f_id, self.name, count
         );
     }
 }

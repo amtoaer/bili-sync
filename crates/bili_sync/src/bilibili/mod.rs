@@ -61,7 +61,7 @@ impl Validate for serde_json::Value {
 /// > Serde will try to match the data against each variant in order and the first one that deserializes successfully is the one returned.
 pub enum VideoInfo {
     /// 从视频详情接口获取的视频信息
-    View {
+    Detail {
         title: String,
         bvid: String,
         #[serde(rename = "desc")]
@@ -77,8 +77,8 @@ pub enum VideoInfo {
         pages: Vec<PageInfo>,
         state: i32,
     },
-    /// 从收藏夹中获取的视频信息
-    Detail {
+    /// 从收藏夹接口获取的视频信息
+    Favorite {
         title: String,
         #[serde(rename = "type")]
         vtype: i32,
@@ -94,7 +94,7 @@ pub enum VideoInfo {
         pubtime: DateTime<Utc>,
         attr: i32,
     },
-    /// 从稍后再看中获取的视频信息
+    /// 从稍后再看接口获取的视频信息
     WatchLater {
         title: String,
         bvid: String,
@@ -112,8 +112,8 @@ pub enum VideoInfo {
         pubtime: DateTime<Utc>,
         state: i32,
     },
-    /// 从视频列表中获取的视频信息
-    Simple {
+    /// 从视频合集/视频列表接口获取的视频信息
+    Collection {
         bvid: String,
         #[serde(rename = "pic")]
         cover: String,
@@ -122,6 +122,7 @@ pub enum VideoInfo {
         #[serde(rename = "pubdate", with = "ts_seconds")]
         pubtime: DateTime<Utc>,
     },
+    // 从用户投稿接口获取的视频信息
     Submission {
         title: String,
         bvid: String,
@@ -136,7 +137,7 @@ pub enum VideoInfo {
 
 #[cfg(test)]
 mod tests {
-    use futures::{pin_mut, StreamExt};
+    use futures::StreamExt;
 
     use super::*;
     use crate::utils::init_logger;
@@ -151,28 +152,30 @@ mod tests {
             panic!("获取 mixin key 失败");
         };
         set_global_mixin_key(mixin_key);
-        let video = Video::new(&bili_client, "BV1Z54y1C7ZB".to_string());
-        assert!(matches!(video.get_view_info().await, Ok(VideoInfo::View { .. })));
+        // 测试视频合集
         let collection_item = CollectionItem {
             mid: "521722088".to_string(),
-            sid: "387214".to_string(),
-            collection_type: CollectionType::Series,
+            sid: "4523".to_string(),
+            collection_type: CollectionType::Season,
         };
         let collection = Collection::new(&bili_client, &collection_item);
-        let stream = collection.into_simple_video_stream();
-        pin_mut!(stream);
-        assert!(matches!(stream.next().await, Some(VideoInfo::Simple { .. })));
-        let favorite = FavoriteList::new(&bili_client, "3084505258".to_string());
-        let stream = favorite.into_video_stream();
-        pin_mut!(stream);
-        assert!(matches!(stream.next().await, Some(VideoInfo::Detail { .. })));
+        let videos = collection.into_simple_video_stream().take(20).collect::<Vec<_>>().await;
+        assert!(videos.iter().all(|v| matches!(v, VideoInfo::Collection { .. })));
+        assert!(videos.iter().rev().is_sorted_by_key(|v| v.release_datetime()));
+        // 测试收藏夹
+        let favorite = FavoriteList::new(&bili_client, "3144336058".to_string());
+        let videos = favorite.into_video_stream().take(20).collect::<Vec<_>>().await;
+        assert!(videos.iter().all(|v| matches!(v, VideoInfo::Favorite { .. })));
+        assert!(videos.iter().rev().is_sorted_by_key(|v| v.release_datetime()));
+        // 测试稍后再看
         let watch_later = WatchLater::new(&bili_client);
-        let stream = watch_later.into_video_stream();
-        pin_mut!(stream);
-        assert!(matches!(stream.next().await, Some(VideoInfo::WatchLater { .. })));
+        let videos = watch_later.into_video_stream().take(20).collect::<Vec<_>>().await;
+        assert!(videos.iter().all(|v| matches!(v, VideoInfo::WatchLater { .. })));
+        assert!(videos.iter().rev().is_sorted_by_key(|v| v.release_datetime()));
+        // 测试投稿
         let submission = Submission::new(&bili_client, "956761".to_string());
-        let stream = submission.into_video_stream();
-        pin_mut!(stream);
-        assert!(matches!(stream.next().await, Some(VideoInfo::Submission { .. })));
+        let videos = submission.into_video_stream().take(20).collect::<Vec<_>>().await;
+        assert!(videos.iter().all(|v| matches!(v, VideoInfo::Submission { .. })));
+        assert!(videos.iter().rev().is_sorted_by_key(|v| v.release_datetime()));
     }
 }

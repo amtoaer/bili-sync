@@ -4,7 +4,6 @@ pub mod model;
 pub mod nfo;
 pub mod status;
 
-use chrono::{DateTime, Utc};
 use tracing_subscriber::util::SubscriberInitExt;
 
 pub fn init_logger(log_level: &str) {
@@ -16,9 +15,4 @@ pub fn init_logger(log_level: &str) {
         .finish()
         .try_init()
         .expect("初始化日志失败");
-}
-
-/// 生成视频的唯一标记，均由 bvid 和时间戳构成
-pub fn id_time_key(bvid: &String, time: &DateTime<Utc>) -> String {
-    format!("{}-{}", bvid, time.timestamp())
 }

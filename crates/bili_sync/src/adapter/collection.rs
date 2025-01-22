@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::path::Path;
 use std::pin::Pin;
 
@@ -9,7 +8,7 @@ use futures::Stream;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::{IntoCondition, OnConflict};
 use sea_orm::ActiveValue::Set;
-use sea_orm::{DatabaseConnection, TransactionTrait};
+use sea_orm::{DatabaseConnection, TransactionTrait, Unchanged};
 
 use crate::adapter::{helper, VideoListModel};
 use crate::bilibili::{self, BiliClient, Collection, CollectionItem, CollectionType, VideoInfo};
@@ -17,10 +16,6 @@ use crate::utils::status::Status;
 
 #[async_trait]
 impl VideoListModel for collection::Model {
-    async fn video_count(&self, connection: &DatabaseConnection) -> Result<u64> {
-        helper::count_videos(video::Column::CollectionId.eq(self.id).into_condition(), connection).await
-    }
-
     async fn unfilled_videos(&self, connection: &DatabaseConnection) -> Result<Vec<video::Model>> {
         helper::filter_videos(
             video::Column::CollectionId
@@ -52,20 +47,6 @@ impl VideoListModel for collection::Model {
         .await
     }
 
-    async fn exist_labels(
-        &self,
-        videos_info: &[VideoInfo],
-        connection: &DatabaseConnection,
-    ) -> Result<HashSet<String>> {
-        helper::video_keys(
-            video::Column::CollectionId.eq(self.id),
-            videos_info,
-            [video::Column::Bvid, video::Column::Pubtime],
-            connection,
-        )
-        .await
-    }
-
     fn video_model_by_info(&self, video_info: &VideoInfo, base_model: Option<video::Model>) -> video::ActiveModel {
         let mut video_model = video_info.to_model(base_model);
         video_model.collection_id = Set(Some(self.id));
@@ -81,7 +62,7 @@ impl VideoListModel for collection::Model {
         let info: Result<_> = async { Ok((video.get_tags().await?, video.get_view_info().await?)) }.await;
         match info {
             Ok((tags, view_info)) => {
-                let VideoInfo::View { pages, .. } = &view_info else {
+                let VideoInfo::Detail { pages, .. } = &view_info else {
                     unreachable!("view_info must be VideoInfo::View")
                 };
                 let txn = connection.begin().await?;
@@ -98,6 +79,21 @@ impl VideoListModel for collection::Model {
                 helper::error_fetch_video_detail(e, video_model, connection).await?;
             }
         };
+        Ok(())
+    }
+
+    fn get_latest_row_at(&self) -> DateTime {
+        self.latest_row_at
+    }
+
+    async fn update_latest_row_at(&self, datetime: DateTime, connection: &DatabaseConnection) -> Result<()> {
+        collection::ActiveModel {
+            id: Unchanged(self.id),
+            latest_row_at: Set(datetime),
+            ..Default::default()
+        }
+        .update(connection)
+        .await?;
         Ok(())
     }
 
@@ -146,14 +142,13 @@ impl VideoListModel for collection::Model {
         );
     }
 
-    fn log_refresh_video_end(&self, got_count: usize, new_count: u64) {
+    fn log_refresh_video_end(&self, count: usize) {
         info!(
-            "扫描{}: {} - {} 的新视频完成，获取了 {} 条新视频，其中有 {} 条新视频",
+            "扫描{}: {} - {} 的新视频完成，获取了 {} 条新视频",
             CollectionType::from(self.r#type),
             self.s_id,
             self.name,
-            got_count,
-            new_count,
+            count,
         );
     }
 }
