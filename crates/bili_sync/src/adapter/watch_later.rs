@@ -13,7 +13,7 @@ use sea_orm::{DatabaseConnection, TransactionTrait, Unchanged};
 use crate::adapter::helper::video_with_path;
 use crate::adapter::{helper, VideoListModel};
 use crate::bilibili::{self, BiliClient, VideoInfo, WatchLater};
-use crate::utils::status::Status;
+use crate::utils::status::STATUS_COMPLETED;
 
 #[async_trait]
 impl VideoListModel for watch_later::Model {
@@ -39,7 +39,7 @@ impl VideoListModel for watch_later::Model {
             video::Column::WatchLaterId
                 .eq(self.id)
                 .and(video::Column::Valid.eq(true))
-                .and(video::Column::DownloadStatus.lt(Status::handled()))
+                .and(video::Column::DownloadStatus.lt(STATUS_COMPLETED))
                 .and(video::Column::Category.eq(2))
                 .and(video::Column::SinglePage.is_not_null())
                 .into_condition(),
