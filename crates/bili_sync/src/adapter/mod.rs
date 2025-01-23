@@ -11,6 +11,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use futures::Stream;
 use sea_orm::entity::prelude::*;
+use sea_orm::sea_query::SimpleExpr;
 use sea_orm::DatabaseConnection;
 
 use crate::adapter::collection::collection_from;
@@ -42,14 +43,11 @@ pub async fn video_list_from<'a>(
 
 #[async_trait]
 pub trait VideoListModel {
-    /// 未填充的视频
-    async fn unfilled_videos(&self, connection: &DatabaseConnection) -> Result<Vec<bili_sync_entity::video::Model>>;
+    fn filter_expr(&self) -> SimpleExpr;
 
-    /// 未处理的视频和分页
-    async fn unhandled_video_pages(
-        &self,
-        connection: &DatabaseConnection,
-    ) -> Result<Vec<(bili_sync_entity::video::Model, Vec<bili_sync_entity::page::Model>)>>;
+    fn set_relation_id(&self, video_model: &mut bili_sync_entity::video::ActiveModel);
+
+    fn path(&self) -> &Path;
 
     /// 视频信息对应的视频 model
     fn video_model_by_info(
@@ -57,14 +55,6 @@ pub trait VideoListModel {
         video_info: &VideoInfo,
         base_model: Option<bili_sync_entity::video::Model>,
     ) -> bili_sync_entity::video::ActiveModel;
-
-    /// 视频 model 中缺失的信息
-    async fn fetch_videos_detail(
-        &self,
-        video: bilibili::Video<'_>,
-        video_model: bili_sync_entity::video::Model,
-        connection: &DatabaseConnection,
-    ) -> Result<()>;
 
     /// 获取视频 model 中记录的最新时间
     fn get_latest_row_at(&self) -> DateTime;

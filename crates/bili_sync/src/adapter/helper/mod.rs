@@ -5,27 +5,10 @@ use bili_sync_entity::*;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::OnConflict;
 use sea_orm::ActiveValue::Set;
-use sea_orm::{Condition, DatabaseTransaction};
+use sea_orm::DatabaseTransaction;
 
 use crate::bilibili::{BiliError, PageInfo, VideoInfo};
 use crate::config::{PathSafeTemplate, TEMPLATE};
-
-/// 使用 condition 筛选视频，返回视频列表
-pub(super) async fn filter_videos(condition: Condition, conn: &DatabaseConnection) -> Result<Vec<video::Model>> {
-    Ok(video::Entity::find().filter(condition).all(conn).await?)
-}
-
-/// 使用 condition 筛选视频，返回视频列表和相关的分 P 列表
-pub(super) async fn filter_videos_with_pages(
-    condition: Condition,
-    conn: &DatabaseConnection,
-) -> Result<Vec<(video::Model, Vec<page::Model>)>> {
-    Ok(video::Entity::find()
-        .filter(condition)
-        .find_with_related(page::Entity)
-        .all(conn)
-        .await?)
-}
 
 /// 返回设置了 path 的视频
 pub(super) fn video_with_path(

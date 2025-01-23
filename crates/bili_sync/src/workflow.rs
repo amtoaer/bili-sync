@@ -17,7 +17,10 @@ use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, PageInfo, Vi
 use crate::config::{PathSafeTemplate, ARGS, CONFIG, TEMPLATE};
 use crate::downloader::Downloader;
 use crate::error::{DownloadAbortError, ProcessPageError};
-use crate::utils::model::{create_videos, update_pages_model, update_videos_model};
+use crate::utils::model::{
+    create_videos, fetch_videos_detail, filter_unfilled_videos, filter_unhandled_video_pages, update_pages_model,
+    update_videos_model,
+};
 use crate::utils::nfo::{ModelWrapper, NFOMode, NFOSerializer};
 use crate::utils::status::{PageStatus, VideoStatus};
 
@@ -84,12 +87,10 @@ pub async fn fetch_video_details(
     connection: &DatabaseConnection,
 ) -> Result<()> {
     video_list_model.log_fetch_video_start();
-    let videos_model = video_list_model.unfilled_videos(connection).await?;
+    let videos_model = filter_unfilled_videos(video_list_model.filter_expr(), connection).await?;
     for video_model in videos_model {
         let video = Video::new(bili_client, video_model.bvid.clone());
-        video_list_model
-            .fetch_videos_detail(video, video_model, connection)
-            .await?;
+        fetch_videos_detail(video_list_model, video, video_model, connection).await?;
     }
     video_list_model.log_fetch_video_end();
     Ok(())
@@ -105,7 +106,7 @@ pub async fn download_unprocessed_videos(
     let semaphore = Semaphore::new(CONFIG.concurrent_limit.video);
     let downloader = Downloader::new(bili_client.client.clone());
     let mut uppers_mutex: HashMap<i64, (Mutex<()>, Mutex<()>)> = HashMap::new();
-    let unhandled_videos_pages = video_list_model.unhandled_video_pages(connection).await?;
+    let unhandled_videos_pages = filter_unhandled_video_pages(video_list_model.filter_expr(), connection).await?;
     for (video_model, _) in &unhandled_videos_pages {
         uppers_mutex
             .entry(video_model.upper_id)
