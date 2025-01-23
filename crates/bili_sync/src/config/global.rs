@@ -39,7 +39,7 @@ pub static CONFIG_DIR: Lazy<PathBuf> =
     Lazy::new(|| dirs::config_dir().expect("No config path found").join("bili-sync"));
 
 #[cfg(not(test))]
-#[inline]
+
 fn load_config() -> Config {
     let config = Config::load().unwrap_or_else(|err| {
         if err
@@ -61,7 +61,7 @@ fn load_config() -> Config {
 }
 
 #[cfg(test)]
-#[inline]
+
 fn load_config() -> Config {
     let credential = match (
         std::env::var("TEST_SESSDATA"),

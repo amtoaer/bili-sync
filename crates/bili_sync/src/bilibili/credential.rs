@@ -222,7 +222,6 @@ pub fn encoded_query<'a>(
     }
 }
 
-#[inline]
 fn _encoded_query<'a>(
     params: Vec<(&'a str, impl Into<Cow<'a, str>>)>,
     mixin_key: &str,

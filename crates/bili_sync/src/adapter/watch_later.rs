@@ -2,7 +2,6 @@ use std::path::Path;
 use std::pin::Pin;
 
 use anyhow::{Context, Result};
-use async_trait::async_trait;
 use bili_sync_entity::*;
 use futures::Stream;
 use sea_orm::entity::prelude::*;
@@ -10,10 +9,9 @@ use sea_orm::sea_query::{OnConflict, SimpleExpr};
 use sea_orm::ActiveValue::Set;
 use sea_orm::{DatabaseConnection, Unchanged};
 
-use crate::adapter::VideoListModel;
+use crate::adapter::{VideoListModel, _ActiveModel};
 use crate::bilibili::{BiliClient, VideoInfo, WatchLater};
 
-#[async_trait]
 impl VideoListModel for watch_later::Model {
     fn filter_expr(&self) -> SimpleExpr {
         video::Column::WatchLaterId.eq(self.id)
@@ -31,15 +29,12 @@ impl VideoListModel for watch_later::Model {
         self.latest_row_at
     }
 
-    async fn update_latest_row_at(&self, datetime: DateTime, connection: &DatabaseConnection) -> Result<()> {
-        watch_later::ActiveModel {
+    fn update_latest_row_at(&self, datetime: DateTime) -> _ActiveModel {
+        _ActiveModel::WatchLater(watch_later::ActiveModel {
             id: Unchanged(self.id),
             latest_row_at: Set(datetime),
             ..Default::default()
-        }
-        .update(connection)
-        .await?;
-        Ok(())
+        })
     }
 
     fn log_fetch_video_start(&self) {

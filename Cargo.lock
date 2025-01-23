@@ -385,7 +385,6 @@ dependencies = [
  "arc-swap",
  "assert_matches",
  "async-stream",
- "async-trait",
  "bili_sync_entity",
  "bili_sync_migration",
  "chrono",
