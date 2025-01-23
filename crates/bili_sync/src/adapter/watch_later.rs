@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::pin::Pin;
 
 use anyhow::{Context, Result};
@@ -8,11 +8,10 @@ use futures::Stream;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::{OnConflict, SimpleExpr};
 use sea_orm::ActiveValue::Set;
-use sea_orm::{DatabaseConnection, TransactionTrait, Unchanged};
+use sea_orm::{DatabaseConnection, Unchanged};
 
-use crate::adapter::helper::video_with_path;
-use crate::adapter::{helper, VideoListModel};
-use crate::bilibili::{self, BiliClient, VideoInfo, WatchLater};
+use crate::adapter::VideoListModel;
+use crate::bilibili::{BiliClient, VideoInfo, WatchLater};
 
 #[async_trait]
 impl VideoListModel for watch_later::Model {
@@ -26,12 +25,6 @@ impl VideoListModel for watch_later::Model {
 
     fn path(&self) -> &Path {
         Path::new(self.path.as_str())
-    }
-
-    fn video_model_by_info(&self, video_info: &VideoInfo, base_model: Option<video::Model>) -> video::ActiveModel {
-        let mut video_model = video_info.to_model(base_model);
-        video_model.watch_later_id = Set(Some(self.id));
-        video_with_path(video_model, &self.path, video_info)
     }
 
     fn get_latest_row_at(&self) -> DateTime {

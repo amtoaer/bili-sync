@@ -1,6 +1,5 @@
 mod collection;
 mod favorite;
-mod helper;
 mod submission;
 mod watch_later;
 
@@ -18,7 +17,7 @@ use crate::adapter::collection::collection_from;
 use crate::adapter::favorite::favorite_from;
 use crate::adapter::submission::submission_from;
 use crate::adapter::watch_later::watch_later_from;
-use crate::bilibili::{self, BiliClient, CollectionItem, VideoInfo};
+use crate::bilibili::{BiliClient, CollectionItem, VideoInfo};
 
 pub enum Args<'a> {
     Favorite { fid: &'a str },
@@ -48,13 +47,6 @@ pub trait VideoListModel {
     fn set_relation_id(&self, video_model: &mut bili_sync_entity::video::ActiveModel);
 
     fn path(&self) -> &Path;
-
-    /// 视频信息对应的视频 model
-    fn video_model_by_info(
-        &self,
-        video_info: &VideoInfo,
-        base_model: Option<bili_sync_entity::video::Model>,
-    ) -> bili_sync_entity::video::ActiveModel;
 
     /// 获取视频 model 中记录的最新时间
     fn get_latest_row_at(&self) -> DateTime;
