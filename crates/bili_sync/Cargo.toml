@@ -12,7 +12,6 @@ readme = "../../README.md"
 anyhow = { workspace = true }
 arc-swap = { workspace = true }
 async-stream = { workspace = true }
-async-trait = { workspace = true }
 bili_sync_entity = { workspace = true }
 bili_sync_migration = { workspace = true }
 chrono = { workspace = true }

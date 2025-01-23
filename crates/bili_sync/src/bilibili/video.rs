@@ -62,7 +62,7 @@ impl<'a> Video<'a> {
         Self { client, aid, bvid }
     }
 
-    /// 直接调用视频信息接口获取详细的视频信息
+    /// 直接调用视频信息接口获取详细的视频信息，视频信息中包含了视频的分页信息
     pub async fn get_view_info(&self) -> Result<VideoInfo> {
         let mut res = self
             .client
@@ -78,6 +78,7 @@ impl<'a> Video<'a> {
         Ok(serde_json::from_value(res["data"].take())?)
     }
 
+    #[allow(unused)]
     pub async fn get_pages(&self) -> Result<Vec<PageInfo>> {
         let mut res = self
             .client

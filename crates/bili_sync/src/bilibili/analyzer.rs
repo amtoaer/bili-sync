@@ -43,7 +43,6 @@ impl PartialOrd for AudioQuality {
 }
 
 impl AudioQuality {
-    #[inline]
     pub fn as_sort_key(&self) -> isize {
         match self {
             // 这可以让 Dolby 和 Hi-RES 排在 192k 之后，且 Dolby 和 Hi-RES 之间的顺序不变

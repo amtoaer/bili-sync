@@ -1,23 +1,17 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use sea_orm::ActiveValue::{NotSet, Set};
 use sea_orm::IntoActiveModel;
-use serde_json::json;
 
-use crate::bilibili::VideoInfo;
-use crate::config::CONFIG;
+use crate::bilibili::{PageInfo, VideoInfo};
 
 impl VideoInfo {
-    /// 将 VideoInfo 转换为 ActiveModel
-    pub fn to_model(&self, base_model: Option<bili_sync_entity::video::Model>) -> bili_sync_entity::video::ActiveModel {
-        let base_model = match base_model {
-            Some(base_model) => base_model.into_active_model(),
-            None => {
-                let mut tmp_model = bili_sync_entity::video::Model::default().into_active_model();
-                // 注意此处要把 id 和 created_at 设置为 NotSet，方便在 sql 中忽略这些字段，交由数据库自动生成
-                tmp_model.id = NotSet;
-                tmp_model.created_at = NotSet;
-                tmp_model
-            }
+    /// 在检测视频更新时，通过该方法将 VideoInfo 转换为简单的 ActiveModel，此处仅填充一些简单信息，后续会使用详情覆盖
+    pub fn into_simple_model(self) -> bili_sync_entity::video::ActiveModel {
+        let default = bili_sync_entity::video::ActiveModel {
+            id: NotSet,
+            created_at: NotSet,
+            // 此处不使用 ActiveModel::default() 是为了让其它字段有默认值
+            ..bili_sync_entity::video::Model::default().into_active_model()
         };
         match self {
             VideoInfo::Collection {
@@ -26,13 +20,13 @@ impl VideoInfo {
                 ctime,
                 pubtime,
             } => bili_sync_entity::video::ActiveModel {
-                bvid: Set(bvid.clone()),
-                cover: Set(cover.clone()),
+                bvid: Set(bvid),
+                cover: Set(cover),
                 ctime: Set(ctime.naive_utc()),
                 pubtime: Set(pubtime.naive_utc()),
                 category: Set(2), // 视频合集里的内容类型肯定是视频
                 valid: Set(true),
-                ..base_model
+                ..default
             },
             VideoInfo::Favorite {
                 title,
@@ -46,50 +40,20 @@ impl VideoInfo {
                 pubtime,
                 attr,
             } => bili_sync_entity::video::ActiveModel {
-                bvid: Set(bvid.clone()),
-                name: Set(title.clone()),
-                category: Set(*vtype),
-                intro: Set(intro.clone()),
-                cover: Set(cover.clone()),
+                bvid: Set(bvid),
+                name: Set(title),
+                category: Set(vtype),
+                intro: Set(intro),
+                cover: Set(cover),
                 ctime: Set(ctime.naive_utc()),
                 pubtime: Set(pubtime.naive_utc()),
                 favtime: Set(fav_time.naive_utc()),
                 download_status: Set(0),
-                valid: Set(*attr == 0),
-                tags: Set(None),
-                single_page: Set(None),
+                valid: Set(attr == 0),
                 upper_id: Set(upper.mid),
-                upper_name: Set(upper.name.clone()),
-                upper_face: Set(upper.face.clone()),
-                ..base_model
-            },
-            VideoInfo::Detail {
-                title,
-                bvid,
-                intro,
-                cover,
-                upper,
-                ctime,
-                pubtime,
-                state,
-                ..
-            } => bili_sync_entity::video::ActiveModel {
-                bvid: Set(bvid.clone()),
-                name: Set(title.clone()),
-                category: Set(2), // 视频合集里的内容类型肯定是视频
-                intro: Set(intro.clone()),
-                cover: Set(cover.clone()),
-                ctime: Set(ctime.naive_utc()),
-                pubtime: Set(pubtime.naive_utc()),
-                favtime: Set(pubtime.naive_utc()), // 合集不包括 fav_time，使用发布时间代替
-                download_status: Set(0),
-                valid: Set(*state == 0),
-                tags: Set(None),
-                single_page: Set(None),
-                upper_id: Set(upper.mid),
-                upper_name: Set(upper.name.clone()),
-                upper_face: Set(upper.face.clone()),
-                ..base_model
+                upper_name: Set(upper.name),
+                upper_face: Set(upper.face),
+                ..default
             },
             VideoInfo::WatchLater {
                 title,
@@ -102,22 +66,20 @@ impl VideoInfo {
                 pubtime,
                 state,
             } => bili_sync_entity::video::ActiveModel {
-                bvid: Set(bvid.clone()),
-                name: Set(title.clone()),
+                bvid: Set(bvid),
+                name: Set(title),
                 category: Set(2), // 稍后再看里的内容类型肯定是视频
-                intro: Set(intro.clone()),
-                cover: Set(cover.clone()),
+                intro: Set(intro),
+                cover: Set(cover),
                 ctime: Set(ctime.naive_utc()),
                 pubtime: Set(pubtime.naive_utc()),
                 favtime: Set(fav_time.naive_utc()),
                 download_status: Set(0),
-                valid: Set(*state == 0),
-                tags: Set(None),
-                single_page: Set(None),
+                valid: Set(state == 0),
                 upper_id: Set(upper.mid),
-                upper_name: Set(upper.name.clone()),
-                upper_face: Set(upper.face.clone()),
-                ..base_model
+                upper_name: Set(upper.name),
+                upper_face: Set(upper.face),
+                ..default
             },
             VideoInfo::Submission {
                 title,
@@ -126,64 +88,58 @@ impl VideoInfo {
                 cover,
                 ctime,
             } => bili_sync_entity::video::ActiveModel {
-                bvid: Set(bvid.clone()),
-                name: Set(title.clone()),
-                intro: Set(intro.clone()),
-                cover: Set(cover.clone()),
+                bvid: Set(bvid),
+                name: Set(title),
+                intro: Set(intro),
+                cover: Set(cover),
                 ctime: Set(ctime.naive_utc()),
                 category: Set(2), // 投稿视频的内容类型肯定是视频
                 valid: Set(true),
-                ..base_model
+                ..default
             },
+            _ => unreachable!(),
         }
     }
 
-    pub fn to_fmt_args(&self) -> Option<serde_json::Value> {
+    /// 填充视频详情时调用，该方法会将视频详情附加到原有的 Model 上
+    /// 特殊地，如果在检测视频更新时记录了 favtime，那么 favtime 会维持原样，否则会使用 pubtime 填充
+    pub fn into_detail_model(self, base_model: bili_sync_entity::video::Model) -> bili_sync_entity::video::ActiveModel {
         match self {
-            VideoInfo::Collection { .. } | VideoInfo::Submission { .. } => None, // 不能从简单视频信息中构造格式化参数
-            VideoInfo::Favorite {
-                title,
-                bvid,
-                upper,
-                pubtime,
-                fav_time,
-                ..
-            }
-            | VideoInfo::WatchLater {
-                title,
-                bvid,
-                upper,
-                pubtime,
-                fav_time,
-                ..
-            } => Some(json!({
-                "bvid": &bvid,
-                "title": &title,
-                "upper_name": &upper.name,
-                "upper_mid": &upper.mid,
-                "pubtime": pubtime.format(&CONFIG.time_format).to_string(),
-                "fav_time": fav_time.format(&CONFIG.time_format).to_string(),
-            })),
             VideoInfo::Detail {
                 title,
                 bvid,
+                intro,
+                cover,
                 upper,
+                ctime,
                 pubtime,
+                state,
                 ..
-            } => {
-                let pubtime = pubtime.format(&CONFIG.time_format).to_string();
-                Some(json!({
-                    "bvid": &bvid,
-                    "title": &title,
-                    "upper_name": &upper.name,
-                    "upper_mid": &upper.mid,
-                    "pubtime": &pubtime,
-                    "fav_time": &pubtime,
-                }))
-            }
+            } => bili_sync_entity::video::ActiveModel {
+                bvid: Set(bvid),
+                name: Set(title),
+                category: Set(2),
+                intro: Set(intro),
+                cover: Set(cover),
+                ctime: Set(ctime.naive_utc()),
+                pubtime: Set(pubtime.naive_utc()),
+                favtime: if base_model.favtime != NaiveDateTime::default() {
+                    NotSet // 之前设置了 favtime，不覆盖
+                } else {
+                    Set(pubtime.naive_utc()) // 未设置过 favtime，使用 pubtime 填充
+                },
+                download_status: Set(0),
+                valid: Set(state == 0),
+                upper_id: Set(upper.mid),
+                upper_name: Set(upper.name),
+                upper_face: Set(upper.face),
+                ..base_model.into_active_model()
+            },
+            _ => unreachable!(),
         }
     }
 
+    /// 获取视频的发布时间，用于对时间做筛选检查新视频
     pub fn release_datetime(&self) -> &DateTime<Utc> {
         match self {
             VideoInfo::Collection { pubtime: time, .. }
@@ -191,6 +147,36 @@ impl VideoInfo {
             | VideoInfo::WatchLater { fav_time: time, .. }
             | VideoInfo::Submission { ctime: time, .. } => time,
             _ => unreachable!(),
+        }
+    }
+}
+
+impl PageInfo {
+    pub fn into_active_model(
+        self,
+        video_model: &bili_sync_entity::video::Model,
+    ) -> bili_sync_entity::page::ActiveModel {
+        let (width, height) = match &self.dimension {
+            Some(d) => {
+                if d.rotate == 0 {
+                    (Some(d.width), Some(d.height))
+                } else {
+                    (Some(d.height), Some(d.width))
+                }
+            }
+            None => (None, None),
+        };
+        bili_sync_entity::page::ActiveModel {
+            video_id: Set(video_model.id),
+            cid: Set(self.cid),
+            pid: Set(self.page),
+            name: Set(self.name),
+            width: Set(width),
+            height: Set(height),
+            duration: Set(self.duration),
+            image: Set(self.first_frame),
+            download_status: Set(0),
+            ..Default::default()
         }
     }
 }

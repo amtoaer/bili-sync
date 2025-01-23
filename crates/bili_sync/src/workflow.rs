@@ -8,7 +8,7 @@ use futures::stream::{FuturesOrdered, FuturesUnordered};
 use futures::{Future, Stream, StreamExt};
 use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
-use serde_json::json;
+use sea_orm::TransactionTrait;
 use tokio::fs;
 use tokio::sync::{Mutex, Semaphore};
 
@@ -17,10 +17,15 @@ use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, PageInfo, Vi
 use crate::config::{PathSafeTemplate, ARGS, CONFIG, TEMPLATE};
 use crate::downloader::Downloader;
 use crate::error::{DownloadAbortError, ProcessPageError};
-use crate::utils::model::{create_videos, update_pages_model, update_videos_model};
+use crate::utils::format_arg::{page_format_args, video_format_args};
+use crate::utils::model::{
+    create_pages, create_videos, filter_unfilled_videos, filter_unhandled_video_pages, update_pages_model,
+    update_videos_model,
+};
 use crate::utils::nfo::{ModelWrapper, NFOMode, NFOSerializer};
 use crate::utils::status::{PageStatus, VideoStatus};
 
+/// 完整地处理某个视频列表
 pub async fn process_video_list(
     args: Args<'_>,
     bili_client: &BiliClient,
@@ -55,7 +60,7 @@ pub async fn refresh_video_list<'a>(
         .take_while(|v| {
             // 虽然 video_streams 是从新到旧的，但由于此处是分页请求，极端情况下可能发生访问完第一页时插入了两整页视频的情况
             // 此时获取到的第二页视频比第一页的还要新，因此为了确保正确，理应对每一页的第一个视频进行时间比较
-            // 但在 streams 的抽象下，无法判断具体是在哪里分页的，所以暂且对每个视频都进行比较，希望不会有太大性能损失
+            // 但在 streams 的抽象下，无法判断具体是在哪里分页的，所以暂且对每个视频都进行比较，应该不会有太大性能损失
             let release_datetime = v.release_datetime();
             if release_datetime > &max_datetime {
                 max_datetime = *release_datetime;
@@ -66,11 +71,12 @@ pub async fn refresh_video_list<'a>(
     let mut count = 0;
     while let Some(videos_info) = video_streams.next().await {
         count += videos_info.len();
-        create_videos(&videos_info, video_list_model, connection).await?;
+        create_videos(videos_info, video_list_model, connection).await?;
     }
     if max_datetime != latest_row_at {
         video_list_model
-            .update_latest_row_at(max_datetime.naive_utc(), connection)
+            .update_latest_row_at(max_datetime.naive_utc())
+            .save(connection)
             .await?;
     }
     video_list_model.log_refresh_video_end(count);
@@ -84,12 +90,39 @@ pub async fn fetch_video_details(
     connection: &DatabaseConnection,
 ) -> Result<()> {
     video_list_model.log_fetch_video_start();
-    let videos_model = video_list_model.unfilled_videos(connection).await?;
+    let videos_model = filter_unfilled_videos(video_list_model.filter_expr(), connection).await?;
     for video_model in videos_model {
         let video = Video::new(bili_client, video_model.bvid.clone());
-        video_list_model
-            .fetch_videos_detail(video, video_model, connection)
-            .await?;
+        let info: Result<_> = async { Ok((video.get_tags().await?, video.get_view_info().await?)) }.await;
+        match info {
+            Err(e) => {
+                error!(
+                    "获取视频 {} - {} 的详细信息失败，错误为：{}",
+                    &video_model.bvid, &video_model.name, e
+                );
+                if let Some(BiliError::RequestFailed(-404, _)) = e.downcast_ref::<BiliError>() {
+                    let mut video_active_model: bili_sync_entity::video::ActiveModel = video_model.into();
+                    video_active_model.valid = Set(false);
+                    video_active_model.save(connection).await?;
+                }
+            }
+            Ok((tags, mut view_info)) => {
+                let VideoInfo::Detail { pages, .. } = &mut view_info else {
+                    unreachable!()
+                };
+                let pages = std::mem::take(pages);
+                let pages_len = pages.len();
+                let txn = connection.begin().await?;
+                // 将分页信息写入数据库
+                create_pages(pages, &video_model, &txn).await?;
+                let mut video_active_model = view_info.into_detail_model(video_model);
+                video_list_model.set_relation_id(&mut video_active_model);
+                video_active_model.single_page = Set(Some(pages_len == 1));
+                video_active_model.tags = Set(Some(serde_json::to_value(tags)?));
+                video_active_model.save(&txn).await?;
+                txn.commit().await?;
+            }
+        };
     }
     video_list_model.log_fetch_video_end();
     Ok(())
@@ -105,7 +138,7 @@ pub async fn download_unprocessed_videos(
     let semaphore = Semaphore::new(CONFIG.concurrent_limit.video);
     let downloader = Downloader::new(bili_client.client.clone());
     let mut uppers_mutex: HashMap<i64, (Mutex<()>, Mutex<()>)> = HashMap::new();
-    let unhandled_videos_pages = video_list_model.unhandled_video_pages(connection).await?;
+    let unhandled_videos_pages = filter_unhandled_video_pages(video_list_model.filter_expr(), connection).await?;
     for (video_model, _) in &unhandled_videos_pages {
         uppers_mutex
             .entry(video_model.upper_id)
@@ -117,12 +150,12 @@ pub async fn download_unprocessed_videos(
             let upper_mutex = uppers_mutex.get(&video_model.upper_id).expect("upper mutex not found");
             download_video_pages(
                 bili_client,
+                video_list_model,
                 video_model,
                 pages_model,
                 connection,
                 &semaphore,
                 &downloader,
-                &CONFIG.upper_path,
                 upper_mutex,
             )
         })
@@ -156,20 +189,23 @@ pub async fn download_unprocessed_videos(
 #[allow(clippy::too_many_arguments)]
 pub async fn download_video_pages(
     bili_client: &BiliClient,
+    video_list_model: &dyn VideoListModel,
     video_model: video::Model,
     pages: Vec<page::Model>,
     connection: &DatabaseConnection,
     semaphore: &Semaphore,
     downloader: &Downloader,
-    upper_path: &Path,
     upper_mutex: &(Mutex<()>, Mutex<()>),
 ) -> Result<video::ActiveModel> {
     let _permit = semaphore.acquire().await.context("acquire semaphore failed")?;
     let mut status = VideoStatus::new(video_model.download_status);
     let seprate_status = status.should_run();
-    let base_path = Path::new(&video_model.path);
+    let base_path = video_list_model
+        .path()
+        .join(TEMPLATE.path_safe_render("video", &video_format_args(&video_model))?);
     let upper_id = video_model.upper_id.to_string();
-    let base_upper_path = upper_path
+    let base_upper_path = &CONFIG
+        .upper_path
         .join(upper_id.chars().next().context("upper_id is empty")?.to_string())
         .join(upper_id);
     let is_single_page = video_model.single_page.context("single_page is null")?;
@@ -213,6 +249,7 @@ pub async fn download_video_pages(
             pages,
             connection,
             downloader,
+            &base_path,
         )),
     ];
     let tasks: FuturesOrdered<_> = tasks.into_iter().collect();
@@ -239,6 +276,7 @@ pub async fn download_video_pages(
     }
     let mut video_active_model: video::ActiveModel = video_model.into();
     video_active_model.download_status = Set(status.into());
+    video_active_model.path = Set(base_path.to_string_lossy().to_string());
     Ok(video_active_model)
 }
 
@@ -250,6 +288,7 @@ pub async fn dispatch_download_page(
     pages: Vec<page::Model>,
     connection: &DatabaseConnection,
     downloader: &Downloader,
+    base_path: &Path,
 ) -> Result<()> {
     if !should_run {
         return Ok(());
@@ -257,7 +296,16 @@ pub async fn dispatch_download_page(
     let child_semaphore = Semaphore::new(CONFIG.concurrent_limit.page);
     let tasks = pages
         .into_iter()
-        .map(|page_model| download_page(bili_client, video_model, page_model, &child_semaphore, downloader))
+        .map(|page_model| {
+            download_page(
+                bili_client,
+                video_model,
+                page_model,
+                &child_semaphore,
+                downloader,
+                base_path,
+            )
+        })
         .collect::<FuturesUnordered<_>>();
     let (mut download_aborted, mut error_occurred) = (false, false);
     let mut stream = tasks
@@ -311,25 +359,13 @@ pub async fn download_page(
     page_model: page::Model,
     semaphore: &Semaphore,
     downloader: &Downloader,
+    base_path: &Path,
 ) -> Result<page::ActiveModel> {
     let _permit = semaphore.acquire().await.context("acquire semaphore failed")?;
     let mut status = PageStatus::new(page_model.download_status);
     let seprate_status = status.should_run();
     let is_single_page = video_model.single_page.context("single_page is null")?;
-    let base_path = Path::new(&video_model.path);
-    let base_name = TEMPLATE.path_safe_render(
-        "page",
-        &json!({
-            "bvid": &video_model.bvid,
-            "title": &video_model.name,
-            "upper_name": &video_model.upper_name,
-            "upper_mid": &video_model.upper_id,
-            "ptitle": &page_model.name,
-            "pid": page_model.pid,
-            "pubtime": video_model.pubtime.format(&CONFIG.time_format).to_string(),
-            "fav_time": video_model.favtime.format(&CONFIG.time_format).to_string(),
-        }),
-    )?;
+    let base_name = TEMPLATE.path_safe_render("page", &page_format_args(video_model, &page_model))?;
     let (poster_path, video_path, nfo_path, danmaku_path, fanart_path) = if is_single_page {
         (
             base_path.join(format!("{}-poster.jpg", &base_name)),
@@ -385,7 +421,7 @@ pub async fn download_page(
             video_model,
             downloader,
             &page_info,
-            video_path.clone(),
+            &video_path,
         )),
         Box::pin(generate_page_nfo(seprate_status[2], video_model, &page_model, nfo_path)),
         Box::pin(fetch_page_danmaku(
@@ -459,7 +495,7 @@ pub async fn fetch_page_video(
     video_model: &video::Model,
     downloader: &Downloader,
     page_info: &PageInfo,
-    page_path: PathBuf,
+    page_path: &Path,
 ) -> Result<()> {
     if !should_run {
         return Ok(());
@@ -470,11 +506,11 @@ pub async fn fetch_page_video(
         .await?
         .best_stream(&CONFIG.filter_option)?;
     match streams {
-        BestStream::Mixed(mix_stream) => downloader.fetch(mix_stream.url(), &page_path).await,
+        BestStream::Mixed(mix_stream) => downloader.fetch(mix_stream.url(), page_path).await,
         BestStream::VideoAudio {
             video: video_stream,
             audio: None,
-        } => downloader.fetch(video_stream.url(), &page_path).await,
+        } => downloader.fetch(video_stream.url(), page_path).await,
         BestStream::VideoAudio {
             video: video_stream,
             audio: Some(audio_stream),
@@ -486,7 +522,7 @@ pub async fn fetch_page_video(
             let res = async {
                 downloader.fetch(video_stream.url(), &tmp_video_path).await?;
                 downloader.fetch(audio_stream.url(), &tmp_audio_path).await?;
-                downloader.merge(&tmp_video_path, &tmp_audio_path, &page_path).await
+                downloader.merge(&tmp_video_path, &tmp_audio_path, page_path).await
             }
             .await;
             let _ = fs::remove_file(tmp_video_path).await;
@@ -606,6 +642,7 @@ async fn generate_nfo(serializer: NFOSerializer<'_>, nfo_path: PathBuf) -> Resul
 #[cfg(test)]
 mod tests {
     use handlebars::handlebars_helper;
+    use serde_json::json;
 
     use super::*;
 
