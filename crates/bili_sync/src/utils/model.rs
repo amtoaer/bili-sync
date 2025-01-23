@@ -9,7 +9,6 @@ use crate::bilibili::{PageInfo, VideoInfo};
 use crate::utils::status::STATUS_COMPLETED;
 
 /// 筛选未填充的视频
-
 pub async fn filter_unfilled_videos(
     additional_expr: SimpleExpr,
     conn: &DatabaseConnection,
@@ -29,7 +28,6 @@ pub async fn filter_unfilled_videos(
 }
 
 /// 筛选未处理完成的视频和视频页
-
 pub async fn filter_unhandled_video_pages(
     additional_expr: SimpleExpr,
     connection: &DatabaseConnection,
@@ -50,7 +48,6 @@ pub async fn filter_unhandled_video_pages(
 }
 
 /// 尝试创建 Video Model，如果发生冲突则忽略
-
 pub async fn create_videos(
     videos_info: Vec<VideoInfo>,
     video_list_model: &dyn VideoListModel,
@@ -74,7 +71,6 @@ pub async fn create_videos(
 }
 
 /// 尝试创建 Page Model，如果发生冲突则忽略
-
 pub async fn create_pages(
     pages_info: Vec<PageInfo>,
     video_model: &bili_sync_entity::video::Model,
@@ -82,7 +78,7 @@ pub async fn create_pages(
 ) -> Result<()> {
     let page_models = pages_info
         .into_iter()
-        .map(|p| p.into_active_model(&video_model))
+        .map(|p| p.into_active_model(video_model))
         .collect::<Vec<page::ActiveModel>>();
     for page_chunk in page_models.chunks(50) {
         page::Entity::insert_many(page_chunk.to_vec())
@@ -99,7 +95,6 @@ pub async fn create_pages(
 }
 
 /// 更新视频 model 的下载状态
-
 pub async fn update_videos_model(videos: Vec<video::ActiveModel>, connection: &DatabaseConnection) -> Result<()> {
     video::Entity::insert_many(videos)
         .on_conflict(
@@ -113,7 +108,6 @@ pub async fn update_videos_model(videos: Vec<video::ActiveModel>, connection: &D
 }
 
 /// 更新视频页 model 的下载状态
-
 pub async fn update_pages_model(pages: Vec<page::ActiveModel>, connection: &DatabaseConnection) -> Result<()> {
     let query = page::Entity::insert_many(pages).on_conflict(
         OnConflict::column(page::Column::Id)

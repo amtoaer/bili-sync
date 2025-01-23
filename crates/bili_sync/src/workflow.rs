@@ -506,11 +506,11 @@ pub async fn fetch_page_video(
         .await?
         .best_stream(&CONFIG.filter_option)?;
     match streams {
-        BestStream::Mixed(mix_stream) => downloader.fetch(mix_stream.url(), &page_path).await,
+        BestStream::Mixed(mix_stream) => downloader.fetch(mix_stream.url(), page_path).await,
         BestStream::VideoAudio {
             video: video_stream,
             audio: None,
-        } => downloader.fetch(video_stream.url(), &page_path).await,
+        } => downloader.fetch(video_stream.url(), page_path).await,
         BestStream::VideoAudio {
             video: video_stream,
             audio: Some(audio_stream),
