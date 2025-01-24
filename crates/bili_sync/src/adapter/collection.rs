@@ -9,7 +9,7 @@ use sea_orm::sea_query::{OnConflict, SimpleExpr};
 use sea_orm::ActiveValue::Set;
 use sea_orm::{DatabaseConnection, Unchanged};
 
-use crate::adapter::{VideoListModel, _ActiveModel};
+use crate::adapter::{VideoListModel, VideoListModelEnum, _ActiveModel};
 use crate::bilibili::{BiliClient, Collection, CollectionItem, CollectionType, VideoInfo};
 
 impl VideoListModel for collection::Model {
@@ -98,10 +98,7 @@ pub(super) async fn collection_from<'a>(
     path: &Path,
     bili_client: &'a BiliClient,
     connection: &DatabaseConnection,
-) -> Result<(
-    Box<dyn VideoListModel>,
-    Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a>>,
-)> {
+) -> Result<(VideoListModelEnum, Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a>>)> {
     let collection = Collection::new(bili_client, collection_item);
     let collection_info = collection.get_info().await?;
     collection::Entity::insert(collection::ActiveModel {
@@ -124,18 +121,17 @@ pub(super) async fn collection_from<'a>(
     .exec(connection)
     .await?;
     Ok((
-        Box::new(
-            collection::Entity::find()
-                .filter(
-                    collection::Column::SId
-                        .eq(collection_item.sid.clone())
-                        .and(collection::Column::MId.eq(collection_item.mid.clone()))
-                        .and(collection::Column::Type.eq(Into::<i32>::into(collection_item.collection_type.clone()))),
-                )
-                .one(connection)
-                .await?
-                .context("collection not found")?,
-        ),
+        collection::Entity::find()
+            .filter(
+                collection::Column::SId
+                    .eq(collection_item.sid.clone())
+                    .and(collection::Column::MId.eq(collection_item.mid.clone()))
+                    .and(collection::Column::Type.eq(Into::<i32>::into(collection_item.collection_type.clone()))),
+            )
+            .one(connection)
+            .await?
+            .context("collection not found")?
+            .into(),
         Box::pin(collection.into_video_stream()),
     ))
 }

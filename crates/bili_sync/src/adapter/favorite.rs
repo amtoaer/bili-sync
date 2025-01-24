@@ -9,7 +9,7 @@ use sea_orm::sea_query::{OnConflict, SimpleExpr};
 use sea_orm::ActiveValue::Set;
 use sea_orm::{DatabaseConnection, Unchanged};
 
-use crate::adapter::{VideoListModel, _ActiveModel};
+use crate::adapter::{VideoListModel, VideoListModelEnum, _ActiveModel};
 use crate::bilibili::{BiliClient, FavoriteList, VideoInfo};
 
 impl VideoListModel for favorite::Model {
@@ -70,10 +70,7 @@ pub(super) async fn favorite_from<'a>(
     path: &Path,
     bili_client: &'a BiliClient,
     connection: &DatabaseConnection,
-) -> Result<(
-    Box<dyn VideoListModel>,
-    Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a>>,
-)> {
+) -> Result<(VideoListModelEnum, Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a>>)> {
     let favorite = FavoriteList::new(bili_client, fid.to_owned());
     let favorite_info = favorite.get_info().await?;
     favorite::Entity::insert(favorite::ActiveModel {
@@ -90,13 +87,12 @@ pub(super) async fn favorite_from<'a>(
     .exec(connection)
     .await?;
     Ok((
-        Box::new(
-            favorite::Entity::find()
-                .filter(favorite::Column::FId.eq(favorite_info.id))
-                .one(connection)
-                .await?
-                .context("favorite not found")?,
-        ),
+        favorite::Entity::find()
+            .filter(favorite::Column::FId.eq(favorite_info.id))
+            .one(connection)
+            .await?
+            .context("favorite not found")?
+            .into(),
         Box::pin(favorite.into_video_stream()),
     ))
 }

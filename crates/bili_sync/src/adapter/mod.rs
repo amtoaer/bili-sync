@@ -7,10 +7,17 @@ use std::path::Path;
 use std::pin::Pin;
 
 use anyhow::Result;
+use enum_dispatch::enum_dispatch;
 use futures::Stream;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::SimpleExpr;
 use sea_orm::DatabaseConnection;
+
+#[rustfmt::skip]
+use bili_sync_entity::collection::Model as Collection;
+use bili_sync_entity::favorite::Model as Favorite;
+use bili_sync_entity::submission::Model as Submission;
+use bili_sync_entity::watch_later::Model as WatchLater;
 
 use crate::adapter::collection::collection_from;
 use crate::adapter::favorite::favorite_from;
@@ -18,6 +25,15 @@ use crate::adapter::submission::submission_from;
 use crate::adapter::watch_later::watch_later_from;
 use crate::bilibili::{BiliClient, CollectionItem, VideoInfo};
 
+#[enum_dispatch]
+pub enum VideoListModelEnum {
+    Favorite,
+    Collection,
+    Submission,
+    WatchLater,
+}
+
+#[enum_dispatch(VideoListModelEnum)]
 pub trait VideoListModel {
     /// 获取特定视频列表的筛选条件
     fn filter_expr(&self) -> SimpleExpr;
@@ -67,10 +83,7 @@ pub async fn video_list_from<'a>(
     path: &Path,
     bili_client: &'a BiliClient,
     connection: &DatabaseConnection,
-) -> Result<(
-    Box<dyn VideoListModel>,
-    Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a>>,
-)> {
+) -> Result<(VideoListModelEnum, Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a>>)> {
     match args {
         Args::Favorite { fid } => favorite_from(fid, path, bili_client, connection).await,
         Args::Collection { collection_item } => collection_from(collection_item, path, bili_client, connection).await,

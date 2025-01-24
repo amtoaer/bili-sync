@@ -9,7 +9,7 @@ use sea_orm::sea_query::{OnConflict, SimpleExpr};
 use sea_orm::ActiveValue::Set;
 use sea_orm::{DatabaseConnection, Unchanged};
 
-use crate::adapter::{VideoListModel, _ActiveModel};
+use crate::adapter::{VideoListModel, VideoListModelEnum, _ActiveModel};
 use crate::bilibili::{BiliClient, Submission, VideoInfo};
 
 impl VideoListModel for submission::Model {
@@ -82,10 +82,7 @@ pub(super) async fn submission_from<'a>(
     path: &Path,
     bili_client: &'a BiliClient,
     connection: &DatabaseConnection,
-) -> Result<(
-    Box<dyn VideoListModel>,
-    Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a>>,
-)> {
+) -> Result<(VideoListModelEnum, Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a>>)> {
     let submission = Submission::new(bili_client, upper_id.to_owned());
     let upper = submission.get_info().await?;
     submission::Entity::insert(submission::ActiveModel {
@@ -102,13 +99,12 @@ pub(super) async fn submission_from<'a>(
     .exec(connection)
     .await?;
     Ok((
-        Box::new(
-            submission::Entity::find()
-                .filter(submission::Column::UpperId.eq(upper.mid))
-                .one(connection)
-                .await?
-                .context("submission not found")?,
-        ),
+        submission::Entity::find()
+            .filter(submission::Column::UpperId.eq(upper.mid))
+            .one(connection)
+            .await?
+            .context("submission not found")?
+            .into(),
         Box::pin(submission.into_video_stream()),
     ))
 }
