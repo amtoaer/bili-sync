@@ -158,22 +158,42 @@ mod tests {
             collection_type: CollectionType::Season,
         };
         let collection = Collection::new(&bili_client, &collection_item);
-        let videos = collection.into_simple_video_stream().take(20).collect::<Vec<_>>().await;
+        let videos = collection
+            .into_video_stream()
+            .take(20)
+            .filter_map(|v| futures::future::ready(v.ok()))
+            .collect::<Vec<_>>()
+            .await;
         assert!(videos.iter().all(|v| matches!(v, VideoInfo::Collection { .. })));
         assert!(videos.iter().rev().is_sorted_by_key(|v| v.release_datetime()));
         // 测试收藏夹
         let favorite = FavoriteList::new(&bili_client, "3144336058".to_string());
-        let videos = favorite.into_video_stream().take(20).collect::<Vec<_>>().await;
+        let videos = favorite
+            .into_video_stream()
+            .take(20)
+            .filter_map(|v| futures::future::ready(v.ok()))
+            .collect::<Vec<_>>()
+            .await;
         assert!(videos.iter().all(|v| matches!(v, VideoInfo::Favorite { .. })));
         assert!(videos.iter().rev().is_sorted_by_key(|v| v.release_datetime()));
         // 测试稍后再看
         let watch_later = WatchLater::new(&bili_client);
-        let videos = watch_later.into_video_stream().take(20).collect::<Vec<_>>().await;
+        let videos = watch_later
+            .into_video_stream()
+            .take(20)
+            .filter_map(|v| futures::future::ready(v.ok()))
+            .collect::<Vec<_>>()
+            .await;
         assert!(videos.iter().all(|v| matches!(v, VideoInfo::WatchLater { .. })));
         assert!(videos.iter().rev().is_sorted_by_key(|v| v.release_datetime()));
         // 测试投稿
         let submission = Submission::new(&bili_client, "956761".to_string());
-        let videos = submission.into_video_stream().take(20).collect::<Vec<_>>().await;
+        let videos = submission
+            .into_video_stream()
+            .take(20)
+            .filter_map(|v| futures::future::ready(v.ok()))
+            .collect::<Vec<_>>()
+            .await;
         assert!(videos.iter().all(|v| matches!(v, VideoInfo::Submission { .. })));
         assert!(videos.iter().rev().is_sorted_by_key(|v| v.release_datetime()));
     }

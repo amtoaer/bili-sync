@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use bili_sync_entity::*;
 use futures::stream::{FuturesOrdered, FuturesUnordered};
 use futures::{Future, Stream, StreamExt};
@@ -50,29 +50,41 @@ pub async fn process_video_list(
 /// 请求接口，获取视频列表中所有新添加的视频信息，将其写入数据库
 pub async fn refresh_video_list<'a>(
     video_list_model: &dyn VideoListModel,
-    video_streams: Pin<Box<dyn Stream<Item = VideoInfo> + 'a>>,
+    video_streams: Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a>>,
     connection: &DatabaseConnection,
 ) -> Result<()> {
     video_list_model.log_refresh_video_start();
     let latest_row_at = video_list_model.get_latest_row_at().and_utc();
     let mut max_datetime = latest_row_at;
+    let mut error = Ok(());
     let mut video_streams = video_streams
-        .take_while(|v| {
-            // 虽然 video_streams 是从新到旧的，但由于此处是分页请求，极端情况下可能发生访问完第一页时插入了两整页视频的情况
-            // 此时获取到的第二页视频比第一页的还要新，因此为了确保正确，理应对每一页的第一个视频进行时间比较
-            // 但在 streams 的抽象下，无法判断具体是在哪里分页的，所以暂且对每个视频都进行比较，应该不会有太大性能损失
-            let release_datetime = v.release_datetime();
-            if release_datetime > &max_datetime {
-                max_datetime = *release_datetime;
+        .take_while(|res| {
+            match res {
+                Err(e) => {
+                    error = Err(anyhow!(e.to_string()));
+                    futures::future::ready(false)
+                }
+                Ok(v) => {
+                    // 虽然 video_streams 是从新到旧的，但由于此处是分页请求，极端情况下可能发生访问完第一页时插入了两整页视频的情况
+                    // 此时获取到的第二页视频比第一页的还要新，因此为了确保正确，理应对每一页的第一个视频进行时间比较
+                    // 但在 streams 的抽象下，无法判断具体是在哪里分页的，所以暂且对每个视频都进行比较，应该不会有太大性能损失
+                    let release_datetime = v.release_datetime();
+                    if release_datetime > &max_datetime {
+                        max_datetime = *release_datetime;
+                    }
+                    futures::future::ready(release_datetime > &latest_row_at)
+                }
             }
-            futures::future::ready(release_datetime > &latest_row_at)
         })
+        .filter_map(|res| futures::future::ready(res.ok()))
         .chunks(10);
     let mut count = 0;
     while let Some(videos_info) = video_streams.next().await {
         count += videos_info.len();
         create_videos(videos_info, video_list_model, connection).await?;
     }
+    // 如果获取视频分页过程中发生了错误，直接在此处返回，不更新 latest_row_at
+    error?;
     if max_datetime != latest_row_at {
         video_list_model
             .update_latest_row_at(max_datetime.naive_utc())

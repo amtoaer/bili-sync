@@ -66,7 +66,10 @@ pub(super) async fn watch_later_from<'a>(
     path: &Path,
     bili_client: &'a BiliClient,
     connection: &DatabaseConnection,
-) -> Result<(Box<dyn VideoListModel>, Pin<Box<dyn Stream<Item = VideoInfo> + 'a>>)> {
+) -> Result<(
+    Box<dyn VideoListModel>,
+    Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a>>,
+)> {
     let watch_later = WatchLater::new(bili_client);
     watch_later::Entity::insert(watch_later::ActiveModel {
         id: Set(1),

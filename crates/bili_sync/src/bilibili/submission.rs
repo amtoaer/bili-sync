@@ -1,6 +1,6 @@
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use arc_swap::access::Access;
-use async_stream::stream;
+use async_stream::try_stream;
 use futures::Stream;
 use reqwest::Method;
 use serde_json::Value;
@@ -57,36 +57,31 @@ impl<'a> Submission<'a> {
             .validate()
     }
 
-    pub fn into_video_stream(self) -> impl Stream<Item = VideoInfo> + 'a {
-        stream! {
+    pub fn into_video_stream(self) -> impl Stream<Item = Result<VideoInfo>> + 'a {
+        try_stream! {
             let mut page = 1;
             loop {
-                let mut videos = match self.get_videos(page).await {
-                    Ok(v) => v,
-                    Err(e) => {
-                        error!("failed to get videos of upper {} page {}: {}", self.upper_id, page, e);
-                        break;
-                    }
-                };
+                let mut videos = self
+                    .get_videos(page)
+                    .await
+                    .with_context(|| format!("failed to get videos of upper {} page {}", self.upper_id, page))?;
                 let vlist = &mut videos["data"]["list"]["vlist"];
                 if vlist.as_array().is_none_or(|v| v.is_empty()) {
-                    error!("no medias found in upper {} page {}", self.upper_id, page);
-                    break;
+                    Err(anyhow!("no medias found in upper {} page {}", self.upper_id, page))?;
                 }
-                let videos_info: Vec<VideoInfo> = match serde_json::from_value(vlist.take()) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        error!("failed to parse videos of upper {} page {}: {}", self.upper_id, page, e);
-                        break;
-                    }
-                };
+                let videos_info: Vec<VideoInfo> = serde_json::from_value(vlist.take())
+                    .with_context(|| format!("failed to parse videos of upper {} page {}", self.upper_id, page))?;
                 for video_info in videos_info {
                     yield video_info;
                 }
                 let count = &videos["data"]["page"]["count"];
-                if count.as_i64().is_some_and(|v| v > (page * 30) as i64) {
-                    page += 1;
-                    continue;
+                if let Some(v) = count.as_i64() {
+                    if v > (page * 30) as i64 {
+                        page += 1;
+                        continue;
+                    }
+                } else {
+                    Err(anyhow!("count is not an i64"))?;
                 }
                 break;
             }

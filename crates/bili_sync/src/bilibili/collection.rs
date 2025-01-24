@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter};
 
-use anyhow::Result;
-use async_stream::stream;
+use anyhow::{anyhow, Context, Result};
+use async_stream::try_stream;
 use futures::Stream;
 use reqwest::Method;
 use serde::Deserialize;
@@ -162,35 +162,30 @@ impl<'a> Collection<'a> {
             .validate()
     }
 
-    pub fn into_simple_video_stream(self) -> impl Stream<Item = VideoInfo> + 'a {
-        stream! {
+    pub fn into_video_stream(self) -> impl Stream<Item = Result<VideoInfo>> + 'a {
+        try_stream! {
             let mut page = 1;
             loop {
-                let mut videos = match self.get_videos(page).await {
-                    Ok(v) => v,
-                    Err(e) => {
-                        error!(
-                            "failed to get videos of collection {:?} page {}: {}",
-                            self.collection, page, e
-                        );
-                        break;
-                    }
-                };
+                let mut videos = self.get_videos(page).await.with_context(|| {
+                    format!(
+                        "failed to get videos of collection {:?} page {}",
+                        self.collection, page
+                    )
+                })?;
                 let archives = &mut videos["data"]["archives"];
                 if archives.as_array().is_none_or(|v| v.is_empty()) {
-                    error!("no videos found in collection {:?} page {}", self.collection, page);
-                    break;
+                    Err(anyhow!(
+                        "no videos found in collection {:?} page {}",
+                        self.collection,
+                        page
+                    ))?;
                 }
-                let videos_info: Vec<VideoInfo> = match serde_json::from_value(archives.take()) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        error!(
-                            "failed to parse videos of collection {:?} page {}: {}",
-                            self.collection, page, e
-                        );
-                        break;
-                    }
-                };
+                let videos_info: Vec<VideoInfo> = serde_json::from_value(archives.take()).with_context(|| {
+                    format!(
+                        "failed to parse videos of collection {:?} page {}",
+                        self.collection, page
+                    )
+                })?;
                 for video_info in videos_info {
                     yield video_info;
                 }
@@ -199,17 +194,23 @@ impl<'a> Collection<'a> {
                     CollectionType::Series => ["num", "size", "total"],
                     CollectionType::Season => ["page_num", "page_size", "total"],
                 };
-                let values = fields.iter().map(|f| page_info[f].as_i64()).collect::<Vec<Option<i64>>>();
+                let values = fields
+                    .iter()
+                    .map(|f| page_info[f].as_i64())
+                    .collect::<Vec<Option<i64>>>();
                 if let [Some(num), Some(size), Some(total)] = values[..] {
                     if num * size < total {
                         page += 1;
                         continue;
                     }
                 } else {
-                    error!(
+                    Err(anyhow!(
                         "invalid page info of collection {:?} page {}: read {:?} from {}",
-                        self.collection, page, fields, page_info
-                    );
+                        self.collection,
+                        page,
+                        fields,
+                        page_info
+                    ))?;
                 }
                 break;
             }
