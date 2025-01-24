@@ -37,59 +37,37 @@ impl VideoListModel for collection::Model {
         })
     }
 
+    fn log_refresh_video_start(&self) {
+        info!("开始扫描{}「{}」..", CollectionType::from(self.r#type), self.name);
+    }
+
+    fn log_refresh_video_end(&self, count: usize) {
+        info!(
+            "扫描{}「{}」完成，获取到 {} 条新视频",
+            CollectionType::from(self.r#type),
+            self.name,
+            count,
+        );
+    }
+
     fn log_fetch_video_start(&self) {
         info!(
-            "开始获取{} {} - {} 的视频与分页信息...",
+            "开始填充{}「{}」视频详情..",
             CollectionType::from(self.r#type),
-            self.s_id,
             self.name
         );
     }
 
     fn log_fetch_video_end(&self) {
-        info!(
-            "获取{} {} - {} 的视频与分页信息完成",
-            CollectionType::from(self.r#type),
-            self.s_id,
-            self.name
-        );
+        info!("填充{}「{}」视频详情完成", CollectionType::from(self.r#type), self.name);
     }
 
     fn log_download_video_start(&self) {
-        info!(
-            "开始下载{}: {} - {} 中所有未处理过的视频...",
-            CollectionType::from(self.r#type),
-            self.s_id,
-            self.name
-        );
+        info!("开始下载{}「{}」视频..", CollectionType::from(self.r#type), self.name);
     }
 
     fn log_download_video_end(&self) {
-        info!(
-            "下载{}: {} - {} 中未处理过的视频完成",
-            CollectionType::from(self.r#type),
-            self.s_id,
-            self.name
-        );
-    }
-
-    fn log_refresh_video_start(&self) {
-        info!(
-            "开始扫描{}: {} - {} 的新视频...",
-            CollectionType::from(self.r#type),
-            self.s_id,
-            self.name
-        );
-    }
-
-    fn log_refresh_video_end(&self, count: usize) {
-        info!(
-            "扫描{}: {} - {} 的新视频完成，获取了 {} 条新视频",
-            CollectionType::from(self.r#type),
-            self.s_id,
-            self.name,
-            count,
-        );
+        info!("下载{}「{}」视频完成", CollectionType::from(self.r#type), self.name);
     }
 }
 

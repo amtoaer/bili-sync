@@ -9,9 +9,11 @@ use tracing_subscriber::util::SubscriberInitExt;
 
 pub fn init_logger(log_level: &str) {
     tracing_subscriber::fmt::Subscriber::builder()
+        .compact()
         .with_env_filter(tracing_subscriber::EnvFilter::builder().parse_lossy(log_level))
+        .with_target(false)
         .with_timer(tracing_subscriber::fmt::time::ChronoLocal::new(
-            "%Y-%m-%d %H:%M:%S%.3f".to_owned(),
+            "%b %d %H:%M:%S".to_owned(),
         ))
         .finish()
         .try_init()

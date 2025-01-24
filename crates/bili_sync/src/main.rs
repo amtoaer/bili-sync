@@ -10,6 +10,8 @@ mod error;
 mod utils;
 mod workflow;
 
+use std::path::PathBuf;
+
 use once_cell::sync::Lazy;
 use tokio::time;
 
@@ -28,17 +30,17 @@ async fn main() {
     let connection = database_connection().await.expect("获取数据库连接失败");
     let mut anchor = chrono::Local::now().date_naive();
     let bili_client = BiliClient::new();
-    let watch_later_config = &CONFIG.watch_later;
+    let params = build_params();
     loop {
         'inner: {
             match bili_client.wbi_img().await.map(|wbi_img| wbi_img.into()) {
                 Ok(Some(mixin_key)) => bilibili::set_global_mixin_key(mixin_key),
                 Ok(_) => {
-                    error!("获取 mixin key 失败，无法进行 wbi 签名，等待下一轮执行");
+                    error!("解析 mixin key 失败，等待下一轮执行");
                     break 'inner;
                 }
                 Err(e) => {
-                    error!("获取 mixin key 时遇到错误：{e}，等待下一轮执行");
+                    error!("获取 mixin key 遇到错误：{e}，等待下一轮执行");
                     break 'inner;
                 }
             };
@@ -49,37 +51,33 @@ async fn main() {
                 }
                 anchor = chrono::Local::now().date_naive();
             }
-            for (fid, path) in &CONFIG.favorite_list {
-                if let Err(e) = process_video_list(Args::Favorite { fid }, &bili_client, path, &connection).await {
-                    error!("处理收藏夹 {fid} 时遇到非预期的错误：{e}");
+            for (args, path) in &params {
+                if let Err(e) = process_video_list(*args, &bili_client, path, &connection).await {
+                    error!("处理过程遇到错误：{e}");
                 }
             }
-            info!("所有收藏夹处理完毕");
-            for (collection_item, path) in &CONFIG.collection_list {
-                if let Err(e) =
-                    process_video_list(Args::Collection { collection_item }, &bili_client, path, &connection).await
-                {
-                    error!("处理合集 {collection_item:?} 时遇到非预期的错误：{e}");
-                }
-            }
-            info!("所有合集处理完毕");
-            if watch_later_config.enabled {
-                if let Err(e) =
-                    process_video_list(Args::WatchLater, &bili_client, &watch_later_config.path, &connection).await
-                {
-                    error!("处理稍后再看时遇到非预期的错误：{e}");
-                }
-            }
-            info!("稍后再看处理完毕");
-            for (upper_id, path) in &CONFIG.submission_list {
-                if let Err(e) = process_video_list(Args::Submission { upper_id }, &bili_client, path, &connection).await
-                {
-                    error!("处理 UP 主 {upper_id} 投稿时遇到非预期的错误：{e}");
-                }
-            }
-            info!("所有 UP 主投稿处理完毕");
             info!("本轮任务执行完毕，等待下一轮执行");
         }
         time::sleep(time::Duration::from_secs(CONFIG.interval)).await;
     }
+}
+
+fn build_params() -> Vec<(Args<'static>, &'static PathBuf)> {
+    let mut params = Vec::new();
+    CONFIG
+        .favorite_list
+        .iter()
+        .for_each(|(fid, path)| params.push((Args::Favorite { fid }, path)));
+    CONFIG
+        .collection_list
+        .iter()
+        .for_each(|(collection_item, path)| params.push((Args::Collection { collection_item }, path)));
+    if CONFIG.watch_later.enabled {
+        params.push((Args::WatchLater, &CONFIG.watch_later.path));
+    }
+    CONFIG
+        .submission_list
+        .iter()
+        .for_each(|(upper_id, path)| params.push((Args::Submission { upper_id }, path)));
+    params
 }

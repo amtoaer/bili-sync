@@ -37,28 +37,28 @@ impl VideoListModel for watch_later::Model {
         })
     }
 
-    fn log_fetch_video_start(&self) {
-        info!("开始获取稍后再看的视频与分页信息...");
-    }
-
-    fn log_fetch_video_end(&self) {
-        info!("获取稍后再看的视频与分页信息完成");
-    }
-
-    fn log_download_video_start(&self) {
-        info!("开始下载稍后再看中所有未处理过的视频...");
-    }
-
-    fn log_download_video_end(&self) {
-        info!("下载稍后再看中未处理过的视频完成");
-    }
-
     fn log_refresh_video_start(&self) {
-        info!("开始扫描稍后再看的新视频...");
+        info!("开始扫描稍后再看..");
     }
 
     fn log_refresh_video_end(&self, count: usize) {
-        info!("扫描稍后再看的新视频完成，获取了 {} 条新视频", count);
+        info!("扫描稍后再看完成，获取到 {} 条新视频", count);
+    }
+
+    fn log_fetch_video_start(&self) {
+        info!("开始填充稍后再看视频详情..");
+    }
+
+    fn log_fetch_video_end(&self) {
+        info!("填充稍后再看视频详情完成");
+    }
+
+    fn log_download_video_start(&self) {
+        info!("开始下载稍后再看视频..");
+    }
+
+    fn log_download_video_end(&self) {
+        info!("下载稍后再看视频完成");
     }
 }
 

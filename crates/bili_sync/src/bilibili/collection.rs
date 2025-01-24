@@ -38,8 +38,8 @@ impl From<i32> for CollectionType {
 impl Display for CollectionType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            CollectionType::Series => "视频列表",
-            CollectionType::Season => "视频合集",
+            CollectionType::Series => "列表",
+            CollectionType::Season => "合集",
         };
         write!(f, "{}", s)
     }

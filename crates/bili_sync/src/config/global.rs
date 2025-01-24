@@ -53,10 +53,9 @@ fn load_config() -> Config {
         info!("已将默认配置写入 {}", CONFIG_DIR.join("config.toml").display());
         default_config
     });
-    // 检查配置文件内容
-    info!("校验配置文件内容...");
+    info!("检查配置文件..");
     config.check();
-    info!("配置文件内容校验通过");
+    info!("配置文件检查通过");
     config
 }
 

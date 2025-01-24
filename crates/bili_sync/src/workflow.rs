@@ -39,7 +39,7 @@ pub async fn process_video_list(
     // 单独请求视频详情接口，获取视频的详情信息与所有的分页，写入数据库
     fetch_video_details(bili_client, &video_list_model, connection).await?;
     if ARGS.scan_only {
-        warn!("已开启仅扫描模式，跳过视频下载...");
+        warn!("已开启仅扫描模式，跳过视频下载..");
     } else {
         // 从数据库中查找所有未下载的视频与分页，下载并处理
         download_unprocessed_videos(bili_client, &video_list_model, connection).await?;
@@ -192,7 +192,7 @@ pub async fn download_unprocessed_videos(
         update_videos_model(models, connection).await?;
     }
     if download_aborted {
-        error!("下载视频时触发风控，终止收藏夹下所有下载任务，等待下一轮执行");
+        error!("下载触发风控，已终止所有任务，等待下一轮执行");
     }
     video_list_model.log_download_video_end();
     Ok(())
@@ -270,16 +270,10 @@ pub async fn download_video_pages(
     results
         .iter()
         .take(4)
-        .zip(["封面", "视频 nfo", "up 主头像", "up 主 nfo"])
+        .zip(["封面", "详情", "作者头像", "作者详情"])
         .for_each(|(res, task_name)| match res {
-            Ok(_) => info!(
-                "处理视频 {} - {} 的 {} 成功",
-                &video_model.bvid, &video_model.name, task_name
-            ),
-            Err(e) => error!(
-                "处理视频 {} - {} 的 {} 失败: {}",
-                &video_model.bvid, &video_model.name, task_name, e
-            ),
+            Ok(_) => info!("处理视频「{}」{}成功", &video_model.name, task_name),
+            Err(e) => error!("处理视频「{}」{}失败: {}", &video_model.name, task_name, e),
         });
     if let Err(e) = results.into_iter().nth(4).context("page download result not found")? {
         if e.downcast_ref::<DownloadAbortError>().is_some() {
@@ -348,16 +342,13 @@ pub async fn dispatch_download_page(
         update_pages_model(models, connection).await?;
     }
     if download_aborted {
-        error!(
-            "下载视频 {} - {} 的分页时触发风控，将异常向上传递...",
-            &video_model.bvid, &video_model.name
-        );
+        error!("下载视频「{}」的分页时触发风控，将异常向上传递..", &video_model.name);
         bail!(DownloadAbortError());
     }
     if error_occurred {
         error!(
-            "下载视频 {} - {} 的分页时出现了错误，将在下一轮尝试重新处理",
-            &video_model.bvid, &video_model.name
+            "下载视频「{}」的分页时出现错误，将在下一轮尝试重新处理",
+            &video_model.name
         );
         bail!(ProcessPageError());
     }
@@ -449,15 +440,15 @@ pub async fn download_page(
     status.update_status(&results);
     results
         .iter()
-        .zip(["封面", "视频", "视频 nfo", "弹幕"])
+        .zip(["封面", "视频", "详情", "弹幕"])
         .for_each(|(res, task_name)| match res {
             Ok(_) => info!(
-                "处理视频 {} - {} 第 {} 页的 {} 成功",
-                &video_model.bvid, &video_model.name, page_model.pid, task_name
+                "处理视频「{}」第 {} 页{}成功",
+                &video_model.name, page_model.pid, task_name
             ),
             Err(e) => error!(
-                "处理视频 {} - {} 第 {} 页的 {} 失败: {}",
-                &video_model.bvid, &video_model.name, page_model.pid, task_name, e
+                "处理视频「{}」第 {} 页{}失败: {}",
+                &video_model.name, page_model.pid, task_name, e
             ),
         });
     // 如果下载视频时触发风控，直接返回 DownloadAbortError

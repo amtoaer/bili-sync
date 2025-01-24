@@ -52,10 +52,16 @@ pub trait VideoListModel {
     /// Box<dyn ActiveModelTrait> 又提示 ActiveModelTrait 没有 object safety，因此手写一个 Enum 静态分发
     fn update_latest_row_at(&self, datetime: DateTime) -> _ActiveModel;
 
-    /// 开始获取视频
+    /// 开始刷新视频
+    fn log_refresh_video_start(&self);
+
+    /// 结束刷新视频
+    fn log_refresh_video_end(&self, count: usize);
+
+    /// 开始填充视频
     fn log_fetch_video_start(&self);
 
-    /// 结束获取视频
+    /// 结束填充视频
     fn log_fetch_video_end(&self);
 
     /// 开始下载视频
@@ -63,14 +69,9 @@ pub trait VideoListModel {
 
     /// 结束下载视频
     fn log_download_video_end(&self);
-
-    /// 开始刷新视频
-    fn log_refresh_video_start(&self);
-
-    /// 结束刷新视频
-    fn log_refresh_video_end(&self, count: usize);
 }
 
+#[derive(Clone, Copy)]
 pub enum Args<'a> {
     Favorite { fid: &'a str },
     Collection { collection_item: &'a CollectionItem },

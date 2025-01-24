@@ -37,43 +37,28 @@ impl VideoListModel for submission::Model {
         })
     }
 
-    fn log_fetch_video_start(&self) {
-        info!(
-            "开始获取 UP 主 {} - {} 投稿的视频与分页信息...",
-            self.upper_id, self.upper_name
-        );
-    }
-
-    fn log_fetch_video_end(&self) {
-        info!(
-            "获取 UP 主 {} - {} 投稿的视频与分页信息完成",
-            self.upper_id, self.upper_name
-        );
-    }
-
-    fn log_download_video_start(&self) {
-        info!(
-            "开始下载 UP 主 {} - {} 投稿的所有未处理过的视频...",
-            self.upper_id, self.upper_name
-        );
-    }
-
-    fn log_download_video_end(&self) {
-        info!(
-            "下载 UP 主 {} - {} 投稿的所有未处理过的视频完成",
-            self.upper_id, self.upper_name
-        );
-    }
-
     fn log_refresh_video_start(&self) {
-        info!("开始扫描 UP 主 {} - {} 投稿的新视频...", self.upper_id, self.upper_name);
+        info!("开始扫描「{}」投稿..", self.upper_name);
     }
 
     fn log_refresh_video_end(&self, count: usize) {
-        info!(
-            "扫描 UP 主 {} - {} 投稿的新视频完成，获取了 {} 条新视频",
-            self.upper_id, self.upper_name, count,
-        );
+        info!("扫描「{}」投稿完成，获取到 {} 条新视频", self.upper_name, count,);
+    }
+
+    fn log_fetch_video_start(&self) {
+        info!("开始填充「{}」投稿视频详情..", self.upper_name);
+    }
+
+    fn log_fetch_video_end(&self) {
+        info!("填充「{}」投稿视频详情完成", self.upper_name);
+    }
+
+    fn log_download_video_start(&self) {
+        info!("开始下载「{}」投稿视频..", self.upper_name);
+    }
+
+    fn log_download_video_end(&self) {
+        info!("下载「{}」投稿视频完成", self.upper_name);
     }
 }
 
