@@ -1,5 +1,5 @@
-use anyhow::Result;
-use async_stream::stream;
+use anyhow::{anyhow, Context, Result};
+use async_stream::try_stream;
 use futures::Stream;
 use serde_json::Value;
 
@@ -62,36 +62,31 @@ impl<'a> FavoriteList<'a> {
     }
 
     // 拿到收藏夹的所有权，返回一个收藏夹下的视频流
-    pub fn into_video_stream(self) -> impl Stream<Item = VideoInfo> + 'a {
-        stream! {
+    pub fn into_video_stream(self) -> impl Stream<Item = Result<VideoInfo>> + 'a {
+        try_stream! {
             let mut page = 1;
             loop {
-                let mut videos = match self.get_videos(page).await {
-                    Ok(v) => v,
-                    Err(e) => {
-                        error!("failed to get videos of favorite {} page {}: {}", self.fid, page, e);
-                        break;
-                    }
-                };
+                let mut videos = self
+                    .get_videos(page)
+                    .await
+                    .with_context(|| format!("failed to get videos of favorite {} page {}", self.fid, page))?;
                 let medias = &mut videos["data"]["medias"];
                 if medias.as_array().is_none_or(|v| v.is_empty()) {
-                    error!("no medias found in favorite {} page {}", self.fid, page);
-                    break;
+                    Err(anyhow!("no medias found in favorite {} page {}", self.fid, page))?;
                 }
-                let videos_info: Vec<VideoInfo> = match serde_json::from_value(medias.take()) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        error!("failed to parse videos of favorite {} page {}: {}", self.fid, page, e);
-                        break;
-                    }
-                };
+                let videos_info: Vec<VideoInfo> = serde_json::from_value(medias.take())
+                    .with_context(|| format!("failed to parse videos of favorite {} page {}", self.fid, page))?;
                 for video_info in videos_info {
                     yield video_info;
                 }
                 let has_more = &videos["data"]["has_more"];
-                if has_more.as_bool().is_some_and(|v| v) {
-                    page += 1;
-                    continue;
+                if let Some(v) = has_more.as_bool() {
+                    if v {
+                        page += 1;
+                        continue;
+                    }
+                } else {
+                    Err(anyhow!("has_more is not a bool"))?;
                 }
                 break;
             }

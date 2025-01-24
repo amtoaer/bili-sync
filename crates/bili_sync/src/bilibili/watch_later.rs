@@ -1,5 +1,5 @@
-use anyhow::Result;
-use async_stream::stream;
+use anyhow::{anyhow, Context, Result};
+use async_stream::try_stream;
 use futures::Stream;
 use serde_json::Value;
 
@@ -25,24 +25,20 @@ impl<'a> WatchLater<'a> {
             .validate()
     }
 
-    pub fn into_video_stream(self) -> impl Stream<Item = VideoInfo> + 'a {
-        stream! {
-            let Ok(mut videos) = self.get_videos().await else {
-                error!("Failed to get watch later list");
-                return;
-            };
-            if !videos["data"]["list"].is_array() {
-                error!("Watch later list is not an array");
+    pub fn into_video_stream(self) -> impl Stream<Item = Result<VideoInfo>> + 'a {
+        try_stream! {
+            let mut videos = self
+                .get_videos()
+                .await
+                .with_context(|| "Failed to get watch later list")?;
+            let list = &mut videos["data"]["list"];
+            if list.as_array().is_none_or(|v| v.is_empty()) {
+                Err(anyhow!("No videos found in watch later list"))?;
             }
-            let videos_info = match serde_json::from_value::<Vec<VideoInfo>>(videos["data"]["list"].take()) {
-                Ok(v) => v,
-                Err(e) => {
-                    error!("Failed to parse watch later list: {}", e);
-                    return;
-                }
-            };
-            for video in videos_info {
-                yield video;
+            let videos_info: Vec<VideoInfo> =
+                serde_json::from_value(list.take()).with_context(|| "Failed to parse watch later list")?;
+            for video_info in videos_info {
+                yield video_info;
             }
         }
     }

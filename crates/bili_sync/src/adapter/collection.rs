@@ -98,7 +98,10 @@ pub(super) async fn collection_from<'a>(
     path: &Path,
     bili_client: &'a BiliClient,
     connection: &DatabaseConnection,
-) -> Result<(Box<dyn VideoListModel>, Pin<Box<dyn Stream<Item = VideoInfo> + 'a>>)> {
+) -> Result<(
+    Box<dyn VideoListModel>,
+    Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a>>,
+)> {
     let collection = Collection::new(bili_client, collection_item);
     let collection_info = collection.get_info().await?;
     collection::Entity::insert(collection::ActiveModel {
@@ -133,6 +136,6 @@ pub(super) async fn collection_from<'a>(
                 .await?
                 .context("collection not found")?,
         ),
-        Box::pin(collection.into_simple_video_stream()),
+        Box::pin(collection.into_video_stream()),
     ))
 }
