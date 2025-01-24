@@ -12,7 +12,7 @@ use sea_orm::TransactionTrait;
 use tokio::fs;
 use tokio::sync::{Mutex, Semaphore};
 
-use crate::adapter::{video_list_from, Args, VideoListModel};
+use crate::adapter::{video_list_from, Args, VideoListModel, VideoListModelEnum};
 use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, PageInfo, Video, VideoInfo};
 use crate::config::{PathSafeTemplate, ARGS, CONFIG, TEMPLATE};
 use crate::downloader::Downloader;
@@ -35,21 +35,21 @@ pub async fn process_video_list(
     // 从参数中获取视频列表的 Model 与视频流
     let (video_list_model, video_streams) = video_list_from(args, path, bili_client, connection).await?;
     // 从视频流中获取新视频的简要信息，写入数据库
-    refresh_video_list(video_list_model.as_ref(), video_streams, connection).await?;
+    refresh_video_list(&video_list_model, video_streams, connection).await?;
     // 单独请求视频详情接口，获取视频的详情信息与所有的分页，写入数据库
-    fetch_video_details(bili_client, video_list_model.as_ref(), connection).await?;
+    fetch_video_details(bili_client, &video_list_model, connection).await?;
     if ARGS.scan_only {
         warn!("已开启仅扫描模式，跳过视频下载...");
     } else {
         // 从数据库中查找所有未下载的视频与分页，下载并处理
-        download_unprocessed_videos(bili_client, video_list_model.as_ref(), connection).await?;
+        download_unprocessed_videos(bili_client, &video_list_model, connection).await?;
     }
     Ok(())
 }
 
 /// 请求接口，获取视频列表中所有新添加的视频信息，将其写入数据库
 pub async fn refresh_video_list<'a>(
-    video_list_model: &dyn VideoListModel,
+    video_list_model: &VideoListModelEnum,
     video_streams: Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a>>,
     connection: &DatabaseConnection,
 ) -> Result<()> {
@@ -98,7 +98,7 @@ pub async fn refresh_video_list<'a>(
 /// 筛选出所有未获取到全部信息的视频，尝试补充其详细信息
 pub async fn fetch_video_details(
     bili_client: &BiliClient,
-    video_list_model: &dyn VideoListModel,
+    video_list_model: &VideoListModelEnum,
     connection: &DatabaseConnection,
 ) -> Result<()> {
     video_list_model.log_fetch_video_start();
@@ -143,7 +143,7 @@ pub async fn fetch_video_details(
 /// 下载所有未处理成功的视频
 pub async fn download_unprocessed_videos(
     bili_client: &BiliClient,
-    video_list_model: &dyn VideoListModel,
+    video_list_model: &VideoListModelEnum,
     connection: &DatabaseConnection,
 ) -> Result<()> {
     video_list_model.log_download_video_start();
@@ -201,7 +201,7 @@ pub async fn download_unprocessed_videos(
 #[allow(clippy::too_many_arguments)]
 pub async fn download_video_pages(
     bili_client: &BiliClient,
-    video_list_model: &dyn VideoListModel,
+    video_list_model: &VideoListModelEnum,
     video_model: video::Model,
     pages: Vec<page::Model>,
     connection: &DatabaseConnection,

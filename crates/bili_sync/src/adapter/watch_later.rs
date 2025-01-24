@@ -9,7 +9,7 @@ use sea_orm::sea_query::{OnConflict, SimpleExpr};
 use sea_orm::ActiveValue::Set;
 use sea_orm::{DatabaseConnection, Unchanged};
 
-use crate::adapter::{VideoListModel, _ActiveModel};
+use crate::adapter::{VideoListModel, VideoListModelEnum, _ActiveModel};
 use crate::bilibili::{BiliClient, VideoInfo, WatchLater};
 
 impl VideoListModel for watch_later::Model {
@@ -66,10 +66,7 @@ pub(super) async fn watch_later_from<'a>(
     path: &Path,
     bili_client: &'a BiliClient,
     connection: &DatabaseConnection,
-) -> Result<(
-    Box<dyn VideoListModel>,
-    Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a>>,
-)> {
+) -> Result<(VideoListModelEnum, Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a>>)> {
     let watch_later = WatchLater::new(bili_client);
     watch_later::Entity::insert(watch_later::ActiveModel {
         id: Set(1),
@@ -84,13 +81,12 @@ pub(super) async fn watch_later_from<'a>(
     .exec(connection)
     .await?;
     Ok((
-        Box::new(
-            watch_later::Entity::find()
-                .filter(watch_later::Column::Id.eq(1))
-                .one(connection)
-                .await?
-                .context("watch_later not found")?,
-        ),
+        watch_later::Entity::find()
+            .filter(watch_later::Column::Id.eq(1))
+            .one(connection)
+            .await?
+            .context("watch_later not found")?
+            .into(),
         Box::pin(watch_later.into_video_stream()),
     ))
 }
