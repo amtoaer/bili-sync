@@ -5,7 +5,7 @@ use std::pin::Pin;
 use anyhow::{anyhow, bail, Context, Result};
 use bili_sync_entity::*;
 use futures::stream::{FuturesOrdered, FuturesUnordered};
-use futures::{Future, Stream, StreamExt};
+use futures::{Future, Stream, StreamExt, TryStreamExt};
 use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
 use sea_orm::TransactionTrait;
@@ -369,13 +369,14 @@ pub async fn download_page(
     let seprate_status = status.should_run();
     let is_single_page = video_model.single_page.context("single_page is null")?;
     let base_name = TEMPLATE.path_safe_render("page", &page_format_args(video_model, &page_model))?;
-    let (poster_path, video_path, nfo_path, danmaku_path, fanart_path) = if is_single_page {
+    let (poster_path, video_path, nfo_path, danmaku_path, fanart_path, subtitle_path) = if is_single_page {
         (
             base_path.join(format!("{}-poster.jpg", &base_name)),
             base_path.join(format!("{}.mp4", &base_name)),
             base_path.join(format!("{}.nfo", &base_name)),
             base_path.join(format!("{}.zh-CN.default.ass", &base_name)),
             Some(base_path.join(format!("{}-fanart.jpg", &base_name))),
+            base_path.join(format!("{}.srt", &base_name)),
         )
     } else {
         (
@@ -393,6 +394,9 @@ pub async fn download_page(
                 .join(format!("{} - S01E{:0>2}.zh-CN.default.ass", &base_name, page_model.pid)),
             // 对于多页视频，会在上一步 fetch_video_poster 中获取剧集的 fanart，无需在此处下载单集的
             None,
+            base_path
+                .join("Season 1")
+                .join(format!("{} - S01E{:0>2}.srt", &base_name, page_model.pid)),
         )
     };
     let dimension = match (page_model.width, page_model.height) {
@@ -433,6 +437,13 @@ pub async fn download_page(
             video_model,
             &page_info,
             danmaku_path,
+        )),
+        Box::pin(fetch_page_subtitle(
+            seprate_status[4],
+            bili_client,
+            video_model,
+            &page_info,
+            &subtitle_path,
         )),
     ];
     let tasks: FuturesOrdered<_> = tasks.into_iter().collect();
@@ -551,6 +562,29 @@ pub async fn fetch_page_danmaku(
         .await?
         .write(danmaku_path)
         .await
+}
+
+pub async fn fetch_page_subtitle(
+    should_run: bool,
+    bili_client: &BiliClient,
+    video_model: &video::Model,
+    page_info: &PageInfo,
+    subtitle_path: &Path,
+) -> Result<()> {
+    if !should_run {
+        return Ok(());
+    }
+    let bili_video = Video::new(bili_client, video_model.bvid.clone());
+    let subtitles = bili_video.get_subtitles(page_info).await?;
+    let tasks = subtitles
+        .into_iter()
+        .map(|subtitle| async move {
+            let path = subtitle_path.with_extension(format!("{}.srt", subtitle.lan));
+            tokio::fs::write(path, subtitle.body.to_string()).await
+        })
+        .collect::<FuturesUnordered<_>>();
+    tasks.try_collect::<Vec<()>>().await?;
+    Ok(())
 }
 
 pub async fn generate_page_nfo(

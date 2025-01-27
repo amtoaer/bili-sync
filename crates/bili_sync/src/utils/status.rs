@@ -114,7 +114,7 @@ impl From<VideoStatus> for u32 {
     }
 }
 
-/// 包含四个子任务，从前到后分别是：视频封面、视频内容、视频信息、视频弹幕
+/// 包含五个子任务，从前到后分别是：视频封面、视频内容、视频信息、视频弹幕、视频字幕
 #[derive(Clone)]
 pub struct PageStatus(Status);
 
@@ -124,11 +124,11 @@ impl PageStatus {
     }
 
     pub fn should_run(&self) -> Vec<bool> {
-        self.0.should_run(4)
+        self.0.should_run(5)
     }
 
     pub fn update_status(&mut self, result: &[Result<()>]) {
-        assert!(result.len() == 4, "PageStatus should have 4 status");
+        assert!(result.len() == 5, "PageStatus should have 5 status");
         self.0.update_status(result)
     }
 
