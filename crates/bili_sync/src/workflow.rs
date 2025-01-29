@@ -451,7 +451,7 @@ pub async fn download_page(
     status.update_status(&results);
     results
         .iter()
-        .zip(["封面", "视频", "详情", "弹幕"])
+        .zip(["封面", "视频", "详情", "弹幕", "字幕"])
         .for_each(|(res, task_name)| match res {
             Ok(_) => info!(
                 "处理视频「{}」第 {} 页{}成功",
