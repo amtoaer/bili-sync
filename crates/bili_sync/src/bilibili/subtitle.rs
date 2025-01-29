@@ -26,6 +26,14 @@ pub struct SubTitleItem {
     content: String,
 }
 
+impl SubTitleInfo {
+    pub fn is_ai_sub(&self) -> bool {
+        // ai： aisubtitle.hdslb.com/bfs/ai_subtitle/xxxx
+        // 非 ai： aisubtitle.hdslb.com/bfs/subtitle/xxxx
+        self.subtitle_url.contains("ai_subtitle")
+    }
+}
+
 impl Display for SubTitleBody {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (idx, item) in self.0.iter().enumerate() {

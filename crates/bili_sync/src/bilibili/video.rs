@@ -185,6 +185,7 @@ impl<'a> Video<'a> {
         let tasks = subtitles_info
             .subtitles
             .into_iter()
+            .filter(|v| !v.is_ai_sub())
             .map(|v| self.get_subtitle(v))
             .collect::<FuturesUnordered<_>>();
         tasks.try_collect().await
