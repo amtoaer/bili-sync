@@ -8,6 +8,7 @@ use crate::bilibili::analyzer::PageAnalyzer;
 use crate::bilibili::client::BiliClient;
 use crate::bilibili::credential::encoded_query;
 use crate::bilibili::danmaku::{DanmakuElem, DanmakuWriter, DmSegMobileReply};
+use crate::bilibili::subtitle::{SubTitle, SubTitleBody, SubTitleInfo, SubTitlesInfo};
 use crate::bilibili::{Validate, VideoInfo, MIXIN_KEY};
 
 static MASK_CODE: u64 = 2251799813685247;
@@ -163,6 +164,44 @@ impl<'a> Video<'a> {
             .await?
             .validate()?;
         Ok(PageAnalyzer::new(res["data"].take()))
+    }
+
+    pub async fn get_subtitles(&self, page: &PageInfo) -> Result<Vec<SubTitle>> {
+        let mut res = self
+            .client
+            .request(Method::GET, "https://api.bilibili.com/x/player/wbi/v2")
+            .await
+            .query(&encoded_query(
+                vec![("cid", &page.cid.to_string()), ("bvid", &self.bvid), ("aid", &self.aid)],
+                MIXIN_KEY.load().as_deref(),
+            ))
+            .send()
+            .await?
+            .json::<serde_json::Value>()
+            .await?
+            .validate()?;
+        // 接口返回的信息，包含了一系列的字幕，每个字幕包含了字幕的语言和 json 下载地址
+        let subtitles_info: SubTitlesInfo = serde_json::from_value(res["data"]["subtitle"].take())?;
+        let tasks = subtitles_info
+            .subtitles
+            .into_iter()
+            .filter(|v| !v.is_ai_sub())
+            .map(|v| self.get_subtitle(v))
+            .collect::<FuturesUnordered<_>>();
+        tasks.try_collect().await
+    }
+
+    async fn get_subtitle(&self, info: SubTitleInfo) -> Result<SubTitle> {
+        let mut res = self
+            .client
+            .client // 这里可以直接使用 inner_client，因为该请求不需要鉴权
+            .request(Method::GET, format!("https:{}", &info.subtitle_url).as_str(), None)
+            .send()
+            .await?
+            .json::<serde_json::Value>()
+            .await?;
+        let body: SubTitleBody = serde_json::from_value(res["body"].take())?;
+        Ok(SubTitle { lan: info.lan, body })
     }
 }
 

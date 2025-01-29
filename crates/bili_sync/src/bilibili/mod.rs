@@ -25,6 +25,7 @@ mod danmaku;
 mod error;
 mod favorite_list;
 mod submission;
+mod subtitle;
 mod video;
 mod watch_later;
 
@@ -196,5 +197,27 @@ mod tests {
             .await;
         assert!(videos.iter().all(|v| matches!(v, VideoInfo::Submission { .. })));
         assert!(videos.iter().rev().is_sorted_by_key(|v| v.release_datetime()));
+    }
+
+    #[ignore = "only for manual test"]
+    #[tokio::test]
+    async fn test_subtitle_parse() -> Result<()> {
+        let bili_client = BiliClient::new();
+        let Ok(Some(mixin_key)) = bili_client.wbi_img().await.map(|wbi_img| wbi_img.into()) else {
+            panic!("获取 mixin key 失败");
+        };
+        set_global_mixin_key(mixin_key);
+        let video = Video::new(&bili_client, "BV1gLfnY8E6D".to_string());
+        let pages = video.get_pages().await?;
+        println!("pages: {:?}", pages);
+        let subtitles = video.get_subtitles(&pages[0]).await?;
+        for subtitle in subtitles {
+            println!(
+                "{}: {}",
+                subtitle.lan,
+                subtitle.body.to_string().chars().take(200).collect::<String>()
+            );
+        }
+        Ok(())
     }
 }
