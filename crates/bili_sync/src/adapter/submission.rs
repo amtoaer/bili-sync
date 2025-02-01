@@ -67,7 +67,10 @@ pub(super) async fn submission_from<'a>(
     path: &Path,
     bili_client: &'a BiliClient,
     connection: &DatabaseConnection,
-) -> Result<(VideoListModelEnum, Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a>>)> {
+) -> Result<(
+    VideoListModelEnum,
+    Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a + Send>>,
+)> {
     let submission = Submission::new(bili_client, upper_id.to_owned());
     let upper = submission.get_info().await?;
     submission::Entity::insert(submission::ActiveModel {

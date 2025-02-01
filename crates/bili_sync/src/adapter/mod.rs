@@ -84,7 +84,10 @@ pub async fn video_list_from<'a>(
     path: &Path,
     bili_client: &'a BiliClient,
     connection: &DatabaseConnection,
-) -> Result<(VideoListModelEnum, Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a>>)> {
+) -> Result<(
+    VideoListModelEnum,
+    Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a + Send>>,
+)> {
     match args {
         Args::Favorite { fid } => favorite_from(fid, path, bili_client, connection).await,
         Args::Collection { collection_item } => collection_from(collection_item, path, bili_client, connection).await,

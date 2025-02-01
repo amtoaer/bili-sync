@@ -50,7 +50,7 @@ pub async fn process_video_list(
 /// 请求接口，获取视频列表中所有新添加的视频信息，将其写入数据库
 pub async fn refresh_video_list<'a>(
     video_list_model: &VideoListModelEnum,
-    video_streams: Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a>>,
+    video_streams: Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a + Send>>,
     connection: &DatabaseConnection,
 ) -> Result<()> {
     video_list_model.log_refresh_video_start();
@@ -223,7 +223,7 @@ pub async fn download_video_pages(
     let is_single_page = video_model.single_page.context("single_page is null")?;
     // 对于单页视频，page 的下载已经足够
     // 对于多页视频，page 下载仅包含了分集内容，需要额外补上视频的 poster 的 tvshow.nfo
-    let tasks: Vec<Pin<Box<dyn Future<Output = Result<()>>>>> = vec![
+    let tasks: Vec<Pin<Box<dyn Future<Output = Result<()>> + Send>>> = vec![
         // 下载视频封面
         Box::pin(fetch_video_poster(
             seprate_status[0] && !is_single_page,
@@ -413,7 +413,7 @@ pub async fn download_page(
         dimension,
         ..Default::default()
     };
-    let tasks: Vec<Pin<Box<dyn Future<Output = Result<()>>>>> = vec![
+    let tasks: Vec<Pin<Box<dyn Future<Output = Result<()>> + Send>>> = vec![
         Box::pin(fetch_page_poster(
             seprate_status[0],
             video_model,
