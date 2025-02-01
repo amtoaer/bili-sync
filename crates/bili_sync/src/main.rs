@@ -31,7 +31,7 @@ async fn main() {
     let mut anchor = chrono::Local::now().date_naive();
     let bili_client = BiliClient::new();
     let params = build_params();
-    tokio::spawn(async move {
+    let task = tokio::spawn(async move {
         loop {
             'inner: {
                 match bili_client.wbi_img().await.map(|wbi_img| wbi_img.into()) {
@@ -62,6 +62,7 @@ async fn main() {
             time::sleep(time::Duration::from_secs(CONFIG.interval)).await;
         }
     });
+    task.await.expect("程序异常退出");
 }
 
 fn build_params() -> Vec<(Args<'static>, &'static PathBuf)> {
