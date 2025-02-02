@@ -43,7 +43,7 @@ impl NFOSerializer<'_> {
                     .write_inner_content_async::<_, _, Error>(|writer| async move {
                         writer
                             .create_element("plot")
-                            .write_cdata_content_async(BytesCData::new(&v.intro))
+                            .write_cdata_content_async(BytesCData::new(Self::format_plot(v)))
                             .await?;
                         writer.create_element("outline").write_empty_async().await?;
                         writer
@@ -100,7 +100,7 @@ impl NFOSerializer<'_> {
                     .write_inner_content_async::<_, _, Error>(|writer| async move {
                         writer
                             .create_element("plot")
-                            .write_cdata_content_async(BytesCData::new(&v.intro))
+                            .write_cdata_content_async(BytesCData::new(Self::format_plot(v)))
                             .await?;
                         writer.create_element("outline").write_empty_async().await?;
                         writer
@@ -201,6 +201,14 @@ impl NFOSerializer<'_> {
         }
         tokio_buffer.flush().await?;
         Ok(String::from_utf8(buffer)?)
+    }
+
+    #[inline]
+    fn format_plot(model: &video::Model) -> String {
+        format!(
+            r#"原始视频：<a href="https://www.bilibili.com/video/{}/">{}</a><br/>{}"#,
+            model.bvid, model.bvid, model.intro
+        )
     }
 }
 
