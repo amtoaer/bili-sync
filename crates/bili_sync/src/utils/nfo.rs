@@ -231,7 +231,7 @@ mod tests {
                 chrono::NaiveDate::from_ymd_opt(2033, 3, 3).unwrap(),
                 chrono::NaiveTime::from_hms_opt(3, 3, 3).unwrap(),
             ),
-            bvid: "bvid".to_string(),
+            bvid: "BV1nWcSeeEkV".to_string(),
             tags: Some(serde_json::json!(["tag1", "tag2"])),
             ..Default::default()
         };
@@ -242,7 +242,7 @@ mod tests {
                 .unwrap(),
             r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <movie>
-    <plot><![CDATA[intro]]></plot>
+    <plot><![CDATA[原始视频：<a href="https://www.bilibili.com/video/BV1nWcSeeEkV/">BV1nWcSeeEkV</a><br/>intro]]></plot>
     <outline/>
     <title>name</title>
     <actor>
@@ -252,7 +252,7 @@ mod tests {
     <year>2033</year>
     <genre>tag1</genre>
     <genre>tag2</genre>
-    <uniqueid type="bilibili">bvid</uniqueid>
+    <uniqueid type="bilibili">BV1nWcSeeEkV</uniqueid>
     <aired>2033-03-03</aired>
 </movie>"#,
         );
@@ -263,7 +263,7 @@ mod tests {
                 .unwrap(),
             r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <tvshow>
-    <plot><![CDATA[intro]]></plot>
+    <plot><![CDATA[原始视频：<a href="https://www.bilibili.com/video/BV1nWcSeeEkV/">BV1nWcSeeEkV</a><br/>intro]]></plot>
     <outline/>
     <title>name</title>
     <actor>
@@ -273,7 +273,7 @@ mod tests {
     <year>2022</year>
     <genre>tag1</genre>
     <genre>tag2</genre>
-    <uniqueid type="bilibili">bvid</uniqueid>
+    <uniqueid type="bilibili">BV1nWcSeeEkV</uniqueid>
     <aired>2022-02-02</aired>
 </tvshow>"#,
         );
