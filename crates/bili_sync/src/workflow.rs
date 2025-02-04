@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 
@@ -10,7 +10,7 @@ use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
 use sea_orm::TransactionTrait;
 use tokio::fs;
-use tokio::sync::{Mutex, Semaphore};
+use tokio::sync::Semaphore;
 
 use crate::adapter::{video_list_from, Args, VideoListModel, VideoListModelEnum};
 use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, PageInfo, Video, VideoInfo};
@@ -149,17 +149,13 @@ pub async fn download_unprocessed_videos(
     video_list_model.log_download_video_start();
     let semaphore = Semaphore::new(CONFIG.concurrent_limit.video);
     let downloader = Downloader::new(bili_client.client.clone());
-    let mut uppers_mutex: HashMap<i64, (Mutex<()>, Mutex<()>)> = HashMap::new();
     let unhandled_videos_pages = filter_unhandled_video_pages(video_list_model.filter_expr(), connection).await?;
-    for (video_model, _) in &unhandled_videos_pages {
-        uppers_mutex
-            .entry(video_model.upper_id)
-            .or_insert_with(|| (Mutex::new(()), Mutex::new(())));
-    }
+    let mut assigned_upper = HashSet::new();
     let tasks = unhandled_videos_pages
         .into_iter()
         .map(|(video_model, pages_model)| {
-            let upper_mutex = uppers_mutex.get(&video_model.upper_id).expect("upper mutex not found");
+            let should_download_upper = !assigned_upper.contains(&video_model.upper_id);
+            assigned_upper.insert(video_model.upper_id);
             download_video_pages(
                 bili_client,
                 video_list_model,
@@ -168,7 +164,7 @@ pub async fn download_unprocessed_videos(
                 connection,
                 &semaphore,
                 &downloader,
-                upper_mutex,
+                should_download_upper,
             )
         })
         .collect::<FuturesUnordered<_>>();
@@ -207,7 +203,7 @@ pub async fn download_video_pages(
     connection: &DatabaseConnection,
     semaphore: &Semaphore,
     downloader: &Downloader,
-    upper_mutex: &(Mutex<()>, Mutex<()>),
+    should_download_upper: bool,
 ) -> Result<video::ActiveModel> {
     let _permit = semaphore.acquire().await.context("acquire semaphore failed")?;
     let mut status = VideoStatus::new(video_model.download_status);
@@ -240,17 +236,15 @@ pub async fn download_video_pages(
         )),
         // 下载 Up 主头像
         Box::pin(fetch_upper_face(
-            seprate_status[2],
+            seprate_status[2] && should_download_upper,
             &video_model,
             downloader,
-            &upper_mutex.0,
             base_upper_path.join("folder.jpg"),
         )),
         // 生成 Up 主信息的 nfo
         Box::pin(generate_upper_nfo(
-            seprate_status[3],
+            seprate_status[3] && should_download_upper,
             &video_model,
-            &upper_mutex.1,
             base_upper_path.join("person.nfo"),
         )),
         // 分发并执行分 P 下载的任务
@@ -624,35 +618,20 @@ pub async fn fetch_upper_face(
     should_run: bool,
     video_model: &video::Model,
     downloader: &Downloader,
-    upper_face_mutex: &Mutex<()>,
     upper_face_path: PathBuf,
 ) -> Result<()> {
     if !should_run {
         return Ok(());
     }
-    // 这个锁只是为了避免多个视频同时下载同一个 up 主的头像，不携带实际内容
-    let _ = upper_face_mutex.lock().await;
-    if !upper_face_path.exists() {
-        return downloader.fetch(&video_model.upper_face, &upper_face_path).await;
-    }
-    Ok(())
+    downloader.fetch(&video_model.upper_face, &upper_face_path).await
 }
 
-pub async fn generate_upper_nfo(
-    should_run: bool,
-    video_model: &video::Model,
-    upper_nfo_mutex: &Mutex<()>,
-    nfo_path: PathBuf,
-) -> Result<()> {
+pub async fn generate_upper_nfo(should_run: bool, video_model: &video::Model, nfo_path: PathBuf) -> Result<()> {
     if !should_run {
         return Ok(());
     }
-    let _ = upper_nfo_mutex.lock().await;
-    if !nfo_path.exists() {
-        let nfo_serializer = NFOSerializer(ModelWrapper::Video(video_model), NFOMode::UPPER);
-        return generate_nfo(nfo_serializer, nfo_path).await;
-    }
-    Ok(())
+    let nfo_serializer = NFOSerializer(ModelWrapper::Video(video_model), NFOMode::UPPER);
+    generate_nfo(nfo_serializer, nfo_path).await
 }
 
 pub async fn generate_video_nfo(should_run: bool, video_model: &video::Model, nfo_path: PathBuf) -> Result<()> {
