@@ -206,7 +206,7 @@ impl NFOSerializer<'_> {
     #[inline]
     fn format_plot(model: &video::Model) -> String {
         format!(
-            r#"原始视频：<a href="https://www.bilibili.com/video/{}/">{}</a><br/>{}"#,
+            r#"原始视频：<a href="https://www.bilibili.com/video/{}/">{}</a><br/><br/>{}"#,
             model.bvid, model.bvid, model.intro
         )
     }
@@ -242,7 +242,7 @@ mod tests {
                 .unwrap(),
             r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <movie>
-    <plot><![CDATA[原始视频：<a href="https://www.bilibili.com/video/BV1nWcSeeEkV/">BV1nWcSeeEkV</a><br/>intro]]></plot>
+    <plot><![CDATA[原始视频：<a href="https://www.bilibili.com/video/BV1nWcSeeEkV/">BV1nWcSeeEkV</a><br/><br/>intro]]></plot>
     <outline/>
     <title>name</title>
     <actor>
@@ -263,7 +263,7 @@ mod tests {
                 .unwrap(),
             r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <tvshow>
-    <plot><![CDATA[原始视频：<a href="https://www.bilibili.com/video/BV1nWcSeeEkV/">BV1nWcSeeEkV</a><br/>intro]]></plot>
+    <plot><![CDATA[原始视频：<a href="https://www.bilibili.com/video/BV1nWcSeeEkV/">BV1nWcSeeEkV</a><br/><br/>intro]]></plot>
     <outline/>
     <title>name</title>
     <actor>
