@@ -2,10 +2,11 @@ use core::str;
 use std::path::Path;
 
 use anyhow::{bail, ensure, Result};
-use futures::StreamExt;
+use futures::TryStreamExt;
 use reqwest::Method;
 use tokio::fs::{self, File};
 use tokio::io::AsyncWriteExt;
+use tokio_util::io::StreamReader;
 
 use crate::bilibili::Client;
 pub struct Downloader {
@@ -27,13 +28,8 @@ impl Downloader {
         let mut file = File::create(path).await?;
         let resp = self.client.request(Method::GET, url, None).send().await?;
         let expected = resp.content_length().unwrap_or_default();
-        let mut received = 0u64;
-        let mut stream = resp.bytes_stream();
-        while let Some(bytes) = stream.next().await {
-            let bytes = bytes?;
-            received += bytes.len() as u64;
-            file.write_all(&bytes).await?;
-        }
+        let mut stream_reader = StreamReader::new(resp.bytes_stream().map_err(std::io::Error::other));
+        let received = tokio::io::copy(&mut stream_reader, &mut file).await?;
         file.flush().await?;
         ensure!(
             received >= expected,
