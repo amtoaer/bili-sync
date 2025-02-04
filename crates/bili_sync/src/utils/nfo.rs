@@ -43,7 +43,7 @@ impl NFOSerializer<'_> {
                     .write_inner_content_async::<_, _, Error>(|writer| async move {
                         writer
                             .create_element("plot")
-                            .write_cdata_content_async(BytesCData::new(&v.intro))
+                            .write_cdata_content_async(BytesCData::new(Self::format_plot(v)))
                             .await?;
                         writer.create_element("outline").write_empty_async().await?;
                         writer
@@ -100,7 +100,7 @@ impl NFOSerializer<'_> {
                     .write_inner_content_async::<_, _, Error>(|writer| async move {
                         writer
                             .create_element("plot")
-                            .write_cdata_content_async(BytesCData::new(&v.intro))
+                            .write_cdata_content_async(BytesCData::new(Self::format_plot(v)))
                             .await?;
                         writer.create_element("outline").write_empty_async().await?;
                         writer
@@ -202,6 +202,14 @@ impl NFOSerializer<'_> {
         tokio_buffer.flush().await?;
         Ok(String::from_utf8(buffer)?)
     }
+
+    #[inline]
+    fn format_plot(model: &video::Model) -> String {
+        format!(
+            r#"原始视频：<a href="https://www.bilibili.com/video/{}/">{}</a><br/><br/>{}"#,
+            model.bvid, model.bvid, model.intro
+        )
+    }
 }
 
 #[cfg(test)]
@@ -223,7 +231,7 @@ mod tests {
                 chrono::NaiveDate::from_ymd_opt(2033, 3, 3).unwrap(),
                 chrono::NaiveTime::from_hms_opt(3, 3, 3).unwrap(),
             ),
-            bvid: "bvid".to_string(),
+            bvid: "BV1nWcSeeEkV".to_string(),
             tags: Some(serde_json::json!(["tag1", "tag2"])),
             ..Default::default()
         };
@@ -234,7 +242,7 @@ mod tests {
                 .unwrap(),
             r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <movie>
-    <plot><![CDATA[intro]]></plot>
+    <plot><![CDATA[原始视频：<a href="https://www.bilibili.com/video/BV1nWcSeeEkV/">BV1nWcSeeEkV</a><br/><br/>intro]]></plot>
     <outline/>
     <title>name</title>
     <actor>
@@ -244,7 +252,7 @@ mod tests {
     <year>2033</year>
     <genre>tag1</genre>
     <genre>tag2</genre>
-    <uniqueid type="bilibili">bvid</uniqueid>
+    <uniqueid type="bilibili">BV1nWcSeeEkV</uniqueid>
     <aired>2033-03-03</aired>
 </movie>"#,
         );
@@ -255,7 +263,7 @@ mod tests {
                 .unwrap(),
             r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <tvshow>
-    <plot><![CDATA[intro]]></plot>
+    <plot><![CDATA[原始视频：<a href="https://www.bilibili.com/video/BV1nWcSeeEkV/">BV1nWcSeeEkV</a><br/><br/>intro]]></plot>
     <outline/>
     <title>name</title>
     <actor>
@@ -265,7 +273,7 @@ mod tests {
     <year>2022</year>
     <genre>tag1</genre>
     <genre>tag2</genre>
-    <uniqueid type="bilibili">bvid</uniqueid>
+    <uniqueid type="bilibili">BV1nWcSeeEkV</uniqueid>
     <aired>2022-02-02</aired>
 </tvshow>"#,
         );
