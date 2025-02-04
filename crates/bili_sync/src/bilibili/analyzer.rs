@@ -98,7 +98,7 @@ impl Default for FilterOption {
 pub enum Stream {
     Flv(String),
     Html5Mp4(String),
-    EpositeTryMp4(String),
+    EpisodeTryMp4(String),
     DashVideo {
         url: String,
         quality: VideoQuality,
@@ -116,7 +116,7 @@ impl Stream {
         match self {
             Self::Flv(url) => url,
             Self::Html5Mp4(url) => url,
-            Self::EpositeTryMp4(url) => url,
+            Self::EpisodeTryMp4(url) => url,
             Self::DashVideo { url, .. } => url,
             Self::DashAudio { url, .. } => url,
         }
@@ -172,7 +172,7 @@ impl PageAnalyzer {
             )]);
         }
         if self.is_episode_try_mp4_stream() {
-            return Ok(vec![Stream::EpositeTryMp4(
+            return Ok(vec![Stream::EpisodeTryMp4(
                 self.info["durl"][0]["url"]
                     .as_str()
                     .context("invalid episode try mp4 stream")?
