@@ -61,6 +61,7 @@ serde_urlencoded = "0.7.1"
 strum = { version = "0.26.3", features = ["derive"] }
 thiserror = "2.0.11"
 tokio = { version = "1.43.0", features = ["full"] }
+tokio-util = { version = "0.7.13", features = ["io"] }
 toml = "0.8.19"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["chrono"] }
