@@ -10,6 +10,7 @@ mod error;
 mod utils;
 mod workflow;
 
+use std::io;
 use std::path::PathBuf;
 
 use once_cell::sync::Lazy;
@@ -109,7 +110,7 @@ fn spawn_periodic_task(
 
 /// 处理终止信号
 async fn handle_shutdown(task: tokio::task::JoinHandle<()>) {
-    let _ = signal::ctrl_c().await;
+    let _ = terminate().await;
     info!("接收到终止信号，正在终止任务..");
     task.abort();
     match task.await {
@@ -117,5 +118,23 @@ async fn handle_shutdown(task: tokio::task::JoinHandle<()>) {
         _ => {
             info!("任务成功终止，退出程序..");
         }
+    }
+}
+
+#[cfg(target_family = "windows")]
+async fn terminate() -> io::Result<()> {
+    signal::ctrl_c().await
+}
+
+/// ctrl + c 发送的是 SIGINT 信号，docker stop 发送的是 SIGTERM 信号，都需要处理
+#[cfg(target_family = "unix")]
+async fn terminate() -> io::Result<()> {
+    use tokio::select;
+
+    let mut term = signal::unix::signal(signal::unix::SignalKind::terminate())?;
+    let mut int = signal::unix::signal(signal::unix::SignalKind::interrupt())?;
+    select! {
+        _ = term.recv() => Ok(()),
+        _ = int.recv() => Ok(()),
     }
 }
