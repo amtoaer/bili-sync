@@ -10,10 +10,12 @@ mod error;
 mod utils;
 mod workflow;
 
+use std::io;
 use std::path::PathBuf;
 
 use once_cell::sync::Lazy;
-use tokio::time;
+use sea_orm::DatabaseConnection;
+use tokio::{signal, time};
 
 use crate::adapter::Args;
 use crate::bilibili::BiliClient;
@@ -24,14 +26,56 @@ use crate::workflow::process_video_list;
 
 #[tokio::main]
 async fn main() {
+    init();
+    let connection = setup_database().await;
+    let bili_client = BiliClient::new();
+    let params = collect_task_params();
+    let task = spawn_periodic_task(bili_client, params, connection);
+    handle_shutdown(task).await;
+}
+
+/// 初始化日志系统，加载命令行参数和配置文件
+fn init() {
+    Lazy::force(&ARGS);
     init_logger(&ARGS.log_level);
     Lazy::force(&CONFIG);
+}
+
+/// 迁移数据库并获取数据库连接
+async fn setup_database() -> DatabaseConnection {
     migrate_database().await.expect("数据库迁移失败");
-    let connection = database_connection().await.expect("获取数据库连接失败");
+    database_connection().await.expect("获取数据库连接失败")
+}
+
+/// 收集任务执行所需的参数（下载类型和保存路径）
+fn collect_task_params() -> Vec<(Args<'static>, &'static PathBuf)> {
+    let mut params = Vec::new();
+    CONFIG
+        .favorite_list
+        .iter()
+        .for_each(|(fid, path)| params.push((Args::Favorite { fid }, path)));
+    CONFIG
+        .collection_list
+        .iter()
+        .for_each(|(collection_item, path)| params.push((Args::Collection { collection_item }, path)));
+    if CONFIG.watch_later.enabled {
+        params.push((Args::WatchLater, &CONFIG.watch_later.path));
+    }
+    CONFIG
+        .submission_list
+        .iter()
+        .for_each(|(upper_id, path)| params.push((Args::Submission { upper_id }, path)));
+    params
+}
+
+/// 启动周期下载的任务
+fn spawn_periodic_task(
+    bili_client: BiliClient,
+    params: Vec<(Args<'static>, &'static PathBuf)>,
+    connection: DatabaseConnection,
+) -> tokio::task::JoinHandle<()> {
     let mut anchor = chrono::Local::now().date_naive();
-    let bili_client = BiliClient::new();
-    let params = build_params();
-    let task = tokio::spawn(async move {
+    tokio::spawn(async move {
         loop {
             'inner: {
                 match bili_client.wbi_img().await.map(|wbi_img| wbi_img.into()) {
@@ -61,26 +105,36 @@ async fn main() {
             }
             time::sleep(time::Duration::from_secs(CONFIG.interval)).await;
         }
-    });
-    task.await.expect("程序异常退出");
+    })
 }
 
-fn build_params() -> Vec<(Args<'static>, &'static PathBuf)> {
-    let mut params = Vec::new();
-    CONFIG
-        .favorite_list
-        .iter()
-        .for_each(|(fid, path)| params.push((Args::Favorite { fid }, path)));
-    CONFIG
-        .collection_list
-        .iter()
-        .for_each(|(collection_item, path)| params.push((Args::Collection { collection_item }, path)));
-    if CONFIG.watch_later.enabled {
-        params.push((Args::WatchLater, &CONFIG.watch_later.path));
+/// 处理终止信号
+async fn handle_shutdown(task: tokio::task::JoinHandle<()>) {
+    let _ = terminate().await;
+    info!("接收到终止信号，正在终止任务..");
+    task.abort();
+    match task.await {
+        Err(e) if !e.is_cancelled() => error!("任务终止时遇到错误：{}", e),
+        _ => {
+            info!("任务成功终止，退出程序..");
+        }
     }
-    CONFIG
-        .submission_list
-        .iter()
-        .for_each(|(upper_id, path)| params.push((Args::Submission { upper_id }, path)));
-    params
+}
+
+#[cfg(target_family = "windows")]
+async fn terminate() -> io::Result<()> {
+    signal::ctrl_c().await
+}
+
+/// ctrl + c 发送的是 SIGINT 信号，docker stop 发送的是 SIGTERM 信号，都需要处理
+#[cfg(target_family = "unix")]
+async fn terminate() -> io::Result<()> {
+    use tokio::select;
+
+    let mut term = signal::unix::signal(signal::unix::SignalKind::terminate())?;
+    let mut int = signal::unix::signal(signal::unix::SignalKind::interrupt())?;
+    select! {
+        _ = term.recv() => Ok(()),
+        _ = int.recv() => Ok(()),
+    }
 }
