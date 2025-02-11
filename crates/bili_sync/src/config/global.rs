@@ -60,7 +60,6 @@ fn load_config() -> Config {
 }
 
 #[cfg(test)]
-
 fn load_config() -> Config {
     let credential = match (
         std::env::var("TEST_SESSDATA"),
