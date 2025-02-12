@@ -11,11 +11,38 @@ pub static STATUS_COMPLETED: u32 = 1 << 31;
 /// 子任务达到最大失败次数或者执行成功时，认为该子任务已经完成。
 /// 当所有子任务都已经完成时，为最高位打上标记 1，表示整个下载任务已经完成。
 #[derive(Clone)]
-pub struct Status(u32);
+pub struct Status<const N: usize>(u32);
 
-impl Status {
-    fn new(status: u32) -> Self {
+impl<const N: usize> Status<N> {
+    pub fn new(status: u32) -> Self {
         Self(status)
+    }
+
+    // 获取最高位的完成标记
+    pub fn get_completed(&self) -> bool {
+        self.0 >> 31 == 1
+    }
+
+    /// 依次检查所有子任务是否还应该继续执行，返回一个 bool 数组
+    pub fn should_run(&self) -> [bool; N] {
+        let mut result = [false; N];
+        for i in 0..N {
+            result[i] = self.check_continue(i);
+        }
+        result
+    }
+
+    /// 根据任务结果更新状态，任务结果是一个 Result 数组，需要与子任务一一对应
+    /// 如果所有子任务都已经完成，那么打上最高位的完成标记
+    pub fn update_status(&mut self, result: &[Result<()>]) {
+        assert!(result.len() == N, "result length should be equal to N");
+        for (i, res) in result.iter().enumerate() {
+            self.set_result(res, i);
+        }
+        if self.should_run().iter().all(|x| !x) {
+            // 所有任务都成功或者由于尝试次数过多失败，为 status 最高位打上标记，将来不再重试
+            self.set_completed(true)
+        }
     }
 
     /// 设置最高位的完成标记
@@ -27,15 +54,18 @@ impl Status {
         }
     }
 
-    // 获取最高位的完成标记
-    fn get_completed(&self) -> bool {
-        self.0 >> 31 == 1
-    }
-
     /// 获取某个子任务的状态
     fn get_status(&self, offset: usize) -> u32 {
         let helper = !0u32;
         (self.0 & (helper << (offset * 3)) & (helper >> (32 - 3 * offset - 3))) >> (offset * 3)
+    }
+
+    /// 设置某个子任务的状态
+    #[allow(unused)]
+    fn set_status(&mut self, offset: usize, status: u32) {
+        let helper = !0u32;
+        self.0 &= !(helper << (offset * 3));
+        self.0 |= status << (offset * 3);
     }
 
     // 将某个子任务的状态加一（在任务失败时使用）
@@ -53,11 +83,6 @@ impl Status {
         self.get_status(offset) < STATUS_MAX_RETRY
     }
 
-    /// 依次检查所有子任务是否还应该继续执行，返回一个 bool 数组
-    fn should_run(&self, size: usize) -> Vec<bool> {
-        (0..size).map(|x| self.check_continue(x)).collect()
-    }
-
     /// 根据子任务执行结果更新子任务的状态
     /// 如果 Result 是 Ok，那么认为任务执行成功，将状态设置为 STATUS_OK
     /// 如果 Result 是 Err，那么认为任务执行失败，将状态加一
@@ -69,79 +94,19 @@ impl Status {
             }
         }
     }
-
-    /// 根据任务结果更新状态，任务结果是一个 Result 数组，需要与子任务一一对应
-    /// 如果所有子任务都已经完成，那么打上最高位的完成标记
-    fn update_status(&mut self, result: &[Result<()>]) {
-        for (i, res) in result.iter().enumerate() {
-            self.set_result(res, i);
-        }
-        if self.should_run(result.len()).iter().all(|x| !x) {
-            // 所有任务都成功或者由于尝试次数过多失败，为 status 最高位打上标记，将来不再重试
-            self.set_completed(true)
-        }
-    }
 }
 
-impl From<Status> for u32 {
-    fn from(status: Status) -> Self {
+impl<const N: usize> From<Status<N>> for u32 {
+    fn from(status: Status<N>) -> Self {
         status.0
     }
 }
 
 /// 包含五个子任务，从前到后依次是：视频封面、视频信息、Up 主头像、Up 主信息、分 P 下载
-#[derive(Clone)]
-pub struct VideoStatus(Status);
-
-impl VideoStatus {
-    pub fn new(status: u32) -> Self {
-        Self(Status::new(status))
-    }
-
-    pub fn should_run(&self) -> Vec<bool> {
-        self.0.should_run(5)
-    }
-
-    pub fn update_status(&mut self, result: &[Result<()>]) {
-        assert!(result.len() == 5, "VideoStatus should have 5 status");
-        self.0.update_status(result)
-    }
-}
-
-impl From<VideoStatus> for u32 {
-    fn from(status: VideoStatus) -> Self {
-        status.0.into()
-    }
-}
+pub type VideoStatus = Status<5>;
 
 /// 包含五个子任务，从前到后分别是：视频封面、视频内容、视频信息、视频弹幕、视频字幕
-#[derive(Clone)]
-pub struct PageStatus(Status);
-
-impl PageStatus {
-    pub fn new(status: u32) -> Self {
-        Self(Status::new(status))
-    }
-
-    pub fn should_run(&self) -> Vec<bool> {
-        self.0.should_run(5)
-    }
-
-    pub fn update_status(&mut self, result: &[Result<()>]) {
-        assert!(result.len() == 5, "PageStatus should have 5 status");
-        self.0.update_status(result)
-    }
-
-    pub fn get_completed(&self) -> bool {
-        self.0.get_completed()
-    }
-}
-
-impl From<PageStatus> for u32 {
-    fn from(status: PageStatus) -> Self {
-        status.0.into()
-    }
-}
+pub type PageStatus = Status<5>;
 
 #[cfg(test)]
 mod test {
@@ -151,15 +116,15 @@ mod test {
 
     #[test]
     fn test_status() {
-        let mut status = Status::new(0);
-        assert_eq!(status.should_run(3), vec![true, true, true]);
+        let mut status = Status::<3>::new(0);
+        assert_eq!(status.should_run(), [true, true, true]);
         for count in 1..=3 {
             status.update_status(&[Err(anyhow!("")), Ok(()), Ok(())]);
-            assert_eq!(status.should_run(3), vec![true, false, false]);
+            assert_eq!(status.should_run(), [true, false, false]);
             assert_eq!(u32::from(status.clone()), 0b111_111_000 + count);
         }
         status.update_status(&[Err(anyhow!("")), Ok(()), Ok(())]);
-        assert_eq!(status.should_run(3), vec![false, false, false]);
+        assert_eq!(status.should_run(), [false, false, false]);
         assert_eq!(u32::from(status), 0b111_111_100 | STATUS_COMPLETED);
     }
 }
