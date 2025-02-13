@@ -52,15 +52,12 @@ impl<const N: usize> Status<N> {
 
     /// 获取某个子任务的状态
     fn get_status(&self, offset: usize) -> u32 {
-        let helper = !0u32;
-        (self.0 & (helper << (offset * 3)) & (helper >> (32 - 3 * offset - 3))) >> (offset * 3)
+        (self.0 >> offset * 3) & 0b111
     }
 
     /// 设置某个子任务的状态
     fn set_status(&mut self, offset: usize, status: u32) {
-        let helper = !0u32;
-        self.0 &= !(helper << (offset * 3));
-        self.0 |= status << (offset * 3);
+        self.0 = (self.0 & !(0b111 << offset * 3)) | (status << offset * 3);
     }
 
     // 将某个子任务的状态加一（在任务失败时使用）
@@ -142,14 +139,12 @@ mod test {
     fn test_status_update() {
         let mut status = Status::<3>::default();
         assert_eq!(status.should_run(), [true, true, true]);
-        for count in 1..=3 {
+        for _ in 0..3 {
             status.update_status(&[Err(anyhow!("")), Ok(()), Ok(())]);
             assert_eq!(status.should_run(), [true, false, false]);
-            assert_eq!(u32::from(status), 0b111_111_000 + count);
         }
         status.update_status(&[Err(anyhow!("")), Ok(()), Ok(())]);
         assert_eq!(status.should_run(), [false, false, false]);
-        assert_eq!(u32::from(status), 0b111_111_100 | STATUS_COMPLETED);
     }
 
     #[test]
@@ -158,6 +153,16 @@ mod test {
         for testcase in testcases.iter() {
             let status = Status::<3>::from(testcase.clone());
             assert_eq!(<[u32; 3]>::from(status), *testcase);
+        }
+    }
+
+    #[test]
+    fn test_status_convert_and_update() {
+        let testcases = [([0, 0, 1], [1, 7, 7]), ([3, 4, 3], [4, 4, 7]), ([3, 1, 7], [4, 7, 7])];
+        for (before, after) in testcases.iter() {
+            let mut status = Status::<3>::from(before.clone());
+            status.update_status(&[Err(anyhow!("")), Ok(()), Ok(())]);
+            assert_eq!(<[u32; 3]>::from(status), *after);
         }
     }
 }
