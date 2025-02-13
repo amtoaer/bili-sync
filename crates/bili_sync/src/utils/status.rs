@@ -10,14 +10,10 @@ pub static STATUS_COMPLETED: u32 = 1 << 31;
 /// 如果子任务执行成功，将状态设置为 0b111，该值定义为 STATUS_OK。
 /// 子任务达到最大失败次数或者执行成功时，认为该子任务已经完成。
 /// 当所有子任务都已经完成时，为最高位打上标记 1，表示整个下载任务已经完成。
-#[derive(Clone)]
+#[derive(Clone, Copy, Default)]
 pub struct Status<const N: usize>(u32);
 
 impl<const N: usize> Status<N> {
-    pub fn new(status: u32) -> Self {
-        Self(status)
-    }
-
     // 获取最高位的完成标记
     pub fn get_completed(&self) -> bool {
         self.0 >> 31 == 1
@@ -61,7 +57,6 @@ impl<const N: usize> Status<N> {
     }
 
     /// 设置某个子任务的状态
-    #[allow(unused)]
     fn set_status(&mut self, offset: usize, status: u32) {
         let helper = !0u32;
         self.0 &= !(helper << (offset * 3));
@@ -96,9 +91,38 @@ impl<const N: usize> Status<N> {
     }
 }
 
+impl<const N: usize> From<u32> for Status<N> {
+    fn from(status: u32) -> Self {
+        Status(status)
+    }
+}
+
 impl<const N: usize> From<Status<N>> for u32 {
     fn from(status: Status<N>) -> Self {
         status.0
+    }
+}
+
+impl<const N: usize> From<Status<N>> for [u32; N] {
+    fn from(status: Status<N>) -> Self {
+        let mut result = [0; N];
+        for i in 0..N {
+            result[i] = status.get_status(i);
+        }
+        result
+    }
+}
+
+impl<const N: usize> From<[u32; N]> for Status<N> {
+    fn from(status: [u32; N]) -> Self {
+        let mut result = Status::<N>::default();
+        for i in 0..N {
+            result.set_status(i, status[i]);
+        }
+        if result.should_run().iter().all(|x| !x) {
+            result.set_completed(true);
+        }
+        result
     }
 }
 
@@ -115,16 +139,25 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_status() {
-        let mut status = Status::<3>::new(0);
+    fn test_status_update() {
+        let mut status = Status::<3>::default();
         assert_eq!(status.should_run(), [true, true, true]);
         for count in 1..=3 {
             status.update_status(&[Err(anyhow!("")), Ok(()), Ok(())]);
             assert_eq!(status.should_run(), [true, false, false]);
-            assert_eq!(u32::from(status.clone()), 0b111_111_000 + count);
+            assert_eq!(u32::from(status), 0b111_111_000 + count);
         }
         status.update_status(&[Err(anyhow!("")), Ok(()), Ok(())]);
         assert_eq!(status.should_run(), [false, false, false]);
         assert_eq!(u32::from(status), 0b111_111_100 | STATUS_COMPLETED);
+    }
+
+    #[test]
+    fn test_status_convert() {
+        let testcases = [[0, 0, 1], [1, 2, 3], [3, 1, 2], [3, 0, 7]];
+        for testcase in testcases.iter() {
+            let status = Status::<3>::from(testcase.clone());
+            assert_eq!(<[u32; 3]>::from(status), *testcase);
+        }
     }
 }
