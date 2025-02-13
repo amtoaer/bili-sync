@@ -206,7 +206,7 @@ pub async fn download_video_pages(
     should_download_upper: bool,
 ) -> Result<video::ActiveModel> {
     let _permit = semaphore.acquire().await.context("acquire semaphore failed")?;
-    let mut status = VideoStatus::new(video_model.download_status);
+    let mut status = VideoStatus::from(video_model.download_status);
     let seprate_status = status.should_run();
     let base_path = video_list_model
         .path()
@@ -316,7 +316,7 @@ pub async fn dispatch_download_page(
                     if model
                         .download_status
                         .try_as_ref()
-                        .is_none_or(|status| !PageStatus::new(*status).get_completed())
+                        .is_none_or(|status| !PageStatus::from(*status).get_completed())
                     {
                         error_occurred = true;
                     }
@@ -359,7 +359,7 @@ pub async fn download_page(
     base_path: &Path,
 ) -> Result<page::ActiveModel> {
     let _permit = semaphore.acquire().await.context("acquire semaphore failed")?;
-    let mut status = PageStatus::new(page_model.download_status);
+    let mut status = PageStatus::from(page_model.download_status);
     let seprate_status = status.should_run();
     let is_single_page = video_model.single_page.context("single_page is null")?;
     let base_name = TEMPLATE.path_safe_render("page", &page_format_args(video_model, &page_model))?;
