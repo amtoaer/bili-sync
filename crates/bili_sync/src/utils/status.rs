@@ -22,8 +22,8 @@ impl<const N: usize> Status<N> {
     /// 依次检查所有子任务是否还应该继续执行，返回一个 bool 数组
     pub fn should_run(&self) -> [bool; N] {
         let mut result = [false; N];
-        for i in 0..N {
-            result[i] = self.check_continue(i);
+        for (i, item) in result.iter_mut().enumerate() {
+            *item = self.check_continue(i);
         }
         result
     }
@@ -52,12 +52,12 @@ impl<const N: usize> Status<N> {
 
     /// 获取某个子任务的状态
     fn get_status(&self, offset: usize) -> u32 {
-        (self.0 >> offset * 3) & 0b111
+        (self.0 >> (offset * 3)) & 0b111
     }
 
     /// 设置某个子任务的状态
     fn set_status(&mut self, offset: usize, status: u32) {
-        self.0 = (self.0 & !(0b111 << offset * 3)) | (status << offset * 3);
+        self.0 = (self.0 & !(0b111 << (offset * 3))) | (status << (offset * 3));
     }
 
     // 将某个子任务的状态加一（在任务失败时使用）
@@ -103,8 +103,8 @@ impl<const N: usize> From<Status<N>> for u32 {
 impl<const N: usize> From<Status<N>> for [u32; N] {
     fn from(status: Status<N>) -> Self {
         let mut result = [0; N];
-        for i in 0..N {
-            result[i] = status.get_status(i);
+        for (i, item) in result.iter_mut().enumerate() {
+            *item = status.get_status(i);
         }
         result
     }
@@ -113,8 +113,8 @@ impl<const N: usize> From<Status<N>> for [u32; N] {
 impl<const N: usize> From<[u32; N]> for Status<N> {
     fn from(status: [u32; N]) -> Self {
         let mut result = Status::<N>::default();
-        for i in 0..N {
-            result.set_status(i, status[i]);
+        for (i, item) in status.iter().enumerate() {
+            result.set_status(i, *item);
         }
         if result.should_run().iter().all(|x| !x) {
             result.set_completed(true);
