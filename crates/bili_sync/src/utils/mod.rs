@@ -3,6 +3,7 @@ pub mod filenamify;
 pub mod format_arg;
 pub mod model;
 pub mod nfo;
+pub mod signal;
 pub mod status;
 
 use tracing_subscriber::util::SubscriberInitExt;
