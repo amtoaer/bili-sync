@@ -424,7 +424,12 @@ pub async fn download_page(
             &page_info,
             &video_path,
         )),
-        Box::pin(generate_page_nfo(separate_status[2], video_model, &page_model, nfo_path)),
+        Box::pin(generate_page_nfo(
+            separate_status[2],
+            video_model,
+            &page_model,
+            nfo_path,
+        )),
         Box::pin(fetch_page_danmaku(
             separate_status[3],
             bili_client,
