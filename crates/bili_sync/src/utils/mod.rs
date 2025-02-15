@@ -5,6 +5,7 @@ pub mod model;
 pub mod nfo;
 pub mod signal;
 pub mod status;
+pub mod status_query;
 
 use tracing_subscriber::util::SubscriberInitExt;
 

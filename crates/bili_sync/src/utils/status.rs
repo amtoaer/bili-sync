@@ -1,7 +1,7 @@
 use anyhow::Result;
 
-static STATUS_MAX_RETRY: u32 = 0b100;
-static STATUS_OK: u32 = 0b111;
+pub(super) static STATUS_MAX_RETRY: u32 = 0b100;
+pub(super) static STATUS_OK: u32 = 0b111;
 pub static STATUS_COMPLETED: u32 = 1 << 31;
 
 /// 用来表示下载的状态，不想写太多列了，所以仅使用一个 u32 表示。
