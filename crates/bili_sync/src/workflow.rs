@@ -207,7 +207,7 @@ pub async fn download_video_pages(
 ) -> Result<video::ActiveModel> {
     let _permit = semaphore.acquire().await.context("acquire semaphore failed")?;
     let mut status = VideoStatus::from(video_model.download_status);
-    let seprate_status = status.should_run();
+    let separate_status = status.should_run();
     let base_path = video_list_model
         .path()
         .join(TEMPLATE.path_safe_render("video", &video_format_args(&video_model))?);
@@ -222,7 +222,7 @@ pub async fn download_video_pages(
     let tasks: Vec<Pin<Box<dyn Future<Output = Result<()>> + Send>>> = vec![
         // 下载视频封面
         Box::pin(fetch_video_poster(
-            seprate_status[0] && !is_single_page,
+            separate_status[0] && !is_single_page,
             &video_model,
             downloader,
             base_path.join("poster.jpg"),
@@ -230,26 +230,26 @@ pub async fn download_video_pages(
         )),
         // 生成视频信息的 nfo
         Box::pin(generate_video_nfo(
-            seprate_status[1] && !is_single_page,
+            separate_status[1] && !is_single_page,
             &video_model,
             base_path.join("tvshow.nfo"),
         )),
         // 下载 Up 主头像
         Box::pin(fetch_upper_face(
-            seprate_status[2] && should_download_upper,
+            separate_status[2] && should_download_upper,
             &video_model,
             downloader,
             base_upper_path.join("folder.jpg"),
         )),
         // 生成 Up 主信息的 nfo
         Box::pin(generate_upper_nfo(
-            seprate_status[3] && should_download_upper,
+            separate_status[3] && should_download_upper,
             &video_model,
             base_upper_path.join("person.nfo"),
         )),
         // 分发并执行分 P 下载的任务
         Box::pin(dispatch_download_page(
-            seprate_status[4],
+            separate_status[4],
             bili_client,
             &video_model,
             pages,
@@ -360,7 +360,7 @@ pub async fn download_page(
 ) -> Result<page::ActiveModel> {
     let _permit = semaphore.acquire().await.context("acquire semaphore failed")?;
     let mut status = PageStatus::from(page_model.download_status);
-    let seprate_status = status.should_run();
+    let separate_status = status.should_run();
     let is_single_page = video_model.single_page.context("single_page is null")?;
     let base_name = TEMPLATE.path_safe_render("page", &page_format_args(video_model, &page_model))?;
     let (poster_path, video_path, nfo_path, danmaku_path, fanart_path, subtitle_path) = if is_single_page {
@@ -409,7 +409,7 @@ pub async fn download_page(
     };
     let tasks: Vec<Pin<Box<dyn Future<Output = Result<()>> + Send>>> = vec![
         Box::pin(fetch_page_poster(
-            seprate_status[0],
+            separate_status[0],
             video_model,
             &page_model,
             downloader,
@@ -417,23 +417,23 @@ pub async fn download_page(
             fanart_path,
         )),
         Box::pin(fetch_page_video(
-            seprate_status[1],
+            separate_status[1],
             bili_client,
             video_model,
             downloader,
             &page_info,
             &video_path,
         )),
-        Box::pin(generate_page_nfo(seprate_status[2], video_model, &page_model, nfo_path)),
+        Box::pin(generate_page_nfo(separate_status[2], video_model, &page_model, nfo_path)),
         Box::pin(fetch_page_danmaku(
-            seprate_status[3],
+            separate_status[3],
             bili_client,
             video_model,
             &page_info,
             danmaku_path,
         )),
         Box::pin(fetch_page_subtitle(
-            seprate_status[4],
+            separate_status[4],
             bili_client,
             video_model,
             &page_info,
