@@ -1,7 +1,57 @@
 use bili_sync_entity::*;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::utils::status::{PageStatus, VideoStatus};
+
+#[derive(Debug, Serialize)]
+pub struct VideoListModelItem {
+    id: i32,
+    name: String,
+}
+
+impl From<collection::Model> for VideoListModelItem {
+    fn from(value: collection::Model) -> Self {
+        VideoListModelItem {
+            id: value.id,
+            name: value.name,
+        }
+    }
+}
+
+impl From<favorite::Model> for VideoListModelItem {
+    fn from(value: favorite::Model) -> Self {
+        VideoListModelItem {
+            id: value.id,
+            name: value.name,
+        }
+    }
+}
+
+impl From<submission::Model> for VideoListModelItem {
+    fn from(value: submission::Model) -> Self {
+        VideoListModelItem {
+            id: value.id,
+            name: value.upper_name,
+        }
+    }
+}
+
+impl From<watch_later::Model> for VideoListModelItem {
+    fn from(value: watch_later::Model) -> Self {
+        VideoListModelItem {
+            id: value.id,
+            name: "稍后再看".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct VideoListModel {
+    pub collection: Vec<VideoListModelItem>,
+    pub favorite: Vec<VideoListModelItem>,
+    pub submission: Vec<VideoListModelItem>,
+    pub watch_later: Vec<VideoListModelItem>,
+}
 
 #[derive(Debug, Serialize)]
 pub struct VideoInfo {
@@ -54,16 +104,4 @@ impl From<(video::Model, Vec<page::Model>)> for VideoDetail {
             pages: value.1.into_iter().map(PageInfo::from).collect(),
         }
     }
-}
-
-/// 用于更新单个视频状态的请求结构
-#[derive(Debug, Deserialize)]
-pub struct UpdateVideoPayload {
-    pub download_status: [u32; 5],
-}
-
-#[derive(Debug, Deserialize)]
-pub struct BulkUpdatePayload {
-    pub video_ids: Vec<i32>,
-    pub download_status: [u32; 5],
 }

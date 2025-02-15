@@ -35,6 +35,7 @@ hex = "0.4.3"
 leaky-bucket = "1.1.2"
 md5 = "0.7.0"
 memchr = "2.7.4"
+mime_guess = "=2.0.5"
 once_cell = "1.20.2"
 prost = "0.13.4"
 quick-xml = { version = "0.37.2", features = ["async-tokio"] }
@@ -50,6 +51,7 @@ reqwest = { version = "0.12.12", features = [
     "stream",
 ], default-features = false }
 rsa = { version = "0.9.7", features = ["sha2"] }
+rust-embed = "8.5.0"
 sea-orm = { version = "1.1.4", features = [
     "macros",
     "runtime-tokio-rustls",
