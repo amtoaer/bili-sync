@@ -32,10 +32,16 @@ fn default_auth_token() -> Option<String> {
     )
 }
 
+fn default_bind_address() -> String {
+    "0.0.0.0:12345".to_string()
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     #[serde(default = "default_auth_token")]
     pub auth_token: Option<String>,
+    #[serde(default = "default_bind_address")]
+    pub bind_address: String,
     pub credential: ArcSwapOption<Credential>,
     pub filter_option: FilterOption,
     #[serde(default)]
@@ -67,6 +73,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             auth_token: default_auth_token(),
+            bind_address: default_bind_address(),
             credential: ArcSwapOption::from(Some(Arc::new(Credential::default()))),
             filter_option: FilterOption::default(),
             danmaku_option: DanmakuOption::default(),

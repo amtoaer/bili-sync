@@ -10,6 +10,7 @@ use tower_http::normalize_path::NormalizePathLayer;
 
 use crate::api::auth;
 use crate::api::handler::{bulk_update_videos, get_video, list_videos, update_video};
+use crate::config::CONFIG;
 
 pub async fn http_server(database_connection: Arc<DatabaseConnection>) -> Result<()> {
     let app = Router::new()
@@ -18,7 +19,7 @@ pub async fn http_server(database_connection: Arc<DatabaseConnection>) -> Result
         .layer(Extension(database_connection))
         .layer(middleware::from_fn(auth::auth));
     let app = NormalizePathLayer::trim_trailing_slash().layer(app);
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:12345")
+    let listener = tokio::net::TcpListener::bind(&CONFIG.bind_address)
         .await
         .context("bind address failed")?;
     Ok(axum::serve(listener, ServiceExt::<Request>::into_make_service(app)).await?)
