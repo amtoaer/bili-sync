@@ -7,7 +7,7 @@ use reqwest::StatusCode;
 use crate::config::CONFIG;
 
 pub async fn auth(headers: HeaderMap, request: Request, next: Next) -> Result<Response, StatusCode> {
-    if get_token(&headers) != CONFIG.auth_token {
+    if request.uri().path().starts_with("/api") && get_token(&headers) != CONFIG.auth_token {
         return Err(StatusCode::UNAUTHORIZED);
     }
     Ok(next.run(request).await)

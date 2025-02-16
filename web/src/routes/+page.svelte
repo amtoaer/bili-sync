@@ -1,77 +1,165 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Sidebar, { type VideoListModel } from '../components/Sidebar.svelte';
-	import VideoList, { type VideoInfo } from '../components/VideoList.svelte';
+	import { Input } from '$lib/components/ui/input';
+	import { Button } from '$lib/components/ui/button';
+	import VideoItem from '$lib/components/VideoItem.svelte';
+	import { listVideos, getVideoListModels } from '$lib/api';
+	import type { VideoCount, VideoInfo, VideoListModel } from '$lib/types';
 
+	// API Token 管理
+	let apiToken: string = localStorage.getItem('auth_token') || '';
+	function updateToken() {
+		localStorage.setItem('auth_token', apiToken);
+	}
+
+	// 定义分类列表
+	const categories: (keyof VideoListModel)[] = [
+		'collection',
+		'favorite',
+		'submission',
+		'watch_later'
+	];
+	let activeCategory: keyof VideoListModel = 'collection';
+	let searchQuery = '';
 	let videos: VideoInfo[] = [];
-	let listModel: VideoListModel | null = null;
-	let currentFilter: { key: keyof VideoListModel; id: number } | null = null;
-	let loadingVideos = false;
-	let sidebarOpen = true;
-	let gridView = true;
+	let total = 0;
+	let currentPage = 0;
+	const pageSize = 10;
 
-	async function fetchListModel() {
-		const res = await fetch('/api/video-list-models');
-		if (res.ok) {
-			listModel = await res.json();
-		} else {
-			console.error('加载列表结构失败');
+	// 视频列表模型及全局选中模型（只全局允许选中一个）
+	let videoListModels: VideoListModel = {
+		collection: [],
+		favorite: [],
+		submission: [],
+		watch_later: []
+	};
+	// 移除 per 分类选中，新增全局 selectedModel
+	let selectedModel: { category: keyof VideoListModel; id: number } | null = null;
+	// 控制侧边栏各分类的折叠状态，true 为折叠
+	let collapse: { [key in keyof VideoListModel]?: boolean } = {
+		collection: false,
+		favorite: false,
+		submission: false,
+		watch_later: false
+	};
+
+	// 加载视频列表模型
+	async function fetchVideoListModels() {
+		videoListModels = await getVideoListModels();
+		// 默认选中第一个有数据的模型
+		for (const key of categories) {
+			if (videoListModels[key]?.length) {
+				selectedModel = { category: key, id: videoListModels[key][0].id };
+				break;
+			}
 		}
+		// 默认使用 activeCategory 对应的选中 id 加载视频
+		fetchVideos();
 	}
 
+	// 加载视频列表，根据当前 activeCategory 对应的 selectedModel 发起请求
 	async function fetchVideos() {
-		loadingVideos = true;
-		let url = '/api/videos';
-		if (currentFilter) {
-			url += `?${currentFilter.key}=${currentFilter.id}`;
+		const params: any = {};
+		if (selectedModel && selectedModel.category === activeCategory) {
+			params[`${activeCategory}`] = selectedModel.id.toString();
 		}
-		const res = await fetch(url);
-		if (res.ok) {
-			videos = await res.json();
-		} else {
-			console.error('加载视频列表失败');
-		}
-		loadingVideos = false;
+		if (searchQuery) params.q = searchQuery;
+		params.o = currentPage * pageSize;
+		params.l = pageSize;
+		const listRes = await listVideos(params);
+		videos = listRes as VideoInfo[];
+		const countRes = await listVideos({ ...params, count: 1 });
+		total = (countRes as VideoCount).count;
 	}
 
-	onMount(async () => {
-		await fetchListModel();
-		await fetchVideos();
-	});
+	onMount(fetchVideoListModels);
 
-	function selectFilter(key: keyof VideoListModel, id: number) {
-		currentFilter = { key, id };
+	$: activeCategory, currentPage, searchQuery, fetchVideos();
+
+	function onSearch() {
+		currentPage = 0;
 		fetchVideos();
 	}
 
-	function clearFilter() {
-		currentFilter = null;
+	function prevPage() {
+		if (currentPage > 0) currentPage -= 1;
+	}
+
+	function nextPage() {
+		if ((currentPage + 1) * pageSize < total) currentPage += 1;
+	}
+
+	// 点击侧边栏项时更新 activeCategory 和全局选中模型 id
+	function selectModel(category: keyof VideoListModel, id: number) {
+		activeCategory = category;
+		selectedModel = { category, id };
+		currentPage = 0;
 		fetchVideos();
-	}
-
-	function toggleSidebar() {
-		sidebarOpen = !sidebarOpen;
-	}
-
-	function setGridView(value: boolean) {
-		gridView = value;
 	}
 </script>
 
-<!-- 整体背景和 container 样式 -->
-<div class="min-h-screen bg-base-200">
-	<main class="container mx-auto p-6">
-		<div class="flex flex-col lg:flex-row gap-6">
-			<aside class="w-full lg:w-64">
-				<div class="card bg-base-100 shadow-lg">
-					<Sidebar {listModel} {sidebarOpen} {toggleSidebar} {selectFilter} {clearFilter} />
-				</div>
-			</aside>
-			<section class="flex-1">
-				<div class="card bg-base-100 shadow-lg h-full">
-					<VideoList {videos} {loadingVideos} {gridView} {setGridView} />
-				</div>
-			</section>
+<svelte:head>
+	<title>bili-sync 管理页</title>
+</svelte:head>
+
+<div class="my-4">
+	<Input placeholder="API Token" bind:value={apiToken} on:change={updateToken} />
+</div>
+
+<div class="flex">
+	<!-- 左侧侧边栏 -->
+	<aside class="w-1/4 border-r p-4">
+		<h2 class="mb-4 text-xl font-bold">视频列表模型</h2>
+		{#each categories as cat}
+			<div class="mb-4">
+				<!-- 点击标题切换折叠状态 -->
+				<button
+					class="w-full text-left font-semibold"
+					on:click={() => (collapse[cat] = !collapse[cat])}
+				>
+					{cat}
+					{collapse[cat] ? '▶' : '▼'}
+				</button>
+				{#if !collapse[cat]}
+					{#if videoListModels[cat]?.length}
+						<ul class="ml-4">
+							{#each videoListModels[cat] as model}
+								<li class="mb-1">
+									<button
+										class="w-full rounded px-2 py-1 text-left hover:bg-gray-100 {selectedModel &&
+										selectedModel.category === cat &&
+										selectedModel.id === model.id
+											? 'bg-gray-200'
+											: ''}"
+										on:click={() => selectModel(cat, model.id)}
+									>
+										{model.name}
+									</button>
+								</li>
+							{/each}
+						</ul>
+					{:else}
+						<p class="ml-4 text-gray-500">无数据</p>
+					{/if}
+				{/if}
+			</div>
+		{/each}
+	</aside>
+
+	<!-- 主内容区域 -->
+	<main class="flex-1 p-4">
+		<div class="mb-4">
+			<Input placeholder="搜索视频..." bind:value={searchQuery} on:change={onSearch} />
+		</div>
+		<div>
+			{#each videos as video}
+				<VideoItem {video} />
+			{/each}
+		</div>
+		<div class="mt-4 flex items-center justify-between">
+			<Button onclick={prevPage} disabled={currentPage === 0}>上一页</Button>
+			<span>第 {currentPage + 1} 页，共 {Math.ceil(total / pageSize)} 页</span>
+			<Button onclick={nextPage} disabled={(currentPage + 1) * pageSize >= total}>下一页</Button>
 		</div>
 	</main>
 </div>
