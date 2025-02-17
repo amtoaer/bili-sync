@@ -3,11 +3,13 @@ use axum::http::HeaderMap;
 use axum::middleware::Next;
 use axum::response::Response;
 use reqwest::StatusCode;
+use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
+use utoipa::Modify;
 
 use crate::config::CONFIG;
 
 pub async fn auth(headers: HeaderMap, request: Request, next: Next) -> Result<Response, StatusCode> {
-    if request.uri().path().starts_with("/api") && get_token(&headers) != CONFIG.auth_token {
+    if request.uri().path().starts_with("/api/") && get_token(&headers) != CONFIG.auth_token {
         return Err(StatusCode::UNAUTHORIZED);
     }
     Ok(next.run(request).await)
@@ -18,4 +20,20 @@ fn get_token(headers: &HeaderMap) -> Option<String> {
         .get("Authorization")
         .and_then(|v| v.to_str().ok())
         .map(Into::into)
+}
+
+pub struct OpenAPIAuth;
+
+impl Modify for OpenAPIAuth {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        if let Some(schema) = openapi.components.as_mut() {
+            schema.add_security_scheme(
+                "Token",
+                SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
+                    "Authorization",
+                    "与配置文件中的 auth_token 相同",
+                ))),
+            );
+        }
+    }
 }
