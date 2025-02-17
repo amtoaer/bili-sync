@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use arc_swap::ArcSwapOption;
+use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 
 mod clap;
@@ -20,8 +21,27 @@ fn default_time_format() -> String {
     "%Y-%m-%d".to_string()
 }
 
+/// 默认的 auth_token 实现，生成随机 16 位字符串
+fn default_auth_token() -> Option<String> {
+    let byte_choices = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=";
+    let mut rng = rand::thread_rng();
+    Some(
+        (0..16)
+            .map(|_| *(byte_choices.choose(&mut rng).expect("choose byte failed")) as char)
+            .collect(),
+    )
+}
+
+fn default_bind_address() -> String {
+    "0.0.0.0:12345".to_string()
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Config {
+    #[serde(default = "default_auth_token")]
+    pub auth_token: Option<String>,
+    #[serde(default = "default_bind_address")]
+    pub bind_address: String,
     pub credential: ArcSwapOption<Credential>,
     pub filter_option: FilterOption,
     #[serde(default)]
@@ -52,6 +72,8 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            auth_token: default_auth_token(),
+            bind_address: default_bind_address(),
             credential: ArcSwapOption::from(Some(Arc::new(Credential::default()))),
             filter_option: FilterOption::default(),
             danmaku_option: DanmakuOption::default(),

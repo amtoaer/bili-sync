@@ -12,6 +12,7 @@ readme = "../../README.md"
 anyhow = { workspace = true }
 arc-swap = { workspace = true }
 async-stream = { workspace = true }
+axum = { workspace = true }
 bili_sync_entity = { workspace = true }
 bili_sync_migration = { workspace = true }
 chrono = { workspace = true }
@@ -27,6 +28,7 @@ hex = { workspace = true }
 leaky-bucket = { workspace = true }
 md5 = { workspace = true }
 memchr = { workspace = true }
+mime_guess = { workspace = true }
 once_cell = { workspace = true }
 prost = { workspace = true }
 quick-xml = { workspace = true }
@@ -34,6 +36,7 @@ rand = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true }
 rsa = { workspace = true }
+rust-embed = { workspace = true }
 sea-orm = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -43,6 +46,8 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true }
 toml = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 
