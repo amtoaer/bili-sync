@@ -9,11 +9,11 @@ use axum::{middleware, Extension, Router, ServiceExt};
 use reqwest::StatusCode;
 use rust_embed::Embed;
 use sea_orm::DatabaseConnection;
-use tower::Layer;
-use tower_http::normalize_path::NormalizePathLayer;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::{Config, SwaggerUi};
 
 use crate::api::auth;
-use crate::api::handler::{get_video, get_video_list_models, list_videos};
+use crate::api::handler::{get_video, get_video_sources, get_videos, ApiDoc};
 use crate::config::CONFIG;
 
 #[derive(Embed)]
@@ -22,13 +22,22 @@ struct Asset;
 
 pub async fn http_server(database_connection: Arc<DatabaseConnection>) -> Result<()> {
     let app = Router::new()
-        .route("/api/videos", get(list_videos))
-        .route("/api/videos/{video_id}", get(get_video))
-        .route("/api/video-list-models", get(get_video_list_models))
+        .route("/api/video-sources", get(get_video_sources))
+        .route("/api/videos", get(get_videos))
+        .route("/api/video/{id}", get(get_video))
+        .merge(
+            SwaggerUi::new("/swagger-ui/")
+                .url("/api-docs/openapi.json", ApiDoc::openapi())
+                .config(
+                    Config::default()
+                        .try_it_out_enabled(true)
+                        .persist_authorization(true)
+                        .validator_url("none"),
+                ),
+        )
         .fallback_service(get(frontend_files))
         .layer(Extension(database_connection))
         .layer(middleware::from_fn(auth::auth));
-    let app = NormalizePathLayer::trim_trailing_slash().layer(app);
     let listener = tokio::net::TcpListener::bind(&CONFIG.bind_address)
         .await
         .context("bind address failed")?;
