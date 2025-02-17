@@ -5,11 +5,11 @@ use anyhow::{anyhow, Result};
 use axum::extract::{Extension, Path, Query};
 use axum::Json;
 use bili_sync_entity::*;
+use bili_sync_migration::Expr;
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect};
-use serde_json::json;
 
 use crate::api::error::ApiError;
-use crate::api::payload::{VideoDetail, VideoInfo, VideoListModel};
+use crate::api::payload::{PageInfo, VideoDetail, VideoInfo, VideoList, VideoListModel, VideoListModelItem};
 
 /// 列出所有视频列表
 pub async fn get_video_list_models(
@@ -17,29 +17,31 @@ pub async fn get_video_list_models(
 ) -> Result<Json<VideoListModel>, ApiError> {
     Ok(Json(VideoListModel {
         collection: collection::Entity::find()
+            .select_only()
+            .columns([collection::Column::Id, collection::Column::Name])
+            .into_model::<VideoListModelItem>()
             .all(db.as_ref())
-            .await?
-            .into_iter()
-            .map(Into::into)
-            .collect(),
+            .await?,
         favorite: favorite::Entity::find()
+            .select_only()
+            .columns([favorite::Column::Id, favorite::Column::Name])
+            .into_model::<VideoListModelItem>()
             .all(db.as_ref())
-            .await?
-            .into_iter()
-            .map(Into::into)
-            .collect(),
+            .await?,
         submission: submission::Entity::find()
+            .select_only()
+            .column(submission::Column::Id)
+            .column_as(submission::Column::UpperName, "name")
+            .into_model::<VideoListModelItem>()
             .all(db.as_ref())
-            .await?
-            .into_iter()
-            .map(Into::into)
-            .collect(),
+            .await?,
         watch_later: watch_later::Entity::find()
+            .select_only()
+            .column(watch_later::Column::Id)
+            .column_as(Expr::value("稍后再看"), "name")
+            .into_model::<VideoListModelItem>()
             .all(db.as_ref())
-            .await?
-            .into_iter()
-            .map(Into::into)
-            .collect(),
+            .await?,
     }))
 }
 
@@ -47,7 +49,7 @@ pub async fn get_video_list_models(
 pub async fn list_videos(
     Extension(db): Extension<Arc<DatabaseConnection>>,
     Query(params): Query<HashMap<String, String>>,
-) -> Result<Json<serde_json::Value>, ApiError> {
+) -> Result<Json<VideoList>, ApiError> {
     let mut query = video::Entity::find();
     for (query_key, filter_column) in [
         ("collection", video::Column::CollectionId),
@@ -63,20 +65,21 @@ pub async fn list_videos(
     if let Some(query_word) = params.get("q") {
         query = query.filter(video::Column::Name.contains(query_word));
     }
-    if params.contains_key("count") {
-        let count = query.count(db.as_ref()).await?;
-        return Ok(Json(json!({ "count": count })));
-    }
-    let videos: Vec<VideoInfo> = query
-        .order_by_desc(video::Column::Id)
-        .offset(params.get("o").and_then(|o| o.parse().ok()).unwrap_or(0))
-        .limit(params.get("l").and_then(|l| l.parse().ok()).unwrap_or(30))
-        .all(db.as_ref())
-        .await?
-        .into_iter()
-        .map(VideoInfo::from)
-        .collect();
-    Ok(Json(json!(videos)))
+    let total_count = query.clone().count(db.as_ref()).await?;
+    let (page, page_size) = if let (Some(page), Some(page_size)) = (params.get("page"), params.get("page_size")) {
+        (page.parse::<u64>()?, page_size.parse::<u64>()?)
+    } else {
+        (1, 10)
+    };
+    Ok(Json(VideoList {
+        videos: query
+            .order_by_desc(video::Column::Id)
+            .into_partial_model::<VideoInfo>()
+            .paginate(db.as_ref(), page_size)
+            .fetch_page(page)
+            .await?,
+        total_count,
+    }))
 }
 
 /// 根据 id 获取视频详细信息，包括关联的所有 page
@@ -84,14 +87,21 @@ pub async fn get_video(
     Path(id): Path<i32>,
     Extension(db): Extension<Arc<DatabaseConnection>>,
 ) -> Result<Json<VideoDetail>, ApiError> {
-    let video_model = video::Entity::find_by_id(id)
-        .find_with_related(page::Entity)
+    let video_info = video::Entity::find_by_id(id)
+        .into_partial_model::<VideoInfo>()
+        .one(db.as_ref())
+        .await?;
+    let Some(video_info) = video_info else {
+        return Err(anyhow!("视频不存在").into());
+    };
+    let pages = page::Entity::find()
+        .filter(page::Column::VideoId.eq(id))
+        .order_by_asc(page::Column::Pid)
+        .into_partial_model::<PageInfo>()
         .all(db.as_ref())
         .await?;
-    let detail = video_model
-        .into_iter()
-        .next()
-        .map(VideoDetail::from)
-        .ok_or_else(|| anyhow!("video not found"))?;
-    Ok(Json(detail))
+    Ok(Json(VideoDetail {
+        video: video_info,
+        pages,
+    }))
 }
