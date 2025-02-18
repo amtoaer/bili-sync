@@ -16,7 +16,7 @@ use crate::adapter::{video_list_from, Args, VideoListModel, VideoListModelEnum};
 use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, PageInfo, Video, VideoInfo};
 use crate::config::{PathSafeTemplate, ARGS, CONFIG, TEMPLATE};
 use crate::downloader::Downloader;
-use crate::error::{DownloadAbortError, ExecutionResult, ProcessPageError};
+use crate::error::{DownloadAbortError, ExecutionStatus, ProcessPageError};
 use crate::utils::format_arg::{page_format_args, video_format_args};
 use crate::utils::model::{
     create_pages, create_videos, filter_unfilled_videos, filter_unhandled_video_pages, update_pages_model,
@@ -219,7 +219,7 @@ pub async fn download_video_pages(
     let is_single_page = video_model.single_page.context("single_page is null")?;
     // 对于单页视频，page 的下载已经足够
     // 对于多页视频，page 下载仅包含了分集内容，需要额外补上视频的 poster 的 tvshow.nfo
-    let tasks: Vec<Pin<Box<dyn Future<Output = Result<ExecutionResult>> + Send>>> = vec![
+    let tasks: Vec<Pin<Box<dyn Future<Output = Result<ExecutionStatus>> + Send>>> = vec![
         // 下载视频封面
         Box::pin(fetch_video_poster(
             separate_status[0] && !is_single_page,
@@ -259,24 +259,24 @@ pub async fn download_video_pages(
         )),
     ];
     let tasks: FuturesOrdered<_> = tasks.into_iter().collect();
-    let results: Vec<ExecutionResult> = tasks.collect::<Vec<_>>().await.into_iter().map(Into::into).collect();
+    let results: Vec<ExecutionStatus> = tasks.collect::<Vec<_>>().await.into_iter().map(Into::into).collect();
     status.update_status(&results);
     results
         .iter()
         .take(4)
         .zip(["封面", "详情", "作者头像", "作者详情"])
         .for_each(|(res, task_name)| match res {
-            ExecutionResult::Skipped => info!("处理视频「{}」{}已成功过，跳过", &video_model.name, task_name),
-            ExecutionResult::Success => info!("处理视频「{}」{}成功", &video_model.name, task_name),
-            ExecutionResult::ErrorIgnored(e) => {
+            ExecutionStatus::Skipped => info!("处理视频「{}」{}已成功过，跳过", &video_model.name, task_name),
+            ExecutionStatus::Succeeded => info!("处理视频「{}」{}成功", &video_model.name, task_name),
+            ExecutionStatus::Ignored(e) => {
                 error!(
                     "处理视频「{}」{}出现常见错误，已忽略: {}",
                     &video_model.name, task_name, e
                 )
             }
-            ExecutionResult::Error(e) => error!("处理视频「{}」{}失败: {}", &video_model.name, task_name, e),
+            ExecutionStatus::Failed(e) => error!("处理视频「{}」{}失败: {}", &video_model.name, task_name, e),
         });
-    if let ExecutionResult::Error(e) = results.into_iter().nth(4).context("page download result not found")? {
+    if let ExecutionStatus::Failed(e) = results.into_iter().nth(4).context("page download result not found")? {
         if e.downcast_ref::<DownloadAbortError>().is_some() {
             return Err(e);
         }
@@ -296,9 +296,9 @@ pub async fn dispatch_download_page(
     connection: &DatabaseConnection,
     downloader: &Downloader,
     base_path: &Path,
-) -> Result<ExecutionResult> {
+) -> Result<ExecutionStatus> {
     if !should_run {
-        return Ok(ExecutionResult::Skipped);
+        return Ok(ExecutionStatus::Skipped);
     }
     let child_semaphore = Semaphore::new(CONFIG.concurrent_limit.page);
     let tasks = pages
@@ -353,7 +353,7 @@ pub async fn dispatch_download_page(
         );
         bail!(ProcessPageError());
     }
-    Ok(ExecutionResult::Success)
+    Ok(ExecutionStatus::Succeeded)
 }
 
 /// 下载某个分页，未发生风控且正常运行时返回 Ok(Page::ActiveModel)，其中 status 字段存储了新的下载状态，发生风控时返回 DownloadAbortError
@@ -414,7 +414,7 @@ pub async fn download_page(
         dimension,
         ..Default::default()
     };
-    let tasks: Vec<Pin<Box<dyn Future<Output = Result<ExecutionResult>> + Send>>> = vec![
+    let tasks: Vec<Pin<Box<dyn Future<Output = Result<ExecutionStatus>> + Send>>> = vec![
         Box::pin(fetch_page_poster(
             separate_status[0],
             video_model,
@@ -453,33 +453,33 @@ pub async fn download_page(
         )),
     ];
     let tasks: FuturesOrdered<_> = tasks.into_iter().collect();
-    let results: Vec<ExecutionResult> = tasks.collect::<Vec<_>>().await.into_iter().map(Into::into).collect();
+    let results: Vec<ExecutionStatus> = tasks.collect::<Vec<_>>().await.into_iter().map(Into::into).collect();
     status.update_status(&results);
     results
         .iter()
         .zip(["封面", "视频", "详情", "弹幕", "字幕"])
         .for_each(|(res, task_name)| match res {
-            ExecutionResult::Skipped => info!(
+            ExecutionStatus::Skipped => info!(
                 "处理视频「{}」第 {} 页{}已成功过，跳过",
                 &video_model.name, page_model.pid, task_name
             ),
-            ExecutionResult::Success => info!(
+            ExecutionStatus::Succeeded => info!(
                 "处理视频「{}」第 {} 页{}成功",
                 &video_model.name, page_model.pid, task_name
             ),
-            ExecutionResult::ErrorIgnored(e) => {
+            ExecutionStatus::Ignored(e) => {
                 error!(
                     "处理视频「{}」第 {} 页{}出现常见错误，已忽略: {}",
                     &video_model.name, page_model.pid, task_name, e
                 )
             }
-            ExecutionResult::Error(e) => error!(
+            ExecutionStatus::Failed(e) => error!(
                 "处理视频「{}」第 {} 页{}失败: {}",
                 &video_model.name, page_model.pid, task_name, e
             ),
         });
     // 如果下载视频时触发风控，直接返回 DownloadAbortError
-    if let ExecutionResult::Error(e) = results.into_iter().nth(1).context("video download result not found")? {
+    if let ExecutionStatus::Failed(e) = results.into_iter().nth(1).context("video download result not found")? {
         if let Ok(BiliError::RiskControlOccurred) = e.downcast::<BiliError>() {
             bail!(DownloadAbortError());
         }
@@ -497,9 +497,9 @@ pub async fn fetch_page_poster(
     downloader: &Downloader,
     poster_path: PathBuf,
     fanart_path: Option<PathBuf>,
-) -> Result<ExecutionResult> {
+) -> Result<ExecutionStatus> {
     if !should_run {
-        return Ok(ExecutionResult::Skipped);
+        return Ok(ExecutionStatus::Skipped);
     }
     let single_page = video_model.single_page.context("single_page is null")?;
     let url = if single_page {
@@ -516,7 +516,7 @@ pub async fn fetch_page_poster(
     if let Some(fanart_path) = fanart_path {
         fs::copy(&poster_path, &fanart_path).await?;
     }
-    Ok(ExecutionResult::Success)
+    Ok(ExecutionStatus::Succeeded)
 }
 
 pub async fn fetch_page_video(
@@ -526,9 +526,9 @@ pub async fn fetch_page_video(
     downloader: &Downloader,
     page_info: &PageInfo,
     page_path: &Path,
-) -> Result<ExecutionResult> {
+) -> Result<ExecutionStatus> {
     if !should_run {
-        return Ok(ExecutionResult::Skipped);
+        return Ok(ExecutionStatus::Skipped);
     }
     let bili_video = Video::new(bili_client, video_model.bvid.clone());
     let streams = bili_video
@@ -560,7 +560,7 @@ pub async fn fetch_page_video(
             res?
         }
     }
-    Ok(ExecutionResult::Success)
+    Ok(ExecutionStatus::Succeeded)
 }
 
 pub async fn fetch_page_danmaku(
@@ -569,9 +569,9 @@ pub async fn fetch_page_danmaku(
     video_model: &video::Model,
     page_info: &PageInfo,
     danmaku_path: PathBuf,
-) -> Result<ExecutionResult> {
+) -> Result<ExecutionStatus> {
     if !should_run {
-        return Ok(ExecutionResult::Skipped);
+        return Ok(ExecutionStatus::Skipped);
     }
     let bili_video = Video::new(bili_client, video_model.bvid.clone());
     bili_video
@@ -579,7 +579,7 @@ pub async fn fetch_page_danmaku(
         .await?
         .write(danmaku_path)
         .await?;
-    Ok(ExecutionResult::Success)
+    Ok(ExecutionStatus::Succeeded)
 }
 
 pub async fn fetch_page_subtitle(
@@ -588,9 +588,9 @@ pub async fn fetch_page_subtitle(
     video_model: &video::Model,
     page_info: &PageInfo,
     subtitle_path: &Path,
-) -> Result<ExecutionResult> {
+) -> Result<ExecutionStatus> {
     if !should_run {
-        return Ok(ExecutionResult::Skipped);
+        return Ok(ExecutionStatus::Skipped);
     }
     let bili_video = Video::new(bili_client, video_model.bvid.clone());
     let subtitles = bili_video.get_subtitles(page_info).await?;
@@ -602,7 +602,7 @@ pub async fn fetch_page_subtitle(
         })
         .collect::<FuturesUnordered<_>>();
     tasks.try_collect::<Vec<()>>().await?;
-    Ok(ExecutionResult::Success)
+    Ok(ExecutionStatus::Succeeded)
 }
 
 pub async fn generate_page_nfo(
@@ -610,9 +610,9 @@ pub async fn generate_page_nfo(
     video_model: &video::Model,
     page_model: &page::Model,
     nfo_path: PathBuf,
-) -> Result<ExecutionResult> {
+) -> Result<ExecutionStatus> {
     if !should_run {
-        return Ok(ExecutionResult::Skipped);
+        return Ok(ExecutionStatus::Skipped);
     }
     let single_page = video_model.single_page.context("single_page is null")?;
     let nfo_serializer = if single_page {
@@ -621,7 +621,7 @@ pub async fn generate_page_nfo(
         NFOSerializer(ModelWrapper::Page(page_model), NFOMode::EPOSODE)
     };
     generate_nfo(nfo_serializer, nfo_path).await?;
-    Ok(ExecutionResult::Success)
+    Ok(ExecutionStatus::Succeeded)
 }
 
 pub async fn fetch_video_poster(
@@ -630,13 +630,13 @@ pub async fn fetch_video_poster(
     downloader: &Downloader,
     poster_path: PathBuf,
     fanart_path: PathBuf,
-) -> Result<ExecutionResult> {
+) -> Result<ExecutionStatus> {
     if !should_run {
-        return Ok(ExecutionResult::Skipped);
+        return Ok(ExecutionStatus::Skipped);
     }
     downloader.fetch(&video_model.cover, &poster_path).await?;
     fs::copy(&poster_path, &fanart_path).await?;
-    Ok(ExecutionResult::Success)
+    Ok(ExecutionStatus::Succeeded)
 }
 
 pub async fn fetch_upper_face(
@@ -644,38 +644,38 @@ pub async fn fetch_upper_face(
     video_model: &video::Model,
     downloader: &Downloader,
     upper_face_path: PathBuf,
-) -> Result<ExecutionResult> {
+) -> Result<ExecutionStatus> {
     if !should_run {
-        return Ok(ExecutionResult::Skipped);
+        return Ok(ExecutionStatus::Skipped);
     }
     downloader.fetch(&video_model.upper_face, &upper_face_path).await?;
-    Ok(ExecutionResult::Success)
+    Ok(ExecutionStatus::Succeeded)
 }
 
 pub async fn generate_upper_nfo(
     should_run: bool,
     video_model: &video::Model,
     nfo_path: PathBuf,
-) -> Result<ExecutionResult> {
+) -> Result<ExecutionStatus> {
     if !should_run {
-        return Ok(ExecutionResult::Skipped);
+        return Ok(ExecutionStatus::Skipped);
     }
     let nfo_serializer = NFOSerializer(ModelWrapper::Video(video_model), NFOMode::UPPER);
     generate_nfo(nfo_serializer, nfo_path).await?;
-    Ok(ExecutionResult::Success)
+    Ok(ExecutionStatus::Succeeded)
 }
 
 pub async fn generate_video_nfo(
     should_run: bool,
     video_model: &video::Model,
     nfo_path: PathBuf,
-) -> Result<ExecutionResult> {
+) -> Result<ExecutionStatus> {
     if !should_run {
-        return Ok(ExecutionResult::Skipped);
+        return Ok(ExecutionStatus::Skipped);
     }
     let nfo_serializer = NFOSerializer(ModelWrapper::Video(video_model), NFOMode::TVSHOW);
     generate_nfo(nfo_serializer, nfo_path).await?;
-    Ok(ExecutionResult::Success)
+    Ok(ExecutionStatus::Succeeded)
 }
 
 /// 创建 nfo_path 的父目录，然后写入 nfo 文件
