@@ -9,7 +9,7 @@ use sea_orm::sea_query::{OnConflict, SimpleExpr};
 use sea_orm::ActiveValue::Set;
 use sea_orm::{DatabaseConnection, Unchanged};
 
-use crate::adapter::{VideoSourceEnum, VideoSource, _ActiveModel};
+use crate::adapter::{VideoSource, VideoSourceEnum, _ActiveModel};
 use crate::bilibili::{BiliClient, FavoriteList, VideoInfo};
 
 impl VideoSource for favorite::Model {
