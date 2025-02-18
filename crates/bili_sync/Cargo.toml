@@ -7,6 +7,7 @@ license = { workspace = true }
 description = { workspace = true }
 publish = { workspace = true }
 readme = "../../README.md"
+build = "build.rs"
 
 [dependencies]
 anyhow = { workspace = true }
@@ -54,6 +55,9 @@ utoipa-swagger-ui = { workspace = true }
 
 [dev-dependencies]
 assert_matches = { workspace = true }
+
+[build-dependencies]
+built = { workspace = true }
 
 [package.metadata.release]
 release = true
