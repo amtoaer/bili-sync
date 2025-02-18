@@ -9,12 +9,12 @@ RUN apk update && apk add --no-cache \
     tzdata \
     ffmpeg
 
-COPY ./*-bili-sync-rs ./targets/
+COPY ./bili-sync-rs-Linux-*.tar.gz  ./targets/
 
 RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
-    mv ./targets/Linux-x86_64-bili-sync-rs ./bili-sync-rs; \
+    tar xzvf ./targets/bili-sync-rs-Linux-x86_64-musl.tar.gz  -C ./; \
     else \
-    mv ./targets/Linux-aarch64-bili-sync-rs ./bili-sync-rs; \
+    tar xzvf ./targets/bili-sync-rs-Linux-aarch64-musl.tar.gz  -C ./; \
     fi
 
 RUN rm -rf ./targets && chmod +x ./bili-sync-rs
