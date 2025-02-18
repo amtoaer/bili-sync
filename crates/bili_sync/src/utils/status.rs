@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::ExecutionResult;
 
 pub(super) static STATUS_MAX_RETRY: u32 = 0b100;
 pub(super) static STATUS_OK: u32 = 0b111;
@@ -57,7 +57,7 @@ impl<const N: usize> Status<N> {
 
     /// 根据任务结果更新状态，任务结果是一个 Result 数组，需要与子任务一一对应
     /// 如果所有子任务都已经完成，那么打上最高位的完成标记
-    pub fn update_status(&mut self, result: &[Result<()>]) {
+    pub fn update_status(&mut self, result: &[ExecutionResult]) {
         assert!(result.len() == N, "result length should be equal to N");
         for (i, res) in result.iter().enumerate() {
             self.set_result(res, i);
@@ -105,11 +105,12 @@ impl<const N: usize> Status<N> {
     /// 根据子任务执行结果更新子任务的状态
     /// 如果 Result 是 Ok，那么认为任务执行成功，将状态设置为 STATUS_OK
     /// 如果 Result 是 Err，那么认为任务执行失败，将状态加一
-    fn set_result(&mut self, result: &Result<()>, offset: usize) {
+    fn set_result(&mut self, result: &ExecutionResult, offset: usize) {
         if self.get_status(offset) < STATUS_MAX_RETRY {
             match result {
-                Ok(_) => self.set_ok(offset),
-                Err(_) => self.plus_one(offset),
+                ExecutionResult::Success | ExecutionResult::Skipped => self.set_ok(offset),
+                ExecutionResult::Error(_) => self.plus_one(offset),
+                ExecutionResult::ErrorIgnored(_) => {}
             }
         }
     }
@@ -168,10 +169,18 @@ mod test {
         let mut status = Status::<3>::default();
         assert_eq!(status.should_run(), [true, true, true]);
         for _ in 0..3 {
-            status.update_status(&[Err(anyhow!("")), Ok(()), Ok(())]);
+            status.update_status(&[
+                ExecutionResult::Error(anyhow!("")),
+                ExecutionResult::Success,
+                ExecutionResult::Success,
+            ]);
             assert_eq!(status.should_run(), [true, false, false]);
         }
-        status.update_status(&[Err(anyhow!("")), Ok(()), Ok(())]);
+        status.update_status(&[
+            ExecutionResult::Error(anyhow!("")),
+            ExecutionResult::Success,
+            ExecutionResult::Success,
+        ]);
         assert_eq!(status.should_run(), [false, false, false]);
     }
 
@@ -189,7 +198,11 @@ mod test {
         let testcases = [([0, 0, 1], [1, 7, 7]), ([3, 4, 3], [4, 4, 7]), ([3, 1, 7], [4, 7, 7])];
         for (before, after) in testcases.iter() {
             let mut status = Status::<3>::from(before.clone());
-            status.update_status(&[Err(anyhow!("")), Ok(()), Ok(())]);
+            status.update_status(&[
+                ExecutionResult::Error(anyhow!("")),
+                ExecutionResult::Success,
+                ExecutionResult::Success,
+            ]);
             assert_eq!(<[u32; 3]>::from(status), *after);
         }
     }
