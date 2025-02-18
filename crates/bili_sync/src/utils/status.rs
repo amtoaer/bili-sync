@@ -28,20 +28,25 @@ impl<const N: usize> Status<N> {
         result
     }
 
-    /// 重置所有失败的状态，将状态设置为 0b000，返回值表示是否有状态被重置
+    /// 重置所有失败的状态，将状态设置为 0b000，返回值表示 status 是否发生了变化
     pub fn reset_failed(&mut self) -> bool {
-        let mut resetted = false;
+        let mut changed = false;
         for i in 0..N {
             let status = self.get_status(i);
             if !(status < STATUS_MAX_RETRY || status == STATUS_OK) {
                 self.set_status(i, 0);
-                resetted = true;
+                changed = true;
             }
         }
-        if resetted {
+        // 理论上 changed 可以直接从上面的循环中得到，因为 completed 标志位的改变是由子任务状态的改变引起的，子任务没有改变则 completed 也不会改变
+        // 但考虑特殊情况，新版本引入了一个新的子任务项，此时会出现明明有子任务未执行，但 completed 标记位仍然为 true 的情况
+        // 当然可以在新版本迁移文件中全局重置 completed 标记位，但这样影响范围太大感觉不太好
+        // 在后面进行这部分额外判断可以兼容这种情况，在由用户手动触发的 reset_failed 调用中修正 completed 标记位
+        if self.should_run().into_iter().any(|x| x) {
+            changed |= self.get_completed();
             self.set_completed(false);
         }
-        resetted
+        changed
     }
 
     /// 覆盖某个子任务的状态
@@ -209,16 +214,37 @@ mod test {
 
     #[test]
     fn test_status_reset_failed() {
+        // 重置一个已经失败的任务
         let mut status = Status::<3>::from([3, 4, 7]);
+        assert!(!status.get_completed());
         assert!(status.reset_failed());
         assert!(!status.get_completed());
         assert_eq!(<[u32; 3]>::from(status), [3, 0, 7]);
+        // 没有内容需要重置，但 completed 标记位是错误的（模拟新增一个子任务状态的情况），此时 reset_failed 会修正 completed 标记位
+        status.set_completed(true);
+        assert!(status.get_completed());
+        assert!(status.reset_failed());
+        assert!(!status.get_completed());
+        // 重置一个已经成功的任务，没有改变状态，也不会修改标记位
+        let mut status = Status::<3>::from([7, 7, 7]);
+        assert!(status.get_completed());
+        assert!(!status.reset_failed());
+        assert!(status.get_completed());
     }
 
     #[test]
     fn test_status_set() {
-        let mut status = Status::<5>::from([3, 4, 7, 2, 3]);
+        // 设置子状态，从 completed 到 uncompleted
+        let mut status = Status::<5>::from([7, 7, 7, 7, 7]);
+        assert!(status.get_completed());
         status.set(4, 0);
-        assert_eq!(<[u32; 5]>::from(status), [3, 4, 7, 2, 0]);
+        assert!(!status.get_completed());
+        assert_eq!(<[u32; 5]>::from(status), [7, 7, 7, 7, 0]);
+        // 设置子状态，从 uncompleted 到 completed
+        let mut status = Status::<5>::from([4, 7, 7, 7, 0]);
+        assert!(!status.get_completed());
+        status.set(4, 7);
+        assert!(status.get_completed());
+        assert_eq!(<[u32; 5]>::from(status), [4, 7, 7, 7, 7]);
     }
 }
