@@ -5,6 +5,7 @@
 	import VideoItem from '$lib/components/VideoItem.svelte';
 	import { listVideos, getVideoSources } from '$lib/api';
 	import type { VideoInfo, VideoSourcesResponse } from '$lib/types';
+	import Header from '$lib/components/Header.svelte';
 
 	// API Token 管理
 	let apiToken: string = localStorage.getItem('auth_token') || '';
@@ -105,8 +106,13 @@
 
 	// 点击侧边栏项时更新 activeCategory 和全局选中模型 id
 	function selectModel(category: keyof VideoSourcesResponse, id: number) {
+		// 如果当前已选中的模型和点击的一致，则取消筛选
+		if (selectedModel && selectedModel.category === category && selectedModel.id === id) {
+			selectedModel = null;
+		} else {
+			selectedModel = { category, id };
+		}
 		activeCategory = category;
-		selectedModel = { category, id };
 		currentPage = 0;
 		videoCollapseSignal = !videoCollapseSignal;
 		fetchVideos();
@@ -118,64 +124,62 @@
 	<title>bili-sync 管理页</title>
 </svelte:head>
 
-<div class="my-4">
-	<Input placeholder="API Token" bind:value={apiToken} on:change={updateToken} />
-</div>
-
-<div class="flex">
-	<!-- 左侧侧边栏 -->
-	<aside class="w-1/4 border-r p-4">
-		<h2 class="mb-4 text-xl font-bold">视频列表模型</h2>
-		{#each categories as cat}
-			<div class="mb-4">
-				<!-- 点击标题切换折叠状态 -->
-				<button
-					class="w-full text-left font-semibold"
-					on:click={() => (collapse[cat] = !collapse[cat])}
-				>
-					{cat}
-					{collapse[cat] ? '▶' : '▼'}
-				</button>
-				{#if !collapse[cat]}
-					{#if videoListModels[cat]?.length}
-						<ul class="ml-4">
-							{#each videoListModels[cat] as model}
-								<li class="mb-1">
-									<button
-										class="w-full rounded px-2 py-1 text-left hover:bg-gray-100 {selectedModel &&
-										selectedModel.category === cat &&
-										selectedModel.id === model.id
-											? 'bg-gray-200'
-											: ''}"
-										on:click={() => selectModel(cat, model.id)}
-									>
-										{model.name}
-									</button>
-								</li>
-							{/each}
-						</ul>
-					{:else}
-						<p class="ml-4 text-gray-500">无数据</p>
+<Header>
+	<div class="flex">
+		<!-- 左侧侧边栏 -->
+		<aside class="w-1/4 border-r p-4">
+			<h2 class="mb-4 text-xl font-bold">视频来源</h2>
+			{#each categories as cat}
+				<div class="mb-4">
+					<!-- 点击标题切换折叠状态 -->
+					<button
+						class="w-full text-left font-semibold"
+						on:click={() => (collapse[cat] = !collapse[cat])}
+					>
+						{cat}
+						{collapse[cat] ? '▶' : '▼'}
+					</button>
+					{#if !collapse[cat]}
+						{#if videoListModels[cat]?.length}
+							<ul class="ml-4">
+								{#each videoListModels[cat] as model}
+									<li class="mb-1">
+										<button
+											class="w-full rounded px-2 py-1 text-left hover:bg-gray-100 {selectedModel &&
+											selectedModel.category === cat &&
+											selectedModel.id === model.id
+												? 'bg-gray-200'
+												: ''}"
+											on:click={() => selectModel(cat, model.id)}
+										>
+											{model.name}
+										</button>
+									</li>
+								{/each}
+							</ul>
+						{:else}
+							<p class="ml-4 text-gray-500">无数据</p>
+						{/if}
 					{/if}
-				{/if}
-			</div>
-		{/each}
-	</aside>
-
-	<!-- 主内容区域 -->
-	<main class="flex-1 p-4">
-		<div class="mb-4">
-			<Input placeholder="搜索视频..." bind:value={searchQuery} on:change={onSearch} />
-		</div>
-		<div>
-			{#each videos as video}
-				<VideoItem {video} collapseSignal={videoCollapseSignal} />
+				</div>
 			{/each}
-		</div>
-		<div class="mt-4 flex items-center justify-between">
-			<Button onclick={prevPage} disabled={currentPage === 0}>上一页</Button>
-			<span>第 {currentPage + 1} 页，共 {Math.ceil(total / pageSize)} 页</span>
-			<Button onclick={nextPage} disabled={(currentPage + 1) * pageSize >= total}>下一页</Button>
-		</div>
-	</main>
-</div>
+		</aside>
+
+		<!-- 主内容区域 -->
+		<main class="flex-1 p-4">
+			<div class="mb-4">
+				<Input placeholder="搜索视频..." bind:value={searchQuery} on:change={onSearch} />
+			</div>
+			<div>
+				{#each videos as video}
+					<VideoItem {video} collapseSignal={videoCollapseSignal} />
+				{/each}
+			</div>
+			<div class="mt-4 flex items-center justify-between">
+				<Button onclick={prevPage} disabled={currentPage === 0}>上一页</Button>
+				<span>第 {currentPage + 1} 页，共 {Math.ceil(total / pageSize)} 页</span>
+				<Button onclick={nextPage} disabled={(currentPage + 1) * pageSize >= total}>下一页</Button>
+			</div>
+		</main>
+	</div>
+</Header>
