@@ -26,8 +26,13 @@ jobs:
           key: ${{ runner.os }}-bun-${{ hashFiles('docs/bun.lockb') }}
           restore-keys: |
             ${{ runner.os }}-bun-
-      - name: Build documentation
+      - name: Build Frontend
         run: bun run build
+      - name: Upload Web Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: web/build
   build:
     name: Build bili-sync-rs for ${{ matrix.platform.release_for }}
     needs: build-frontend
@@ -63,6 +68,11 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+      - name: Download Web Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: web/build
       - name: Cache dependencies
         uses: Swatinem/rust-cache@v2
       - name: Install musl-tools
@@ -79,7 +89,6 @@ jobs:
       - name: Package as archive
         shell: bash
         run: |
-          cp target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} ${{ matrix.platform.release_for }}-${{ matrix.platform.bin }}
           cd target/${{ matrix.platform.target }}/release
           if [[ "${{ matrix.platform.target }}" == "x86_64-pc-windows-msvc" ]]; then
             7z a ../../../${{ matrix.platform.name }} ${{ matrix.platform.bin }}
@@ -90,7 +99,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bili-sync-rs-${{ matrix.platform.release_for }}
-          # contains raw binary and compressed archive
           path: |
-            ${{ github.workspace }}/${{ matrix.platform.release_for }}-${{ matrix.platform.bin }}
             ${{ github.workspace }}/${{ matrix.platform.name }}
