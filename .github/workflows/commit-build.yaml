@@ -1,0 +1,10 @@
+name: Build Main Binary
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-binary:
+    uses: amtoaer/bili-sync/.github/workflows/build-binary.yaml@main

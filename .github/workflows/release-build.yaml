@@ -1,0 +1,78 @@
+name: Build Main Binary And Release
+
+on:
+  push:
+    tags:
+      - v*
+
+jobs:
+  build-binary:
+    uses: amtoaer/bili-sync/.github/workflows/build-binary.yaml@main
+  github-release:
+    name: Create GitHub Release
+    needs: build-binary
+    runs-on: ubuntu-20.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Download release artifact
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: bili-sync-rs*
+          tag_name: ${{ github.ref_name }}
+          draft: true
+  docker-release:
+    name: Create Docker Image
+    needs: build-binary
+    runs-on: ubuntu-20.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Download release artifact
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - name: Docker Meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/bili-sync-rs
+          tags: |
+            type=raw,value=latest
+            type=raw,value=${{ github.ref_name }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          platforms: |
+            linux/amd64
+            linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha, scope=${{ github.workflow }}
+          cache-to: type=gha, scope=${{ github.workflow }}
+      - name: Update DockerHub description
+        uses: peter-evans/dockerhub-description@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/bili-sync-rs

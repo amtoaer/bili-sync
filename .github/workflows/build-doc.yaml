@@ -1,13 +1,14 @@
-name: Build Docs
+name: Build Main Docs
 
 on:
   push:
+    branches:
+      - main
     paths:
       - 'docs/**'
 
 jobs:
   doc:
-    if: ${{ github.ref == 'refs/heads/main' }}
     name: Build documentation
     runs-on: ubuntu-latest
     defaults:
