@@ -1,13 +1,36 @@
-name: Build Binary And Release
+name: Build Binary
 
 on:
-  push:
-    tags:
-      - v*
+  workflow_call:
 
 jobs:
+  build-frontend:
+    name: Build frontend
+    runs-on: ubuntu-20.04
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Setup bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('docs/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+      - name: Build documentation
+        run: bun run build
   build:
-    name: Release for ${{ matrix.platform.release_for }}
+    name: Build bili-sync-rs for ${{ matrix.platform.release_for }}
+    needs: build-frontend
     runs-on: ${{ matrix.platform.os }}
     strategy:
       matrix:
@@ -37,7 +60,6 @@ jobs:
             target: x86_64-pc-windows-msvc
             bin: bili-sync-rs.exe
             name: bili-sync-rs-Windows-x86_64.zip
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -72,58 +94,3 @@ jobs:
           path: |
             ${{ github.workspace }}/${{ matrix.platform.release_for }}-${{ matrix.platform.bin }}
             ${{ github.workspace }}/${{ matrix.platform.name }}
-  release:
-    name: Create GitHub Release & Docker Image
-    needs: build
-    runs-on: ubuntu-20.04
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      - name: Download release artifact
-        uses: actions/download-artifact@v4
-        with:
-          merge-multiple: true
-      - name: Publish GitHub release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: bili-sync-rs*
-          tag_name: ${{ github.ref_name }}
-          draft: true
-      - name: Docker Meta
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/bili-sync-rs
-          tags: |
-            type=raw,value=latest
-            type=raw,value=${{ github.ref_name }}
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Login to DockerHub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile
-          platforms: |
-            linux/amd64
-            linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha, scope=${{ github.workflow }}
-          cache-to: type=gha, scope=${{ github.workflow }}
-      - name: Update DockerHub description
-        uses: peter-evans/dockerhub-description@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: ${{ secrets.DOCKERHUB_USERNAME }}/bili-sync-rs
