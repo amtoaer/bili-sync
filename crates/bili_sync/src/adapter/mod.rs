@@ -26,15 +26,15 @@ use crate::adapter::watch_later::watch_later_from;
 use crate::bilibili::{BiliClient, CollectionItem, VideoInfo};
 
 #[enum_dispatch]
-pub enum VideoListModelEnum {
+pub enum VideoSourceEnum {
     Favorite,
     Collection,
     Submission,
     WatchLater,
 }
 
-#[enum_dispatch(VideoListModelEnum)]
-pub trait VideoListModel {
+#[enum_dispatch(VideoSourceEnum)]
+pub trait VideoSource {
     /// 获取特定视频列表的筛选条件
     fn filter_expr(&self) -> SimpleExpr;
 
@@ -48,7 +48,7 @@ pub trait VideoListModel {
     fn get_latest_row_at(&self) -> DateTime;
 
     /// 更新视频 model 中记录的最新时间，此处返回需要更新的 ActiveModel，接着调用 save 方法执行保存
-    /// 不同 VideoListModel 返回的类型不同，为了 VideoListModel 的 object safety 不能使用 impl Trait
+    /// 不同 VideoSource 返回的类型不同，为了 VideoSource 的 object safety 不能使用 impl Trait
     /// Box<dyn ActiveModelTrait> 又提示 ActiveModelTrait 没有 object safety，因此手写一个 Enum 静态分发
     fn update_latest_row_at(&self, datetime: DateTime) -> _ActiveModel;
 
@@ -79,13 +79,13 @@ pub enum Args<'a> {
     Submission { upper_id: &'a str },
 }
 
-pub async fn video_list_from<'a>(
+pub async fn video_source_from<'a>(
     args: Args<'a>,
     path: &Path,
     bili_client: &'a BiliClient,
     connection: &DatabaseConnection,
 ) -> Result<(
-    VideoListModelEnum,
+    VideoSourceEnum,
     Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a + Send>>,
 )> {
     match args {

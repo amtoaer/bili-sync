@@ -4,7 +4,7 @@ use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::{OnConflict, SimpleExpr};
 use sea_orm::DatabaseTransaction;
 
-use crate::adapter::{VideoListModel, VideoListModelEnum};
+use crate::adapter::{VideoSource, VideoSourceEnum};
 use crate::bilibili::{PageInfo, VideoInfo};
 use crate::utils::status::STATUS_COMPLETED;
 
@@ -50,14 +50,14 @@ pub async fn filter_unhandled_video_pages(
 /// 尝试创建 Video Model，如果发生冲突则忽略
 pub async fn create_videos(
     videos_info: Vec<VideoInfo>,
-    video_list_model: &VideoListModelEnum,
+    video_source: &VideoSourceEnum,
     connection: &DatabaseConnection,
 ) -> Result<()> {
     let video_models = videos_info
         .into_iter()
         .map(|v| {
             let mut model = v.into_simple_model();
-            video_list_model.set_relation_id(&mut model);
+            video_source.set_relation_id(&mut model);
             model
         })
         .collect::<Vec<_>>();

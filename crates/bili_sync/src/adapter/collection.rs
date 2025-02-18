@@ -9,10 +9,10 @@ use sea_orm::sea_query::{OnConflict, SimpleExpr};
 use sea_orm::ActiveValue::Set;
 use sea_orm::{DatabaseConnection, Unchanged};
 
-use crate::adapter::{VideoListModel, VideoListModelEnum, _ActiveModel};
+use crate::adapter::{VideoSource, VideoSourceEnum, _ActiveModel};
 use crate::bilibili::{BiliClient, Collection, CollectionItem, CollectionType, VideoInfo};
 
-impl VideoListModel for collection::Model {
+impl VideoSource for collection::Model {
     fn filter_expr(&self) -> SimpleExpr {
         video::Column::CollectionId.eq(self.id)
     }
@@ -77,7 +77,7 @@ pub(super) async fn collection_from<'a>(
     bili_client: &'a BiliClient,
     connection: &DatabaseConnection,
 ) -> Result<(
-    VideoListModelEnum,
+    VideoSourceEnum,
     Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a + Send>>,
 )> {
     let collection = Collection::new(bili_client, collection_item);

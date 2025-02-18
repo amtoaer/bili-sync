@@ -9,10 +9,10 @@ use sea_orm::sea_query::{OnConflict, SimpleExpr};
 use sea_orm::ActiveValue::Set;
 use sea_orm::{DatabaseConnection, Unchanged};
 
-use crate::adapter::{VideoListModel, VideoListModelEnum, _ActiveModel};
+use crate::adapter::{VideoSourceEnum, VideoSource, _ActiveModel};
 use crate::bilibili::{BiliClient, FavoriteList, VideoInfo};
 
-impl VideoListModel for favorite::Model {
+impl VideoSource for favorite::Model {
     fn filter_expr(&self) -> SimpleExpr {
         video::Column::FavoriteId.eq(self.id)
     }
@@ -68,7 +68,7 @@ pub(super) async fn favorite_from<'a>(
     bili_client: &'a BiliClient,
     connection: &DatabaseConnection,
 ) -> Result<(
-    VideoListModelEnum,
+    VideoSourceEnum,
     Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a + Send>>,
 )> {
     let favorite = FavoriteList::new(bili_client, fid.to_owned());
