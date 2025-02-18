@@ -5,8 +5,8 @@ use axum::extract::{Extension, Path, Query};
 use bili_sync_entity::*;
 use bili_sync_migration::{Expr, OnConflict};
 use sea_orm::{
-    ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Set,
-    TransactionTrait, Unchanged,
+    ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, PaginatorTrait, QueryFilter, QueryOrder,
+    QuerySelect, Set, TransactionTrait, Unchanged,
 };
 use utoipa::OpenApi;
 
@@ -197,18 +197,16 @@ pub async fn reset_video(
     let Some(video_status) = video_status else {
         return Err(anyhow!(InnerApiError::NotFound(id)).into());
     };
-    let resetted_pages_tuple: Vec<(i32, u32)> = page::Entity::find()
+    let resetted_pages_model: Vec<_> = page::Entity::find()
         .filter(page::Column::VideoId.eq(id))
-        .select_only()
-        .columns([page::Column::Id, page::Column::DownloadStatus])
-        .into_tuple::<(i32, u32)>()
         .all(&txn)
         .await?
         .into_iter()
-        .filter_map(|(id, page_status)| {
-            let mut page_status = PageStatus::from(page_status);
+        .filter_map(|mut model| {
+            let mut page_status = PageStatus::from(model.download_status);
             if page_status.reset_failed() {
-                Some((id, page_status.into()))
+                model.download_status = page_status.into();
+                Some(model)
             } else {
                 None
             }
@@ -216,7 +214,7 @@ pub async fn reset_video(
         .collect();
     let mut video_status = VideoStatus::from(video_status);
     let mut should_update_video = video_status.reset_failed();
-    if !resetted_pages_tuple.is_empty() {
+    if !resetted_pages_model.is_empty() {
         // 视频状态标志的第 5 位表示是否有分 P 下载失败，如果有需要重置的分页，需要同时重置视频的该状态
         video_status.set(4, 0);
         should_update_video = true;
@@ -230,15 +228,12 @@ pub async fn reset_video(
         .exec(&txn)
         .await?;
     }
-    let resetted_pages: Vec<_> = resetted_pages_tuple
-        .iter()
-        .map(|(id, page_status)| page::ActiveModel {
-            id: Unchanged(*id),
-            download_status: Set(*page_status),
-            ..Default::default()
-        })
+    let resetted_pages_id: Vec<_> = resetted_pages_model.iter().map(|model| model.id).collect();
+    let resetted_pages_model: Vec<page::ActiveModel> = resetted_pages_model
+        .into_iter()
+        .map(|model| model.into_active_model())
         .collect();
-    for page_trunk in resetted_pages.chunks(50) {
+    for page_trunk in resetted_pages_model.chunks(50) {
         page::Entity::insert_many(page_trunk.to_vec())
             .on_conflict(
                 OnConflict::column(page::Column::Id)
@@ -252,6 +247,6 @@ pub async fn reset_video(
     Ok(ApiResponse::ok(ResetVideoResponse {
         resetted: should_update_video,
         video: id,
-        pages: resetted_pages_tuple.into_iter().map(|(id, _)| id).collect(),
+        pages: resetted_pages_id,
     }))
 }
