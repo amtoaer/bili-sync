@@ -1,16 +1,17 @@
 use axum::extract::Request;
 use axum::http::HeaderMap;
 use axum::middleware::Next;
-use axum::response::Response;
+use axum::response::{IntoResponse, Response};
 use reqwest::StatusCode;
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use utoipa::Modify;
 
+use crate::api::wrapper::ApiResponse;
 use crate::config::CONFIG;
 
 pub async fn auth(headers: HeaderMap, request: Request, next: Next) -> Result<Response, StatusCode> {
     if request.uri().path().starts_with("/api/") && get_token(&headers) != CONFIG.auth_token {
-        return Err(StatusCode::UNAUTHORIZED);
+        return Ok(ApiResponse::unauthorized(()).into_response());
     }
     Ok(next.run(request).await)
 }
@@ -22,7 +23,7 @@ fn get_token(headers: &HeaderMap) -> Option<String> {
         .map(Into::into)
 }
 
-pub struct OpenAPIAuth;
+pub(super) struct OpenAPIAuth;
 
 impl Modify for OpenAPIAuth {
     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {

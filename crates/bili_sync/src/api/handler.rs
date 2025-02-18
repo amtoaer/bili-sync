@@ -2,20 +2,26 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
 use axum::extract::{Extension, Path, Query};
-use axum::Json;
 use bili_sync_entity::*;
-use bili_sync_migration::Expr;
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect};
+use bili_sync_migration::{Expr, OnConflict};
+use sea_orm::{
+    ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Set,
+    TransactionTrait, Unchanged,
+};
 use utoipa::OpenApi;
 
 use crate::api::auth::OpenAPIAuth;
-use crate::api::error::ApiError;
+use crate::api::error::InnerApiError;
 use crate::api::request::VideosRequest;
-use crate::api::response::{PageInfo, VideoInfo, VideoResponse, VideoSource, VideoSourcesResponse, VideosResponse};
+use crate::api::response::{
+    PageInfo, ResetVideoResponse, VideoInfo, VideoResponse, VideoSource, VideoSourcesResponse, VideosResponse,
+};
+use crate::api::wrapper::{ApiError, ApiResponse};
+use crate::utils::status::{PageStatus, VideoStatus};
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(get_video_sources, get_videos, get_video),
+    paths(get_video_sources, get_videos, get_video, reset_video),
     modifiers(&OpenAPIAuth),
     security(
         ("Token" = []),
@@ -28,13 +34,13 @@ pub struct ApiDoc;
     get,
     path = "/api/video-sources",
     responses(
-        (status = 200, body = VideoSourcesResponse),
+        (status = 200, body = ApiResponse<VideoSourcesResponse>),
     )
 )]
 pub async fn get_video_sources(
     Extension(db): Extension<Arc<DatabaseConnection>>,
-) -> Result<Json<VideoSourcesResponse>, ApiError> {
-    Ok(Json(VideoSourcesResponse {
+) -> Result<ApiResponse<VideoSourcesResponse>, ApiError> {
+    Ok(ApiResponse::ok(VideoSourcesResponse {
         collection: collection::Entity::find()
             .select_only()
             .columns([collection::Column::Id, collection::Column::Name])
@@ -72,13 +78,13 @@ pub async fn get_video_sources(
         VideosRequest,
     ),
     responses(
-        (status = 200, body = VideosResponse),
+        (status = 200, body = ApiResponse<VideosResponse>),
     )
 )]
 pub async fn get_videos(
     Extension(db): Extension<Arc<DatabaseConnection>>,
     Query(params): Query<VideosRequest>,
-) -> Result<Json<VideosResponse>, ApiError> {
+) -> Result<ApiResponse<VideosResponse>, ApiError> {
     let mut query = video::Entity::find();
     for (field, column) in [
         (params.collection, video::Column::CollectionId),
@@ -99,13 +105,23 @@ pub async fn get_videos(
     } else {
         (1, 10)
     };
-    Ok(Json(VideosResponse {
+    Ok(ApiResponse::ok(VideosResponse {
         videos: query
             .order_by_desc(video::Column::Id)
-            .into_partial_model::<VideoInfo>()
+            .select_only()
+            .columns([
+                video::Column::Id,
+                video::Column::Name,
+                video::Column::UpperName,
+                video::Column::DownloadStatus,
+            ])
+            .into_tuple::<(i32, String, String, u32)>()
             .paginate(db.as_ref(), page_size)
             .fetch_page(page)
-            .await?,
+            .await?
+            .into_iter()
+            .map(VideoInfo::from)
+            .collect(),
         total_count,
     }))
 }
@@ -115,28 +131,127 @@ pub async fn get_videos(
     get,
     path = "/api/videos/{id}",
     responses(
-        (status = 200, body = VideoResponse),
+        (status = 200, body = ApiResponse<VideoResponse>),
     )
 )]
 pub async fn get_video(
     Path(id): Path<i32>,
     Extension(db): Extension<Arc<DatabaseConnection>>,
-) -> Result<Json<VideoResponse>, ApiError> {
+) -> Result<ApiResponse<VideoResponse>, ApiError> {
     let video_info = video::Entity::find_by_id(id)
-        .into_partial_model::<VideoInfo>()
+        .select_only()
+        .columns([
+            video::Column::Id,
+            video::Column::Name,
+            video::Column::UpperName,
+            video::Column::DownloadStatus,
+        ])
+        .into_tuple::<(i32, String, String, u32)>()
         .one(db.as_ref())
-        .await?;
+        .await?
+        .map(VideoInfo::from);
     let Some(video_info) = video_info else {
-        return Err(anyhow!("视频不存在").into());
+        return Err(InnerApiError::NotFound(id).into());
     };
     let pages = page::Entity::find()
         .filter(page::Column::VideoId.eq(id))
         .order_by_asc(page::Column::Pid)
-        .into_partial_model::<PageInfo>()
+        .select_only()
+        .columns([
+            page::Column::Id,
+            page::Column::Pid,
+            page::Column::Name,
+            page::Column::DownloadStatus,
+        ])
+        .into_tuple::<(i32, i32, String, u32)>()
         .all(db.as_ref())
-        .await?;
-    Ok(Json(VideoResponse {
+        .await?
+        .into_iter()
+        .map(PageInfo::from)
+        .collect();
+    Ok(ApiResponse::ok(VideoResponse {
         video: video_info,
         pages,
+    }))
+}
+
+/// 将某个视频与其所有分页的失败状态清空为未下载状态，这样在下次下载任务中会触发重试
+#[utoipa::path(
+    post,
+    path = "/api/videos/{id}/reset",
+    responses(
+        (status = 200, body = ApiResponse<ResetVideoResponse> ),
+    )
+)]
+pub async fn reset_video(
+    Path(id): Path<i32>,
+    Extension(db): Extension<Arc<DatabaseConnection>>,
+) -> Result<ApiResponse<ResetVideoResponse>, ApiError> {
+    let txn = db.begin().await?;
+    let video_status: Option<u32> = video::Entity::find_by_id(id)
+        .select_only()
+        .column(video::Column::DownloadStatus)
+        .into_tuple()
+        .one(&txn)
+        .await?;
+    let Some(video_status) = video_status else {
+        return Err(anyhow!(InnerApiError::NotFound(id)).into());
+    };
+    let resetted_pages_tuple: Vec<(i32, u32)> = page::Entity::find()
+        .filter(page::Column::VideoId.eq(id))
+        .select_only()
+        .columns([page::Column::Id, page::Column::DownloadStatus])
+        .into_tuple::<(i32, u32)>()
+        .all(&txn)
+        .await?
+        .into_iter()
+        .filter_map(|(id, page_status)| {
+            let mut page_status = PageStatus::from(page_status);
+            if page_status.reset_failed() {
+                Some((id, page_status.into()))
+            } else {
+                None
+            }
+        })
+        .collect();
+    let mut video_status = VideoStatus::from(video_status);
+    let mut should_update_video = video_status.reset_failed();
+    if !resetted_pages_tuple.is_empty() {
+        // 视频状态标志的第 5 位表示是否有分 P 下载失败，如果有需要重置的分页，需要同时重置视频的该状态
+        video_status.set(4, 0);
+        should_update_video = true;
+    }
+    if should_update_video {
+        video::Entity::update(video::ActiveModel {
+            id: Unchanged(id),
+            download_status: Set(video_status.into()),
+            ..Default::default()
+        })
+        .exec(&txn)
+        .await?;
+    }
+    let resetted_pages: Vec<_> = resetted_pages_tuple
+        .iter()
+        .map(|(id, page_status)| page::ActiveModel {
+            id: Unchanged(*id),
+            download_status: Set(*page_status),
+            ..Default::default()
+        })
+        .collect();
+    for page_trunk in resetted_pages.chunks(50) {
+        page::Entity::insert_many(page_trunk.to_vec())
+            .on_conflict(
+                OnConflict::column(page::Column::Id)
+                    .update_column(page::Column::DownloadStatus)
+                    .to_owned(),
+            )
+            .exec(&txn)
+            .await?;
+    }
+    txn.commit().await?;
+    Ok(ApiResponse::ok(ResetVideoResponse {
+        resetted: should_update_video,
+        video: id,
+        pages: resetted_pages_tuple.into_iter().map(|(id, _)| id).collect(),
     }))
 }
