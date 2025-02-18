@@ -28,6 +28,33 @@ impl<const N: usize> Status<N> {
         result
     }
 
+    /// 重置所有失败的状态，将状态设置为 0b000，返回值表示是否有状态被重置
+    pub fn reset_failed(&mut self) -> bool {
+        let mut resetted = false;
+        for i in 0..N {
+            let status = self.get_status(i);
+            if !(status < STATUS_MAX_RETRY || status == STATUS_OK) {
+                self.set_status(i, 0);
+                resetted = true;
+            }
+        }
+        if resetted {
+            self.set_completed(false);
+        }
+        resetted
+    }
+
+    /// 覆盖某个子任务的状态
+    pub fn set(&mut self, offset: usize, status: u32) {
+        assert!(status < 0b1000, "status should be less than 0b1000");
+        self.set_status(offset, status);
+        if self.should_run().into_iter().all(|x| !x) {
+            self.set_completed(true);
+        } else {
+            self.set_completed(false);
+        }
+    }
+
     /// 根据任务结果更新状态，任务结果是一个 Result 数组，需要与子任务一一对应
     /// 如果所有子任务都已经完成，那么打上最高位的完成标记
     pub fn update_status(&mut self, result: &[Result<()>]) {
@@ -114,6 +141,7 @@ impl<const N: usize> From<[u32; N]> for Status<N> {
     fn from(status: [u32; N]) -> Self {
         let mut result = Status::<N>::default();
         for (i, item) in status.iter().enumerate() {
+            assert!(*item < 0b1000, "status should be less than 0b1000");
             result.set_status(i, *item);
         }
         if result.should_run().iter().all(|x| !x) {
@@ -164,5 +192,20 @@ mod test {
             status.update_status(&[Err(anyhow!("")), Ok(()), Ok(())]);
             assert_eq!(<[u32; 3]>::from(status), *after);
         }
+    }
+
+    #[test]
+    fn test_status_reset_failed() {
+        let mut status = Status::<3>::from([3, 4, 7]);
+        assert!(status.reset_failed());
+        assert!(!status.get_completed());
+        assert_eq!(<[u32; 3]>::from(status), [3, 0, 7]);
+    }
+
+    #[test]
+    fn test_status_set() {
+        let mut status = Status::<5>::from([3, 4, 7, 2, 3]);
+        status.set(4, 0);
+        assert_eq!(<[u32; 5]>::from(status), [3, 4, 7, 2, 0]);
     }
 }

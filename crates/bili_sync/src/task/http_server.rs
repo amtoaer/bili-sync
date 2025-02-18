@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use axum::extract::Request;
 use axum::http::{header, Uri};
 use axum::response::IntoResponse;
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{middleware, Extension, Router, ServiceExt};
 use reqwest::StatusCode;
 use rust_embed::Embed;
@@ -13,7 +13,7 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::{Config, SwaggerUi};
 
 use crate::api::auth;
-use crate::api::handler::{get_video, get_video_sources, get_videos, ApiDoc};
+use crate::api::handler::{get_video, get_video_sources, get_videos, reset_video, ApiDoc};
 use crate::config::CONFIG;
 
 #[derive(Embed)]
@@ -24,7 +24,8 @@ pub async fn http_server(database_connection: Arc<DatabaseConnection>) -> Result
     let app = Router::new()
         .route("/api/video-sources", get(get_video_sources))
         .route("/api/videos", get(get_videos))
-        .route("/api/video/{id}", get(get_video))
+        .route("/api/videos/{id}", get(get_video))
+        .route("/api/videos/{id}/reset", post(reset_video))
         .merge(
             SwaggerUi::new("/swagger-ui/")
                 .url("/api-docs/openapi.json", ApiDoc::openapi())
