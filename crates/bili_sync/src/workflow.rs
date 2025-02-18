@@ -12,7 +12,7 @@ use sea_orm::TransactionTrait;
 use tokio::fs;
 use tokio::sync::Semaphore;
 
-use crate::adapter::{video_list_from, Args, VideoListModel, VideoListModelEnum};
+use crate::adapter::{video_source_from, Args, VideoSource, VideoSourceEnum};
 use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, PageInfo, Video, VideoInfo};
 use crate::config::{PathSafeTemplate, ARGS, CONFIG, TEMPLATE};
 use crate::downloader::Downloader;
@@ -25,36 +25,36 @@ use crate::utils::model::{
 use crate::utils::nfo::{ModelWrapper, NFOMode, NFOSerializer};
 use crate::utils::status::{PageStatus, VideoStatus};
 
-/// 完整地处理某个视频列表
-pub async fn process_video_list(
+/// 完整地处理某个视频来源
+pub async fn process_video_source(
     args: Args<'_>,
     bili_client: &BiliClient,
     path: &Path,
     connection: &DatabaseConnection,
 ) -> Result<()> {
     // 从参数中获取视频列表的 Model 与视频流
-    let (video_list_model, video_streams) = video_list_from(args, path, bili_client, connection).await?;
+    let (video_source, video_streams) = video_source_from(args, path, bili_client, connection).await?;
     // 从视频流中获取新视频的简要信息，写入数据库
-    refresh_video_list(&video_list_model, video_streams, connection).await?;
+    refresh_video_source(&video_source, video_streams, connection).await?;
     // 单独请求视频详情接口，获取视频的详情信息与所有的分页，写入数据库
-    fetch_video_details(bili_client, &video_list_model, connection).await?;
+    fetch_video_details(bili_client, &video_source, connection).await?;
     if ARGS.scan_only {
         warn!("已开启仅扫描模式，跳过视频下载..");
     } else {
         // 从数据库中查找所有未下载的视频与分页，下载并处理
-        download_unprocessed_videos(bili_client, &video_list_model, connection).await?;
+        download_unprocessed_videos(bili_client, &video_source, connection).await?;
     }
     Ok(())
 }
 
 /// 请求接口，获取视频列表中所有新添加的视频信息，将其写入数据库
-pub async fn refresh_video_list<'a>(
-    video_list_model: &VideoListModelEnum,
+pub async fn refresh_video_source<'a>(
+    video_source: &VideoSourceEnum,
     video_streams: Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a + Send>>,
     connection: &DatabaseConnection,
 ) -> Result<()> {
-    video_list_model.log_refresh_video_start();
-    let latest_row_at = video_list_model.get_latest_row_at().and_utc();
+    video_source.log_refresh_video_start();
+    let latest_row_at = video_source.get_latest_row_at().and_utc();
     let mut max_datetime = latest_row_at;
     let mut error = Ok(());
     let mut video_streams = video_streams
@@ -81,28 +81,28 @@ pub async fn refresh_video_list<'a>(
     let mut count = 0;
     while let Some(videos_info) = video_streams.next().await {
         count += videos_info.len();
-        create_videos(videos_info, video_list_model, connection).await?;
+        create_videos(videos_info, video_source, connection).await?;
     }
     // 如果获取视频分页过程中发生了错误，直接在此处返回，不更新 latest_row_at
     error?;
     if max_datetime != latest_row_at {
-        video_list_model
+        video_source
             .update_latest_row_at(max_datetime.naive_utc())
             .save(connection)
             .await?;
     }
-    video_list_model.log_refresh_video_end(count);
+    video_source.log_refresh_video_end(count);
     Ok(())
 }
 
 /// 筛选出所有未获取到全部信息的视频，尝试补充其详细信息
 pub async fn fetch_video_details(
     bili_client: &BiliClient,
-    video_list_model: &VideoListModelEnum,
+    video_source: &VideoSourceEnum,
     connection: &DatabaseConnection,
 ) -> Result<()> {
-    video_list_model.log_fetch_video_start();
-    let videos_model = filter_unfilled_videos(video_list_model.filter_expr(), connection).await?;
+    video_source.log_fetch_video_start();
+    let videos_model = filter_unfilled_videos(video_source.filter_expr(), connection).await?;
     for video_model in videos_model {
         let video = Video::new(bili_client, video_model.bvid.clone());
         let info: Result<_> = async { Ok((video.get_tags().await?, video.get_view_info().await?)) }.await;
@@ -128,7 +128,7 @@ pub async fn fetch_video_details(
                 // 将分页信息写入数据库
                 create_pages(pages, &video_model, &txn).await?;
                 let mut video_active_model = view_info.into_detail_model(video_model);
-                video_list_model.set_relation_id(&mut video_active_model);
+                video_source.set_relation_id(&mut video_active_model);
                 video_active_model.single_page = Set(Some(pages_len == 1));
                 video_active_model.tags = Set(Some(serde_json::to_value(tags)?));
                 video_active_model.save(&txn).await?;
@@ -136,20 +136,20 @@ pub async fn fetch_video_details(
             }
         };
     }
-    video_list_model.log_fetch_video_end();
+    video_source.log_fetch_video_end();
     Ok(())
 }
 
 /// 下载所有未处理成功的视频
 pub async fn download_unprocessed_videos(
     bili_client: &BiliClient,
-    video_list_model: &VideoListModelEnum,
+    video_source: &VideoSourceEnum,
     connection: &DatabaseConnection,
 ) -> Result<()> {
-    video_list_model.log_download_video_start();
+    video_source.log_download_video_start();
     let semaphore = Semaphore::new(CONFIG.concurrent_limit.video);
     let downloader = Downloader::new(bili_client.client.clone());
-    let unhandled_videos_pages = filter_unhandled_video_pages(video_list_model.filter_expr(), connection).await?;
+    let unhandled_videos_pages = filter_unhandled_video_pages(video_source.filter_expr(), connection).await?;
     let mut assigned_upper = HashSet::new();
     let tasks = unhandled_videos_pages
         .into_iter()
@@ -158,7 +158,7 @@ pub async fn download_unprocessed_videos(
             assigned_upper.insert(video_model.upper_id);
             download_video_pages(
                 bili_client,
-                video_list_model,
+                video_source,
                 video_model,
                 pages_model,
                 connection,
@@ -190,14 +190,14 @@ pub async fn download_unprocessed_videos(
     if download_aborted {
         error!("下载触发风控，已终止所有任务，等待下一轮执行");
     }
-    video_list_model.log_download_video_end();
+    video_source.log_download_video_end();
     Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
 pub async fn download_video_pages(
     bili_client: &BiliClient,
-    video_list_model: &VideoListModelEnum,
+    video_source: &VideoSourceEnum,
     video_model: video::Model,
     pages: Vec<page::Model>,
     connection: &DatabaseConnection,
@@ -208,7 +208,7 @@ pub async fn download_video_pages(
     let _permit = semaphore.acquire().await.context("acquire semaphore failed")?;
     let mut status = VideoStatus::from(video_model.download_status);
     let separate_status = status.should_run();
-    let base_path = video_list_model
+    let base_path = video_source
         .path()
         .join(TEMPLATE.path_safe_render("video", &video_format_args(&video_model))?);
     let upper_id = video_model.upper_id.to_string();

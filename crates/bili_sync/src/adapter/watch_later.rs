@@ -9,10 +9,10 @@ use sea_orm::sea_query::{OnConflict, SimpleExpr};
 use sea_orm::ActiveValue::Set;
 use sea_orm::{DatabaseConnection, Unchanged};
 
-use crate::adapter::{VideoListModel, VideoListModelEnum, _ActiveModel};
+use crate::adapter::{VideoSource, VideoSourceEnum, _ActiveModel};
 use crate::bilibili::{BiliClient, VideoInfo, WatchLater};
 
-impl VideoListModel for watch_later::Model {
+impl VideoSource for watch_later::Model {
     fn filter_expr(&self) -> SimpleExpr {
         video::Column::WatchLaterId.eq(self.id)
     }
@@ -67,7 +67,7 @@ pub(super) async fn watch_later_from<'a>(
     bili_client: &'a BiliClient,
     connection: &DatabaseConnection,
 ) -> Result<(
-    VideoListModelEnum,
+    VideoSourceEnum,
     Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a + Send>>,
 )> {
     let watch_later = WatchLater::new(bili_client);

@@ -7,7 +7,7 @@ pub struct Migration;
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        // 为四张 video list 表添加 latest_row_at 字段，表示该列表处理到的最新时间
+        // 为四张 video source 表添加 latest_row_at 字段，表示该列表处理到的最新时间
         manager
             .alter_table(
                 Table::alter()

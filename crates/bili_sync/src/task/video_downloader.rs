@@ -7,7 +7,7 @@ use tokio::time;
 use crate::adapter::Args;
 use crate::bilibili::{self, BiliClient};
 use crate::config::CONFIG;
-use crate::workflow::process_video_list;
+use crate::workflow::process_video_source;
 
 /// 启动周期下载视频的任务
 pub async fn video_downloader(connection: Arc<DatabaseConnection>) {
@@ -35,7 +35,7 @@ pub async fn video_downloader(connection: Arc<DatabaseConnection>) {
                 anchor = chrono::Local::now().date_naive();
             }
             for (args, path) in &params {
-                if let Err(e) = process_video_list(*args, &bili_client, path, &connection).await {
+                if let Err(e) = process_video_source(*args, &bili_client, path, &connection).await {
                     error!("处理过程遇到错误：{e}");
                 }
             }
