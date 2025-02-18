@@ -21,13 +21,11 @@ fn version() -> String {
         built_info::PKG_VERSION.to_owned()
     };
     format!(
-        "
-{}
+        "{}
 Architecture: {}-{}
 Author: {}
 Built Time: {}
-Rustc Version: {}
-     ",
+Rustc Version: {}",
         version,
         built_info::CFG_OS,
         built_info::CFG_TARGET_ARCH,
@@ -35,6 +33,4 @@ Rustc Version: {}
         built_info::BUILT_TIME_UTC,
         built_info::RUSTC_VERSION,
     )
-    .trim()
-    .to_owned()
 }
