@@ -61,6 +61,13 @@ export default defineConfig({
 					{ text: "获取投稿信息", link: "/submission" },
 				],
 			},
+			{
+				text: "其它",
+				items: [
+					{ text: "常见问题", link: "/question" },
+					{ text: "管理页", link: "/frontend" },
+				],
+			}
 		],
 		socialLinks: [
 			{ icon: "github", link: "https://github.com/amtoaer/bili-sync" },
