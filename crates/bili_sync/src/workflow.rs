@@ -23,7 +23,7 @@ use crate::utils::model::{
     update_videos_model,
 };
 use crate::utils::nfo::{ModelWrapper, NFOMode, NFOSerializer};
-use crate::utils::status::{PageStatus, VideoStatus};
+use crate::utils::status::{PageStatus, VideoStatus, STATUS_OK};
 
 /// 完整地处理某个视频来源
 pub async fn process_video_source(
@@ -274,7 +274,9 @@ pub async fn download_video_pages(
                     &video_model.name, task_name, e
                 )
             }
-            ExecutionStatus::Failed(e) => error!("处理视频「{}」{}失败: {:#}", &video_model.name, task_name, e),
+            ExecutionStatus::Failed(e) | ExecutionStatus::FixedFailed(_, e) => {
+                error!("处理视频「{}」{}失败: {:#}", &video_model.name, task_name, e)
+            }
         });
     if let ExecutionStatus::Failed(e) = results.into_iter().nth(4).context("page download result not found")? {
         if e.downcast_ref::<DownloadAbortError>().is_some() {
@@ -314,18 +316,19 @@ pub async fn dispatch_download_page(
             )
         })
         .collect::<FuturesUnordered<_>>();
-    let (mut download_aborted, mut error_occurred) = (false, false);
+    let (mut download_aborted, mut target_status) = (false, STATUS_OK);
     let mut stream = tasks
         .take_while(|res| {
             match res {
                 Ok(model) => {
-                    // 当前函数返回的是所有分页的下载状态，只要有任何一个分页返回新的下载状态标识位是 false，当前函数就应该认为是失败的
-                    if model
-                        .download_status
-                        .try_as_ref()
-                        .is_none_or(|status| !PageStatus::from(*status).get_completed())
-                    {
-                        error_occurred = true;
+                    // 该视频的所有分页的下载状态都会在此返回，需要根据这些状态确认视频层“分 P 下载”子任务的状态
+                    // 在过去的实现中，此处仅仅根据 page_download_status 的最高标志位来判断，如果最高标志位是 true 则认为完成
+                    // 这样会导致即使分页中有失败到 MAX_RETRY 的情况，视频层的分 P 下载状态也会被认为是 Succeeded，不够准确
+                    // 新版本实现会将此处取值为所有子任务状态的最小值，这样只有所有分页的子任务全部成功时才会认为视频层的分 P 下载状态是 Succeeded
+                    let page_download_status = model.download_status.try_as_ref().expect("download_status must be set");
+                    let separate_status: [u32; 5] = PageStatus::from(*page_download_status).into();
+                    for status in separate_status {
+                        target_status = target_status.min(status);
                     }
                 }
                 Err(e) => {
@@ -346,12 +349,8 @@ pub async fn dispatch_download_page(
         error!("下载视频「{}」的分页时触发风控，将异常向上传递..", &video_model.name);
         bail!(DownloadAbortError());
     }
-    if error_occurred {
-        error!(
-            "下载视频「{}」的分页时出现错误，将在下一轮尝试重新处理",
-            &video_model.name
-        );
-        bail!(ProcessPageError());
+    if target_status != STATUS_OK {
+        return Ok(ExecutionStatus::FixedFailed(target_status, ProcessPageError().into()));
     }
     Ok(ExecutionStatus::Succeeded)
 }
@@ -473,7 +472,7 @@ pub async fn download_page(
                     &video_model.name, page_model.pid, task_name, e
                 )
             }
-            ExecutionStatus::Failed(e) => error!(
+            ExecutionStatus::Failed(e) | ExecutionStatus::FixedFailed(_, e) => error!(
                 "处理视频「{}」第 {} 页{}失败: {:#}",
                 &video_model.name, page_model.pid, task_name, e
             ),

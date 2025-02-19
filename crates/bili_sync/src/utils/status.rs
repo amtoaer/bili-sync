@@ -1,7 +1,7 @@
 use crate::error::ExecutionStatus;
 
 pub(super) static STATUS_MAX_RETRY: u32 = 0b100;
-pub(super) static STATUS_OK: u32 = 0b111;
+pub static STATUS_OK: u32 = 0b111;
 pub static STATUS_COMPLETED: u32 = 1 << 31;
 
 /// 用来表示下载的状态，不想写太多列了，所以仅使用一个 u32 表示。
@@ -67,9 +67,10 @@ impl<const N: usize> Status<N> {
         for (i, res) in result.iter().enumerate() {
             self.set_result(res, i);
         }
-        if self.should_run().iter().all(|x| !x) {
-            // 所有任务都成功或者由于尝试次数过多失败，为 status 最高位打上标记，将来不再重试
-            self.set_completed(true)
+        if self.should_run().into_iter().all(|x| !x) {
+            self.set_completed(true);
+        } else {
+            self.set_completed(false);
         }
     }
 
@@ -108,14 +109,18 @@ impl<const N: usize> Status<N> {
     }
 
     /// 根据子任务执行结果更新子任务的状态
-    /// 如果 Result 是 Ok，那么认为任务执行成功，将状态设置为 STATUS_OK
-    /// 如果 Result 是 Err，那么认为任务执行失败，将状态加一
     fn set_result(&mut self, result: &ExecutionStatus, offset: usize) {
-        if self.get_status(offset) < STATUS_MAX_RETRY {
-            match result {
-                ExecutionStatus::Succeeded | ExecutionStatus::Skipped => self.set_ok(offset),
-                ExecutionStatus::Failed(_) => self.plus_one(offset),
-                ExecutionStatus::Ignored(_) => {}
+        // 如果任务返回 FixedFailed 状态，那么无论之前的状态如何，都将状态设置为 FixedFailed 的状态
+        if let ExecutionStatus::FixedFailed(status, _) = result {
+            assert!(*status < 0b1000, "status should be less than 0b1000");
+            self.set_status(offset, *status);
+        } else {
+            if self.get_status(offset) < STATUS_MAX_RETRY {
+                match result {
+                    ExecutionStatus::Succeeded | ExecutionStatus::Skipped => self.set_ok(offset),
+                    ExecutionStatus::Failed(_) => self.plus_one(offset),
+                    _ => {}
+                }
             }
         }
     }
@@ -187,6 +192,15 @@ mod test {
             ExecutionStatus::Succeeded,
         ]);
         assert_eq!(status.should_run(), [false, false, false]);
+        assert!(status.get_completed());
+        status.update_status(&[
+            ExecutionStatus::FixedFailed(1, anyhow!("")),
+            ExecutionStatus::FixedFailed(4, anyhow!("")),
+            ExecutionStatus::FixedFailed(7, anyhow!("")),
+        ]);
+        assert_eq!(status.should_run(), [true, false, false]);
+        assert!(!status.get_completed());
+        assert_eq!(<[u32; 3]>::from(status), [1, 4, 7]);
     }
 
     #[test]
