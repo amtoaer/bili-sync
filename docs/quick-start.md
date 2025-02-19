@@ -33,6 +33,10 @@ services:
     user: 1000:1000
     hostname: bili-sync-rs
     container_name: bili-sync-rs
+    # 程序默认绑定 0.0.0.0:12345 运行 http 服务
+    # 可同时修改 compose 文件与 config.toml 变更服务运行的端口
+    ports:
+      - 12345:12345
     volumes:
       - ${你希望存储程序配置的目录}:/app/.config/bili-sync
       # 还需要有一些其它必要的挂载，包括 up 主信息位置、视频下载位置
@@ -69,6 +73,8 @@ services:
 
 当前版本的默认示例文件如下：
 ```toml
+auth_token = "xxxxxxxx"
+bind_address = "0.0.0.0:12345"
 video_name = "{{title}}"
 page_name = "{{bvid}}"
 interval = 1200
@@ -132,6 +138,16 @@ duration = 250
 ```
 
 虽然配置文件看起来很长，但绝大部分选项是不需要做修改的。一般来说，我们只需要关注其中的少数几个，以下逐条说明。
+
+### `auth_token`
+
+表示调用程序管理 API 需要的身份凭据，程序会检查 API 请求 Header 中是否包含正确的 `Authorization` 字段。
+
+内置管理页前端提供了 `auth_token` 的输入框，填写后即可成功调用 API 使用管理页。
+
+### `bind_address`
+
+程序 Web Server 监听的地址，程序启动时会监听该地址，成功后可通过 `http://${bind_address}` 访问管理页。
 
 ### `interval`
 
