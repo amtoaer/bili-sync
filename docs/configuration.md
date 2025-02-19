@@ -49,6 +49,16 @@
 > [!CAUTION]
 > **路径分隔符**在不同平台定义不同，Windows 下为 `\`，MacOS 和 Linux 下为 `/`。
 
+## `auth_token`
+
+表示调用程序管理 API 需要的身份凭据，程序会检查 API 请求 Header 中是否包含正确的 `Authorization` 字段。
+
+内置管理页前端提供了 `auth_token` 的输入框，填写后即可成功调用 API 使用管理页。
+
+## `bind_address`
+
+程序 Web Server 监听的地址，程序启动时会监听该地址，成功后可通过 `http://${bind_address}` 访问管理页。
+
 ## `interval`
 
 表示程序每次执行扫描下载的间隔时间，单位为秒。
