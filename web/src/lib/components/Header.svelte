@@ -9,7 +9,8 @@
 <header class="flex items-center justify-between bg-gray-100 p-4">
 	<h1 class="text-xl font-bold">bili-sync 管理页</h1>
 	<div>
-		<Input placeholder="API Token" bind:value={apiToken} on:change={updateToken} />
+		<Input type="password" placeholder="API Token" bind:value={apiToken} on:change={updateToken} />
 	</div>
 </header>
+
 <slot />
