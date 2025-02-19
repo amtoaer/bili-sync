@@ -114,13 +114,11 @@ impl<const N: usize> Status<N> {
         if let ExecutionStatus::FixedFailed(status, _) = result {
             assert!(*status < 0b1000, "status should be less than 0b1000");
             self.set_status(offset, *status);
-        } else {
-            if self.get_status(offset) < STATUS_MAX_RETRY {
-                match result {
-                    ExecutionStatus::Succeeded | ExecutionStatus::Skipped => self.set_ok(offset),
-                    ExecutionStatus::Failed(_) => self.plus_one(offset),
-                    _ => {}
-                }
+        } else if self.get_status(offset) < STATUS_MAX_RETRY {
+            match result {
+                ExecutionStatus::Succeeded | ExecutionStatus::Skipped => self.set_ok(offset),
+                ExecutionStatus::Failed(_) => self.plus_one(offset),
+                _ => {}
             }
         }
     }

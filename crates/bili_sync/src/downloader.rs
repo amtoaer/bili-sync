@@ -26,7 +26,12 @@ impl Downloader {
             fs::create_dir_all(parent).await?;
         }
         let mut file = File::create(path).await?;
-        let resp = self.client.request(Method::GET, url, None).send().await?;
+        let resp = self
+            .client
+            .request(Method::GET, url, None)
+            .send()
+            .await?
+            .error_for_status()?;
         let expected = resp.content_length().unwrap_or_default();
         let mut stream_reader = StreamReader::new(resp.bytes_stream().map_err(std::io::Error::other));
         let received = tokio::io::copy(&mut stream_reader, &mut file).await?;

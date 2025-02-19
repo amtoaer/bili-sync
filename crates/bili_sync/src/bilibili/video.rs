@@ -177,6 +177,7 @@ impl<'a> Video<'a> {
             ))
             .send()
             .await?
+            .error_for_status()?
             .json::<serde_json::Value>()
             .await?
             .validate()?;
@@ -198,6 +199,7 @@ impl<'a> Video<'a> {
             .request(Method::GET, format!("https:{}", &info.subtitle_url).as_str(), None)
             .send()
             .await?
+            .error_for_status()?
             .json::<serde_json::Value>()
             .await?;
         let body: SubTitleBody = serde_json::from_value(res["body"].take())?;

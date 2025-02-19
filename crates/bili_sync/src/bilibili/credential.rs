@@ -55,6 +55,7 @@ impl Credential {
             .request(Method::GET, "https://api.bilibili.com/x/web-interface/nav", Some(self))
             .send()
             .await?
+            .error_for_status()?
             .json::<serde_json::Value>()
             .await?
             .validate()?;
