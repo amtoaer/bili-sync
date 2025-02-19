@@ -11,7 +11,7 @@ jobs:
   github-release:
     name: Create GitHub Release
     needs: build-binary
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
@@ -30,7 +30,7 @@ jobs:
   docker-release:
     name: Create Docker Image
     needs: build-binary
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
