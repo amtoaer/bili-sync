@@ -23,20 +23,20 @@ pub async fn video_downloader(connection: Arc<DatabaseConnection>) {
                     break 'inner;
                 }
                 Err(e) => {
-                    error!("获取 mixin key 遇到错误：{e}，等待下一轮执行");
+                    error!("获取 mixin key 遇到错误：{:#}，等待下一轮执行", e);
                     break 'inner;
                 }
             };
             if anchor != chrono::Local::now().date_naive() {
                 if let Err(e) = bili_client.check_refresh().await {
-                    error!("检查刷新 Credential 遇到错误：{e}，等待下一轮执行");
+                    error!("检查刷新 Credential 遇到错误：{:#}，等待下一轮执行", e);
                     break 'inner;
                 }
                 anchor = chrono::Local::now().date_naive();
             }
             for (args, path) in &params {
                 if let Err(e) = process_video_source(*args, &bili_client, path, &connection).await {
-                    error!("处理过程遇到错误：{e}");
+                    error!("处理过程遇到错误：{:#}", e);
                 }
             }
             info!("本轮任务执行完毕，等待下一轮执行");

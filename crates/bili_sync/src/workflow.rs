@@ -109,7 +109,7 @@ pub async fn fetch_video_details(
         match info {
             Err(e) => {
                 error!(
-                    "获取视频 {} - {} 的详细信息失败，错误为：{}",
+                    "获取视频 {} - {} 的详细信息失败，错误为：{:#}",
                     &video_model.bvid, &video_model.name, e
                 );
                 if let Some(BiliError::RequestFailed(-404, _)) = e.downcast_ref::<BiliError>() {
@@ -270,11 +270,11 @@ pub async fn download_video_pages(
             ExecutionStatus::Succeeded => info!("处理视频「{}」{}成功", &video_model.name, task_name),
             ExecutionStatus::Ignored(e) => {
                 error!(
-                    "处理视频「{}」{}出现常见错误，已忽略: {}",
+                    "处理视频「{}」{}出现常见错误，已忽略: {:#}",
                     &video_model.name, task_name, e
                 )
             }
-            ExecutionStatus::Failed(e) => error!("处理视频「{}」{}失败: {}", &video_model.name, task_name, e),
+            ExecutionStatus::Failed(e) => error!("处理视频「{}」{}失败: {:#}", &video_model.name, task_name, e),
         });
     if let ExecutionStatus::Failed(e) = results.into_iter().nth(4).context("page download result not found")? {
         if e.downcast_ref::<DownloadAbortError>().is_some() {
@@ -469,12 +469,12 @@ pub async fn download_page(
             ),
             ExecutionStatus::Ignored(e) => {
                 error!(
-                    "处理视频「{}」第 {} 页{}出现常见错误，已忽略: {}",
+                    "处理视频「{}」第 {} 页{}出现常见错误，已忽略: {:#}",
                     &video_model.name, page_model.pid, task_name, e
                 )
             }
             ExecutionStatus::Failed(e) => error!(
-                "处理视频「{}」第 {} 页{}失败: {}",
+                "处理视频「{}」第 {} 页{}失败: {:#}",
                 &video_model.name, page_model.pid, task_name, e
             ),
         });
