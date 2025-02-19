@@ -24,15 +24,20 @@ impl From<Result<ExecutionStatus>> for ExecutionStatus {
         match res {
             Ok(status) => status,
             Err(err) => {
-                // error decoding response body
-                if let Some(error) = err.downcast_ref::<reqwest::Error>() {
-                    if error.is_decode() {
+                if let Some(error) = err.downcast_ref::<io::Error>() {
+                    let error_kind = error.kind();
+                    if error_kind == io::ErrorKind::PermissionDenied
+                        || (error_kind == io::ErrorKind::Other
+                            && error.get_ref().is_some_and(|e| {
+                                e.downcast_ref::<reqwest::Error>()
+                                    .is_some_and(|e| e.is_decode() || e.is_body() || e.is_timeout())
+                            }))
+                    {
                         return ExecutionStatus::Ignored(err);
                     }
                 }
-                // 文件系统的权限错误
-                if let Some(error) = err.downcast_ref::<io::Error>() {
-                    if error.kind() == io::ErrorKind::PermissionDenied {
+                if let Some(error) = err.downcast_ref::<reqwest::Error>() {
+                    if error.is_decode() || error.is_body() || error.is_timeout() {
                         return ExecutionStatus::Ignored(err);
                     }
                 }
