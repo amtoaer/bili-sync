@@ -1,7 +1,7 @@
 use core::str;
 use std::path::Path;
 
-use anyhow::{bail, ensure, Result};
+use anyhow::{Result, bail, ensure};
 use futures::TryStreamExt;
 use reqwest::Method;
 use tokio::fs::{self, File};

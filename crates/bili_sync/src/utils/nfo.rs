@@ -1,8 +1,8 @@
 use anyhow::Result;
 use bili_sync_entity::*;
+use quick_xml::Error;
 use quick_xml::events::{BytesCData, BytesText};
 use quick_xml::writer::Writer;
-use quick_xml::Error;
 use tokio::io::AsyncWriteExt;
 
 use crate::config::NFOTimeType;

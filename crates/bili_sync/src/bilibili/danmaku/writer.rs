@@ -3,9 +3,9 @@ use std::path::PathBuf;
 use anyhow::Result;
 use tokio::fs::{self, File};
 
+use crate::bilibili::PageInfo;
 use crate::bilibili::danmaku::canvas::CanvasConfig;
 use crate::bilibili::danmaku::{AssWriter, Danmu};
-use crate::bilibili::PageInfo;
 use crate::config::CONFIG;
 
 pub struct DanmakuWriter<'a> {

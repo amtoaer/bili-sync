@@ -3,8 +3,8 @@ use axum::http::HeaderMap;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use reqwest::StatusCode;
-use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use utoipa::Modify;
+use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 
 use crate::api::wrapper::ApiResponse;
 use crate::config::CONFIG;

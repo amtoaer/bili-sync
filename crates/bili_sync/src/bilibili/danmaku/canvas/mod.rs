@@ -5,10 +5,10 @@ use anyhow::Result;
 use float_ord::FloatOrd;
 use lane::Lane;
 
+use crate::bilibili::PageInfo;
 use crate::bilibili::danmaku::canvas::lane::Collision;
 use crate::bilibili::danmaku::danmu::DanmuType;
 use crate::bilibili::danmaku::{Danmu, DrawEffect, Drawable};
-use crate::bilibili::PageInfo;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct DanmakuOption {

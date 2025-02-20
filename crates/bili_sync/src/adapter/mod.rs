@@ -9,9 +9,9 @@ use std::pin::Pin;
 use anyhow::Result;
 use enum_dispatch::enum_dispatch;
 use futures::Stream;
+use sea_orm::DatabaseConnection;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::SimpleExpr;
-use sea_orm::DatabaseConnection;
 
 #[rustfmt::skip]
 use bili_sync_entity::collection::Model as Collection;

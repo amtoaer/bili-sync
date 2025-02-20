@@ -1,5 +1,5 @@
 //! 一个弹幕实例，但是没有位置信息
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 use crate::bilibili::danmaku::canvas::CanvasConfig;
 

@@ -8,7 +8,7 @@ version = "2.4.0"
 authors = ["amtoaer <amtoaer@gmail.com>"]
 license = "MIT"
 description = "由 Rust & Tokio 驱动的哔哩哔哩同步工具"
-edition = "2021"
+edition = "2024"
 publish = false
 
 [workspace.dependencies]

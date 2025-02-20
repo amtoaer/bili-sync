@@ -3,11 +3,11 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use leaky_bucket::RateLimiter;
-use reqwest::{header, Method};
+use reqwest::{Method, header};
 
-use crate::bilibili::credential::WbiImg;
 use crate::bilibili::Credential;
-use crate::config::{RateLimit, CONFIG};
+use crate::bilibili::credential::WbiImg;
+use crate::config::{CONFIG, RateLimit};
 
 // 一个对 reqwest::Client 的简单封装，用于 Bilibili 请求
 #[derive(Clone)]

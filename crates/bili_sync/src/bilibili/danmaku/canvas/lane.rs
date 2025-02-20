@@ -1,5 +1,5 @@
-use crate::bilibili::danmaku::canvas::CanvasConfig;
 use crate::bilibili::danmaku::Danmu;
+use crate::bilibili::danmaku::canvas::CanvasConfig;
 
 pub enum Collision {
     // 会越来越远

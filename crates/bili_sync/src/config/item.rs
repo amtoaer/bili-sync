@@ -114,7 +114,7 @@ where
                             _ => {
                                 return Err(serde::de::Error::custom(
                                     "invalid collection type, should be series or season",
-                                ))
+                                ));
                             }
                         };
                         CollectionItem {
@@ -126,7 +126,7 @@ where
                     _ => {
                         return Err(serde::de::Error::custom(
                             "invalid collection key, should be series:mid:sid or season:mid:sid",
-                        ))
+                        ));
                     }
                 };
                 collection_list.insert(collection_item, value);
