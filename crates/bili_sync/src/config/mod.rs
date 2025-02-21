@@ -12,6 +12,7 @@ mod clap;
 mod global;
 mod item;
 
+use crate::adapter::Args;
 use crate::bilibili::{CollectionItem, Credential, DanmakuOption, FilterOption};
 pub use crate::config::global::{ARGS, CONFIG, CONFIG_DIR, TEMPLATE};
 use crate::config::item::{ConcurrentLimit, deserialize_collection_list, serialize_collection_list};
@@ -107,23 +108,35 @@ impl Config {
         Ok(toml::from_str(&config_content)?)
     }
 
+    pub fn as_video_sources(&self) -> Vec<(Args<'_>, &PathBuf)> {
+        let mut params = Vec::new();
+        self.favorite_list
+            .iter()
+            .for_each(|(fid, path)| params.push((Args::Favorite { fid }, path)));
+        self.collection_list
+            .iter()
+            .for_each(|(collection_item, path)| params.push((Args::Collection { collection_item }, path)));
+        if self.watch_later.enabled {
+            params.push((Args::WatchLater, &self.watch_later.path));
+        }
+        self.submission_list
+            .iter()
+            .for_each(|(upper_id, path)| params.push((Args::Submission { upper_id }, path)));
+        params
+    }
+
     #[cfg(not(test))]
     pub fn check(&self) {
         let mut ok = true;
-        if self.favorite_list.is_empty() && self.collection_list.is_empty() && !self.watch_later.enabled {
+        let video_sources = self.as_video_sources();
+        if video_sources.is_empty() {
             ok = false;
             error!("没有配置任何需要扫描的内容，程序空转没有意义");
         }
-        if self.watch_later.enabled && !self.watch_later.path.is_absolute() {
-            error!(
-                "稍后再看保存的路径应为绝对路径，检测到：{}",
-                self.watch_later.path.display()
-            );
-        }
-        for path in self.favorite_list.values() {
+        for (args, path) in video_sources {
             if !path.is_absolute() {
                 ok = false;
-                error!("收藏夹保存的路径应为绝对路径，检测到: {}", path.display());
+                error!("{:?} 保存的路径应为绝对路径，检测到: {}", args, path.display());
             }
         }
         if !self.upper_path.is_absolute() {
