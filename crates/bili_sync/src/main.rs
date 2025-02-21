@@ -59,10 +59,11 @@ fn spawn_task(
     });
 }
 
-/// 初始化日志系统，加载命令行参数和配置文件
+/// 初始化日志系统，打印欢迎信息，加载配置文件
 fn init() {
-    Lazy::force(&ARGS);
     init_logger(&ARGS.log_level);
+    info!("欢迎使用 Bili-Sync，当前程序版本：{}", config::version());
+    info!("项目地址：https://github.com/amtoaer/bili-sync");
     Lazy::force(&CONFIG);
 }
 

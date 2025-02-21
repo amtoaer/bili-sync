@@ -40,6 +40,7 @@ pub static CONFIG_DIR: Lazy<PathBuf> =
 
 #[cfg(not(test))]
 fn load_config() -> Config {
+    info!("开始加载配置文件..");
     let config = Config::load().unwrap_or_else(|err| {
         if err
             .downcast_ref::<std::io::Error>()
@@ -47,7 +48,7 @@ fn load_config() -> Config {
         {
             panic!("加载配置文件失败，错误为： {err}");
         }
-        warn!("配置文件不存在，使用默认配置...");
+        warn!("配置文件不存在，使用默认配置..");
         Config::default()
     });
     info!("配置文件加载完毕，覆盖刷新原有配置");

@@ -68,6 +68,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-tags: true
       - name: Download Web Build Artifact
         uses: actions/download-artifact@v4
         with:

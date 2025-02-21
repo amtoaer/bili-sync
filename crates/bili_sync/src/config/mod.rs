@@ -14,6 +14,7 @@ mod item;
 
 use crate::adapter::Args;
 use crate::bilibili::{CollectionItem, Credential, DanmakuOption, FilterOption};
+pub use crate::config::clap::version;
 pub use crate::config::global::{ARGS, CONFIG, CONFIG_DIR, TEMPLATE};
 use crate::config::item::{ConcurrentLimit, deserialize_collection_list, serialize_collection_list};
 pub use crate::config::item::{NFOTimeType, PathSafeTemplate, RateLimit, WatchLaterConfig};

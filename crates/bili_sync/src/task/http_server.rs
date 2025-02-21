@@ -42,7 +42,7 @@ pub async fn http_server(database_connection: Arc<DatabaseConnection>) -> Result
     let listener = tokio::net::TcpListener::bind(&CONFIG.bind_address)
         .await
         .context("bind address failed")?;
-    info!("开始监听 http 服务: http://{}", CONFIG.bind_address);
+    info!("开始运行管理页: http://{}", CONFIG.bind_address);
     Ok(axum::serve(listener, ServiceExt::<Request>::into_make_service(app)).await?)
 }
 
