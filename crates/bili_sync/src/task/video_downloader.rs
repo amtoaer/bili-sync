@@ -1,10 +1,8 @@
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use sea_orm::DatabaseConnection;
 use tokio::time;
 
-use crate::adapter::Args;
 use crate::bilibili::{self, BiliClient};
 use crate::config::CONFIG;
 use crate::workflow::process_video_source;
@@ -13,7 +11,7 @@ use crate::workflow::process_video_source;
 pub async fn video_downloader(connection: Arc<DatabaseConnection>) {
     let mut anchor = chrono::Local::now().date_naive();
     let bili_client = BiliClient::new();
-    let params = collect_task_params();
+    let video_sources = CONFIG.as_video_sources();
     loop {
         'inner: {
             match bili_client.wbi_img().await.map(|wbi_img| wbi_img.into()) {
@@ -34,7 +32,7 @@ pub async fn video_downloader(connection: Arc<DatabaseConnection>) {
                 }
                 anchor = chrono::Local::now().date_naive();
             }
-            for (args, path) in &params {
+            for (args, path) in &video_sources {
                 if let Err(e) = process_video_source(*args, &bili_client, path, &connection).await {
                     error!("处理过程遇到错误：{:#}", e);
                 }
@@ -43,25 +41,4 @@ pub async fn video_downloader(connection: Arc<DatabaseConnection>) {
         }
         time::sleep(time::Duration::from_secs(CONFIG.interval)).await;
     }
-}
-
-/// 构造下载视频任务执行所需的参数（下载类型和保存路径）
-fn collect_task_params() -> Vec<(Args<'static>, &'static PathBuf)> {
-    let mut params = Vec::new();
-    CONFIG
-        .favorite_list
-        .iter()
-        .for_each(|(fid, path)| params.push((Args::Favorite { fid }, path)));
-    CONFIG
-        .collection_list
-        .iter()
-        .for_each(|(collection_item, path)| params.push((Args::Collection { collection_item }, path)));
-    if CONFIG.watch_later.enabled {
-        params.push((Args::WatchLater, &CONFIG.watch_later.path));
-    }
-    CONFIG
-        .submission_list
-        .iter()
-        .for_each(|(upper_id, path)| params.push((Args::Submission { upper_id }, path)));
-    params
 }

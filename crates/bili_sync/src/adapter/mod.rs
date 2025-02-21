@@ -71,7 +71,7 @@ pub trait VideoSource {
     fn log_download_video_end(&self);
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Args<'a> {
     Favorite { fid: &'a str },
     Collection { collection_item: &'a CollectionItem },
