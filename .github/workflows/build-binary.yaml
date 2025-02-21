@@ -69,7 +69,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
-          fetch-tags: true
+          fetch-depth: 0
       - name: Download Web Build Artifact
         uses: actions/download-artifact@v4
         with:
