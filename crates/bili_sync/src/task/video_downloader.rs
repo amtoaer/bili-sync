@@ -13,6 +13,7 @@ pub async fn video_downloader(connection: Arc<DatabaseConnection>) {
     let bili_client = BiliClient::new();
     let video_sources = CONFIG.as_video_sources();
     loop {
+        info!("开始执行本轮视频下载任务..");
         'inner: {
             match bili_client.wbi_img().await.map(|wbi_img| wbi_img.into()) {
                 Ok(Some(mixin_key)) => bilibili::set_global_mixin_key(mixin_key),
