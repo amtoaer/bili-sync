@@ -1,6 +1,6 @@
-use anyhow::{ensure, Result};
-use futures::stream::FuturesUnordered;
+use anyhow::{Result, ensure};
 use futures::TryStreamExt;
+use futures::stream::FuturesUnordered;
 use prost::Message;
 use reqwest::Method;
 
@@ -9,7 +9,7 @@ use crate::bilibili::client::BiliClient;
 use crate::bilibili::credential::encoded_query;
 use crate::bilibili::danmaku::{DanmakuElem, DanmakuWriter, DmSegMobileReply};
 use crate::bilibili::subtitle::{SubTitle, SubTitleBody, SubTitleInfo, SubTitlesInfo};
-use crate::bilibili::{Validate, VideoInfo, MIXIN_KEY};
+use crate::bilibili::{MIXIN_KEY, Validate, VideoInfo};
 
 static MASK_CODE: u64 = 2251799813685247;
 static XOR_CODE: u64 = 23442827791579;

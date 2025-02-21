@@ -2,19 +2,19 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use bili_sync_entity::*;
 use futures::stream::{FuturesOrdered, FuturesUnordered};
 use futures::{Future, Stream, StreamExt, TryStreamExt};
-use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
 use sea_orm::TransactionTrait;
+use sea_orm::entity::prelude::*;
 use tokio::fs;
 use tokio::sync::Semaphore;
 
-use crate::adapter::{video_source_from, Args, VideoSource, VideoSourceEnum};
+use crate::adapter::{Args, VideoSource, VideoSourceEnum, video_source_from};
 use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, PageInfo, Video, VideoInfo};
-use crate::config::{PathSafeTemplate, ARGS, CONFIG, TEMPLATE};
+use crate::config::{ARGS, CONFIG, PathSafeTemplate, TEMPLATE};
 use crate::downloader::Downloader;
 use crate::error::{DownloadAbortError, ExecutionStatus, ProcessPageError};
 use crate::utils::format_arg::{page_format_args, video_format_args};
@@ -23,7 +23,7 @@ use crate::utils::model::{
     update_videos_model,
 };
 use crate::utils::nfo::{ModelWrapper, NFOMode, NFOSerializer};
-use crate::utils::status::{PageStatus, VideoStatus, STATUS_OK};
+use crate::utils::status::{PageStatus, STATUS_OK, VideoStatus};
 
 /// 完整地处理某个视频来源
 pub async fn process_video_source(

@@ -4,12 +4,12 @@ use std::pin::Pin;
 use anyhow::{Context, Result};
 use bili_sync_entity::*;
 use futures::Stream;
+use sea_orm::ActiveValue::Set;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::{OnConflict, SimpleExpr};
-use sea_orm::ActiveValue::Set;
 use sea_orm::{DatabaseConnection, Unchanged};
 
-use crate::adapter::{VideoSource, VideoSourceEnum, _ActiveModel};
+use crate::adapter::{_ActiveModel, VideoSource, VideoSourceEnum};
 use crate::bilibili::{BiliClient, Submission, VideoInfo};
 
 impl VideoSource for submission::Model {

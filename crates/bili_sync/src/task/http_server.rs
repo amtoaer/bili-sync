@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use axum::extract::Request;
-use axum::http::{header, Uri};
+use axum::http::{Uri, header};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
-use axum::{middleware, Extension, Router, ServiceExt};
+use axum::{Extension, Router, ServiceExt, middleware};
 use reqwest::StatusCode;
 use rust_embed::Embed;
 use sea_orm::DatabaseConnection;
@@ -13,7 +13,7 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::{Config, SwaggerUi};
 
 use crate::api::auth;
-use crate::api::handler::{get_video, get_video_sources, get_videos, reset_video, ApiDoc};
+use crate::api::handler::{ApiDoc, get_video, get_video_sources, get_videos, reset_video};
 use crate::config::CONFIG;
 
 #[derive(Embed)]

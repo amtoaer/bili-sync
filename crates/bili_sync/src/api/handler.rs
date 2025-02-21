@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use axum::extract::{Extension, Path, Query};
 use bili_sync_entity::*;
 use bili_sync_migration::{Expr, OnConflict};

@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 use bili_sync_entity::*;
+use sea_orm::DatabaseTransaction;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::{OnConflict, SimpleExpr};
-use sea_orm::DatabaseTransaction;
 
 use crate::adapter::{VideoSource, VideoSourceEnum};
 use crate::bilibili::{PageInfo, VideoInfo};

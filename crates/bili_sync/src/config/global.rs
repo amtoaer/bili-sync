@@ -4,9 +4,9 @@ use clap::Parser;
 use handlebars::handlebars_helper;
 use once_cell::sync::Lazy;
 
+use crate::config::Config;
 use crate::config::clap::Args;
 use crate::config::item::PathSafeTemplate;
-use crate::config::Config;
 
 /// 全局的 CONFIG，可以从中读取配置信息
 pub static CONFIG: Lazy<Config> = Lazy::new(load_config);
