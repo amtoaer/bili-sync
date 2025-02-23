@@ -2,6 +2,7 @@ use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 
 use crate::bilibili::error::BiliError;
+use crate::config::CONFIG;
 
 pub struct PageAnalyzer {
     info: serde_json::Value,
@@ -101,24 +102,43 @@ pub enum Stream {
     EpisodeTryMp4(String),
     DashVideo {
         url: String,
+        backup_url: Vec<String>,
         quality: VideoQuality,
         codecs: VideoCodecs,
     },
     DashAudio {
         url: String,
+        backup_url: Vec<String>,
         quality: AudioQuality,
     },
 }
 
 // 通用的获取流链接的方法，交由 Downloader 使用
 impl Stream {
-    pub fn url(&self) -> &str {
+    pub fn urls(&self) -> Vec<&str> {
         match self {
-            Self::Flv(url) => url,
-            Self::Html5Mp4(url) => url,
-            Self::EpisodeTryMp4(url) => url,
-            Self::DashVideo { url, .. } => url,
-            Self::DashAudio { url, .. } => url,
+            Self::Flv(url) | Self::Html5Mp4(url) | Self::EpisodeTryMp4(url) => vec![url],
+            Self::DashVideo { url, backup_url, .. } | Self::DashAudio { url, backup_url, .. } => {
+                let mut urls = std::iter::once(url.as_str())
+                    .chain(backup_url.iter().map(|s| s.as_str()))
+                    .collect();
+                if !CONFIG.cdn_sorting {
+                    urls
+                } else {
+                    urls.sort_by_key(|u| {
+                        if u.contains("upos-") {
+                            0 // 服务商 cdn
+                        } else if u.contains("cn-") {
+                            1 // 自建 cdn
+                        } else if u.contains("mcdn") {
+                            2 // mcdn
+                        } else {
+                            3 // pcdn 或者其它
+                        }
+                    });
+                    urls
+                }
+            }
         }
     }
 }
@@ -180,10 +200,12 @@ impl PageAnalyzer {
             )]);
         }
         let mut streams: Vec<Stream> = Vec::new();
-        for video in self.info["dash"]["video"]
-            .as_array()
+        for video in self
+            .info
+            .pointer_mut("/dash/video")
+            .and_then(|v| v.as_array_mut())
             .ok_or(BiliError::RiskControlOccurred)?
-            .iter()
+            .iter_mut()
         {
             let (Some(url), Some(quality), Some(codecs)) = (
                 video["baseUrl"].as_str(),
@@ -211,12 +233,13 @@ impl PageAnalyzer {
             }
             streams.push(Stream::DashVideo {
                 url: url.to_string(),
+                backup_url: serde_json::from_value(video["backupUrl"].take()).unwrap_or_default(),
                 quality,
                 codecs,
             });
         }
-        if let Some(audios) = self.info["dash"]["audio"].as_array() {
-            for audio in audios.iter() {
+        if let Some(audios) = self.info.pointer_mut("/dash/audio").and_then(|a| a.as_array_mut()) {
+            for audio in audios.iter_mut() {
                 let (Some(url), Some(quality)) = (audio["baseUrl"].as_str(), audio["id"].as_u64()) else {
                     continue;
                 };
@@ -226,34 +249,44 @@ impl PageAnalyzer {
                 }
                 streams.push(Stream::DashAudio {
                     url: url.to_string(),
+                    backup_url: serde_json::from_value(audio["backupUrl"].take()).unwrap_or_default(),
                     quality,
                 });
             }
         }
-        let flac = &self.info["dash"]["flac"]["audio"];
-        if !(filter_option.no_hires || flac.is_null()) {
-            let (Some(url), Some(quality)) = (flac["baseUrl"].as_str(), flac["id"].as_u64()) else {
-                bail!("invalid flac stream");
-            };
-            let quality = AudioQuality::from_repr(quality as usize).context("invalid flac stream quality")?;
-            if quality >= filter_option.audio_min_quality && quality <= filter_option.audio_max_quality {
-                streams.push(Stream::DashAudio {
-                    url: url.to_string(),
-                    quality,
-                });
+        if !filter_option.no_hires {
+            if let Some(flac) = self.info.pointer_mut("/dash/flac/audio") {
+                let (Some(url), Some(quality)) = (flac["baseUrl"].as_str(), flac["id"].as_u64()) else {
+                    bail!("invalid flac stream");
+                };
+                let quality = AudioQuality::from_repr(quality as usize).context("invalid flac stream quality")?;
+                if quality >= filter_option.audio_min_quality && quality <= filter_option.audio_max_quality {
+                    streams.push(Stream::DashAudio {
+                        url: url.to_string(),
+                        backup_url: serde_json::from_value(flac["backupUrl"].take()).unwrap_or_default(),
+                        quality,
+                    });
+                }
             }
         }
-        let dolby_audio = &self.info["dash"]["dolby"]["audio"][0];
-        if !(filter_option.no_dolby_audio || dolby_audio.is_null()) {
-            let (Some(url), Some(quality)) = (dolby_audio["baseUrl"].as_str(), dolby_audio["id"].as_u64()) else {
-                bail!("invalid dolby audio stream");
-            };
-            let quality = AudioQuality::from_repr(quality as usize).context("invalid dolby audio stream quality")?;
-            if quality >= filter_option.audio_min_quality && quality <= filter_option.audio_max_quality {
-                streams.push(Stream::DashAudio {
-                    url: url.to_string(),
-                    quality,
-                });
+        if !filter_option.no_dolby_audio {
+            if let Some(dolby_audio) = self
+                .info
+                .pointer_mut("/dash/dolby/audio/0")
+                .and_then(|a| a.as_object_mut())
+            {
+                let (Some(url), Some(quality)) = (dolby_audio["baseUrl"].as_str(), dolby_audio["id"].as_u64()) else {
+                    bail!("invalid dolby audio stream");
+                };
+                let quality =
+                    AudioQuality::from_repr(quality as usize).context("invalid dolby audio stream quality")?;
+                if quality >= filter_option.audio_min_quality && quality <= filter_option.audio_max_quality {
+                    streams.push(Stream::DashAudio {
+                        url: url.to_string(),
+                        backup_url: serde_json::from_value(dolby_audio["backupUrl"].take()).unwrap_or_default(),
+                        quality,
+                    });
+                }
             }
         }
         Ok(streams)
@@ -270,32 +303,34 @@ impl PageAnalyzer {
         let (videos, audios): (Vec<Stream>, Vec<Stream>) =
             streams.into_iter().partition(|s| matches!(s, Stream::DashVideo { .. }));
         Ok(BestStream::VideoAudio {
-            video: Iterator::max_by(videos.into_iter(), |a, b| match (a, b) {
-                (
-                    Stream::DashVideo {
-                        quality: a_quality,
-                        codecs: a_codecs,
-                        ..
-                    },
-                    Stream::DashVideo {
-                        quality: b_quality,
-                        codecs: b_codecs,
-                        ..
-                    },
-                ) => {
-                    if a_quality != b_quality {
-                        return a_quality.cmp(b_quality);
-                    };
-                    filter_option
-                        .codecs
-                        .iter()
-                        .position(|c| c == b_codecs)
-                        .cmp(&filter_option.codecs.iter().position(|c| c == a_codecs))
-                }
-                _ => unreachable!(),
-            })
-            .context("no video stream found")?,
-            audio: Iterator::max_by(audios.into_iter(), |a, b| match (a, b) {
+            video: videos
+                .into_iter()
+                .max_by(|a, b| match (a, b) {
+                    (
+                        Stream::DashVideo {
+                            quality: a_quality,
+                            codecs: a_codecs,
+                            ..
+                        },
+                        Stream::DashVideo {
+                            quality: b_quality,
+                            codecs: b_codecs,
+                            ..
+                        },
+                    ) => {
+                        if a_quality != b_quality {
+                            return a_quality.cmp(b_quality);
+                        };
+                        filter_option
+                            .codecs
+                            .iter()
+                            .position(|c| c == b_codecs)
+                            .cmp(&filter_option.codecs.iter().position(|c| c == a_codecs))
+                    }
+                    _ => unreachable!(),
+                })
+                .context("no video stream found")?,
+            audio: audios.into_iter().max_by(|a, b| match (a, b) {
                 (Stream::DashAudio { quality: a_quality, .. }, Stream::DashAudio { quality: b_quality, .. }) => {
                     a_quality.cmp(b_quality)
                 }

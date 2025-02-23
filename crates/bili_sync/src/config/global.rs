@@ -81,6 +81,7 @@ fn load_config() -> Config {
     };
     Config {
         credential: arc_swap::ArcSwapOption::from(credential),
+        cdn_sorting: true,
         ..Default::default()
     }
 }

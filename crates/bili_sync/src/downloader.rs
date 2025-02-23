@@ -1,7 +1,7 @@
 use core::str;
 use std::path::Path;
 
-use anyhow::{Result, bail, ensure};
+use anyhow::{Context, Result, bail, ensure};
 use futures::TryStreamExt;
 use reqwest::Method;
 use tokio::fs::{self, File};
@@ -43,6 +43,22 @@ impl Downloader {
             expected
         );
         Ok(())
+    }
+
+    pub async fn fetch_with_fallback(&self, urls: &[&str], path: &Path) -> Result<()> {
+        if urls.is_empty() {
+            bail!("no urls provided");
+        }
+        let mut res = Ok(());
+        for url in urls {
+            match self.fetch(url, path).await {
+                Ok(_) => return Ok(()),
+                Err(err) => {
+                    res = Err(err);
+                }
+            }
+        }
+        res.with_context(|| format!("failed to download from {:?}", urls))
     }
 
     pub async fn merge(&self, video_path: &Path, audio_path: &Path, output_path: &Path) -> Result<()> {

@@ -535,11 +535,11 @@ pub async fn fetch_page_video(
         .await?
         .best_stream(&CONFIG.filter_option)?;
     match streams {
-        BestStream::Mixed(mix_stream) => downloader.fetch(mix_stream.url(), page_path).await?,
+        BestStream::Mixed(mix_stream) => downloader.fetch_with_fallback(&mix_stream.urls(), page_path).await?,
         BestStream::VideoAudio {
             video: video_stream,
             audio: None,
-        } => downloader.fetch(video_stream.url(), page_path).await?,
+        } => downloader.fetch_with_fallback(&video_stream.urls(), page_path).await?,
         BestStream::VideoAudio {
             video: video_stream,
             audio: Some(audio_stream),
@@ -549,8 +549,12 @@ pub async fn fetch_page_video(
                 page_path.with_extension("tmp_audio"),
             );
             let res = async {
-                downloader.fetch(video_stream.url(), &tmp_video_path).await?;
-                downloader.fetch(audio_stream.url(), &tmp_audio_path).await?;
+                downloader
+                    .fetch_with_fallback(&video_stream.urls(), &tmp_video_path)
+                    .await?;
+                downloader
+                    .fetch_with_fallback(&audio_stream.urls(), &tmp_audio_path)
+                    .await?;
                 downloader.merge(&tmp_video_path, &tmp_audio_path, page_path).await
             }
             .await;
