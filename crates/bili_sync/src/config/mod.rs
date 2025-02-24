@@ -69,6 +69,8 @@ pub struct Config {
     pub concurrent_limit: ConcurrentLimit,
     #[serde(default = "default_time_format")]
     pub time_format: String,
+    #[serde(default)]
+    pub cdn_sorting: bool,
 }
 
 impl Default for Config {
@@ -90,6 +92,7 @@ impl Default for Config {
             nfo_time_type: NFOTimeType::FavTime,
             concurrent_limit: ConcurrentLimit::default(),
             time_format: default_time_format(),
+            cdn_sorting: false,
         }
     }
 }
