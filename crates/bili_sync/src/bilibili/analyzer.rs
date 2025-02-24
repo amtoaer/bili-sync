@@ -424,4 +424,27 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_url_sort() {
+        let stream = Stream::DashVideo {
+            url: "https://xy116x207x155x163xy240ey95dy1010y700yy8dxy.mcdn.bilivideo.cn:4483".to_owned(),
+            backup_url: vec![
+                "https://upos-sz-mirrorcos.bilivideo.com".to_owned(),
+                "https://cn-tj-cu-01-11.bilivideo.com".to_owned(),
+                "https://xxx.v1d.szbdys.com".to_owned(),
+            ],
+            quality: VideoQuality::Quality1080p,
+            codecs: VideoCodecs::AVC,
+        };
+        assert_eq!(
+            stream.urls(),
+            vec![
+                "https://upos-sz-mirrorcos.bilivideo.com",
+                "https://cn-tj-cu-01-11.bilivideo.com",
+                "https://xy116x207x155x163xy240ey95dy1010y700yy8dxy.mcdn.bilivideo.cn:4483",
+                "https://xxx.v1d.szbdys.com"
+            ]
+        );
+    }
 }
