@@ -3,6 +3,7 @@ use std::pin::Pin;
 
 use anyhow::{Context, Result};
 use bili_sync_entity::*;
+use chrono::Utc;
 use futures::Stream;
 use sea_orm::ActiveValue::Set;
 use sea_orm::entity::prelude::*;
@@ -35,6 +36,12 @@ impl VideoSource for collection::Model {
             latest_row_at: Set(datetime),
             ..Default::default()
         })
+    }
+
+    fn should_take(&self, _release_datetime: &chrono::DateTime<Utc>, _latest_row_at: &chrono::DateTime<Utc>) -> bool {
+        // collection（视频合集/视频列表）返回的内容似乎并非严格按照时间排序，并且不同 collection 的排序方式也不同
+        // 为了保证程序正确性，collection 不根据时间提前 break，而是每次都全量拉取
+        true
     }
 
     fn log_refresh_video_start(&self) {

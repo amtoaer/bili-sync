@@ -7,6 +7,7 @@ use std::path::Path;
 use std::pin::Pin;
 
 use anyhow::Result;
+use chrono::Utc;
 use enum_dispatch::enum_dispatch;
 use futures::Stream;
 use sea_orm::DatabaseConnection;
@@ -51,6 +52,11 @@ pub trait VideoSource {
     /// 不同 VideoSource 返回的类型不同，为了 VideoSource 的 object safety 不能使用 impl Trait
     /// Box<dyn ActiveModelTrait> 又提示 ActiveModelTrait 没有 object safety，因此手写一个 Enum 静态分发
     fn update_latest_row_at(&self, datetime: DateTime) -> _ActiveModel;
+
+    // 判断是否应该继续拉取视频
+    fn should_take(&self, release_datetime: &chrono::DateTime<Utc>, latest_row_at: &chrono::DateTime<Utc>) -> bool {
+        release_datetime > latest_row_at
+    }
 
     /// 开始刷新视频
     fn log_refresh_video_start(&self);
