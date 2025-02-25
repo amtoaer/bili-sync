@@ -72,7 +72,7 @@ pub async fn refresh_video_source<'a>(
                     if release_datetime > &max_datetime {
                         max_datetime = *release_datetime;
                     }
-                    futures::future::ready(release_datetime > &latest_row_at)
+                    futures::future::ready(video_source.should_take(release_datetime, &latest_row_at))
                 }
             }
         })
