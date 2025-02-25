@@ -50,7 +50,7 @@ impl VideoSource for collection::Model {
 
     fn log_refresh_video_end(&self, count: usize) {
         info!(
-            "扫描{}「{}」完成，获取到 {} 条新视频",
+            "扫描{}「{}」完成，已拉取 {} 条视频",
             CollectionType::from(self.r#type),
             self.name,
             count,
