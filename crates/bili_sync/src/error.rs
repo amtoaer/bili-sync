@@ -26,25 +26,35 @@ impl From<Result<ExecutionStatus>> for ExecutionStatus {
         match res {
             Ok(status) => status,
             Err(err) => {
-                if let Some(error) = err.downcast_ref::<io::Error>() {
-                    let error_kind = error.kind();
-                    if error_kind == io::ErrorKind::PermissionDenied
-                        || (error_kind == io::ErrorKind::Other
-                            && error.get_ref().is_some_and(|e| {
+                for cause in err.chain() {
+                    if let Some(io_err) = cause.downcast_ref::<io::Error>() {
+                        // 权限错误
+                        if io_err.kind() == io::ErrorKind::PermissionDenied {
+                            return ExecutionStatus::Ignored(err);
+                        }
+                        // 使用 io::Error 包裹的 reqwest::Error
+                        if io_err.kind() == io::ErrorKind::Other
+                            && io_err.get_ref().is_some_and(|e| {
                                 e.downcast_ref::<reqwest::Error>()
-                                    .is_some_and(|e| e.is_decode() || e.is_body() || e.is_timeout())
-                            }))
-                    {
-                        return ExecutionStatus::Ignored(err);
+                                    .is_some_and(|e| is_ignored_reqwest_error(e))
+                            })
+                        {
+                            return ExecutionStatus::Ignored(err);
+                        }
                     }
-                }
-                if let Some(error) = err.downcast_ref::<reqwest::Error>() {
-                    if error.is_decode() || error.is_body() || error.is_timeout() {
-                        return ExecutionStatus::Ignored(err);
+                    // 未包裹的 reqwest::Error
+                    if let Some(error) = cause.downcast_ref::<reqwest::Error>() {
+                        if is_ignored_reqwest_error(error) {
+                            return ExecutionStatus::Ignored(err);
+                        }
                     }
                 }
                 ExecutionStatus::Failed(err)
             }
         }
     }
+}
+
+fn is_ignored_reqwest_error(err: &reqwest::Error) -> bool {
+    err.is_decode() || err.is_body() || err.is_timeout()
 }
