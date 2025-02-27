@@ -77,6 +77,22 @@ UP 主头像和信息的保存位置。对于使用 Emby、Jellyfin 媒体服务
 
 时间格式，用于设置 `fav_time` 和 `pubtime` 在 `video_name`、 `page_name` 中使用时的显示格式，支持的格式符号可以参考 [chrono strftime 文档](https://docs.rs/chrono/latest/chrono/format/strftime/index.html)。
 
+## `cdn_sorting`
+
+一般情况下，b 站会为视频、音频流提供一个 baseUrl 与多个 backupUrl，程序默认会按照 baseUrl -> backupUrl 的顺序请求，依次尝试下载。
+
+如果将 `cdn_sorting` 设置为 `true`，程序不再使用默认顺序，而是将所有 url 放到一起统一排序来决定请求顺序。排序优先级从高到低为：
+
+1. 服务商 CDN：`upos-sz-mirrorxxxx.bilivideo.com`
+
+2. 自建 CDN：`cn-xxxx-dx-v-xxxx.bilivideo.com`
+
+3. MCDN：`xxxx.mcdn.bilivideo.com`
+
+4. PCDN：`xxxx.v1d.szbdyd.com`
+
+这会让程序优先请求质量更高的 CDN，可能会提高下载速度并增加成功率，但效果因地区、网络环境而异。
+
 ## `credential`
 
 哔哩哔哩账号的身份凭据，请参考[凭据获取流程](https://nemo2011.github.io/bilibili-api/#/get-credential)获取并对应填写至配置文件中，后续 bili-sync 会在必要时自动刷新身份凭据，不再需要手动管理。

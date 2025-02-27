@@ -81,6 +81,7 @@ interval = 1200
 upper_path = "/Users/amtoaer/Library/Application Support/bili-sync/upper_face"
 nfo_time_type = "favtime"
 time_format = "%Y-%m-%d"
+cdn_sorting = false
 
 [credential]
 sessdata = ""
