@@ -5,6 +5,7 @@ mod m20240505_130850_add_collection;
 mod m20240709_130914_watch_later;
 mod m20240724_161008_submission;
 mod m20250122_062926_add_latest_row_at;
+mod m20250402_000001_create_source_table;
 
 pub struct Migrator;
 
@@ -17,6 +18,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20240709_130914_watch_later::Migration),
             Box::new(m20240724_161008_submission::Migration),
             Box::new(m20250122_062926_add_latest_row_at::Migration),
+            Box::new(m20250402_000001_create_source_table::Migration)
         ]
     }
 }

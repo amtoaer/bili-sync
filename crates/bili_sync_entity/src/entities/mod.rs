@@ -8,3 +8,8 @@ pub mod page;
 pub mod submission;
 pub mod video;
 pub mod watch_later;
+
+pub mod source_collection;
+pub mod source_favorite;
+pub mod source_submission;
+pub mod source_watch_later;

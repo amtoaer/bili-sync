@@ -1,5 +1,6 @@
 use serde::Deserialize;
 use utoipa::IntoParams;
+use utoipa::ToSchema;
 
 #[derive(Deserialize, IntoParams)]
 pub struct VideosRequest {
@@ -10,4 +11,44 @@ pub struct VideosRequest {
     pub query: Option<String>,
     pub page: Option<u64>,
     pub page_size: Option<u64>,
+}
+
+
+// 查询参数结构
+#[derive(Debug, Deserialize, IntoParams, ToSchema)]
+pub struct SourceCollectionsRequest {
+    #[param(example = 1)]
+    pub s_id: Option<i64>,
+    #[param(example = 1)]
+    pub m_id: Option<i64>,
+    #[param(example = 1)]
+    pub r#type: Option<i16>,
+    #[param(example = "2023-01-01T00:00:00Z")]
+    pub created_after: Option<String>,
+    #[param(example = 1)]
+    pub page: Option<u64>,
+    #[param(example = 10)]
+    pub page_size: Option<u64>,
+}
+
+// 创建请求体
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct CreateSourceCollectionRequest {
+    pub s_id: i64,
+    pub m_id: i64,
+    pub r#type: i16,
+    pub path: String,
+    pub description: String,
+    pub enabled: i32,
+}
+
+// 更新请求体
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct UpdateSourceCollectionRequest {
+    pub id: i32,
+    pub s_id: Option<i64>,
+    pub m_id: Option<i64>,
+    pub description: Option<String>,
+    pub enabled: Option<i32>,
+    pub path: Option<String>,
 }

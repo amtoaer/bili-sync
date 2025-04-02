@@ -4,6 +4,8 @@ use utoipa::ToSchema;
 
 use crate::utils::status::{PageStatus, VideoStatus};
 
+use bili_sync_entity::source_collection;
+
 #[derive(Serialize, ToSchema)]
 pub struct VideoSourcesResponse {
     pub collection: Vec<VideoSource>,
@@ -71,6 +73,42 @@ impl From<(i32, String, String, u32)> for VideoInfo {
             name,
             upper_name,
             download_status: VideoStatus::from(download_status).into(),
+        }
+    }
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct SourceCollectionResp {
+    pub id: i32,
+    pub s_id: i64,
+    pub m_id: i64,
+    pub r#type: i16,
+    pub path: String,
+    pub description: String,
+    pub enabled: i32,
+    pub created_at: String,
+}
+
+// 响应结构
+#[derive(Serialize, ToSchema)]
+pub struct SourceCollectionsResponse {
+    pub collections: Vec<SourceCollectionResp>,
+    pub total_count: u64,
+}
+
+
+impl From<source_collection::Model> for SourceCollectionResp {
+    fn from(model: source_collection::Model) -> Self {
+        SourceCollectionResp {
+            // Map the fields from `source_collection::Model` to `SourceCollectionsResponse`
+            id: model.id,
+            s_id: model.s_id,
+            m_id: model.m_id,
+            r#type: model.r#type,
+            path: model.path,
+            description: model.description,
+            enabled: model.enabled,
+            created_at: model.created_at.to_string(),
         }
     }
 }

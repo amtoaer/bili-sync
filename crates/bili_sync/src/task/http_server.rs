@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use axum::extract::Request;
 use axum::http::{Uri, header};
 use axum::response::IntoResponse;
-use axum::routing::{get, post};
+use axum::routing::{delete, get, post, put};
 use axum::{Extension, Router, ServiceExt, middleware};
 use reqwest::StatusCode;
 use rust_embed::Embed;
@@ -13,7 +13,10 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::{Config, SwaggerUi};
 
 use crate::api::auth;
-use crate::api::handler::{ApiDoc, get_video, get_video_sources, get_videos, reset_video};
+use crate::api::handler::{
+    ApiDoc, create_source_collection, delete_source_collection, get_source_collections, get_video, get_video_sources,
+    get_videos, reset_video, update_source_collection,
+};
 use crate::config::CONFIG;
 
 #[derive(Embed)]
@@ -26,6 +29,15 @@ pub async fn http_server(database_connection: Arc<DatabaseConnection>) -> Result
         .route("/api/videos", get(get_videos))
         .route("/api/videos/{id}", get(get_video))
         .route("/api/videos/{id}/reset", post(reset_video))
+        // Route for listing source collections
+        .route("/api/source-collections", get(get_source_collections))
+        // Route for creating a new source collection
+        .route("/api/source-collections", post(create_source_collection))
+        // Route for updating a source collection
+        .route("/api/source-collections", put(update_source_collection))
+        // Route for deleting a source collection
+        .route("/api/source-collections/{id}", delete(delete_source_collection))
+        // Add the database connection as an extension
         .merge(
             SwaggerUi::new("/swagger-ui/")
                 .url("/api-docs/openapi.json", ApiDoc::openapi())
