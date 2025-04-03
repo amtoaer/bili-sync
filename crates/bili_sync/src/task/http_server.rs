@@ -13,10 +13,9 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::{Config, SwaggerUi};
 
 use crate::api::auth;
-use crate::api::handler::{
-    ApiDoc, create_source_collection, delete_source_collection, get_source_collections, get_video, get_video_sources,
-    get_videos, reset_video, update_source_collection,
-    create_source_favorite, delete_source_favorite, get_source_favorites, update_source_favorite,
+use crate::api::api_doc::ApiDoc;
+use crate::api::handlers::{
+    source_collections_handler, source_favorites_handler, source_submissions_handler, source_watch_later_handler, video_handler
 };
 use crate::config::CONFIG;
 
@@ -26,22 +25,30 @@ struct Asset;
 
 pub async fn http_server(database_connection: Arc<DatabaseConnection>) -> Result<()> {
     let app = Router::new()
-        .route("/api/video-sources", get(get_video_sources))
-        .route("/api/videos", get(get_videos))
-        .route("/api/videos/{id}", get(get_video))
-        .route("/api/videos/{id}/reset", post(reset_video))
+        .route("/api/video-sources", get(video_handler::get_video_sources))
+        .route("/api/videos", get(video_handler::get_videos))
+        .route("/api/videos/{id}", get(video_handler::get_video))
+        .route("/api/videos/{id}/reset", post(video_handler::reset_video))
         // Route for listing source collections
-        .route("/api/source-collections", get(get_source_collections))
+        .route("/api/source-collections", get(source_collections_handler::get_source_collections))
         // Route for creating a new source collection
-        .route("/api/source-collections", post(create_source_collection))
+        .route("/api/source-collections", post(source_collections_handler::create_source_collection))
         // Route for updating a source collection
-        .route("/api/source-collections", put(update_source_collection))
+        .route("/api/source-collections", put(source_collections_handler::update_source_collection))
         // Route for deleting a source collection
-        .route("/api/source-collections/{id}", delete(delete_source_collection))
-        .route("/api/source-favorites", post(create_source_favorite))
-        .route("/api/source-favorites", get(get_source_favorites))
-        .route("/api/source-favorites", put(update_source_favorite))
-        .route("/api/source-favorites/{id}", delete(delete_source_favorite))
+        .route("/api/source-collections/{id}", delete(source_collections_handler::delete_source_collection))
+        .route("/api/source-favorites", post(source_favorites_handler::create_source_favorite))
+        .route("/api/source-favorites", get(source_favorites_handler::get_source_favorites))
+        .route("/api/source-favorites", put(source_favorites_handler::update_source_favorite))
+        .route("/api/source-favorites/{id}", delete(source_favorites_handler::delete_source_favorite))
+        .route("/api/source-submissions", post(source_submissions_handler::create_source_submission))
+        .route("/api/source-submissions", get(source_submissions_handler::get_source_submissions))
+        .route("/api/source-submissions", put(source_submissions_handler::update_source_submission))
+        .route("/api/source-submissions/{id}", delete(source_submissions_handler::delete_source_submission))
+        .route("/api/source-watch-later", post(source_watch_later_handler::create_source_watch_later))
+        .route("/api/source-watch-later", get(source_watch_later_handler::get_source_watch_later))
+        .route("/api/source-watch-later", put(source_watch_later_handler::update_source_watch_later))
+        .route("/api/source-watch-later/{id}", delete(source_watch_later_handler::delete_source_watch_later))
         // Add the database connection as an extension
         .merge(
             SwaggerUi::new("/swagger-ui/")

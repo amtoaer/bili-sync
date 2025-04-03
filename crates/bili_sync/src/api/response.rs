@@ -4,8 +4,12 @@ use utoipa::ToSchema;
 
 use crate::utils::status::{PageStatus, VideoStatus};
 
-use bili_sync_entity::source_collection;
-use bili_sync_entity::source_favorite;
+use bili_sync_entity::{
+    source_collection,
+    source_favorite,
+    source_submission,
+    source_watch_later,
+};
 
 #[derive(Serialize, ToSchema)]
 pub struct VideoSourcesResponse {
@@ -130,3 +134,46 @@ impl From<source_favorite::Model> for SourceFavoriteResp {
     }
 }
 
+#[derive(Debug, Serialize, ToSchema)]
+pub struct SourceSubmissionResp {
+    pub id: i32,
+    pub upper_id: i64,
+    pub path: String,
+    pub description: String,
+    pub enabled: i32,
+    pub created_at: String,
+}
+
+impl From<source_submission::Model> for SourceSubmissionResp {
+    fn from(model: source_submission::Model) -> Self {
+        Self {
+            id: model.id,
+            upper_id: model.upper_id,
+            path: model.path,
+            description: model.description,
+            enabled: model.enabled,
+            created_at: model.created_at.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct SourceWatchLaterResp {
+    pub id: i32,
+    pub path: String,
+    pub description: String,
+    pub enabled: i32,
+    pub created_at: String,
+}
+
+impl From<source_watch_later::Model> for SourceWatchLaterResp {
+    fn from(model: source_watch_later::Model) -> Self {
+        Self {
+            id: model.id,
+            path: model.path,
+            description: model.description,
+            enabled: model.enabled,
+            created_at: model.created_at.to_string(),
+        }
+    }
+}

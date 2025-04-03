@@ -26,6 +26,8 @@ pub struct SourceCollectionsRequest {
     #[param(example = "2023-01-01T00:00:00Z")]
     pub created_after: Option<String>,
     #[param(example = 0)]
+    pub enabled: Option<i32>,
+    #[param(example = 0)]
     pub page: Option<u64>,
     #[param(example = 10)]
     pub page_size: Option<u64>,
@@ -60,6 +62,8 @@ pub struct SourceFavoritesRequest {
     #[param(example = "2023-01-01T00:00:00Z")]
     pub created_after: Option<String>,
     #[param(example = 0)]
+    pub enabled: Option<i32>,
+    #[param(example = 0)]
     pub page: Option<u64>,
     #[param(example = 10)]
     pub page_size: Option<u64>,
@@ -80,4 +84,62 @@ pub struct UpdateSourceFavoriteRequest {
     pub path: Option<String>,
     pub description: Option<String>,
     pub enabled: Option<i32>,
+}
+
+#[derive(Debug, Deserialize, IntoParams, ToSchema)]
+pub struct SourceSubmissionsRequest {
+    #[param(example = 0)]
+    pub upper_id: Option<i64>,
+    #[param(example = "2023-01-01T00:00:00Z")]
+    pub created_after: Option<String>,
+    #[param(example = 0)]
+    pub enabled: Option<i32>,
+    #[param(example = 0)]
+    pub page: Option<u64>,
+    #[param(example = 10)]
+    pub page_size: Option<u64>,
+}
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct CreateSourceSubmissionRequest {
+    pub upper_id: i64,
+    pub path: String,
+    pub description: String,
+    pub enabled: i32,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct UpdateSourceSubmissionRequest {
+    pub id: i32,
+    pub upper_id: Option<i64>,
+    pub path: Option<String>,
+    pub description: Option<String>,
+    pub enabled: Option<i32>,
+}
+
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct CreateSourceWatchLaterRequest {
+    pub path: String,
+    pub description: String,
+    pub enabled: i32,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct UpdateSourceWatchLaterRequest {
+    pub id: i32,
+    pub path: Option<String>,
+    pub description: Option<String>,
+    pub enabled: Option<i32>,
+}
+
+#[derive(Debug, Deserialize, ToSchema, IntoParams)]
+pub struct SourceWatchLaterRequest {
+    #[param(example = 0)]
+    pub created_after: Option<String>,
+    #[param(example = 0)]
+    pub enabled: Option<i32>,
+    #[param(example = 0)]
+    pub page: Option<u64>,
+    #[param(example = 10)]
+    pub page_size: Option<u64>,
 }
