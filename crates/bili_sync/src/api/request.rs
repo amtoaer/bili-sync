@@ -25,7 +25,7 @@ pub struct SourceCollectionsRequest {
     pub r#type: Option<i16>,
     #[param(example = "2023-01-01T00:00:00Z")]
     pub created_after: Option<String>,
-    #[param(example = 1)]
+    #[param(example = 0)]
     pub page: Option<u64>,
     #[param(example = 10)]
     pub page_size: Option<u64>,
@@ -51,4 +51,33 @@ pub struct UpdateSourceCollectionRequest {
     pub description: Option<String>,
     pub enabled: Option<i32>,
     pub path: Option<String>,
+}
+
+#[derive(Debug, Deserialize, IntoParams, ToSchema)]
+pub struct SourceFavoritesRequest {
+    #[param(example = 1)]
+    pub f_id: Option<i64>,
+    #[param(example = "2023-01-01T00:00:00Z")]
+    pub created_after: Option<String>,
+    #[param(example = 0)]
+    pub page: Option<u64>,
+    #[param(example = 10)]
+    pub page_size: Option<u64>,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct CreateSourceFavoriteRequest {
+    pub f_id: i64,
+    pub path: String,
+    pub description: String,
+    pub enabled: i32,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct UpdateSourceFavoriteRequest {
+    pub id: i32,
+    pub f_id: Option<i64>,
+    pub path: Option<String>,
+    pub description: Option<String>,
+    pub enabled: Option<i32>,
 }

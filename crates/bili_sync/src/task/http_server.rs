@@ -16,6 +16,7 @@ use crate::api::auth;
 use crate::api::handler::{
     ApiDoc, create_source_collection, delete_source_collection, get_source_collections, get_video, get_video_sources,
     get_videos, reset_video, update_source_collection,
+    create_source_favorite, delete_source_favorite, get_source_favorites, update_source_favorite,
 };
 use crate::config::CONFIG;
 
@@ -37,6 +38,10 @@ pub async fn http_server(database_connection: Arc<DatabaseConnection>) -> Result
         .route("/api/source-collections", put(update_source_collection))
         // Route for deleting a source collection
         .route("/api/source-collections/{id}", delete(delete_source_collection))
+        .route("/api/source-favorites", post(create_source_favorite))
+        .route("/api/source-favorites", get(get_source_favorites))
+        .route("/api/source-favorites", put(update_source_favorite))
+        .route("/api/source-favorites/{id}", delete(delete_source_favorite))
         // Add the database connection as an extension
         .merge(
             SwaggerUi::new("/swagger-ui/")

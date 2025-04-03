@@ -5,6 +5,7 @@ use utoipa::ToSchema;
 use crate::utils::status::{PageStatus, VideoStatus};
 
 use bili_sync_entity::source_collection;
+use bili_sync_entity::source_favorite;
 
 #[derive(Serialize, ToSchema)]
 pub struct VideoSourcesResponse {
@@ -89,14 +90,6 @@ pub struct SourceCollectionResp {
     pub created_at: String,
 }
 
-// 响应结构
-#[derive(Serialize, ToSchema)]
-pub struct SourceCollectionsResponse {
-    pub collections: Vec<SourceCollectionResp>,
-    pub total_count: u64,
-}
-
-
 impl From<source_collection::Model> for SourceCollectionResp {
     fn from(model: source_collection::Model) -> Self {
         SourceCollectionResp {
@@ -112,3 +105,28 @@ impl From<source_collection::Model> for SourceCollectionResp {
         }
     }
 }
+
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct SourceFavoriteResp {
+    pub id: i32,
+    pub f_id: i64,
+    pub path: String,
+    pub description: String,
+    pub enabled: i32,
+    pub created_at: String,
+}
+
+impl From<source_favorite::Model> for SourceFavoriteResp {
+    fn from(model: source_favorite::Model) -> Self {
+        SourceFavoriteResp {
+            id: model.id,
+            f_id: model.f_id,
+            path: model.path,
+            description: model.description,
+            enabled: model.enabled,
+            created_at: model.created_at.to_string(),
+        }
+    }
+}
+
