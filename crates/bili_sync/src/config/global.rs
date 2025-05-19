@@ -61,6 +61,8 @@ fn load_config() -> Config {
 
 #[cfg(test)]
 fn load_config() -> Config {
+    use crate::bilibili::{FilterOption, VideoCodecs};
+
     let credential = match (
         std::env::var("TEST_SESSDATA"),
         std::env::var("TEST_BILI_JCT"),
@@ -82,6 +84,10 @@ fn load_config() -> Config {
     Config {
         credential: arc_swap::ArcSwapOption::from(credential),
         cdn_sorting: true,
+        filter_option: FilterOption {
+            codecs: vec![VideoCodecs::HEV, VideoCodecs::AV1, VideoCodecs::AVC],
+            ..Default::default()
+        },
         ..Default::default()
     }
 }

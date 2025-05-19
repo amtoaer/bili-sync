@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+#[cfg(test)]
+pub use analyzer::VideoCodecs;
 pub use analyzer::{BestStream, FilterOption};
 use anyhow::{Result, bail, ensure};
 use arc_swap::ArcSwapOption;
