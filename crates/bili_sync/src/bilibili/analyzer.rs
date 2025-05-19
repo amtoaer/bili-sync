@@ -135,10 +135,8 @@ impl Stream {
             Self::DashVideo { url, backup_url, .. } | Self::DashAudio { url, backup_url, .. } => {
                 let mut urls = std::iter::once(url.as_str())
                     .chain(backup_url.iter().map(|s| s.as_str()))
-                    .collect();
-                if !CONFIG.cdn_sorting {
-                    urls
-                } else {
+                    .collect::<Vec<_>>();
+                if CONFIG.cdn_sorting {
                     urls.sort_by_key(|u| {
                         if u.contains("upos-") {
                             0 // 服务商 cdn
@@ -150,8 +148,8 @@ impl Stream {
                             3 // pcdn 或者其它
                         }
                     });
-                    urls
                 }
+                urls
             }
         }
     }
