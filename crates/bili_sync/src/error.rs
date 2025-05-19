@@ -35,8 +35,7 @@ impl From<Result<ExecutionStatus>> for ExecutionStatus {
                         // 使用 io::Error 包裹的 reqwest::Error
                         if io_err.kind() == io::ErrorKind::Other
                             && io_err.get_ref().is_some_and(|e| {
-                                e.downcast_ref::<reqwest::Error>()
-                                    .is_some_and(|e| is_ignored_reqwest_error(e))
+                                e.downcast_ref::<reqwest::Error>().is_some_and(is_ignored_reqwest_error)
                             })
                         {
                             return ExecutionStatus::Ignored(err);
