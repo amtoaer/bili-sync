@@ -64,6 +64,20 @@ pub enum VideoCodecs {
     AV1,
 }
 
+impl TryFrom<u64> for VideoCodecs {
+    type Error = anyhow::Error;
+
+    fn try_from(value: u64) -> std::result::Result<Self, Self::Error> {
+        // https://socialsisteryi.github.io/bilibili-API-collect/docs/video/videostream_url.html#%E8%A7%86%E9%A2%91%E7%BC%96%E7%A0%81%E4%BB%A3%E7%A0%81
+        match value {
+            7 => Ok(Self::AVC),
+            12 => Ok(Self::HEV),
+            13 => Ok(Self::AV1),
+            _ => bail!("invalid video codecs id: {}", value),
+        }
+    }
+}
+
 // 视频流的筛选偏好
 #[derive(Serialize, Deserialize)]
 pub struct FilterOption {
@@ -207,20 +221,15 @@ impl PageAnalyzer {
             .ok_or(BiliError::RiskControlOccurred)?
             .iter_mut()
         {
-            let (Some(url), Some(quality), Some(codecs)) = (
+            let (Some(url), Some(quality), Some(codecs_id)) = (
                 video["baseUrl"].as_str(),
                 video["id"].as_u64(),
-                video["codecs"].as_str(),
+                video["codecid"].as_u64(),
             ) else {
                 continue;
             };
             let quality = VideoQuality::from_repr(quality as usize).context("invalid video stream quality")?;
-            // 从视频流的 codecs 字段中获取编码格式，此处并非精确匹配而是判断包含，比如 codecs 是 av1.42c01e，需要匹配为 av1
-            let Some(codecs) = [VideoCodecs::HEV, VideoCodecs::AVC, VideoCodecs::AV1]
-                .into_iter()
-                .find(|c| codecs.contains(c.as_ref()))
-            else {
-                // 少数情况会走到此处，如 codecs 为 dvh1.08.09、hvc1.2.4.L123.90 等，直接跳过，不影响流程
+            let Ok(codecs) = codecs_id.try_into() else {
                 continue;
             };
             if !filter_option.codecs.contains(&codecs)
@@ -383,18 +392,41 @@ mod tests {
             (
                 "BV1xRChYUE2R",
                 VideoQuality::Quality8k,
+                VideoCodecs::HEV,
                 Some(AudioQuality::QualityHiRES),
             ),
             // 一个没有声音的纯视频
-            ("BV1J7411H7KQ", VideoQuality::Quality720p, None),
+            ("BV1J7411H7KQ", VideoQuality::Quality720p, VideoCodecs::HEV, None),
             // 一个杜比全景声的演示片
             (
                 "BV1Mm4y1P7JV",
-                VideoQuality::Quality4k,
+                VideoQuality::QualityDolby,
+                VideoCodecs::HEV,
                 Some(AudioQuality::QualityDolby),
             ),
+            // 影视飓风的杜比视界视频
+            (
+                "BV1HEf2YWEvs",
+                VideoQuality::QualityDolby,
+                VideoCodecs::HEV,
+                Some(AudioQuality::QualityDolby),
+            ),
+            // 孤独摇滚的杜比视界 + hires + 杜比全景声视频
+            (
+                "BV1YDVYzeE39",
+                VideoQuality::QualityDolby,
+                VideoCodecs::HEV,
+                Some(AudioQuality::QualityHiRES),
+            ),
+            // 一个京紫的 HDR 视频
+            (
+                "BV1cZ4y1b7iB",
+                VideoQuality::QualityHdr,
+                VideoCodecs::HEV,
+                Some(AudioQuality::Quality192k),
+            ),
         ];
-        for (bvid, video_quality, audio_quality) in testcases.into_iter() {
+        for (bvid, video_quality, video_codec, audio_quality) in testcases.into_iter() {
             let client = BiliClient::new();
             let video = Video::new(&client, bvid.to_owned());
             let pages = video.get_pages().await.expect("failed to get pages");
@@ -408,10 +440,11 @@ mod tests {
             dbg!(bvid, &best_stream);
             match best_stream {
                 BestStream::VideoAudio {
-                    video: Stream::DashVideo { quality, .. },
+                    video: Stream::DashVideo { quality, codecs, .. },
                     audio,
                 } => {
                     assert_eq!(quality, video_quality);
+                    assert_eq!(codecs, video_codec);
                     assert_eq!(
                         audio.map(|audio_stream| match audio_stream {
                             Stream::DashAudio { quality, .. } => quality,
