@@ -58,6 +58,7 @@ assert_matches = { workspace = true }
 
 [build-dependencies]
 built = { workspace = true }
+git2 = { workspace = true }
 
 [package.metadata.release]
 release = true

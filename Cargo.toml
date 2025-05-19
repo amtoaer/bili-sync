@@ -31,6 +31,7 @@ dirs = "6.0.0"
 enum_dispatch = "0.3.13"
 float-ord = "0.3.2"
 futures = "0.3.31"
+git2 = { version = "0.20.2", features = [], default-features = false }
 handlebars = "6.3.2"
 hex = "0.4.3"
 leaky-bucket = "1.1.2"
