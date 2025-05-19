@@ -70,6 +70,8 @@ impl Downloader {
                 audio_path.to_string_lossy().as_ref(),
                 "-c",
                 "copy",
+                "-strict",
+                "unofficial",
                 "-y",
                 output_path.to_string_lossy().as_ref(),
             ])
