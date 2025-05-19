@@ -70,12 +70,8 @@ impl Downloader {
                 audio_path.to_string_lossy().as_ref(),
                 "-c",
                 "copy",
-                "-movflags",
-                "faststart",
                 "-strict",
                 "unofficial",
-                "-strict",
-                "experimental",
                 "-y",
                 output_path.to_string_lossy().as_ref(),
             ])
