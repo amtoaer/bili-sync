@@ -78,6 +78,115 @@ impl VideoSource for collection::Model {
     }
 }
 
+// 修改初始化合集源的方法中的类型转换问题
+pub async fn init_collection_sources(
+    conn: &DatabaseConnection,
+    collection_list: &std::collections::HashMap<CollectionItem, std::path::PathBuf>,
+) -> Result<()> {
+    // 遍历配置中的合集列表
+    for (collection_item, path) in collection_list {
+        // 检查数据库中是否已存在该合集的记录
+        let existing = collection::Entity::find()
+            .filter(
+                collection::Column::SId
+                    .eq(collection_item.sid.clone())
+                    .and(collection::Column::MId.eq(collection_item.mid.clone()))
+                    .and(collection::Column::Type.eq(Into::<i32>::into(collection_item.collection_type.clone())))
+            )
+            .one(conn)
+            .await?;
+        
+        if existing.is_none() {
+            // 如果不存在，尝试获取合集信息并创建新记录
+            let bili_client = crate::bilibili::BiliClient::new(String::new());
+            let collection = Collection::new(&bili_client, collection_item);
+            
+            // 尝试获取合集信息
+            match collection.get_info().await {
+                Ok(collection_info) => {
+                    // collection_info.sid 和 collection_info.mid 已经是 i64 类型
+                    let model = collection::ActiveModel {
+                        id: Set(Default::default()),
+                        s_id: Set(collection_info.sid), // 已经是 i64 类型
+                        m_id: Set(collection_info.mid), // 已经是 i64 类型
+                        r#type: Set(collection_info.collection_type.into()),
+                        name: Set(collection_info.name.clone()),
+                        path: Set(path.to_string_lossy().to_string()),
+                        latest_row_at: Set(chrono::Utc::now().naive_utc()),
+                        ..Default::default()
+                    };
+                    
+                    // 插入数据库
+                    let result = collection::Entity::insert(model)
+                        .exec(conn)
+                        .await
+                        .context("Failed to insert collection source")?;
+                    
+                    info!("初始化合集源: {} (ID: {})", collection_info.name, result.last_insert_id);
+                },
+                Err(e) => {
+                    // 如果获取失败，创建一个临时记录
+                    warn!("获取合集 {:?} 信息失败: {}, 创建临时记录", collection_item, e);
+                    
+                    // 尝试将sid和mid转换为i64
+                    let sid_i64 = match collection_item.sid.parse::<i64>() {
+                        Ok(id) => id,
+                        Err(e) => {
+                            warn!("无效的合集ID {}: {}, 跳过", collection_item.sid, e);
+                            continue;
+                        }
+                    };
+                    
+                    let mid_i64 = match collection_item.mid.parse::<i64>() {
+                        Ok(id) => id,
+                        Err(e) => {
+                            warn!("无效的UP主ID {}: {}, 跳过", collection_item.mid, e);
+                            continue;
+                        }
+                    };
+                    
+                    let model = collection::ActiveModel {
+                        id: Set(Default::default()),
+                        s_id: Set(sid_i64), // 转换为i64类型
+                        m_id: Set(mid_i64), // 转换为i64类型
+                        r#type: Set(collection_item.collection_type.clone().into()),
+                        name: Set(format!("合集 {}/{}", collection_item.sid, collection_item.mid)),
+                        path: Set(path.to_string_lossy().to_string()),
+                        latest_row_at: Set(chrono::Utc::now().naive_utc()),
+                        ..Default::default()
+                    };
+                    
+                    let result = collection::Entity::insert(model)
+                        .exec(conn)
+                        .await
+                        .context("Failed to insert temporary collection source")?;
+                    
+                    info!("初始化临时合集源: {:?} (ID: {})", collection_item, result.last_insert_id);
+                }
+            }
+        } else if let Some(existing) = existing {
+            // 如果已存在，更新路径
+            if existing.path != path.to_string_lossy().to_string() {
+                let model = collection::ActiveModel {
+                    id: Set(existing.id),
+                    path: Set(path.to_string_lossy().to_string()),
+                    ..Default::default()
+                };
+                
+                // 更新数据库
+                collection::Entity::update(model)
+                    .exec(conn)
+                    .await
+                    .context("Failed to update collection source")?;
+                
+                info!("更新合集源: {} (ID: {})", existing.name, existing.id);
+            }
+        }
+    }
+    
+    Ok(())
+}
+
 pub(super) async fn collection_from<'a>(
     collection_item: &'a CollectionItem,
     path: &Path,

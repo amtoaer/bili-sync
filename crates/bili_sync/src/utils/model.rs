@@ -18,7 +18,7 @@ pub async fn filter_unfilled_videos(
             video::Column::Valid
                 .eq(true)
                 .and(video::Column::DownloadStatus.eq(0))
-                .and(video::Column::Category.eq(2))
+                .and(video::Column::Category.is_in([1, 2]))
                 .and(video::Column::SinglePage.is_null())
                 .and(additional_expr),
         )
@@ -37,7 +37,7 @@ pub async fn filter_unhandled_video_pages(
             video::Column::Valid
                 .eq(true)
                 .and(video::Column::DownloadStatus.lt(STATUS_COMPLETED))
-                .and(video::Column::Category.eq(2))
+                .and(video::Column::Category.is_in([1, 2]))
                 .and(video::Column::SinglePage.is_not_null())
                 .and(additional_expr),
         )

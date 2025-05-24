@@ -97,6 +97,29 @@ impl VideoInfo {
                 valid: Set(true),
                 ..default
             },
+            VideoInfo::Bangumi {
+                title,
+                bvid,
+                season_id,
+                ep_id,
+                cover,
+                intro,
+                pubtime,
+                show_title,
+                ..
+            } => bili_sync_entity::video::ActiveModel {
+                bvid: Set(bvid),
+                name: Set(show_title.unwrap_or(title)),
+                intro: Set(intro),
+                cover: Set(cover),
+                pubtime: Set(pubtime.naive_utc()),
+                favtime: Set(pubtime.naive_utc()),
+                category: Set(1), // 番剧类型
+                valid: Set(true),
+                season_id: Set(Some(season_id)),
+                ep_id: Set(Some(ep_id)),
+                ..default
+            },
             _ => unreachable!(),
         }
     }
@@ -114,10 +137,17 @@ impl VideoInfo {
                 ctime,
                 pubtime,
                 state,
+                show_title,
                 ..
             } => bili_sync_entity::video::ActiveModel {
                 bvid: Set(bvid),
-                name: Set(title),
+                // 如果原始model的name字段包含"第"并且看起来像番剧的show_title格式，则保留原来的name
+                // 否则优先使用show_title，如果show_title为空则使用title
+                name: if base_model.name.contains("第") && (base_model.name.contains("话") || base_model.name.contains("集")) {
+                    NotSet
+                } else {
+                    Set(show_title.unwrap_or(title))
+                },
                 category: Set(2),
                 intro: Set(intro),
                 cover: Set(cover),
@@ -145,7 +175,8 @@ impl VideoInfo {
             VideoInfo::Collection { pubtime: time, .. }
             | VideoInfo::Favorite { fav_time: time, .. }
             | VideoInfo::WatchLater { fav_time: time, .. }
-            | VideoInfo::Submission { ctime: time, .. } => time,
+            | VideoInfo::Submission { ctime: time, .. } 
+            | VideoInfo::Bangumi { pubtime: time, .. } => time,
             _ => unreachable!(),
         }
     }

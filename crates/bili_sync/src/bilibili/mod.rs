@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-#[cfg(test)]
-pub use analyzer::VideoCodecs;
 pub use analyzer::{BestStream, FilterOption};
 use anyhow::{Result, bail, ensure};
 use arc_swap::ArcSwapOption;
@@ -18,6 +16,7 @@ use once_cell::sync::Lazy;
 pub use submission::Submission;
 pub use video::{Dimension, PageInfo, Video};
 pub use watch_later::WatchLater;
+pub mod bangumi;
 
 mod analyzer;
 mod client;
@@ -78,6 +77,7 @@ pub enum VideoInfo {
         pubtime: DateTime<Utc>,
         pages: Vec<PageInfo>,
         state: i32,
+        show_title: Option<String>,
     },
     /// 从收藏夹接口获取的视频信息
     Favorite {
@@ -134,6 +134,22 @@ pub enum VideoInfo {
         cover: String,
         #[serde(rename = "created", with = "ts_seconds")]
         ctime: DateTime<Utc>,
+    },
+    // 从番剧接口获取的视频信息
+    Bangumi {
+        title: String,
+        season_id: String,
+        ep_id: String,
+        bvid: String,
+        #[allow(dead_code)]
+        cid: String,
+        #[allow(dead_code)]
+        aid: String,
+        cover: String,
+        intro: String,
+        #[serde(with = "ts_seconds")]
+        pubtime: DateTime<Utc>,
+        show_title: Option<String>,
     },
 }
 

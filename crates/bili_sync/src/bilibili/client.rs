@@ -61,27 +61,34 @@ impl Default for Client {
     }
 }
 
+#[derive(Clone)]
 pub struct BiliClient {
     pub client: Client,
-    limiter: Option<RateLimiter>,
+    limiter: Option<Arc<RateLimiter>>,
+    #[allow(dead_code)]
+    cookie: String,
 }
 
 impl BiliClient {
-    pub fn new() -> Self {
+    pub fn new(cookie: String) -> Self {
         let client = Client::new();
         let limiter = CONFIG
             .concurrent_limit
             .rate_limit
             .as_ref()
             .map(|RateLimit { limit, duration }| {
-                RateLimiter::builder()
+                Arc::new(RateLimiter::builder()
                     .initial(*limit)
                     .refill(*limit)
                     .max(*limit)
                     .interval(Duration::from_millis(*duration))
-                    .build()
+                    .build())
             });
-        Self { client, limiter }
+        Self {
+            client,
+            limiter,
+            cookie,
+        }
     }
 
     /// 获取一个预构建的请求，通过该方法获取请求时会检查并等待速率限制
@@ -91,6 +98,15 @@ impl BiliClient {
         }
         let credential = CONFIG.credential.load();
         self.client.request(method, url, credential.as_deref())
+    }
+
+    /// 发送 GET 请求
+    pub async fn get(&self, url: &str) -> Result<reqwest::Response> {
+        if let Some(limiter) = &self.limiter {
+            limiter.acquire_one().await;
+        }
+        let credential = CONFIG.credential.load();
+        Ok(self.client.request(Method::GET, url, credential.as_deref()).send().await?)
     }
 
     pub async fn check_refresh(&self) -> Result<()> {

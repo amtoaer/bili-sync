@@ -25,12 +25,50 @@ pub enum NFOTimeType {
     PubTime,
 }
 
+/// 多线程下载配置
+#[derive(Serialize, Deserialize)]
+pub struct ParallelDownloadConfig {
+    /// 是否启用多线程下载
+    #[serde(default = "default_parallel_download_enabled")]
+    pub enabled: bool,
+    /// 每个文件的下载线程数
+    #[serde(default = "default_parallel_download_threads")]
+    pub threads: usize,
+    /// 最小文件大小（字节），小于此大小的文件不使用多线程下载
+    #[serde(default = "default_parallel_download_min_size")]
+    pub min_size: u64,
+}
+
+fn default_parallel_download_enabled() -> bool {
+    true
+}
+
+fn default_parallel_download_threads() -> usize {
+    4
+}
+
+fn default_parallel_download_min_size() -> u64 {
+    10 * 1024 * 1024 // 10MB
+}
+
+impl Default for ParallelDownloadConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_parallel_download_enabled(),
+            threads: default_parallel_download_threads(),
+            min_size: default_parallel_download_min_size(),
+        }
+    }
+}
+
 /// 并发下载相关的配置
 #[derive(Serialize, Deserialize)]
 pub struct ConcurrentLimit {
     pub video: usize,
     pub page: usize,
     pub rate_limit: Option<RateLimit>,
+    #[serde(default)]
+    pub parallel_download: ParallelDownloadConfig,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -49,6 +87,7 @@ impl Default for ConcurrentLimit {
                 limit: 4,
                 duration: 250,
             }),
+            parallel_download: ParallelDownloadConfig::default(),
         }
     }
 }

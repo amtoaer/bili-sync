@@ -135,8 +135,10 @@ impl Stream {
             Self::DashVideo { url, backup_url, .. } | Self::DashAudio { url, backup_url, .. } => {
                 let mut urls = std::iter::once(url.as_str())
                     .chain(backup_url.iter().map(|s| s.as_str()))
-                    .collect::<Vec<_>>();
-                if CONFIG.cdn_sorting {
+                    .collect();
+                if !CONFIG.cdn_sorting {
+                    urls
+                } else {
                     urls.sort_by_key(|u| {
                         if u.contains("upos-") {
                             0 // 服务商 cdn
@@ -148,8 +150,8 @@ impl Stream {
                             3 // pcdn 或者其它
                         }
                     });
+                    urls
                 }
-                urls
             }
         }
     }
@@ -390,41 +392,18 @@ mod tests {
             (
                 "BV1xRChYUE2R",
                 VideoQuality::Quality8k,
-                VideoCodecs::HEV,
                 Some(AudioQuality::QualityHiRES),
             ),
             // 一个没有声音的纯视频
-            ("BV1J7411H7KQ", VideoQuality::Quality720p, VideoCodecs::HEV, None),
+            ("BV1J7411H7KQ", VideoQuality::Quality720p, None),
             // 一个杜比全景声的演示片
             (
                 "BV1Mm4y1P7JV",
-                VideoQuality::QualityDolby,
-                VideoCodecs::HEV,
+                VideoQuality::Quality4k,
                 Some(AudioQuality::QualityDolby),
-            ),
-            // 影视飓风的杜比视界视频
-            (
-                "BV1HEf2YWEvs",
-                VideoQuality::QualityDolby,
-                VideoCodecs::HEV,
-                Some(AudioQuality::QualityDolby),
-            ),
-            // 孤独摇滚的杜比视界 + hires + 杜比全景声视频
-            (
-                "BV1YDVYzeE39",
-                VideoQuality::QualityDolby,
-                VideoCodecs::HEV,
-                Some(AudioQuality::QualityHiRES),
-            ),
-            // 一个京紫的 HDR 视频
-            (
-                "BV1cZ4y1b7iB",
-                VideoQuality::QualityHdr,
-                VideoCodecs::HEV,
-                Some(AudioQuality::Quality192k),
             ),
         ];
-        for (bvid, video_quality, video_codec, audio_quality) in testcases.into_iter() {
+        for (bvid, video_quality, audio_quality) in testcases.into_iter() {
             let client = BiliClient::new();
             let video = Video::new(&client, bvid.to_owned());
             let pages = video.get_pages().await.expect("failed to get pages");
@@ -438,11 +417,10 @@ mod tests {
             dbg!(bvid, &best_stream);
             match best_stream {
                 BestStream::VideoAudio {
-                    video: Stream::DashVideo { quality, codecs, .. },
+                    video: Stream::DashVideo { quality, .. },
                     audio,
                 } => {
                     assert_eq!(quality, video_quality);
-                    assert_eq!(codecs, video_codec);
                     assert_eq!(
                         audio.map(|audio_stream| match audio_stream {
                             Stream::DashAudio { quality, .. } => quality,

@@ -7,3 +7,7 @@ publish = { workspace = true }
 [dependencies]
 async-std = { workspace = true }
 sea-orm-migration = { workspace = true }
+
+[[bin]]
+name = "migration"
+path = "src/main.rs"

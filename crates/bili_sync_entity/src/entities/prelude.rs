@@ -3,3 +3,4 @@
 pub use super::favorite::Entity as Favorite;
 pub use super::page::Entity as Page;
 pub use super::video::Entity as Video;
+pub use super::video_source::Entity as VideoSource;

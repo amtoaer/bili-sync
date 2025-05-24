@@ -1,0 +1,14 @@
+# 排除Git相关文件
+.git
+.github
+.gitignore
+
+# 排除构建产物
+target
+
+# 排除文档
+docs
+
+# 排除其他不需要的文件
+*.md
+LICENSE 

@@ -13,6 +13,7 @@ build = "build.rs"
 anyhow = { workspace = true }
 arc-swap = { workspace = true }
 async-stream = { workspace = true }
+atty = "0.2.14"
 axum = { workspace = true }
 bili_sync_entity = { workspace = true }
 bili_sync_migration = { workspace = true }
@@ -26,6 +27,8 @@ float-ord = { workspace = true }
 futures = { workspace = true }
 handlebars = { workspace = true }
 hex = { workspace = true }
+indicatif = "0.17.11"
+lazy_static = "1.5.0"
 leaky-bucket = { workspace = true }
 md5 = { workspace = true }
 memchr = { workspace = true }
@@ -58,7 +61,6 @@ assert_matches = { workspace = true }
 
 [build-dependencies]
 built = { workspace = true }
-git2 = { workspace = true }
 
 [package.metadata.release]
 release = true
