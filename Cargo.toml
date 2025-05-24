@@ -22,7 +22,7 @@ async-std = { version = "1.13.1", features = ["attributes", "tokio1"] }
 async-stream = "0.3.6"
 async-trait = "0.1.88"
 axum = { version = "0.8.4", features = ["macros"] }
-built = { version = "0.7.7", features = ["git2", "chrono"] }
+built = { version = "0.7.7", features = ["chrono"] }
 chrono = { version = "0.4.41", features = ["serde"] }
 clap = { version = "4.5.38", features = ["env", "string"] }
 cookie = "0.18.1"
@@ -31,7 +31,6 @@ dirs = "6.0.0"
 enum_dispatch = "0.3.13"
 float-ord = "0.3.2"
 futures = "0.3.31"
-git2 = { version = "0.20.2", features = [], default-features = false }
 handlebars = "6.3.2"
 hex = "0.4.3"
 leaky-bucket = "1.1.2"

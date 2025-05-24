@@ -11,6 +11,24 @@ use crate::config::item::PathSafeTemplate;
 /// 全局的 CONFIG，可以从中读取配置信息
 pub static CONFIG: Lazy<Config> = Lazy::new(load_config);
 
+/// 重新加载配置
+pub fn reload_config() -> Config {
+    let config = Config::load().unwrap_or_else(|err| {
+        if err
+            .downcast_ref::<std::io::Error>()
+            .is_none_or(|e| e.kind() != std::io::ErrorKind::NotFound)
+        {
+            panic!("加载配置文件失败，错误为： {err}");
+        }
+        warn!("配置文件不存在，使用默认配置..");
+        Config::default()
+    });
+    
+    // 由于CONFIG是Lazy，我们无法直接修改，但我们可以返回新的配置
+    // 让调用方使用这个新配置
+    config
+}
+
 /// 全局的 TEMPLATE，用来渲染 video_name 和 page_name 模板
 pub static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
     let mut handlebars = handlebars::Handlebars::new();
@@ -28,6 +46,9 @@ pub static TEMPLATE: Lazy<handlebars::Handlebars> = Lazy::new(|| {
     handlebars
         .path_safe_register("page", &CONFIG.page_name)
         .expect("failed to register page template");
+    handlebars
+        .path_safe_register("folder_structure", &CONFIG.folder_structure)
+        .expect("failed to register folder_structure template");
     handlebars
 });
 
@@ -54,15 +75,16 @@ fn load_config() -> Config {
     info!("配置文件加载完毕，覆盖刷新原有配置");
     config.save().expect("保存默认配置时遇到错误");
     info!("检查配置文件..");
-    config.check();
+    if config.check() {
     info!("配置文件检查通过");
+    } else {
+        info!("您可以访问管理页 http://{}/ 添加视频源", config.bind_address);
+    }
     config
 }
 
 #[cfg(test)]
 fn load_config() -> Config {
-    use crate::bilibili::{FilterOption, VideoCodecs};
-
     let credential = match (
         std::env::var("TEST_SESSDATA"),
         std::env::var("TEST_BILI_JCT"),
@@ -84,10 +106,6 @@ fn load_config() -> Config {
     Config {
         credential: arc_swap::ArcSwapOption::from(credential),
         cdn_sorting: true,
-        filter_option: FilterOption {
-            codecs: vec![VideoCodecs::HEV, VideoCodecs::AV1, VideoCodecs::AVC],
-            ..Default::default()
-        },
         ..Default::default()
     }
 }

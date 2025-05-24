@@ -177,7 +177,7 @@ UP 主头像和信息的保存位置。对于使用 Emby、Jellyfin 媒体服务
 
 ### `lane_size`
 
-弹幕所占据的高度，即“行高度/行间距”。
+弹幕所占据的高度，即"行高度/行间距"。
 
 ### `float_percentage`
 
@@ -213,7 +213,7 @@ UP 主头像和信息的保存位置。对于使用 Emby、Jellyfin 媒体服务
 
 ## `collection_list`
 
-你想要下载的视频合集/视频列表与想要保存的位置。注意“视频合集”与“视频列表”是两种不同的类型。在配置文件中需要做区分：
+你想要下载的视频合集/视频列表与想要保存的位置。注意"视频合集"与"视频列表"是两种不同的类型。在配置文件中需要做区分：
 ```toml
 "series:387051756:432248" = "/home/amtoaer/Downloads/bili-sync/测试视频列表"
 "season:1728547:101343" = "/home/amtoaer/Downloads/bili-sync/测试合集"
@@ -262,3 +262,13 @@ duration = 250
 > [!TIP]
 > 1. 一般来说，`video` 和 `page` 的值不需要过大；
 > 2. `rate_limit` 的值可以根据网络环境和 api 请求频率进行调整，如果经常遇到风控可以优先调小 limit。
+
+# 番剧配置，可以添加多个[[bangumi]]块
+# season_id: 番剧的season_id，可以从B站番剧页面URL中获取
+# path: 保存番剧的本地路径，必须是绝对路径
+# download_all_seasons: 是否下载与此番剧相关的所有季度，默认为false
+# 注意: season_id和path不能为空，否则程序会报错
+[[bangumi]]
+season_id = "98757"
+path = "D:/Downloads/假面骑士利维斯_往事_假面骑士贝尔"
+download_all_seasons = true

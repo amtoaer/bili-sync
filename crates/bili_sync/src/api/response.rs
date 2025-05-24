@@ -6,10 +6,28 @@ use crate::utils::status::{PageStatus, VideoStatus};
 
 #[derive(Serialize, ToSchema)]
 pub struct VideoSourcesResponse {
+    #[serde(default)]
     pub collection: Vec<VideoSource>,
+    #[serde(default)]
     pub favorite: Vec<VideoSource>,
+    #[serde(default)]
     pub submission: Vec<VideoSource>,
+    #[serde(default)]
     pub watch_later: Vec<VideoSource>,
+    #[serde(default)]
+    pub bangumi: Vec<VideoSource>,
+}
+
+impl Default for VideoSourcesResponse {
+    fn default() -> Self {
+        Self {
+            collection: Vec::new(),
+            favorite: Vec::new(),
+            submission: Vec::new(),
+            watch_later: Vec::new(),
+            bangumi: Vec::new(),
+        }
+    }
 }
 
 #[derive(Serialize, ToSchema)]
@@ -31,10 +49,26 @@ pub struct ResetVideoResponse {
     pub pages: Vec<i32>,
 }
 
+#[derive(Serialize, ToSchema)]
+pub struct AddVideoSourceResponse {
+    pub success: bool,
+    pub source_id: i32,
+    pub source_type: String,
+    pub message: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct DeleteVideoSourceResponse {
+    pub success: bool,
+    pub source_id: i32,
+    pub source_type: String,
+    pub message: String,
+}
+
 #[derive(FromQueryResult, Serialize, ToSchema)]
 pub struct VideoSource {
-    id: i32,
-    name: String,
+    pub id: i32,
+    pub name: String,
 }
 
 #[derive(Serialize, ToSchema)]

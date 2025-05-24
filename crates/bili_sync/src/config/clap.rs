@@ -17,11 +17,8 @@ mod built_info {
 }
 
 pub fn version() -> Cow<'static, str> {
-    if let (Some(git_version), Some(git_dirty)) = (built_info::GIT_VERSION, built_info::GIT_DIRTY) {
-        Cow::Owned(format!("{}{}", git_version, if git_dirty { "-dirty" } else { "" }))
-    } else {
-        Cow::Borrowed(built_info::PKG_VERSION)
-    }
+    // 由于不再使用git特性，直接返回版本号
+    Cow::Borrowed(built_info::PKG_VERSION)
 }
 
 fn detail_version() -> String {

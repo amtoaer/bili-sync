@@ -8,6 +8,7 @@ export interface VideoSourcesResponse {
     favorite: VideoSource[];
     submission: VideoSource[];
     watch_later: VideoSource[];
+    bangumi: VideoSource[];
 }
 
 export interface VideoInfo {
@@ -40,4 +41,18 @@ export interface ResetVideoResponse {
     pages: number[];
 }
 
-export type VideoCategory = 'collection' | 'favorite' | 'submission' | 'watch_later';
+export interface AddVideoSourceResponse {
+    success: boolean;
+    source_id: number;
+    source_type: string;
+    message: string;
+}
+
+export interface DeleteVideoSourceResponse {
+    success: boolean;
+    source_id: number;
+    source_type: string;
+    message: string;
+}
+
+export type VideoCategory = 'collection' | 'favorite' | 'submission' | 'watch_later' | 'bangumi';

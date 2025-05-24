@@ -1,0 +1,41 @@
+version: '3'
+
+services:
+  bili-sync:
+    image: bili-sync:latest
+    # 如果想本地构建，取消注释下面三行
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    restart: unless-stopped
+    network_mode: bridge
+    # 该选项请仅在日志终端支持彩色输出时启用，否则日志中可能会出现乱码
+    tty: false
+    # 非必需设置项，推荐设置为宿主机用户的 uid 及 gid (`$uid:$gid`)
+    # 可以执行 `id ${user}` 获取 `user` 用户的 uid 及 gid
+    # 程序下载的所有文件权限将与此处的用户保持一致，不设置默认为 Root
+    # user: 1000:1000
+    hostname: bili-sync
+    container_name: bili-sync
+    # 程序默认绑定 0.0.0.0:12345 运行 http 服务
+    ports:
+      - 12345:12345
+    volumes:
+      - ./config:/app/.config/bili-sync
+      - ./Downloads:/Downloads
+    logging:
+      driver: "local"
+    environment:
+      - TZ=Asia/Shanghai
+      - RUST_LOG=None,bili_sync=info
+      # 可选：设置执行周期，默认为每天凌晨3点执行
+      # - BILI_SYNC_SCHEDULE=0 3 * * *
+    # 资源限制（可选）
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '2'
+    #       memory: 2G
+    #     reservations:
+    #       cpus: '0.5'
+    #       memory: 500M 

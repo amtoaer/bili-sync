@@ -11,6 +11,8 @@ pub struct Model {
     pub favorite_id: Option<i32>,
     pub watch_later_id: Option<i32>,
     pub submission_id: Option<i32>,
+    pub source_id: Option<i32>,
+    pub source_type: Option<i32>,
     pub upper_id: i64,
     pub upper_name: String,
     pub upper_face: String,
@@ -28,6 +30,8 @@ pub struct Model {
     pub tags: Option<serde_json::Value>,
     pub single_page: Option<bool>,
     pub created_at: String,
+    pub season_id: Option<String>,
+    pub ep_id: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
