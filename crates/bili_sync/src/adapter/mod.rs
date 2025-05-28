@@ -58,6 +58,15 @@ pub trait VideoSource {
         release_datetime > latest_row_at
     }
 
+    fn should_filter(
+        &self,
+        video_info: Result<VideoInfo, anyhow::Error>,
+        _latest_row_at: &chrono::DateTime<Utc>,
+    ) -> Option<VideoInfo> {
+        // 视频按照时间顺序拉取，should_take 已经获取了所有需要处理的视频，should_filter 无需额外处理
+        video_info.ok()
+    }
+
     /// 开始刷新视频
     fn log_refresh_video_start(&self);
 

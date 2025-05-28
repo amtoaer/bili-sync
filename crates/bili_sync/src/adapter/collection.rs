@@ -44,13 +44,27 @@ impl VideoSource for collection::Model {
         true
     }
 
+    fn should_filter(
+        &self,
+        video_info: Result<VideoInfo, anyhow::Error>,
+        latest_row_at: &chrono::DateTime<Utc>,
+    ) -> Option<VideoInfo> {
+        // 由于 collection 的视频无固定时间顺序，should_take 无法提前中断拉取，因此 should_filter 环节需要进行额外过滤
+        if let Ok(video_info) = video_info {
+            if video_info.release_datetime() > latest_row_at {
+                return Some(video_info);
+            }
+        }
+        None
+    }
+
     fn log_refresh_video_start(&self) {
         info!("开始扫描{}「{}」..", CollectionType::from(self.r#type), self.name);
     }
 
     fn log_refresh_video_end(&self, count: usize) {
         info!(
-            "扫描{}「{}」完成，已拉取 {} 条视频",
+            "扫描{}「{}」完成，获取到 {} 条新视频",
             CollectionType::from(self.r#type),
             self.name,
             count,
