@@ -76,7 +76,7 @@ pub async fn refresh_video_source<'a>(
                 }
             }
         })
-        .filter_map(|res| futures::future::ready(res.ok()))
+        .filter_map(|res| futures::future::ready(video_source.should_filter(res, &latest_row_at)))
         .chunks(10);
     let mut count = 0;
     while let Some(videos_info) = video_streams.next().await {
