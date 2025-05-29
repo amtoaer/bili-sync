@@ -20,6 +20,7 @@ pub use video::{Dimension, PageInfo, Video};
 pub use watch_later::WatchLater;
 
 mod analyzer;
+mod bangumi;
 mod client;
 mod collection;
 mod credential;
@@ -134,6 +135,17 @@ pub enum VideoInfo {
         cover: String,
         #[serde(rename = "created", with = "ts_seconds")]
         ctime: DateTime<Utc>,
+    },
+    // 从番剧接口获取的视频信息
+    Bangumi {
+        title: String,
+        long_title: String,
+        bvid: String,
+        #[serde(default)]
+        ep_num: i64,
+        #[serde(rename = "id")]
+        ep_id: i64,
+        cover: String,
     },
 }
 
