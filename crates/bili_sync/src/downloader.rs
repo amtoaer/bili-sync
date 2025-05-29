@@ -1,14 +1,18 @@
 use core::str;
+use std::io::SeekFrom;
 use std::path::Path;
+use std::sync::Arc;
 
 use anyhow::{Context, Result, bail, ensure};
 use futures::TryStreamExt;
-use reqwest::Method;
-use tokio::fs::{self, File};
-use tokio::io::AsyncWriteExt;
+use reqwest::{Method, header};
+use tokio::fs::{self, File, OpenOptions};
+use tokio::io::{AsyncSeekExt, AsyncWriteExt};
+use tokio::task::JoinSet;
 use tokio_util::io::StreamReader;
 
 use crate::bilibili::Client;
+use crate::config::CONFIG;
 pub struct Downloader {
     client: Client,
 }
@@ -22,10 +26,14 @@ impl Downloader {
     }
 
     pub async fn fetch(&self, url: &str, path: &Path) -> Result<()> {
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).await?;
+        if CONFIG.concurrent_limit.download.enable {
+            self.fetch_parallel(url, path).await
+        } else {
+            self.fetch_serial(url, path).await
         }
-        let mut file = File::create(path).await?;
+    }
+
+    async fn fetch_serial(&self, url: &str, path: &Path) -> Result<()> {
         let resp = self
             .client
             .request(Method::GET, url, None)
@@ -33,6 +41,10 @@ impl Downloader {
             .await?
             .error_for_status()?;
         let expected = resp.content_length().unwrap_or_default();
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).await?;
+        }
+        let mut file = File::create(path).await?;
         let mut stream_reader = StreamReader::new(resp.bytes_stream().map_err(std::io::Error::other));
         let received = tokio::io::copy(&mut stream_reader, &mut file).await?;
         file.flush().await?;
@@ -42,6 +54,72 @@ impl Downloader {
             received,
             expected
         );
+        Ok(())
+    }
+
+    async fn fetch_parallel(&self, url: &str, path: &Path) -> Result<()> {
+        let resp = self
+            .client
+            .request(Method::HEAD, url, None)
+            .send()
+            .await?
+            .error_for_status()?;
+        let file_size = resp.content_length().unwrap_or_default();
+        let chunk_size = file_size / CONFIG.concurrent_limit.download.concurrency as u64;
+        if resp
+            .headers()
+            .get(header::ACCEPT_RANGES)
+            .is_none_or(|v| v.to_str().unwrap_or_default() == "none") // https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Accept-Ranges#none
+            || chunk_size < CONFIG.concurrent_limit.download.threshold
+        {
+            return self.fetch_serial(url, path).await;
+        }
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).await?;
+        }
+        let file = File::create(path).await?;
+        file.set_len(file_size).await?;
+        drop(file);
+        let mut tasks = JoinSet::new();
+        let url = Arc::new(url.to_string());
+        let path = Arc::new(path.to_path_buf());
+        for i in 0..CONFIG.concurrent_limit.download.concurrency {
+            let start = i as u64 * chunk_size;
+            let end = if i == CONFIG.concurrent_limit.download.concurrency - 1 {
+                file_size
+            } else {
+                start + chunk_size
+            } - 1;
+            let (url_clone, path_clone, client_clone) = (url.clone(), path.clone(), self.client.clone());
+            tasks.spawn(async move {
+                let mut file = OpenOptions::new().write(true).open(path_clone.as_ref()).await?;
+                file.seek(SeekFrom::Start(start)).await?;
+                let range_header = format!("bytes={}-{}", start, end);
+                let resp = client_clone
+                    .request(Method::GET, &url_clone, None)
+                    .header(header::RANGE, &range_header)
+                    .send()
+                    .await?
+                    .error_for_status()?;
+                ensure!(
+                    resp.content_length().unwrap_or_default() == end - start + 1,
+                    "content length not match"
+                );
+                let mut stream_reader = StreamReader::new(resp.bytes_stream().map_err(std::io::Error::other));
+                let received = tokio::io::copy(&mut stream_reader, &mut file).await?;
+                file.flush().await?;
+                ensure!(
+                    received == end - start + 1,
+                    "received {} bytes, expected {} bytes",
+                    received,
+                    end - start + 1
+                );
+                Ok(())
+            });
+        }
+        while let Some(res) = tasks.join_next().await {
+            res??;
+        }
         Ok(())
     }
 

@@ -31,6 +31,25 @@ pub struct ConcurrentLimit {
     pub video: usize,
     pub page: usize,
     pub rate_limit: Option<RateLimit>,
+    #[serde(default)]
+    pub download: ConcurrentDownloadLimit,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ConcurrentDownloadLimit {
+    pub enable: bool,
+    pub concurrency: usize,
+    pub threshold: u64,
+}
+
+impl Default for ConcurrentDownloadLimit {
+    fn default() -> Self {
+        Self {
+            enable: false,
+            concurrency: 4,
+            threshold: 20 * (1 << 20), // 20 MB
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -49,6 +68,7 @@ impl Default for ConcurrentLimit {
                 limit: 4,
                 duration: 250,
             }),
+            download: ConcurrentDownloadLimit::default(),
         }
     }
 }
