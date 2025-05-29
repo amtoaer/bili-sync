@@ -45,7 +45,7 @@ pub struct ConcurrentDownloadLimit {
 impl Default for ConcurrentDownloadLimit {
     fn default() -> Self {
         Self {
-            enable: false,
+            enable: true,
             concurrency: 4,
             threshold: 20 * (1 << 20), // 20 MB
         }
