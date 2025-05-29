@@ -40,7 +40,7 @@ impl Downloader {
             .send()
             .await?
             .error_for_status()?;
-        let expected = resp.content_length().unwrap_or_default();
+        let expected = resp.header_content_length();
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).await?;
         }
@@ -48,12 +48,14 @@ impl Downloader {
         let mut stream_reader = StreamReader::new(resp.bytes_stream().map_err(std::io::Error::other));
         let received = tokio::io::copy(&mut stream_reader, &mut file).await?;
         file.flush().await?;
-        ensure!(
-            received >= expected,
-            "received {} bytes, expected {} bytes",
-            received,
-            expected
-        );
+        if let Some(expected) = expected {
+            ensure!(
+                received == expected,
+                "downloaded bytes mismatch: expected {}, got {}",
+                expected,
+                received
+            );
+        }
         Ok(())
     }
 
@@ -64,7 +66,7 @@ impl Downloader {
             .send()
             .await?
             .error_for_status()?;
-        let file_size = resp.content_length().unwrap_or_default();
+        let file_size = resp.header_content_length().unwrap_or_default();
         let chunk_size = file_size / CONFIG.concurrent_limit.download.concurrency as u64;
         if resp
             .headers()
@@ -101,18 +103,22 @@ impl Downloader {
                     .send()
                     .await?
                     .error_for_status()?;
-                ensure!(
-                    resp.content_length().unwrap_or_default() == end - start + 1,
-                    "content length not match"
-                );
+                if let Some(content_length) = resp.header_content_length() {
+                    ensure!(
+                        content_length == end - start + 1,
+                        "content length mismatch: expected {}, got {}",
+                        end - start + 1,
+                        content_length
+                    );
+                }
                 let mut stream_reader = StreamReader::new(resp.bytes_stream().map_err(std::io::Error::other));
                 let received = tokio::io::copy(&mut stream_reader, &mut file).await?;
                 file.flush().await?;
                 ensure!(
                     received == end - start + 1,
-                    "received {} bytes, expected {} bytes",
+                    "downloaded bytes mismatch: expected {}, got {}",
+                    end - start + 1,
                     received,
-                    end - start + 1
                 );
                 Ok(())
             });
@@ -159,5 +165,20 @@ impl Downloader {
             bail!("ffmpeg error: {}", str::from_utf8(&output.stderr).unwrap_or("unknown"));
         }
         Ok(())
+    }
+}
+
+/// reqwest.content_length() 居然指的是 body_size 而非 content-length header，没办法自己实现一下
+/// https://github.com/seanmonstar/reqwest/issues/1814
+trait ResponseExt {
+    fn header_content_length(&self) -> Option<u64>;
+}
+
+impl ResponseExt for reqwest::Response {
+    fn header_content_length(&self) -> Option<u64> {
+        self.headers()
+            .get(header::CONTENT_LENGTH)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| s.parse::<u64>().ok())
     }
 }
