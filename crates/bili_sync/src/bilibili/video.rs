@@ -11,18 +11,8 @@ use crate::bilibili::danmaku::{DanmakuElem, DanmakuWriter, DmSegMobileReply};
 use crate::bilibili::subtitle::{SubTitle, SubTitleBody, SubTitleInfo, SubTitlesInfo};
 use crate::bilibili::{MIXIN_KEY, Validate, VideoInfo};
 
-static MASK_CODE: u64 = 2251799813685247;
-static XOR_CODE: u64 = 23442827791579;
-static BASE: u64 = 58;
-static DATA: &[char] = &[
-    'F', 'c', 'w', 'A', 'P', 'N', 'K', 'T', 'M', 'u', 'g', '3', 'G', 'V', '5', 'L', 'j', '7', 'E', 'J', 'n', 'H', 'p',
-    'W', 's', 'x', '4', 't', 'b', '8', 'h', 'a', 'Y', 'e', 'v', 'i', 'q', 'B', 'z', '6', 'r', 'k', 'C', 'y', '1', '2',
-    'm', 'U', 'S', 'D', 'Q', 'X', '9', 'R', 'd', 'o', 'Z', 'f',
-];
-
 pub struct Video<'a> {
     client: &'a BiliClient,
-    pub aid: String,
     pub bvid: String,
 }
 
@@ -59,8 +49,7 @@ pub struct Dimension {
 
 impl<'a> Video<'a> {
     pub fn new(client: &'a BiliClient, bvid: String) -> Self {
-        let aid = bvid_to_aid(&bvid).to_string();
-        Self { client, aid, bvid }
+        Self { client, bvid }
     }
 
     /// 直接调用视频信息接口获取详细的视频信息，视频信息中包含了视频的分页信息
@@ -69,7 +58,7 @@ impl<'a> Video<'a> {
             .client
             .request(Method::GET, "https://api.bilibili.com/x/web-interface/view")
             .await
-            .query(&[("aid", &self.aid), ("bvid", &self.bvid)])
+            .query(&[("bvid", &self.bvid)])
             .send()
             .await?
             .error_for_status()?
@@ -85,7 +74,7 @@ impl<'a> Video<'a> {
             .client
             .request(Method::GET, "https://api.bilibili.com/x/player/pagelist")
             .await
-            .query(&[("aid", &self.aid), ("bvid", &self.bvid)])
+            .query(&[("bvid", &self.bvid)])
             .send()
             .await?
             .error_for_status()?
@@ -100,7 +89,7 @@ impl<'a> Video<'a> {
             .client
             .request(Method::GET, "https://api.bilibili.com/x/web-interface/view/detail/tag")
             .await
-            .query(&[("aid", &self.aid), ("bvid", &self.bvid)])
+            .query(&[("bvid", &self.bvid)])
             .send()
             .await?
             .error_for_status()?
@@ -148,7 +137,7 @@ impl<'a> Video<'a> {
             .await
             .query(&encoded_query(
                 vec![
-                    ("avid", self.aid.as_str()),
+                    ("bvid", self.bvid.as_str()),
                     ("cid", page.cid.to_string().as_str()),
                     ("qn", "127"),
                     ("otype", "json"),
@@ -172,7 +161,7 @@ impl<'a> Video<'a> {
             .request(Method::GET, "https://api.bilibili.com/x/player/wbi/v2")
             .await
             .query(&encoded_query(
-                vec![("cid", &page.cid.to_string()), ("bvid", &self.bvid), ("aid", &self.aid)],
+                vec![("cid", &page.cid.to_string()), ("bvid", &self.bvid)],
                 MIXIN_KEY.load().as_deref(),
             ))
             .send()
@@ -204,28 +193,5 @@ impl<'a> Video<'a> {
             .await?;
         let body: SubTitleBody = serde_json::from_value(res["body"].take())?;
         Ok(SubTitle { lan: info.lan, body })
-    }
-}
-
-fn bvid_to_aid(bvid: &str) -> u64 {
-    let mut bvid = bvid.chars().collect::<Vec<_>>();
-    (bvid[3], bvid[9]) = (bvid[9], bvid[3]);
-    (bvid[4], bvid[7]) = (bvid[7], bvid[4]);
-    let mut tmp = 0u64;
-    for char in bvid.into_iter().skip(3) {
-        let idx = DATA.iter().position(|&x| x == char).expect("invalid bvid");
-        tmp = tmp * BASE + idx as u64;
-    }
-    (tmp & MASK_CODE) ^ XOR_CODE
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_bvid_to_aid() {
-        assert_eq!(bvid_to_aid("BV1Tr421n746"), 1401752220u64);
-        assert_eq!(bvid_to_aid("BV1sH4y1s7fe"), 1051892992u64);
     }
 }
