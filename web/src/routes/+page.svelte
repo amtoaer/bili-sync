@@ -177,10 +177,10 @@
 			</div>
 		{:else if videosData?.videos.length}
 			<div
-				style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 380px)); gap: 16px; width: 100%; max-width: none; justify-items: start;"
+				style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; width: 100%; max-width: none; justify-items: start;"
 			>
 				{#each videosData.videos as video (video.id)}
-					<div style="width: 100%;">
+					<div style="max-width: 380px; width: 100%;">
 						<VideoCard {video} />
 					</div>
 				{/each}
