@@ -5,29 +5,18 @@ use axum::extract::{Extension, Path, Query};
 use bili_sync_entity::*;
 use bili_sync_migration::{Expr, OnConflict};
 use sea_orm::{
-    ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, PaginatorTrait, QueryFilter, QueryOrder,
-    QuerySelect, Set, TransactionTrait, Unchanged,
+    ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Set, TransactionTrait, Unchanged
 };
-use utoipa::OpenApi;
 
-use crate::api::auth::OpenAPIAuth;
 use crate::api::error::InnerApiError;
 use crate::api::request::VideosRequest;
 use crate::api::response::{
-    PageInfo, ResetVideoResponse, VideoInfo, VideoResponse, VideoSource, VideoSourcesResponse, VideosResponse,
+    PageInfo, ResetVideoResponse, VideoInfo, VideoResponse, VideoSource, VideoSourcesResponse, VideosResponse
 };
 use crate::api::wrapper::{ApiError, ApiResponse};
 use crate::utils::status::{PageStatus, VideoStatus};
 
-#[derive(OpenApi)]
-#[openapi(
-    paths(get_video_sources, get_videos, get_video, reset_video),
-    modifiers(&OpenAPIAuth),
-    security(
-        ("Token" = []),
-    )
-)]
-pub struct ApiDoc;
+
 
 /// 列出所有视频来源
 #[utoipa::path(
@@ -103,7 +92,7 @@ pub async fn get_videos(
     let (page, page_size) = if let (Some(page), Some(page_size)) = (params.page, params.page_size) {
         (page, page_size)
     } else {
-        (1, 10)
+        (0, 10)
     };
     Ok(ApiResponse::ok(VideosResponse {
         videos: query

@@ -1,5 +1,6 @@
 pub mod auth;
-pub mod handler;
+pub mod handlers;
+pub mod api_doc;
 
 mod error;
 mod request;
