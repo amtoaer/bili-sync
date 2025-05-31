@@ -6,10 +6,7 @@
 		label: string;
 		isActive?: boolean;
 		onClick?: () => void;
-	}> = [
-		{ href: '/', label: '主页' },
-		{ label: '当前页面', isActive: true }
-	];
+	}> = [{ href: '/', label: '主页' }];
 </script>
 
 <Breadcrumb.Root>

@@ -1,4 +1,5 @@
 // API 响应包装器
+
 export interface ApiResponse<T> {
 	status_code: number;
 	data: T;
@@ -62,14 +63,6 @@ export interface ResetVideoResponse {
 	resetted: boolean;
 	video: number;
 	pages: number[];
-}
-
-// 视频来源类型枚举
-export enum VideoSourceType {
-	COLLECTION = 'collection',
-	FAVORITE = 'favorite',
-	SUBMISSION = 'submission',
-	WATCH_LATER = 'watch_later'
 }
 
 // API 错误类型

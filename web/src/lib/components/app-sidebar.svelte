@@ -6,58 +6,61 @@
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
+	import { page } from '$app/state';
+	import { appStateStore, setVideoSourceFilter, clearAll } from '$lib/stores/filter';
 
 	import { onMount } from 'svelte';
-	import type { VideoSourcesResponse } from '$lib/types';
+	import { type VideoSourcesResponse } from '$lib/types';
+	import { VIDEO_SOURCES } from '$lib/consts';
 	import api from '$lib/api';
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import { goto } from '$app/navigation';
 
-	let video_sources: VideoSourcesResponse | null = null;
-
-	// 获取侧边栏状态
 	const sidebar = useSidebar();
+	const search_params = $derived(page.url.searchParams);
+
+	let video_sources: VideoSourcesResponse | null = $state.raw(null);
 
 	onMount(async () => {
-		video_sources = (await api.getVideoSources()).data;
+		try {
+			video_sources = (await api.getVideoSources()).data;
+		} catch (error) {
+			console.error('加载视频来源失败:', error);
+		}
 	});
 
-	const items = [
-		{
-			title: '收藏夹',
-			type: 'favorite',
-			icon: HeartIcon
-		},
-		{
-			title: '合集 / 列表',
-			type: 'collection',
-			icon: FolderIcon
-		},
-		{
-			title: '用户投稿',
-			type: 'submission',
-			icon: UserIcon
-		},
-		{
-			title: '稍后再看',
-			type: 'watch_later',
-			icon: ClockIcon
-		}
-	];
+	const items = Object.values(VIDEO_SOURCES);
 
 	function handleSourceClick(sourceType: string, sourceId: number) {
+		// 更新全局视频源筛选状态
+		setVideoSourceFilter(sourceType, sourceId.toString());
+
 		const params = new URLSearchParams();
+
+		// 保持当前的搜索查询
+		const currentState = $appStateStore;
+		if (currentState.query.trim()) {
+			params.set('query', currentState.query);
+		}
+
+		// 清除其他视频源参数，设置新的筛选参数
+		for (const videoSource of Object.values(VIDEO_SOURCES)) {
+			params.delete(videoSource.type);
+		}
+		params.delete('page');
 		params.set(sourceType, sourceId.toString());
+
 		goto(`/?${params.toString()}`);
 
-		// 移动端自动收起侧边栏
 		if (sidebar.isMobile) {
 			sidebar.setOpenMobile(false);
 		}
 	}
 
 	function handleLogoClick() {
-		// Logo 点击也需要在移动端收起侧边栏
+		clearAll();
+		goto('/');
+
 		if (sidebar.isMobile) {
 			sidebar.setOpenMobile(false);
 		}
@@ -83,7 +86,7 @@
 	<Sidebar.Content class="px-2 py-3">
 		<Sidebar.Group>
 			<Sidebar.GroupLabel
-				class="text-muted-foreground mb-2 px-2 text-xs font-medium tracking-wider uppercase"
+				class="text-muted-foreground mb-2 px-2 text-xs font-medium uppercase tracking-wider"
 			>
 				视频来源
 			</Sidebar.GroupLabel>
