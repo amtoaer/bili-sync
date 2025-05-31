@@ -8,7 +8,7 @@
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
 	import { page } from '$app/state';
-	import { appStateStore, setVideoSourceFilter, clearAll } from '$lib/stores/filter';
+	import { appStateStore, setVideoSourceFilter, clearAll, ToQuery } from '$lib/stores/filter';
 
 	import { onMount } from 'svelte';
 	import { type VideoSourcesResponse } from '$lib/types';
@@ -33,26 +33,8 @@
 	const items = Object.values(VIDEO_SOURCES);
 
 	function handleSourceClick(sourceType: string, sourceId: number) {
-		// 更新全局视频源筛选状态
 		setVideoSourceFilter(sourceType, sourceId.toString());
-
-		const params = new URLSearchParams();
-
-		// 保持当前的搜索查询
-		const currentState = $appStateStore;
-		if (currentState.query.trim()) {
-			params.set('query', currentState.query);
-		}
-
-		// 清除其他视频源参数，设置新的筛选参数
-		for (const videoSource of Object.values(VIDEO_SOURCES)) {
-			params.delete(videoSource.type);
-		}
-		params.delete('page');
-		params.set(sourceType, sourceId.toString());
-
-		goto(`/?${params.toString()}`);
-
+		goto(`/${ToQuery($appStateStore)}`);
 		if (sidebar.isMobile) {
 			sidebar.setOpenMobile(false);
 		}

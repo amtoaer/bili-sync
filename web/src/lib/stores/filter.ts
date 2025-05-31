@@ -17,6 +17,20 @@ export const appStateStore = writable<AppState>({
     }
 });
 
+export const ToQuery = (state: AppState): string => {
+    const { query, videoSource } = state;
+    const params = new URLSearchParams();
+    if (query.trim()) {
+        params.set('query', query);
+    }
+    if (videoSource.key && videoSource.value) {
+        params.set(videoSource.key, videoSource.value);
+    }
+    const queryString = params.toString();
+    return queryString ? `?${queryString}` : '';
+}
+
+
 // 便捷的设置方法
 export const setQuery = (query: string) => {
     appStateStore.update(state => ({

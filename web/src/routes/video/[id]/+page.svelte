@@ -11,6 +11,8 @@
 	import type { VideoResponse } from '$lib/types';
 	import UserIcon from '@lucide/svelte/icons/user';
 	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
+	import { setBreadcrumb } from '$lib/stores/breadcrumb';
+	import { appStateStore, ToQuery } from '$lib/stores/filter';
 
 	let videoData: VideoResponse | null = null;
 	let loading = false;
@@ -18,14 +20,25 @@
 	let resetDialogOpen = false;
 	let resetting = false;
 
-	const breadcrumbItems = [
-		{ href: '/', label: '主页' },
-		{ label: '视频详情', isActive: true }
-	];
+	async function loadVideoDetail() {
+		const videoId = parseInt($page.params.id);
+		if (isNaN(videoId)) {
+			error = '无效的视频ID';
+			return;
+		}
 
-	// 处理面包屑中"主页"的点击
-	function handleHomeClick() {
-		history.back();
+		loading = true;
+		error = null;
+
+		try {
+			const result = await api.getVideo(videoId);
+			videoData = result.data;
+		} catch (err) {
+			console.error('加载视频详情失败:', err);
+			error = '加载视频详情失败';
+		} finally {
+			loading = false;
+		}
 	}
 
 	function getTaskName(index: number): string {
@@ -95,28 +108,16 @@
 		}
 	}
 
-	async function loadVideoDetail() {
-		const videoId = parseInt($page.params.id);
-		if (isNaN(videoId)) {
-			error = '无效的视频ID';
-			return;
-		}
-
-		loading = true;
-		error = null;
-
-		try {
-			const result = await api.getVideo(videoId);
-			videoData = result.data;
-		} catch (err) {
-			console.error('加载视频详情失败:', err);
-			error = '加载视频详情失败';
-		} finally {
-			loading = false;
-		}
-	}
-
 	onMount(() => {
+		setBreadcrumb([
+			{
+				label: '主页',
+				onClick: () => {
+					goto(`/${ToQuery($appStateStore)}`);
+				}
+			},
+			{ label: '视频详情', isActive: true }
+		]);
 		loadVideoDetail();
 	});
 
@@ -134,164 +135,144 @@
 	<title>{videoData?.video.name || '视频详情'} - Bili Sync</title>
 </svelte:head>
 
-<!-- 确保容器高度和滚动正确设置 -->
-<div class="bg-background min-h-screen w-full">
-	<!-- 页面内容 -->
-	<div class="w-full px-6 py-6">
-		<!-- 面包屑导航 -->
-		<div class="mb-6">
-			<BreadCrumb
-				items={breadcrumbItems.map((item) =>
-					item.href === '/' ? { ...item, href: undefined, onClick: handleHomeClick } : item
-				)}
-			/>
+{#if loading}
+	<div class="flex items-center justify-center py-12">
+		<div class="text-muted-foreground">加载中...</div>
+	</div>
+{:else if error}
+	<div class="flex items-center justify-center py-12">
+		<div class="space-y-2 text-center">
+			<p class="text-destructive">{error}</p>
+			<button
+				class="text-muted-foreground hover:text-foreground text-sm transition-colors"
+				onclick={() => goto('/')}
+			>
+				返回首页
+			</button>
+		</div>
+	</div>
+{:else if videoData}
+	<!-- 视频信息区域 -->
+	<section>
+		<div class="mb-4 flex items-center justify-between">
+			<h2 class="text-xl font-semibold">视频信息</h2>
+			{#if videoOverallStatus}
+				<Badge variant={videoOverallStatus.color} class="text-sm">
+					{videoOverallStatus.text}
+				</Badge>
+			{/if}
 		</div>
 
-		{#if loading}
-			<div class="flex items-center justify-center py-12">
-				<div class="text-muted-foreground">加载中...</div>
-			</div>
-		{:else if error}
-			<div class="flex items-center justify-center py-12">
-				<div class="space-y-2 text-center">
-					<p class="text-destructive">{error}</p>
-					<button
-						class="text-muted-foreground hover:text-foreground text-sm transition-colors"
-						onclick={() => goto('/')}
+		<Card style="margin-bottom: 1rem;">
+			<CardHeader class="pb-4">
+				<div class="flex items-start justify-between gap-4">
+					<div class="min-w-0 flex-1">
+						<CardTitle class="mb-2 text-lg leading-tight" title={videoData.video.name}>
+							{videoData.video.name}
+						</CardTitle>
+						<div class="text-muted-foreground flex items-center gap-2 text-sm">
+							<UserIcon class="h-4 w-4 shrink-0" />
+							<span class="truncate" title={videoData.video.upper_name}>
+								{videoData.video.upper_name}
+							</span>
+						</div>
+					</div>
+					<Button
+						size="sm"
+						variant="outline"
+						class="shrink-0"
+						onclick={() => (resetDialogOpen = true)}
+						disabled={resetting}
 					>
-						返回首页
-					</button>
+						<RotateCcwIcon class="mr-2 h-4 w-4 {resetting ? 'animate-spin' : ''}" />
+						重置
+					</Button>
+				</div>
+			</CardHeader>
+			<CardContent class="pt-0">
+				<!-- 下载进度 -->
+				<div class="space-y-3">
+					<div class="flex justify-between text-sm">
+						<span class="text-muted-foreground">下载进度</span>
+						<span class="font-medium">{videoCompleted}/{videoTotal}</span>
+					</div>
+
+					<!-- 五段进度条 -->
+					<div class="flex w-full gap-2">
+						{#each videoData.video.download_status as status, index (index)}
+							<div
+								class="h-3 flex-1 cursor-help rounded-sm transition-all {getSegmentColor(status)}"
+								title="{getTaskName(index)}: {getStatusText(status)}"
+							></div>
+						{/each}
+					</div>
+				</div>
+			</CardContent>
+		</Card>
+	</section>
+
+	<section>
+		{#if videoData.pages && videoData.pages.length > 0}
+			<div>
+				<div class="mb-4 flex items-center justify-between">
+					<h2 class="text-xl font-semibold">分页列表</h2>
+					<div class="text-muted-foreground text-sm">
+						共 {videoData.pages.length} 个分页
+					</div>
+				</div>
+
+				<div
+					class="grid gap-4"
+					style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));"
+				>
+					{#each videoData.pages as pageInfo (pageInfo.id)}
+						{@const pageOverallStatus = getOverallStatus(pageInfo.download_status)}
+						{@const pageCompleted = pageInfo.download_status.filter((s) => s === 7).length}
+						{@const pageTotal = pageInfo.download_status.length}
+
+						<Card class="transition-shadow hover:shadow-md">
+							<CardHeader class="pb-3">
+								<div class="flex items-start justify-between gap-2">
+									<CardTitle class="min-w-0 flex-1 text-base leading-tight" title={pageInfo.name}>
+										P{pageInfo.pid}: {pageInfo.name}
+									</CardTitle>
+									<Badge variant={pageOverallStatus.color} class="shrink-0 text-xs">
+										{pageOverallStatus.text}
+									</Badge>
+								</div>
+							</CardHeader>
+							<CardContent class="pt-0">
+								<div class="space-y-3">
+									<div class="text-muted-foreground flex justify-between text-xs">
+										<span>下载进度</span>
+										<span>{pageCompleted}/{pageTotal}</span>
+									</div>
+									<div class="flex w-full gap-1">
+										{#each pageInfo.download_status as status, index (index)}
+											<div
+												class="h-2 flex-1 cursor-help rounded-sm transition-all {getSegmentColor(
+													status
+												)}"
+												title="{getPageTaskName(index)}: {getStatusText(status)}"
+											></div>
+										{/each}
+									</div>
+								</div>
+							</CardContent>
+						</Card>
+					{/each}
 				</div>
 			</div>
-		{:else if videoData}
-			<!-- 视频信息区域 -->
-			<section>
-				<div class="mb-4 flex items-center justify-between">
-					<h2 class="text-xl font-semibold">视频信息</h2>
-					{#if videoOverallStatus}
-						<Badge variant={videoOverallStatus.color} class="text-sm">
-							{videoOverallStatus.text}
-						</Badge>
-					{/if}
+		{:else}
+			<div class="py-12 text-center">
+				<div class="space-y-2">
+					<p class="text-muted-foreground">暂无分P数据</p>
+					<p class="text-muted-foreground text-sm">该视频可能为单P视频</p>
 				</div>
-
-				<Card style="margin-bottom: 1rem;">
-					<CardHeader class="pb-4">
-						<div class="flex items-start justify-between gap-4">
-							<div class="min-w-0 flex-1">
-								<CardTitle class="mb-2 text-lg leading-tight" title={videoData.video.name}>
-									{videoData.video.name}
-								</CardTitle>
-								<div class="text-muted-foreground flex items-center gap-2 text-sm">
-									<UserIcon class="h-4 w-4 shrink-0" />
-									<span class="truncate" title={videoData.video.upper_name}>
-										{videoData.video.upper_name}
-									</span>
-								</div>
-							</div>
-							<Button
-								size="sm"
-								variant="outline"
-								class="shrink-0"
-								onclick={() => (resetDialogOpen = true)}
-								disabled={resetting}
-							>
-								<RotateCcwIcon class="mr-2 h-4 w-4 {resetting ? 'animate-spin' : ''}" />
-								重置
-							</Button>
-						</div>
-					</CardHeader>
-					<CardContent class="pt-0">
-						<!-- 下载进度 -->
-						<div class="space-y-3">
-							<div class="flex justify-between text-sm">
-								<span class="text-muted-foreground">下载进度</span>
-								<span class="font-medium">{videoCompleted}/{videoTotal}</span>
-							</div>
-
-							<!-- 五段进度条 -->
-							<div class="flex w-full gap-2">
-								{#each videoData.video.download_status as status, index (index)}
-									<div
-										class="h-3 flex-1 cursor-help rounded-sm transition-all {getSegmentColor(
-											status
-										)}"
-										title="{getTaskName(index)}: {getStatusText(status)}"
-									></div>
-								{/each}
-							</div>
-						</div>
-					</CardContent>
-				</Card>
-			</section>
-
-			<section>
-				{#if videoData.pages && videoData.pages.length > 0}
-					<div>
-						<div class="mb-4 flex items-center justify-between">
-							<h2 class="text-xl font-semibold">分页列表</h2>
-							<div class="text-muted-foreground text-sm">
-								共 {videoData.pages.length} 个分页
-							</div>
-						</div>
-
-						<div
-							class="grid gap-4"
-							style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));"
-						>
-							{#each videoData.pages as pageInfo (pageInfo.id)}
-								{@const pageOverallStatus = getOverallStatus(pageInfo.download_status)}
-								{@const pageCompleted = pageInfo.download_status.filter((s) => s === 7).length}
-								{@const pageTotal = pageInfo.download_status.length}
-
-								<Card class="transition-shadow hover:shadow-md">
-									<CardHeader class="pb-3">
-										<div class="flex items-start justify-between gap-2">
-											<CardTitle
-												class="min-w-0 flex-1 text-base leading-tight"
-												title={pageInfo.name}
-											>
-												P{pageInfo.pid}: {pageInfo.name}
-											</CardTitle>
-											<Badge variant={pageOverallStatus.color} class="shrink-0 text-xs">
-												{pageOverallStatus.text}
-											</Badge>
-										</div>
-									</CardHeader>
-									<CardContent class="pt-0">
-										<div class="space-y-3">
-											<div class="text-muted-foreground flex justify-between text-xs">
-												<span>下载进度</span>
-												<span>{pageCompleted}/{pageTotal}</span>
-											</div>
-											<div class="flex w-full gap-1">
-												{#each pageInfo.download_status as status, index (index)}
-													<div
-														class="h-2 flex-1 cursor-help rounded-sm transition-all {getSegmentColor(
-															status
-														)}"
-														title="{getPageTaskName(index)}: {getStatusText(status)}"
-													></div>
-												{/each}
-											</div>
-										</div>
-									</CardContent>
-								</Card>
-							{/each}
-						</div>
-					</div>
-				{:else}
-					<div class="py-12 text-center">
-						<div class="space-y-2">
-							<p class="text-muted-foreground">暂无分P数据</p>
-							<p class="text-muted-foreground text-sm">该视频可能为单P视频</p>
-						</div>
-					</div>
-				{/if}
-			</section>
+			</div>
 		{/if}
-	</div>
-</div>
+	</section>
+{/if}
 
 <!-- 重置确认对话框 -->
 <AlertDialog.Root bind:open={resetDialogOpen}>

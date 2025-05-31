@@ -6,6 +6,9 @@
 	import BreadCrumb from '$lib/components/bread-crumb.svelte';
 	import api from '$lib/api';
 	import { toast } from 'svelte-sonner';
+	import { setBreadcrumb } from '$lib/stores/breadcrumb';
+	import { goto } from '$app/navigation';
+	import { appStateStore, ToQuery } from '$lib/stores/filter';
 
 	let apiToken = '';
 	let saving = false;
@@ -14,11 +17,6 @@
 		{ href: '/', label: '主页' },
 		{ label: '设置', isActive: true }
 	];
-
-	// 处理面包屑中"主页"的点击
-	function handleHomeClick() {
-		history.back();
-	}
 
 	async function saveApiToken() {
 		if (!apiToken.trim()) {
@@ -39,7 +37,15 @@
 	}
 
 	onMount(() => {
-		// 从localStorage读取已保存的token
+		setBreadcrumb([
+			{
+				label: '主页',
+				onClick: () => {
+					goto(`/${ToQuery($appStateStore)}`);
+				}
+			},
+			{ label: '设置', isActive: true }
+		]);
 		const savedToken = localStorage.getItem('authToken');
 		if (savedToken) {
 			apiToken = savedToken;
@@ -51,43 +57,29 @@
 	<title>设置 - Bili Sync</title>
 </svelte:head>
 
-<div class="bg-background min-h-screen w-full">
-	<div class="w-full px-6 py-6">
-		<!-- 面包屑导航 -->
-		<div class="mb-6">
-			<BreadCrumb
-				items={breadcrumbItems.map((item) =>
-					item.href === '/' ? { ...item, href: undefined, onClick: handleHomeClick } : item
-				)}
-			/>
-		</div>
-
-		<!-- 设置内容 -->
-		<div class="max-w-4xl">
-			<div class="space-y-8">
-				<!-- API Token 配置 -->
-				<div class="border-border border-b pb-6">
-					<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-						<div class="lg:col-span-1">
-							<Label class="text-base font-semibold">API Token</Label>
-							<p class="text-muted-foreground mt-1 text-sm">用于身份验证的API令牌</p>
-						</div>
-						<div class="space-y-4 lg:col-span-2">
-							<div class="space-y-2">
-								<Input
-									id="api-token"
-									type="password"
-									placeholder="请输入API Token"
-									bind:value={apiToken}
-									class="max-w-lg"
-								/>
-								<p class="text-muted-foreground text-xs">请确保令牌的安全性，不要与他人分享</p>
-							</div>
-							<Button onclick={saveApiToken} disabled={saving} size="sm">
-								{saving ? '保存中...' : '保存'}
-							</Button>
-						</div>
+<div class="max-w-4xl">
+	<div class="space-y-8">
+		<!-- API Token 配置 -->
+		<div class="border-border border-b pb-6">
+			<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+				<div class="lg:col-span-1">
+					<Label class="text-base font-semibold">API Token</Label>
+					<p class="text-muted-foreground mt-1 text-sm">用于身份验证的API令牌</p>
+				</div>
+				<div class="space-y-4 lg:col-span-2">
+					<div class="space-y-2">
+						<Input
+							id="api-token"
+							type="password"
+							placeholder="请输入API Token"
+							bind:value={apiToken}
+							class="max-w-lg"
+						/>
+						<p class="text-muted-foreground text-xs">请确保令牌的安全性，不要与他人分享</p>
 					</div>
+					<Button onclick={saveApiToken} disabled={saving} size="sm">
+						{saving ? '保存中...' : '保存'}
+					</Button>
 				</div>
 			</div>
 		</div>

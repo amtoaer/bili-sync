@@ -1,5 +1,4 @@
 <script lang="ts">
-	import BreadCrumb from '$lib/components/bread-crumb.svelte';
 	import VideoCard from '$lib/components/video-card.svelte';
 	import FilterBadge from '$lib/components/filter-badge.svelte';
 	import Pagination from '$lib/components/pagination.svelte';
@@ -10,6 +9,7 @@
 	import { goto } from '$app/navigation';
 	import { videoSourceStore, setVideoSources } from '$lib/stores/video-source';
 	import { VIDEO_SOURCES } from '$lib/consts';
+	import { setBreadcrumb } from '$lib/stores/breadcrumb';
 
 	let videosData: VideosResponse | null = null;
 	let loading = false;
@@ -17,8 +17,6 @@
 	const pageSize = 20;
 	let currentQuery = '';
 	let currentFilter: { type: string; id: string } | null = null;
-
-	const breadcrumbItems = [{ href: '/', label: '主页', isActive: true }];
 
 	// 从URL参数获取筛选条件
 	function getFilterFromURL(searchParams: URLSearchParams) {
@@ -135,6 +133,13 @@
 	}
 
 	onMount(async () => {
+		setBreadcrumb([
+			{
+				label: '主页',
+				isActive: true
+			}
+		]);
+
 		// 只加载视频源数据
 		if (!$videoSourceStore) {
 			await loadVideoSources();
@@ -146,55 +151,43 @@
 	$: filterName = currentFilter ? getFilterName(currentFilter.type, currentFilter.id) : '';
 </script>
 
-<!-- 确保容器高度和滚动正确设置 -->
-<div class="bg-background min-h-screen w-full">
-	<!-- 页面内容 -->
-	<div class="w-full px-6 py-6">
-		<!-- 面包屑导航 -->
-		<div class="mb-6">
-			<BreadCrumb items={breadcrumbItems} />
+<FilterBadge {filterTitle} {filterName} onRemove={handleFilterRemove} />
+
+<!-- 统计信息 -->
+{#if videosData}
+	<div class="mb-6 flex items-center justify-between">
+		<div class="text-muted-foreground text-sm">
+			共 {videosData.total_count} 个视频
 		</div>
-
-		<!-- 筛选条件显示 -->
-		<FilterBadge {filterTitle} {filterName} onRemove={handleFilterRemove} />
-
-		<!-- 统计信息 -->
-		{#if videosData}
-			<div class="mb-6 flex items-center justify-between">
-				<div class="text-muted-foreground text-sm">
-					共 {videosData.total_count} 个视频
-				</div>
-				<div class="text-muted-foreground text-sm">
-					共 {totalPages} 页
-				</div>
-			</div>
-		{/if}
-
-		<!-- 视频卡片网格 -->
-		{#if loading}
-			<div class="flex items-center justify-center py-12">
-				<div class="text-muted-foreground">加载中...</div>
-			</div>
-		{:else if videosData?.videos.length}
-			<div
-				style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; width: 100%; max-width: none; justify-items: start;"
-			>
-				{#each videosData.videos as video (video.id)}
-					<div style="max-width: 400px; width: 100%;">
-						<VideoCard {video} />
-					</div>
-				{/each}
-			</div>
-
-			<!-- 翻页组件 -->
-			<Pagination {currentPage} {totalPages} onPageChange={handlePageChange} />
-		{:else}
-			<div class="flex items-center justify-center py-12">
-				<div class="space-y-2 text-center">
-					<p class="text-muted-foreground">暂无视频数据</p>
-					<p class="text-muted-foreground text-sm">尝试搜索或检查视频来源配置</p>
-				</div>
-			</div>
-		{/if}
+		<div class="text-muted-foreground text-sm">
+			共 {totalPages} 页
+		</div>
 	</div>
-</div>
+{/if}
+
+<!-- 视频卡片网格 -->
+{#if loading}
+	<div class="flex items-center justify-center py-12">
+		<div class="text-muted-foreground">加载中...</div>
+	</div>
+{:else if videosData?.videos.length}
+	<div
+		style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; width: 100%; max-width: none; justify-items: start;"
+	>
+		{#each videosData.videos as video (video.id)}
+			<div style="max-width: 400px; width: 100%;">
+				<VideoCard {video} />
+			</div>
+		{/each}
+	</div>
+
+	<!-- 翻页组件 -->
+	<Pagination {currentPage} {totalPages} onPageChange={handlePageChange} />
+{:else}
+	<div class="flex items-center justify-center py-12">
+		<div class="space-y-2 text-center">
+			<p class="text-muted-foreground">暂无视频数据</p>
+			<p class="text-muted-foreground text-sm">尝试搜索或检查视频来源配置</p>
+		</div>
+	</div>
+{/if}

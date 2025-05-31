@@ -4,27 +4,14 @@
 	import SearchBar from '$lib/components/search-bar.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { goto } from '$app/navigation';
-	import { appStateStore, setQuery } from '$lib/stores/filter';
+	import { appStateStore, setQuery, ToQuery } from '$lib/stores/filter';
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
+	import { breadcrumbStore } from '$lib/stores/breadcrumb';
+	import BreadCrumb from '$lib/components/bread-crumb.svelte';
 
 	async function handleSearch(query: string) {
-		// 更新全局查询状态
 		setQuery(query);
-
-		const params = new URLSearchParams();
-		if (query.trim()) {
-			params.set('query', query);
-		}
-
-		// 保持当前的视频源筛选
-		const currentState = $appStateStore;
-		if (currentState.videoSource.key && currentState.videoSource.value) {
-			params.set(currentState.videoSource.key, currentState.videoSource.value);
-		}
-
-		const queryString = params.toString();
-		const newUrl = queryString ? `/?${queryString}` : '/';
-		goto(newUrl);
+		goto(`/${ToQuery($appStateStore)}`);
 	}
 
 	// 从全局状态获取当前查询值
@@ -49,7 +36,14 @@
 					</div>
 				</div>
 			</div>
-			<slot />
+			<div class="bg-background min-h-screen w-full">
+				<div class="w-full px-6 py-6">
+					<div class="mb-6">
+						<BreadCrumb items={$breadcrumbStore} />
+					</div>
+					<slot />
+				</div>
+			</div>
 		</Sidebar.Inset>
 	</div>
 </Sidebar.Provider>
