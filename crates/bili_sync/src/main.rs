@@ -34,7 +34,7 @@ async fn main() {
     let tracker = TaskTracker::new();
 
     spawn_task("HTTP 服务", http_server(connection.clone()), &tracker, token.clone());
-    // spawn_task("定时下载", video_downloader(connection), &tracker, token.clone());
+    spawn_task("定时下载", video_downloader(connection), &tracker, token.clone());
 
     tracker.close();
     handle_shutdown(tracker, token).await
