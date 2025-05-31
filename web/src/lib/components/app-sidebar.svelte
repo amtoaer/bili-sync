@@ -1,8 +1,8 @@
 <script lang="ts">
-	import CalendarIcon from '@lucide/svelte/icons/calendar';
-	import HouseIcon from '@lucide/svelte/icons/house';
-	import InboxIcon from '@lucide/svelte/icons/inbox';
-	import SearchIcon from '@lucide/svelte/icons/search';
+	import HeartIcon from '@lucide/svelte/icons/heart';
+	import FolderIcon from '@lucide/svelte/icons/folder';
+	import UserIcon from '@lucide/svelte/icons/user';
+	import ClockIcon from '@lucide/svelte/icons/clock';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
@@ -26,26 +26,22 @@
 		{
 			title: '收藏夹',
 			type: 'favorite',
-			url: '#',
-			icon: HouseIcon
+			icon: HeartIcon
 		},
 		{
-			title: '合集/列表',
+			title: '合集 / 列表',
 			type: 'collection',
-			url: '#',
-			icon: InboxIcon
+			icon: FolderIcon
 		},
 		{
 			title: '用户投稿',
 			type: 'submission',
-			url: '#',
-			icon: CalendarIcon
+			icon: UserIcon
 		},
 		{
 			title: '稍后再看',
 			type: 'watch_later',
-			url: '#',
-			icon: SearchIcon
+			icon: ClockIcon
 		}
 	];
 
@@ -73,7 +69,7 @@
 		<a
 			href="/"
 			class="flex w-full items-center gap-3 px-4 py-3 hover:cursor-pointer"
-			on:click={handleLogoClick}
+			onclick={handleLogoClick}
 		>
 			<div class="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg">
 				<img src="/favicon.png" alt="Bili Sync" class="h-6 w-6" />
@@ -120,7 +116,7 @@
 													<Sidebar.MenuItem>
 														<button
 															class="text-foreground hover:bg-accent/50 w-full cursor-pointer rounded-md px-3 py-2 text-left text-sm transition-all duration-200"
-															on:click={() => handleSourceClick(item.type, source.id)}
+															onclick={() => handleSourceClick(item.type, source.id)}
 														>
 															<span class="block truncate">{source.name}</span>
 														</button>

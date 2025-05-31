@@ -1,6 +1,5 @@
 <script lang="ts">
 	import BreadCrumb from '$lib/components/bread-crumb.svelte';
-	import SearchBar from '$lib/components/search-bar.svelte';
 	import VideoCard from '$lib/components/video-card.svelte';
 	import FilterBadge from '$lib/components/filter-badge.svelte';
 	import Pagination from '$lib/components/pagination.svelte';
@@ -8,7 +7,6 @@
 	import type { VideosResponse, VideoSourcesResponse } from '$lib/types';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
-	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 
 	let searchQuery = '';
 	let videosData: VideosResponse | null = null;
@@ -94,12 +92,6 @@
 		}
 	}
 
-	async function handleSearch(query: string) {
-		console.log('搜索:', query);
-		searchQuery = query; // 更新搜索查询
-		await loadVideos(query, 0);
-	}
-
 	async function handlePageChange(page: number) {
 		console.log('翻页到:', page);
 		await loadVideos(searchQuery, page);
@@ -129,7 +121,15 @@
 
 	onMount(async () => {
 		await loadVideoSources();
-		await loadVideos();
+
+		// 检查URL中是否有搜索查询参数
+		const urlQuery = $page.url.searchParams.get('query');
+		if (urlQuery) {
+			searchQuery = urlQuery;
+			await loadVideos(urlQuery, 0);
+		} else {
+			await loadVideos();
+		}
 	});
 
 	$: totalPages = videosData ? Math.ceil(videosData.total_count / pageSize) : 0;
@@ -137,25 +137,6 @@
 
 <!-- 确保容器高度和滚动正确设置 -->
 <div class="bg-background min-h-screen w-full">
-	<!-- 固定的搜索栏 - 与侧边栏header高度完全一致 -->
-	<div
-		class="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 flex h-[73px] w-full items-center border-b backdrop-blur"
-	>
-		<div class="flex w-full items-center gap-4 px-6">
-			<!-- 侧边栏切换按钮 - 添加data属性用于移动端识别 -->
-			<Sidebar.Trigger class="shrink-0" data-sidebar="trigger" />
-
-			<!-- 搜索栏 -->
-			<div class="flex-1">
-				<SearchBar
-					bind:value={searchQuery}
-					onSearch={handleSearch}
-					placeholder="搜索视频、UP主..."
-				/>
-			</div>
-		</div>
-	</div>
-
 	<!-- 页面内容 -->
 	<div class="w-full px-6 py-6">
 		<!-- 面包屑导航 -->

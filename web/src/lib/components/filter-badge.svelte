@@ -15,7 +15,7 @@
 	function getFilterTypeLabel(type: string): string {
 		switch (type) {
 			case 'collection':
-				return '合集/列表';
+				return '合集 / 列表';
 			case 'favorite':
 				return '收藏夹';
 			case 'submission':
@@ -35,7 +35,7 @@
 			<span>{getFilterTypeLabel(filterType)}: {filterName}</span>
 			<button
 				class="hover:bg-muted-foreground/20 ml-1 cursor-pointer rounded-full p-0.5 transition-colors"
-				on:click={clearFilter}
+				onclick={clearFilter}
 				type="button"
 			>
 				<XIcon class="h-3 w-3" />

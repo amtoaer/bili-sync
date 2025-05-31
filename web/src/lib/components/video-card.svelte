@@ -5,7 +5,7 @@
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import type { VideoInfo } from '$lib/types';
 	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
-	import PlayIcon from '@lucide/svelte/icons/play';
+	import InfoIcon from '@lucide/svelte/icons/info';
 	import UserIcon from '@lucide/svelte/icons/user';
 	import { goto } from '$app/navigation';
 	import api from '$lib/api';
@@ -131,7 +131,7 @@
 						class="min-w-0 flex-1 cursor-pointer px-2 text-xs"
 						onclick={handleViewDetail}
 					>
-						<PlayIcon class="mr-1 h-3 w-3 shrink-0" />
+						<InfoIcon class="mr-1 h-3 w-3 shrink-0" />
 						<span class="truncate">详情</span>
 					</Button>
 					<Button

@@ -21,7 +21,7 @@
 				{:else if item.onClick}
 					<button
 						class="hover:text-foreground cursor-pointer transition-colors"
-						on:click={item.onClick}
+						onclick={item.onClick}
 					>
 						{item.label}
 					</button>
