@@ -14,14 +14,6 @@
 	import { videoSourceStore, setVideoSources } from '$lib/stores/video-source';
 	const sidebar = useSidebar();
 
-	onMount(async () => {
-		try {
-			setVideoSources((await api.getVideoSources()).data);
-		} catch (error) {
-			console.error('加载视频来源失败:', error);
-		}
-	});
-
 	const items = Object.values(VIDEO_SOURCES);
 
 	function handleSourceClick(sourceType: string, sourceId: number) {

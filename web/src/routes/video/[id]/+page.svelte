@@ -15,7 +15,6 @@
 	let error: string | null = null;
 	let resetDialogOpen = false;
 	let resetting = false;
-	let previousID: number | null = null;
 
 	async function loadVideoDetail() {
 		const videoId = parseInt($page.params.id);
@@ -52,11 +51,7 @@
 
 	// 监听路由参数变化
 	$: if ($page.params.id) {
-		const videoId = parseInt($page.params.id);
-		if (videoId !== previousID) {
-			previousID = videoId;
-			loadVideoDetail();
-		}
+		loadVideoDetail();
 	}
 </script>
 

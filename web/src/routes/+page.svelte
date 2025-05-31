@@ -7,16 +7,23 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { videoSourceStore, setVideoSources } from '$lib/stores/video-source';
+	import { setVideoSources, videoSourceStore } from '$lib/stores/video-source';
 	import { VIDEO_SOURCES } from '$lib/consts';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
+	import {
+		appStateStore,
+		clearVideoSourceFilter,
+		setQuery,
+		setVideoSourceFilter,
+		ToQuery
+	} from '$lib/stores/filter';
 
 	let videosData: VideosResponse | null = null;
 	let loading = false;
 	let currentPage = 0;
 	const pageSize = 20;
-	let currentQuery = '';
 	let currentFilter: { type: string; id: string } | null = null;
+	let lastSearch: string | null = null;
 
 	// 从URL参数获取筛选条件
 	function getFilterFromURL(searchParams: URLSearchParams) {
@@ -76,60 +83,47 @@
 		}
 	}
 
-	async function loadVideoSources() {
+	async function handlePageChange(pageNum: number) {
+		const query = ToQuery($appStateStore);
+		if (query) {
+			goto(`/${query}&page=${pageNum}`);
+		} else {
+			goto(`/?page=${pageNum}`);
+		}
+	}
+
+	async function initializeVideoSources() {
+		if ($videoSourceStore) return;
 		try {
 			const result = await api.getVideoSources();
 			setVideoSources(result.data);
 		} catch (error) {
-			console.error('加载视频来源失败:', error);
+			console.error('加载视频源失败:', error);
 		}
 	}
 
-	// 从URL加载数据
-	async function loadFromURL() {
-		const urlQuery = $page.url.searchParams.get('query') || '';
-		const urlPage = parseInt($page.url.searchParams.get('page') || '0');
-		const urlFilter = getFilterFromURL($page.url.searchParams);
-
-		// 更新本地状态
-		currentQuery = urlQuery;
-		currentFilter = urlFilter;
-
-		await loadVideos(urlQuery, urlPage, urlFilter);
-	}
-
-	async function handlePageChange(pageNum: number) {
-		const params = new URLSearchParams($page.url.searchParams);
-		if (pageNum > 0) {
-			params.set('page', pageNum.toString());
+	async function handleSearchParamsChange() {
+		const query = $page.url.searchParams.get('query');
+		currentFilter = getFilterFromURL($page.url.searchParams);
+		setQuery(query || '');
+		if (currentFilter) {
+			setVideoSourceFilter(currentFilter.type, currentFilter.id);
 		} else {
-			params.delete('page');
+			clearVideoSourceFilter();
 		}
-		const queryString = params.toString();
-		const newUrl = queryString ? `/?${queryString}` : '/';
-		goto(newUrl);
+		loadVideos(query || '', parseInt($page.url.searchParams.get('page') || '0'), currentFilter);
 	}
 
 	function handleFilterRemove() {
-		const params = new URLSearchParams();
-
-		// 保留查询参数
-		const query = $page.url.searchParams.get('query');
-		if (query) {
-			params.set('query', query);
-		}
-
-		// 删除所有视频来源筛选参数和页码
-		// （页码重置为第一页）
-
-		const queryString = params.toString();
-		const newUrl = queryString ? `/?${queryString}` : '/';
-		goto(newUrl);
+		clearVideoSourceFilter();
+		goto(`/${ToQuery($appStateStore)}`);
 	}
 
-	// 监听URL变化
-	$: if ($page.url.searchParams && $videoSourceStore) {
-		loadFromURL();
+	$: if ($page.url.search !== lastSearch) {
+		lastSearch = $page.url.search;
+		initializeVideoSources().then(() => {
+			handleSearchParamsChange();
+		});
 	}
 
 	onMount(async () => {
@@ -139,11 +133,6 @@
 				isActive: true
 			}
 		]);
-
-		// 只加载视频源数据
-		if (!$videoSourceStore) {
-			await loadVideoSources();
-		}
 	});
 
 	$: totalPages = videosData ? Math.ceil(videosData.total_count / pageSize) : 0;
