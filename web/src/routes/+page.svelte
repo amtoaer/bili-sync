@@ -132,6 +132,10 @@
 	$: filterName = currentFilter ? getFilterName(currentFilter.type, currentFilter.id) : '';
 </script>
 
+<svelte:head>
+	<title>主页 - Bili Sync</title>
+</svelte:head>
+
 <FilterBadge {filterTitle} {filterName} onRemove={handleFilterRemove} />
 
 <!-- 统计信息 -->
