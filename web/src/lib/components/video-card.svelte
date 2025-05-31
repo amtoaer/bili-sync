@@ -9,6 +9,7 @@
 	import UserIcon from '@lucide/svelte/icons/user';
 	import { goto } from '$app/navigation';
 	import api from '$lib/api';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
 	export let video: VideoInfo;
 	export let showActions: boolean = true; // 控制是否显示操作按钮
@@ -114,10 +115,16 @@
 				<!-- 五段进度条 -->
 				<div class="flex w-full gap-1">
 					{#each video.download_status as status, index (index)}
-						<div
-							class="h-2 flex-1 cursor-help rounded-sm transition-all {getSegmentColor(status)}"
-							title="{getTaskName(index)}: {getStatusText(status)}"
-						></div>
+						<Tooltip.Root>
+							<Tooltip.Trigger class="flex-1">
+								<div
+									class="h-2 w-full cursor-help rounded-sm transition-all {getSegmentColor(status)}"
+								></div>
+							</Tooltip.Trigger>
+							<Tooltip.Content>
+								<p>{getTaskName(index)}: {getStatusText(status)}</p>
+							</Tooltip.Content>
+						</Tooltip.Root>
 					{/each}
 				</div>
 			</div>
