@@ -5,6 +5,7 @@
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { goto } from '$app/navigation';
 	import { appStateStore, setQuery } from '$lib/stores/filter';
+	import { Toaster } from '$lib/components/ui/sonner/index.js';
 
 	async function handleSearch(query: string) {
 		// 更新全局查询状态
@@ -29,6 +30,8 @@
 	// 从全局状态获取当前查询值
 	$: searchValue = $appStateStore.query;
 </script>
+
+<Toaster />
 
 <Sidebar.Provider>
 	<div class="flex min-h-screen w-full">

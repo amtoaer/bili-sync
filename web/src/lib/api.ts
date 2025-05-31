@@ -151,8 +151,6 @@ class ApiClient {
 // 创建默认的 API 客户端实例
 export const apiClient = new ApiClient();
 
-apiClient.setAuthToken('q4JWR3p8a#_f0(g!');
-
 // 导出 API 方法的便捷函数
 export const api = {
 	/**
