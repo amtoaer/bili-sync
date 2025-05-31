@@ -154,7 +154,8 @@
 		<AlertDialog.Header>
 			<AlertDialog.Title>确认重置</AlertDialog.Title>
 			<AlertDialog.Description>
-				确定要重置视频 "{video.name}" 的下载状态吗？此操作将清除所有失败的下载状态，无法撤销。
+				确定要重置视频 "{video.name}"
+				的下载状态吗？此操作会将所有失败状态的下载状态重置为未开始，无法撤销。
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>

@@ -3,8 +3,6 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
-	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
-	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs/index.js';
 	import BreadCrumb from '$lib/components/bread-crumb.svelte';
 	import api from '$lib/api';
 	import { toast } from 'svelte-sonner';
@@ -66,44 +64,32 @@
 
 		<!-- 设置内容 -->
 		<div class="max-w-4xl">
-			<Tabs value="general" orientation="vertical" class="flex gap-6">
-				<!-- 侧边栏选项卡 -->
-				<TabsList class="h-fit w-48 flex-col justify-start p-1">
-					<TabsTrigger value="general" class="w-full justify-start">常规</TabsTrigger>
-				</TabsList>
-
-				<!-- 设置内容区域 -->
-				<div class="flex-1">
-					<TabsContent value="general" class="mt-0">
-						<Card>
-							<CardHeader>
-								<CardTitle>常规设置</CardTitle>
-							</CardHeader>
-							<CardContent class="space-y-6">
-								<!-- API Token 配置 -->
-								<div class="space-y-2">
-									<Label for="api-token">API Token</Label>
-									<div class="space-y-2">
-										<Input
-											id="api-token"
-											type="password"
-											placeholder="请输入API Token"
-											bind:value={apiToken}
-											class="max-w-md"
-										/>
-										<p class="text-muted-foreground text-xs">
-											用于身份验证的API令牌，请确保令牌安全性
-										</p>
-									</div>
-									<Button onclick={saveApiToken} disabled={saving} class="mt-2">
-										{saving ? '保存中...' : '保存'}
-									</Button>
-								</div>
-							</CardContent>
-						</Card>
-					</TabsContent>
+			<div class="space-y-8">
+				<!-- API Token 配置 -->
+				<div class="border-border border-b pb-6">
+					<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+						<div class="lg:col-span-1">
+							<Label class="text-base font-semibold">API Token</Label>
+							<p class="text-muted-foreground mt-1 text-sm">用于身份验证的API令牌</p>
+						</div>
+						<div class="space-y-4 lg:col-span-2">
+							<div class="space-y-2">
+								<Input
+									id="api-token"
+									type="password"
+									placeholder="请输入API Token"
+									bind:value={apiToken}
+									class="max-w-lg"
+								/>
+								<p class="text-muted-foreground text-xs">请确保令牌的安全性，不要与他人分享</p>
+							</div>
+							<Button onclick={saveApiToken} disabled={saving} size="sm">
+								{saving ? '保存中...' : '保存'}
+							</Button>
+						</div>
+					</div>
 				</div>
-			</Tabs>
+			</div>
 		</div>
 	</div>
 </div>
