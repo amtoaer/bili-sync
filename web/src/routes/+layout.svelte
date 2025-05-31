@@ -8,11 +8,35 @@
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import { breadcrumbStore } from '$lib/stores/breadcrumb';
 	import BreadCrumb from '$lib/components/bread-crumb.svelte';
+	import { videoSourceStore, setVideoSources } from '$lib/stores/video-source';
+	import { onMount } from 'svelte';
+	import api from '$lib/api';
+	import { toast } from 'svelte-sonner';
+	import type { ApiError } from '$lib/types';
+
+	let dataLoaded = false;
 
 	async function handleSearch(query: string) {
 		setQuery(query);
 		goto(`/${ToQuery($appStateStore)}`);
 	}
+
+	// 初始化共用数据
+	onMount(async () => {
+		// 初始化视频源数据，所有组件都会用到
+		if (!$videoSourceStore) {
+			try {
+				const response = await api.getVideoSources();
+				setVideoSources(response.data);
+			} catch (error) {
+				console.error('加载视频来源失败:', error);
+				toast.error('加载视频来源失败', {
+					description: (error as ApiError).message
+				});
+			}
+		}
+		dataLoaded = true;
+	});
 
 	// 从全局状态获取当前查询值
 	$: searchValue = $appStateStore.query;
@@ -38,10 +62,14 @@
 			</div>
 			<div class="bg-background min-h-screen w-full">
 				<div class="w-full px-6 py-6">
-					<div class="mb-6">
-						<BreadCrumb items={$breadcrumbStore} />
-					</div>
-					<slot />
+					{#if $breadcrumbStore.length > 0}
+						<div class="mb-6">
+							<BreadCrumb items={$breadcrumbStore} />
+						</div>
+					{/if}
+					{#if dataLoaded}
+						<slot />
+					{/if}
 				</div>
 			</div>
 		</Sidebar.Inset>

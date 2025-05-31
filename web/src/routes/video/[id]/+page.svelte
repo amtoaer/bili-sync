@@ -4,11 +4,12 @@
 	import { onMount } from 'svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import api from '$lib/api';
-	import type { VideoResponse } from '$lib/types';
+	import type { ApiError, VideoResponse } from '$lib/types';
 	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
 	import { appStateStore, ToQuery } from '$lib/stores/filter';
 	import VideoCard from '$lib/components/video-card.svelte';
+	import { toast } from 'svelte-sonner';
 
 	let videoData: VideoResponse | null = null;
 	let loading = false;
@@ -20,6 +21,7 @@
 		const videoId = parseInt($page.params.id);
 		if (isNaN(videoId)) {
 			error = '无效的视频ID';
+			toast.error('无效的视频ID');
 			return;
 		}
 
@@ -29,9 +31,11 @@
 		try {
 			const result = await api.getVideo(videoId);
 			videoData = result.data;
-		} catch (err) {
-			console.error('加载视频详情失败:', err);
-			error = '加载视频详情失败';
+		} catch (error) {
+			console.error('加载视频详情失败:', error);
+			toast.error('加载视频详情失败', {
+				description: (error as ApiError).message
+			});
 		} finally {
 			loading = false;
 		}
@@ -108,9 +112,17 @@
 				bind:resetDialogOpen
 				bind:resetting
 				onReset={async () => {
-					const result = await api.resetVideo((videoData as VideoResponse).video.id);
-					if (result.data.resetted) {
-						await loadVideoDetail();
+					try {
+						const result = await api.resetVideo((videoData as VideoResponse).video.id);
+						if (result.data.resetted) {
+							await loadVideoDetail();
+							toast.success('重置成功');
+						}
+					} catch (error) {
+						console.error('重置失败:', error);
+						toast.error('重置失败', {
+							description: (error as ApiError).message
+						});
 					}
 				}}
 			/>

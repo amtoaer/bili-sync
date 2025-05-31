@@ -5,13 +5,11 @@
 	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
 	import { appStateStore, setVideoSourceFilter, clearAll, ToQuery } from '$lib/stores/filter';
 
-	import { onMount } from 'svelte';
 	import { type VideoSourcesResponse } from '$lib/types';
 	import { VIDEO_SOURCES } from '$lib/consts';
-	import api from '$lib/api';
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import { goto } from '$app/navigation';
-	import { videoSourceStore, setVideoSources } from '$lib/stores/video-source';
+	import { videoSourceStore } from '$lib/stores/video-source';
 	const sidebar = useSidebar();
 
 	const items = Object.values(VIDEO_SOURCES);
@@ -54,7 +52,7 @@
 		<div class="flex-1">
 			<Sidebar.Group>
 				<Sidebar.GroupLabel
-					class="text-muted-foreground mb-2 px-2 text-xs font-medium uppercase tracking-wider"
+					class="text-muted-foreground mb-2 px-2 text-xs font-medium tracking-wider uppercase"
 				>
 					视频来源
 				</Sidebar.GroupLabel>

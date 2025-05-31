@@ -3,7 +3,7 @@
 	import FilterBadge from '$lib/components/filter-badge.svelte';
 	import Pagination from '$lib/components/pagination.svelte';
 	import api from '$lib/api';
-	import type { VideosResponse, VideoSourcesResponse } from '$lib/types';
+	import type { VideosResponse, VideoSourcesResponse, ApiError } from '$lib/types';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
@@ -17,6 +17,7 @@
 		setVideoSourceFilter,
 		ToQuery
 	} from '$lib/stores/filter';
+	import { toast } from 'svelte-sonner';
 
 	let videosData: VideosResponse | null = null;
 	let loading = false;
@@ -78,6 +79,9 @@
 			currentPage = pageNum;
 		} catch (error) {
 			console.error('加载视频失败:', error);
+			toast.error('加载视频失败', {
+				description: (error as ApiError).message
+			});
 		} finally {
 			loading = false;
 		}
@@ -89,16 +93,6 @@
 			goto(`/${query}&page=${pageNum}`);
 		} else {
 			goto(`/?page=${pageNum}`);
-		}
-	}
-
-	async function initializeVideoSources() {
-		if ($videoSourceStore) return;
-		try {
-			const result = await api.getVideoSources();
-			setVideoSources(result.data);
-		} catch (error) {
-			console.error('加载视频源失败:', error);
 		}
 	}
 
@@ -121,9 +115,7 @@
 
 	$: if ($page.url.search !== lastSearch) {
 		lastSearch = $page.url.search;
-		initializeVideoSources().then(() => {
-			handleSearchParamsChange();
-		});
+		handleSearchParamsChange();
 	}
 
 	onMount(async () => {
