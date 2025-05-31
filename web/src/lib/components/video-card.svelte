@@ -13,9 +13,16 @@
 
 	export let video: VideoInfo;
 	export let showActions: boolean = true; // 控制是否显示操作按钮
-
-	let resetDialogOpen = false;
-	let resetting = false;
+	export let mode: 'default' | 'detail' | 'page' = 'default'; // 卡片模式
+	export let customTitle: string = ''; // 自定义标题
+	export let customSubtitle: string = ''; // 自定义副标题
+	export let taskNames: string[] = []; // 自定义任务名称
+	export let showProgress: boolean = true; // 是否显示进度信息
+	export let progressHeight: string = 'h-2'; // 进度条高度
+	export let gap: string = 'gap-1'; // 进度条间距
+	export let onReset: (() => Promise<void>) | null = null; // 自定义重置函数
+	export let resetDialogOpen = false; // 导出对话框状态，让父组件可以控制
+	export let resetting = false;
 
 	function getStatusText(status: number): string {
 		if (status === 7) {
@@ -55,8 +62,11 @@
 	}
 
 	function getTaskName(index: number): string {
-		const taskNames = ['视频封面', '视频信息', 'UP主头像', 'UP主信息', '分P下载'];
-		return taskNames[index] || `任务${index + 1}`;
+		if (taskNames.length > 0) {
+			return taskNames[index] || `任务${index + 1}`;
+		}
+		const defaultTaskNames = ['视频封面', '视频信息', 'UP主头像', 'UP主信息', '分P下载'];
+		return defaultTaskNames[index] || `任务${index + 1}`;
 	}
 
 	$: overallStatus = getOverallStatus(video.download_status);
@@ -66,12 +76,14 @@
 	async function handleReset() {
 		resetting = true;
 		try {
-			await api.resetVideo(video.id);
-			// 重置成功后可以刷新页面或更新状态
-			window.location.reload();
+			if (onReset) {
+				await onReset();
+			} else {
+				await api.resetVideo(video.id);
+				window.location.reload();
+			}
 		} catch (error) {
 			console.error('重置失败:', error);
-			// 这里可以添加错误提示
 		} finally {
 			resetting = false;
 			resetDialogOpen = false;
@@ -81,56 +93,81 @@
 	function handleViewDetail() {
 		goto(`/video/${video.id}`);
 	}
+
+	// 根据模式确定显示的标题和副标题
+	$: displayTitle = customTitle || video.name;
+	$: displaySubtitle = customSubtitle || video.upper_name;
+	$: showUserIcon = mode === 'default';
+	$: cardClasses =
+		mode === 'default'
+			? 'group flex h-full min-w-0 flex-col transition-shadow hover:shadow-md'
+			: 'transition-shadow hover:shadow-md';
 </script>
 
-<Card class="group flex h-full min-w-0 flex-col transition-shadow hover:shadow-md">
-	<CardHeader class="flex-shrink-0 pb-3">
+<Card class={cardClasses}>
+	<CardHeader class={mode === 'default' ? 'flex-shrink-0 pb-3' : 'pb-3'}>
 		<div class="flex min-w-0 items-start justify-between gap-2">
 			<CardTitle
-				class="line-clamp-2 min-w-0 flex-1 cursor-default text-base leading-tight"
-				title={video.name}
+				class="line-clamp-2 min-w-0 flex-1 cursor-default {mode === 'default'
+					? 'text-base'
+					: 'text-base'} leading-tight"
+				title={displayTitle}
 			>
-				{video.name}
+				{displayTitle}
 			</CardTitle>
 			<Badge variant={overallStatus.color} class="shrink-0 text-xs">
 				{overallStatus.text}
 			</Badge>
 		</div>
-		<div class="text-muted-foreground flex min-w-0 items-center gap-1 text-sm">
-			<UserIcon class="h-3 w-3 shrink-0" />
-			<span class="min-w-0 cursor-default truncate" title={video.upper_name}
-				>{video.upper_name}</span
-			>
-		</div>
-	</CardHeader>
-	<CardContent class="flex min-w-0 flex-1 flex-col justify-end pt-0">
-		<div class="space-y-3">
-			<!-- 五段进度条 -->
-			<div class="space-y-2">
-				<div class="text-muted-foreground flex justify-between text-xs">
-					<span class="truncate">下载进度</span>
-					<span class="shrink-0">{completed}/{total}</span>
-				</div>
-
-				<!-- 五段进度条 -->
-				<div class="flex w-full gap-1">
-					{#each video.download_status as status, index (index)}
-						<Tooltip.Root>
-							<Tooltip.Trigger class="flex-1">
-								<div
-									class="h-2 w-full cursor-help rounded-sm transition-all {getSegmentColor(status)}"
-								></div>
-							</Tooltip.Trigger>
-							<Tooltip.Content>
-								<p>{getTaskName(index)}: {getStatusText(status)}</p>
-							</Tooltip.Content>
-						</Tooltip.Root>
-					{/each}
-				</div>
+		{#if displaySubtitle}
+			<div class="text-muted-foreground flex min-w-0 items-center gap-1 text-sm">
+				{#if showUserIcon}
+					<UserIcon class="h-3 w-3 shrink-0" />
+				{/if}
+				<span class="min-w-0 cursor-default truncate" title={displaySubtitle}>
+					{displaySubtitle}
+				</span>
 			</div>
+		{/if}
+	</CardHeader>
+	<CardContent
+		class={mode === 'default' ? 'flex min-w-0 flex-1 flex-col justify-end pt-0' : 'pt-0'}
+	>
+		<div class="space-y-3">
+			<!-- 进度条区域 -->
+			{#if showProgress}
+				<div class="space-y-2">
+					<div
+						class="text-muted-foreground flex justify-between {mode === 'default'
+							? 'text-xs'
+							: 'text-xs'}"
+					>
+						<span class="truncate">下载进度</span>
+						<span class="shrink-0">{completed}/{total}</span>
+					</div>
+
+					<!-- 进度条 -->
+					<div class="flex w-full {gap}">
+						{#each video.download_status as status, index (index)}
+							<Tooltip.Root>
+								<Tooltip.Trigger class="flex-1">
+									<div
+										class="{progressHeight} w-full cursor-help rounded-sm transition-all {getSegmentColor(
+											status
+										)}"
+									></div>
+								</Tooltip.Trigger>
+								<Tooltip.Content>
+									<p>{getTaskName(index)}: {getStatusText(status)}</p>
+								</Tooltip.Content>
+							</Tooltip.Root>
+						{/each}
+					</div>
+				</div>
+			{/if}
 
 			<!-- 操作按钮 -->
-			{#if showActions}
+			{#if showActions && mode === 'default'}
 				<div class="flex min-w-0 gap-1.5">
 					<Button
 						size="sm"
@@ -161,7 +198,7 @@
 		<AlertDialog.Header>
 			<AlertDialog.Title>确认重置</AlertDialog.Title>
 			<AlertDialog.Description>
-				确定要重置视频 "{video.name}"
+				确定要重置视频 "{displayTitle}"
 				的下载状态吗？此操作会将所有失败状态的下载状态重置为未开始，无法撤销。
 			</AlertDialog.Description>
 		</AlertDialog.Header>

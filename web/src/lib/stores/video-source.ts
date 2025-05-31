@@ -5,9 +5,9 @@ export const videoSourceStore = writable<VideoSourcesResponse | undefined>(undef
 
 // 便捷的设置和清除方法
 export const setVideoSources = (sources: VideoSourcesResponse) => {
-    videoSourceStore.set(sources);
+	videoSourceStore.set(sources);
 };
 
 export const clearFilter = () => {
-    videoSourceStore.set(undefined);
+	videoSourceStore.set(undefined);
 };

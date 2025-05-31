@@ -1,13 +1,8 @@
 <script lang="ts">
-	import HeartIcon from '@lucide/svelte/icons/heart';
-	import FolderIcon from '@lucide/svelte/icons/folder';
-	import UserIcon from '@lucide/svelte/icons/user';
-	import ClockIcon from '@lucide/svelte/icons/clock';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
-	import { page } from '$app/state';
 	import { appStateStore, setVideoSourceFilter, clearAll, ToQuery } from '$lib/stores/filter';
 
 	import { onMount } from 'svelte';
@@ -16,15 +11,12 @@
 	import api from '$lib/api';
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import { goto } from '$app/navigation';
-
+	import { videoSourceStore, setVideoSources } from '$lib/stores/video-source';
 	const sidebar = useSidebar();
-	const search_params = $derived(page.url.searchParams);
-
-	let video_sources: VideoSourcesResponse | null = $state.raw(null);
 
 	onMount(async () => {
 		try {
-			video_sources = (await api.getVideoSources()).data;
+			setVideoSources((await api.getVideoSources()).data);
 		} catch (error) {
 			console.error('加载视频来源失败:', error);
 		}
@@ -97,9 +89,9 @@
 									</Collapsible.Trigger>
 									<Collapsible.Content class="mt-1">
 										<div class="border-border ml-5 space-y-0.5 border-l pl-2">
-											{#if video_sources}
-												{#if video_sources[item.type as keyof VideoSourcesResponse]?.length > 0}
-													{#each video_sources[item.type as keyof VideoSourcesResponse] as source (source.id)}
+											{#if $videoSourceStore}
+												{#if $videoSourceStore[item.type as keyof VideoSourcesResponse]?.length > 0}
+													{#each $videoSourceStore[item.type as keyof VideoSourcesResponse] as source (source.id)}
 														<Sidebar.MenuItem>
 															<button
 																class="text-foreground hover:bg-accent/50 w-full cursor-pointer rounded-md px-3 py-2 text-left text-sm transition-all duration-200"
@@ -129,7 +121,7 @@
 		<div class="border-border mt-auto border-t pt-4">
 			<Sidebar.Menu class="space-y-1">
 				<Sidebar.MenuItem>
-					<Sidebar.MenuButton asChild>
+					<Sidebar.MenuButton>
 						<a
 							href="/settings"
 							class="hover:bg-accent/50 text-foreground flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2.5 font-medium transition-all duration-200"

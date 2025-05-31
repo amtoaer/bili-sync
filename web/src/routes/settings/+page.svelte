@@ -3,7 +3,6 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
-	import BreadCrumb from '$lib/components/bread-crumb.svelte';
 	import api from '$lib/api';
 	import { toast } from 'svelte-sonner';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
@@ -12,11 +11,6 @@
 
 	let apiToken = '';
 	let saving = false;
-
-	const breadcrumbItems = [
-		{ href: '/', label: '主页' },
-		{ label: '设置', isActive: true }
-	];
 
 	async function saveApiToken() {
 		if (!apiToken.trim()) {
