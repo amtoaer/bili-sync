@@ -1,19 +1,37 @@
 <script lang="ts">
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
+
+	export let items: Array<{
+		href?: string;
+		label: string;
+		isActive?: boolean;
+		onClick?: () => void;
+	}> = [
+		{ href: '/', label: '主页' },
+		{ label: '当前页面', isActive: true }
+	];
 </script>
 
 <Breadcrumb.Root>
 	<Breadcrumb.List>
-		<Breadcrumb.Item>
-			<Breadcrumb.Link href="/">主页</Breadcrumb.Link>
-		</Breadcrumb.Item>
-		<Breadcrumb.Separator />
-		<Breadcrumb.Item>
-			<Breadcrumb.Link href="/components">Components</Breadcrumb.Link>
-		</Breadcrumb.Item>
-		<Breadcrumb.Separator />
-		<Breadcrumb.Item>
-			<Breadcrumb.Page>Breadcrumb</Breadcrumb.Page>
-		</Breadcrumb.Item>
+		{#each items as item, index (item.label)}
+			<Breadcrumb.Item>
+				{#if item.isActive || (!item.href && !item.onClick)}
+					<Breadcrumb.Page>{item.label}</Breadcrumb.Page>
+				{:else if item.onClick}
+					<button
+						class="hover:text-foreground cursor-pointer transition-colors"
+						on:click={item.onClick}
+					>
+						{item.label}
+					</button>
+				{:else}
+					<Breadcrumb.Link href={item.href}>{item.label}</Breadcrumb.Link>
+				{/if}
+			</Breadcrumb.Item>
+			{#if index < items.length - 1}
+				<Breadcrumb.Separator />
+			{/if}
+		{/each}
 	</Breadcrumb.List>
 </Breadcrumb.Root>

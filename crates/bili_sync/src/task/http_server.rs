@@ -48,7 +48,7 @@ pub async fn http_server(database_connection: Arc<DatabaseConnection>) -> Result
 
 async fn frontend_files(uri: Uri) -> impl IntoResponse {
     let mut path = uri.path().trim_start_matches('/');
-    if path.is_empty() {
+    if path.is_empty() || Asset::get(path).is_none() {
         path = "index.html";
     }
     match Asset::get(path) {

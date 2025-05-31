@@ -3,15 +3,20 @@
 	import HouseIcon from '@lucide/svelte/icons/house';
 	import InboxIcon from '@lucide/svelte/icons/inbox';
 	import SearchIcon from '@lucide/svelte/icons/search';
+	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
-	import SidebarHeader from './ui/sidebar/sidebar-header.svelte';
+	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
 
 	import { onMount } from 'svelte';
 	import type { VideoSourcesResponse } from '$lib/types';
 	import api from '$lib/api';
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
+	import { goto } from '$app/navigation';
 
 	let video_sources: VideoSourcesResponse | null = null;
+
+	// 获取侧边栏状态
+	const sidebar = useSidebar();
 
 	onMount(async () => {
 		video_sources = (await api.getVideoSources()).data;
@@ -43,74 +48,94 @@
 			icon: SearchIcon
 		}
 	];
+
+	function handleSourceClick(sourceType: string, sourceId: number) {
+		const params = new URLSearchParams();
+		params.set(sourceType, sourceId.toString());
+		goto(`/?${params.toString()}`);
+
+		// 移动端自动收起侧边栏
+		if (sidebar.isMobile) {
+			sidebar.setOpenMobile(false);
+		}
+	}
+
+	function handleLogoClick() {
+		// Logo 点击也需要在移动端收起侧边栏
+		if (sidebar.isMobile) {
+			sidebar.setOpenMobile(false);
+		}
+	}
 </script>
 
-<Sidebar.Root>
-	<SidebarHeader>
-		<div class="flex items-center gap-2 px-4 py-2">
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				width="20"
-				height="20"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				class="h-5 w-5"
-			>
-				<path d="m22 8-6 4 6 4V8Z" />
-				<rect width="14" height="12" x="2" y="6" rx="2" ry="2" />
-			</svg>
-			<span class="text-sm font-semibold">bili-sync 管理面板</span>
-		</div>
-	</SidebarHeader>
-	<Sidebar.Content>
+<Sidebar.Root class="border-border bg-background border-r">
+	<Sidebar.Header class="border-border flex h-[73px] items-center border-b">
+		<a
+			href="/"
+			class="flex w-full items-center gap-3 px-4 py-3 hover:cursor-pointer"
+			on:click={handleLogoClick}
+		>
+			<div class="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg">
+				<img src="/favicon.png" alt="Bili Sync" class="h-6 w-6" />
+			</div>
+			<div class="grid flex-1 text-left text-sm leading-tight">
+				<span class="truncate font-semibold">Bili Sync</span>
+				<span class="text-muted-foreground truncate text-xs">视频管理系统</span>
+			</div>
+		</a>
+	</Sidebar.Header>
+	<Sidebar.Content class="px-2 py-3">
 		<Sidebar.Group>
-			<Sidebar.GroupLabel>视频来源</Sidebar.GroupLabel>
+			<Sidebar.GroupLabel
+				class="text-muted-foreground mb-2 px-2 text-xs font-medium tracking-wider uppercase"
+			>
+				视频来源
+			</Sidebar.GroupLabel>
 			<Sidebar.GroupContent>
-				<Sidebar.Menu>
+				<Sidebar.Menu class="space-y-1">
 					{#each items as item (item.type)}
-						<Collapsible.Root open class="group/collapsible">
+						<Collapsible.Root class="group/collapsible">
 							<Sidebar.MenuItem>
-								<Collapsible.Trigger>
+								<Collapsible.Trigger class="w-full">
 									{#snippet child({ props })}
-										<Sidebar.MenuButton {...props}
-											>{#snippet child({ props })}
-												<a href={item.url} {...props}>
-													<item.icon />
-													<span>{item.title}</span>
-												</a>
-											{/snippet}</Sidebar.MenuButton
-										>{/snippet}
-								</Collapsible.Trigger>
-								<Collapsible.Content>
-									{#if video_sources}
-										{#each video_sources[item.type as keyof VideoSourcesResponse] as source (source.id)}
-											<Sidebar.MenuItem>
-												<Sidebar.MenuButton>
-													{#snippet child({ props })}
-														<a href="/#" {...props}>
-															<span>{source.name}</span>
-														</a>
-													{/snippet}
-												</Sidebar.MenuButton>
-											</Sidebar.MenuItem>
-										{/each}
-									{:else}
-										<Sidebar.MenuItem>
-											<div
-												class="items flex
-												justify-center px-4 py-2 text-sm text-gray-500"
-											>
-												加载中...
+										<Sidebar.MenuButton
+											{...props}
+											class="hover:bg-accent/50 text-foreground flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2.5 font-medium transition-all duration-200"
+										>
+											<div class="flex flex-1 items-center gap-3">
+												<item.icon class="text-muted-foreground h-4 w-4" />
+												<span class="text-sm">{item.title}</span>
 											</div>
-										</Sidebar.MenuItem>
-									{/if}
+											<ChevronRightIcon
+												class="text-muted-foreground h-3 w-3 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
+											/>
+										</Sidebar.MenuButton>
+									{/snippet}
+								</Collapsible.Trigger>
+								<Collapsible.Content class="mt-1">
+									<div class="border-border ml-5 space-y-0.5 border-l pl-2">
+										{#if video_sources}
+											{#if video_sources[item.type as keyof VideoSourcesResponse]?.length > 0}
+												{#each video_sources[item.type as keyof VideoSourcesResponse] as source (source.id)}
+													<Sidebar.MenuItem>
+														<button
+															class="text-foreground hover:bg-accent/50 w-full cursor-pointer rounded-md px-3 py-2 text-left text-sm transition-all duration-200"
+															on:click={() => handleSourceClick(item.type, source.id)}
+														>
+															<span class="block truncate">{source.name}</span>
+														</button>
+													</Sidebar.MenuItem>
+												{/each}
+											{:else}
+												<div class="text-muted-foreground px-3 py-2 text-sm">无数据</div>
+											{/if}
+										{:else}
+											<div class="text-muted-foreground px-3 py-2 text-sm">加载中...</div>
+										{/if}
+									</div>
 								</Collapsible.Content>
-							</Sidebar.MenuItem></Collapsible.Root
-						>
+							</Sidebar.MenuItem>
+						</Collapsible.Root>
 					{/each}
 				</Sidebar.Menu>
 			</Sidebar.GroupContent>
