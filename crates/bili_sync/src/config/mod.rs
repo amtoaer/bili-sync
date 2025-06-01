@@ -99,15 +99,22 @@ impl Default for Config {
 
 impl Config {
     pub fn save(&self) -> Result<()> {
-        let config_path = CONFIG_DIR.join("config.toml");
+        let config_path = if cfg!(test) {
+            CONFIG_DIR.join("test_config.toml")
+        } else {
+            CONFIG_DIR.join("config.toml")
+        };
         std::fs::create_dir_all(&*CONFIG_DIR)?;
         std::fs::write(config_path, toml::to_string_pretty(self)?)?;
         Ok(())
     }
 
-    #[cfg(not(test))]
     fn load() -> Result<Self> {
-        let config_path = CONFIG_DIR.join("config.toml");
+        let config_path = if cfg!(test) {
+            CONFIG_DIR.join("test_config.toml")
+        } else {
+            CONFIG_DIR.join("config.toml")
+        };
         let config_content = std::fs::read_to_string(config_path)?;
         Ok(toml::from_str(&config_content)?)
     }
@@ -129,8 +136,10 @@ impl Config {
         params
     }
 
-    #[cfg(not(test))]
     pub fn check(&self) {
+        if cfg!(test) {
+            return;
+        }
         let mut ok = true;
         let video_sources = self.as_video_sources();
         if video_sources.is_empty() {
