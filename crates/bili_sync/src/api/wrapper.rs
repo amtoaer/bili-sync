@@ -62,3 +62,10 @@ impl IntoResponse for ApiError {
         ApiResponse::internal_server_error(self.0.to_string()).into_response()
     }
 }
+
+// 通用分页响应结构
+#[derive(Debug, Serialize, ToSchema)]
+pub struct PaginatedResponse<T> {
+    pub data: Vec<T>,
+    pub total: u64,
+}

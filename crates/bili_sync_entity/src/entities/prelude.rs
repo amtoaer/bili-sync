@@ -3,3 +3,8 @@
 pub use super::favorite::Entity as Favorite;
 pub use super::page::Entity as Page;
 pub use super::video::Entity as Video;
+
+pub use super::source_collection::Entity as SourceCollection;
+pub use super::source_favorite::Entity as SourceFavorite;
+pub use super::source_submission::Entity as SourceSubmission;
+pub use super::source_watch_later::Entity as SourceWatchLater;
