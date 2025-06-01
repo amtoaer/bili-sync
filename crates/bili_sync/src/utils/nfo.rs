@@ -8,6 +8,7 @@ use tokio::io::{AsyncWriteExt, BufWriter};
 
 use crate::config::{CONFIG, NFOTimeType};
 
+#[allow(clippy::upper_case_acronyms)]
 pub enum NFO<'a> {
     Movie(Movie<'a>),
     TVShow(TVShow<'a>),

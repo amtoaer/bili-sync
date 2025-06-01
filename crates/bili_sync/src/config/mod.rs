@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -99,23 +99,14 @@ impl Default for Config {
 
 impl Config {
     pub fn save(&self) -> Result<()> {
-        let config_path = if cfg!(test) {
-            CONFIG_DIR.join("test_config.toml")
-        } else {
-            CONFIG_DIR.join("config.toml")
-        };
+        let config_path = CONFIG_DIR.join("config.toml");
         std::fs::create_dir_all(&*CONFIG_DIR)?;
         std::fs::write(config_path, toml::to_string_pretty(self)?)?;
         Ok(())
     }
 
-    fn load() -> Result<Self> {
-        let config_path = if cfg!(test) {
-            CONFIG_DIR.join("test_config.toml")
-        } else {
-            CONFIG_DIR.join("config.toml")
-        };
-        let config_content = std::fs::read_to_string(config_path)?;
+    fn load(path: &Path) -> Result<Self> {
+        let config_content = std::fs::read_to_string(path)?;
         Ok(toml::from_str(&config_content)?)
     }
 
@@ -137,9 +128,6 @@ impl Config {
     }
 
     pub fn check(&self) {
-        if cfg!(test) {
-            return;
-        }
         let mut ok = true;
         let video_sources = self.as_video_sources();
         if video_sources.is_empty() {
@@ -191,6 +179,13 @@ impl Config {
                 "位于 {} 的配置文件不合法，请参考提示信息修复后继续运行",
                 CONFIG_DIR.join("config.toml").display()
             );
+        }
+    }
+
+    pub(super) fn test_default() -> Self {
+        Self {
+            cdn_sorting: true,
+            ..Default::default()
         }
     }
 }

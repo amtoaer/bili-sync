@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-pub use analyzer::{BestStream, FilterOption, VideoCodecs};
+pub use analyzer::{BestStream, FilterOption};
 use anyhow::{Result, bail, ensure};
 use arc_swap::ArcSwapOption;
 use chrono::serde::ts_seconds;
