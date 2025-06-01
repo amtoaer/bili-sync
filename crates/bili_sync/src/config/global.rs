@@ -38,10 +38,12 @@ pub static ARGS: Lazy<Args> = Lazy::new(Args::parse);
 pub static CONFIG_DIR: Lazy<PathBuf> =
     Lazy::new(|| dirs::config_dir().expect("No config path found").join("bili-sync"));
 
-#[cfg(not(test))]
 fn load_config() -> Config {
+    if cfg!(test) {
+        return Config::load(&CONFIG_DIR.join("test_config.toml")).unwrap_or(Config::test_default());
+    }
     info!("开始加载配置文件..");
-    let config = Config::load().unwrap_or_else(|err| {
+    let config = Config::load(&CONFIG_DIR.join("config.toml")).unwrap_or_else(|err| {
         if err
             .downcast_ref::<std::io::Error>()
             .is_none_or(|e| e.kind() != std::io::ErrorKind::NotFound)
@@ -57,37 +59,4 @@ fn load_config() -> Config {
     config.check();
     info!("配置文件检查通过");
     config
-}
-
-#[cfg(test)]
-fn load_config() -> Config {
-    use crate::bilibili::{FilterOption, VideoCodecs};
-
-    let credential = match (
-        std::env::var("TEST_SESSDATA"),
-        std::env::var("TEST_BILI_JCT"),
-        std::env::var("TEST_BUVID3"),
-        std::env::var("TEST_DEDEUSERID"),
-        std::env::var("TEST_AC_TIME_VALUE"),
-    ) {
-        (Ok(sessdata), Ok(bili_jct), Ok(buvid3), Ok(dedeuserid), Ok(ac_time_value)) => {
-            Some(std::sync::Arc::new(crate::bilibili::Credential {
-                sessdata,
-                bili_jct,
-                buvid3,
-                dedeuserid,
-                ac_time_value,
-            }))
-        }
-        _ => None,
-    };
-    Config {
-        credential: arc_swap::ArcSwapOption::from(credential),
-        cdn_sorting: true,
-        filter_option: FilterOption {
-            codecs: vec![VideoCodecs::HEV, VideoCodecs::AV1, VideoCodecs::AVC],
-            ..Default::default()
-        },
-        ..Default::default()
-    }
 }

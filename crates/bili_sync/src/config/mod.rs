@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -105,10 +105,8 @@ impl Config {
         Ok(())
     }
 
-    #[cfg(not(test))]
-    fn load() -> Result<Self> {
-        let config_path = CONFIG_DIR.join("config.toml");
-        let config_content = std::fs::read_to_string(config_path)?;
+    fn load(path: &Path) -> Result<Self> {
+        let config_content = std::fs::read_to_string(path)?;
         Ok(toml::from_str(&config_content)?)
     }
 
@@ -129,7 +127,6 @@ impl Config {
         params
     }
 
-    #[cfg(not(test))]
     pub fn check(&self) {
         let mut ok = true;
         let video_sources = self.as_video_sources();
@@ -182,6 +179,13 @@ impl Config {
                 "位于 {} 的配置文件不合法，请参考提示信息修复后继续运行",
                 CONFIG_DIR.join("config.toml").display()
             );
+        }
+    }
+
+    pub(super) fn test_default() -> Self {
+        Self {
+            cdn_sorting: true,
+            ..Default::default()
         }
     }
 }
