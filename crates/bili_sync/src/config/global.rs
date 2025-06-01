@@ -4,6 +4,7 @@ use clap::Parser;
 use handlebars::handlebars_helper;
 use once_cell::sync::Lazy;
 
+use crate::bilibili::VideoCodecs;
 use crate::config::Config;
 use crate::config::clap::Args;
 use crate::config::item::PathSafeTemplate;
@@ -40,7 +41,7 @@ pub static CONFIG_DIR: Lazy<PathBuf> =
 
 fn load_config() -> Config {
     info!("开始加载配置文件..");
-    let config = Config::load().unwrap_or_else(|err| {
+    let mut config = Config::load().unwrap_or_else(|err| {
         if err
             .downcast_ref::<std::io::Error>()
             .is_none_or(|e| e.kind() != std::io::ErrorKind::NotFound)
@@ -55,5 +56,9 @@ fn load_config() -> Config {
     info!("检查配置文件..");
     config.check();
     info!("配置文件检查通过");
+    if cfg!(test) {
+        config.cdn_sorting = true;
+        config.filter_option.codecs = vec![VideoCodecs::HEV, VideoCodecs::AVC, VideoCodecs::AV1];
+    }
     config
 }
