@@ -1,56 +1,183 @@
-import type { VideoResponse, VideoInfo, VideosResponse, VideoSourcesResponse, ResetVideoResponse } from './types';
+import type {
+	ApiResponse,
+	VideoSourcesResponse,
+	VideosRequest,
+	VideosResponse,
+	VideoResponse,
+	ResetVideoResponse,
+	ApiError
+} from './types';
 
-const BASE_URL = '/api';
+// API 基础配置
+const API_BASE_URL = '/api';
 
-export class ApiError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = 'ApiError';
-    }
+// HTTP 客户端类
+class ApiClient {
+	private baseURL: string;
+	private defaultHeaders: Record<string, string>;
+
+	constructor(baseURL: string = API_BASE_URL) {
+		this.baseURL = baseURL;
+		this.defaultHeaders = {
+			'Content-Type': 'application/json'
+		};
+		const token = localStorage.getItem('authToken');
+		if (token) {
+			this.defaultHeaders['Authorization'] = token;
+		}
+	}
+
+	// 设置认证 token
+	setAuthToken(token?: string) {
+		if (token) {
+			this.defaultHeaders['Authorization'] = token;
+			localStorage.setItem('authToken', token);
+		} else {
+			delete this.defaultHeaders['Authorization'];
+			localStorage.removeItem('authToken');
+		}
+	}
+
+	// 通用请求方法
+	private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+		const url = `${this.baseURL}${endpoint}`;
+
+		const config: RequestInit = {
+			headers: {
+				...this.defaultHeaders,
+				...options.headers
+			},
+			...options
+		};
+
+		try {
+			const response = await fetch(url, config);
+
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+
+			const data: ApiResponse<T> = await response.json();
+			return data;
+		} catch (error) {
+			const apiError: ApiError = {
+				message: error instanceof Error ? error.message : 'Unknown error occurred',
+				status: error instanceof TypeError ? undefined : (error as { status?: number }).status
+			};
+			throw apiError;
+		}
+	}
+
+	// GET 请求
+	private async get<T>(
+		endpoint: string,
+		params?: VideosRequest | Record<string, unknown>
+	): Promise<ApiResponse<T>> {
+		let queryString = '';
+
+		if (params) {
+			const searchParams = new URLSearchParams();
+			Object.entries(params).forEach(([key, value]) => {
+				if (value !== undefined && value !== null) {
+					searchParams.append(key, String(value));
+				}
+			});
+			queryString = searchParams.toString();
+		}
+
+		const finalEndpoint = queryString ? `${endpoint}?${queryString}` : endpoint;
+		return this.request<T>(finalEndpoint, {
+			method: 'GET'
+		});
+	}
+
+	// POST 请求
+	private async post<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
+		return this.request<T>(endpoint, {
+			method: 'POST',
+			body: data ? JSON.stringify(data) : undefined
+		});
+	}
+
+	// PUT 请求
+	private async put<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
+		return this.request<T>(endpoint, {
+			method: 'PUT',
+			body: data ? JSON.stringify(data) : undefined
+		});
+	}
+
+	// DELETE 请求
+	private async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
+		return this.request<T>(endpoint, {
+			method: 'DELETE'
+		});
+	}
+
+	// API 方法
+
+	/**
+	 * 获取所有视频来源
+	 */
+	async getVideoSources(): Promise<ApiResponse<VideoSourcesResponse>> {
+		return this.get<VideoSourcesResponse>('/video-sources');
+	}
+
+	/**
+	 * 获取视频列表
+	 * @param params 查询参数
+	 */
+	async getVideos(params?: VideosRequest): Promise<ApiResponse<VideosResponse>> {
+		return this.get<VideosResponse>('/videos', params);
+	}
+
+	/**
+	 * 获取单个视频详情
+	 * @param id 视频 ID
+	 */
+	async getVideo(id: number): Promise<ApiResponse<VideoResponse>> {
+		return this.get<VideoResponse>(`/videos/${id}`);
+	}
+
+	/**
+	 * 重置视频下载状态
+	 * @param id 视频 ID
+	 */
+	async resetVideo(id: number): Promise<ApiResponse<ResetVideoResponse>> {
+		return this.post<ResetVideoResponse>(`/videos/${id}/reset`);
+	}
 }
 
-async function fetchWithAuth(url: string, options: RequestInit = {}) {
-    const token = localStorage.getItem('auth_token');
-    const headers = {
-        ...options.headers,
-        'Authorization': token || ''
-    };
+// 创建默认的 API 客户端实例
+export const apiClient = new ApiClient();
 
-    const response = await fetch(url, { ...options, headers });
-    if (!response.ok) {
-        throw new ApiError(`API request failed: ${response.statusText}, body: ${await response.text()}`);
-    }
-    let { data } = await response.json();
-    return data;
-}
+// 导出 API 方法的便捷函数
+export const api = {
+	/**
+	 * 获取所有视频来源
+	 */
+	getVideoSources: () => apiClient.getVideoSources(),
 
-export async function getVideoSources(): Promise<VideoSourcesResponse> {
-    return fetchWithAuth(`${BASE_URL}/video-sources`);
-}
+	/**
+	 * 获取视频列表
+	 */
+	getVideos: (params?: VideosRequest) => apiClient.getVideos(params),
 
-export async function listVideos(params: {
-    collection?: string;
-    favorite?: string;
-    submission?: string;
-    watch_later?: string;
-    query?: string;
-    page?: number;
-    page_size?: number;
-}): Promise<VideosResponse> {
-    const searchParams = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined) {
-            searchParams.append(key, value.toString());
-        }
-    });
-    return fetchWithAuth(`${BASE_URL}/videos?${searchParams.toString()}`);
-}
+	/**
+	 * 获取单个视频详情
+	 */
+	getVideo: (id: number) => apiClient.getVideo(id),
 
+	/**
+	 * 重置视频下载状态
+	 */
+	resetVideo: (id: number) => apiClient.resetVideo(id),
 
-export async function getVideo(id: number): Promise<VideoResponse> {
-    return fetchWithAuth(`${BASE_URL}/videos/${id}`);
-}
+	/**
+	 * 设置认证 token
+	 */
+	setAuthToken: (token: string) => apiClient.setAuthToken(token)
+};
 
-export async function resetVideo(id: number): Promise<ResetVideoResponse> {
-    return fetchWithAuth(`${BASE_URL}/videos/${id}/reset`, { method: 'POST' });
-}
+// 默认导出
+export default api;
