@@ -174,7 +174,7 @@ pub async fn reset_video(
             .into_partial_model::<PageInfo>()
             .all(db.as_ref())
     )?;
-    let Some(video_info) = video_info else {
+    let Some(mut video_info) = video_info else {
         return Err(InnerApiError::NotFound(id).into());
     };
     let resetted_pages_info = pages_info
@@ -190,15 +190,27 @@ pub async fn reset_video(
         })
         .collect::<Vec<_>>();
     let mut video_status = VideoStatus::from(video_info.download_status);
-    let mut resetted = video_status.reset_failed();
+    let mut video_resetted = video_status.reset_failed();
     if !resetted_pages_info.is_empty() {
         video_status.set(4, 0); //  将“分P下载”重置为 0
-        resetted = true;
+        video_resetted = true;
     }
+    let resetted_videos_info = if video_resetted {
+        video_info.download_status = video_status.into();
+        vec![video_info.clone()]
+    } else {
+        vec![]
+    };
+    let resetted = !resetted_videos_info.is_empty() || !resetted_pages_info.is_empty();
     if resetted {
         let txn = db.begin().await?;
-        update_video_download_status(&txn, &vec![video_info.clone()], None).await?;
-        update_page_download_status(&txn, &resetted_pages_info, Some(500)).await?;
+        if !resetted_videos_info.is_empty() {
+            // 只可能有 1 个元素，所以不用 batch
+            update_video_download_status(&txn, &resetted_videos_info, None).await?;
+        }
+        if !resetted_pages_info.is_empty() {
+            update_page_download_status(&txn, &resetted_pages_info, Some(500)).await?;
+        }
         txn.commit().await?;
     }
     Ok(ApiResponse::ok(ResetVideoResponse {

@@ -43,7 +43,7 @@ async fn execute_video_update_batch(txn: &DatabaseTransaction, videos: &[VideoIn
         return Ok(());
     }
     let sql = format!(
-        "WITH tempdata(id, download_status) AS VALUES {} \
+        "WITH tempdata(id, download_status) AS (VALUES {}) \
         UPDATE video \
         SET download_status = tempdata.download_status \
         FROM tempdata \
@@ -63,7 +63,7 @@ async fn execute_page_update_batch(txn: &DatabaseTransaction, pages: &[PageInfo]
         return Ok(());
     }
     let sql = format!(
-        "WITH tempdata(id, download_status) AS VALUES {} \
+        "WITH tempdata(id, download_status) AS (VALUES {}) \
         UPDATE page \
         SET download_status = tempdata.download_status \
         FROM tempdata \

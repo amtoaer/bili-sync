@@ -3,6 +3,8 @@ use sea_orm::{DerivePartialModel, FromQueryResult};
 use serde::Serialize;
 use utoipa::ToSchema;
 
+use crate::utils::status::{PageStatus, VideoStatus};
+
 #[derive(Serialize, ToSchema)]
 pub struct VideoSourcesResponse {
     pub collection: Vec<VideoSource>,
@@ -49,6 +51,7 @@ pub struct VideoInfo {
     pub id: i32,
     pub name: String,
     pub upper_name: String,
+    #[serde(serialize_with = "serde_video_download_status")]
     pub download_status: u32,
 }
 
@@ -59,5 +62,22 @@ pub struct PageInfo {
     pub video_id: i32,
     pub pid: i32,
     pub name: String,
+    #[serde(serialize_with = "serde_page_download_status")]
     pub download_status: u32,
+}
+
+fn serde_video_download_status<S>(status: &u32, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let status: [u32; 5] = VideoStatus::from(*status).into();
+    status.serialize(serializer)
+}
+
+fn serde_page_download_status<S>(status: &u32, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let status: [u32; 5] = PageStatus::from(*status).into();
+    status.serialize(serializer)
 }
