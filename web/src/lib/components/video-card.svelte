@@ -3,14 +3,12 @@
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import type { ApiError, VideoInfo } from '$lib/types';
+	import type { VideoInfo } from '$lib/types';
 	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
 	import InfoIcon from '@lucide/svelte/icons/info';
 	import UserIcon from '@lucide/svelte/icons/user';
 	import { goto } from '$app/navigation';
-	import api from '$lib/api';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
-	import { toast } from 'svelte-sonner';
 
 	export let video: VideoInfo;
 	export let showActions: boolean = true; // 控制是否显示操作按钮

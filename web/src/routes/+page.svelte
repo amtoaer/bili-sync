@@ -6,16 +6,11 @@
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
 	import api from '$lib/api';
-	import type {
-		VideosResponse,
-		VideoSourcesResponse,
-		ApiError,
-		ResetAllVideosResponse
-	} from '$lib/types';
+	import type { VideosResponse, VideoSourcesResponse, ApiError } from '$lib/types';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { setVideoSources, videoSourceStore } from '$lib/stores/video-source';
+	import { videoSourceStore } from '$lib/stores/video-source';
 	import { VIDEO_SOURCES } from '$lib/consts';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
 	import {
@@ -24,12 +19,9 @@
 		resetCurrentPage,
 		setAll,
 		setCurrentPage,
-		setQuery,
-		setVideoSourceFilter,
 		ToQuery
 	} from '$lib/stores/filter';
 	import { toast } from 'svelte-sonner';
-	import { Title } from '$lib/components/ui/card';
 
 	const pageSize = 20;
 

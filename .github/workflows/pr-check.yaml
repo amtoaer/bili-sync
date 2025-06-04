@@ -5,7 +5,7 @@ on:
     branches:
       - main
   pull_request:
-    types: ['opened', 'reopened', 'synchronize', 'ready_for_review']
+    types: ["opened", "reopened", "synchronize", "ready_for_review"]
 
 concurrency:
   # Allow only one workflow per any non-`main` branch.
@@ -18,8 +18,8 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  tests:
-    name: Run Clippy and tests
+  check-backend:
+    name: Run backend checks
     runs-on: ubuntu-24.04
     if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
     steps:
@@ -41,3 +41,28 @@ jobs:
 
       - name: cargo test
         run: cargo test
+  check-frontend:
+    name: Run frontend checks
+    runs-on: ubuntu-24.04
+    if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Setup bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('docs/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+      - name: Check Frontend
+        run: bun run lint

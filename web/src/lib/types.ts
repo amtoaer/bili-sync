@@ -61,7 +61,7 @@ export interface VideoResponse {
 // 重置视频响应类型
 export interface ResetVideoResponse {
 	resetted: boolean;
-	video: VideoInfo,
+	video: VideoInfo;
 	pages: PageInfo[];
 }
 
