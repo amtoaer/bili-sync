@@ -4,7 +4,7 @@
 	import SearchBar from '$lib/components/search-bar.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { goto } from '$app/navigation';
-	import { appStateStore, setQuery, ToQuery } from '$lib/stores/filter';
+	import { appStateStore, resetCurrentPage, setQuery, ToQuery } from '$lib/stores/filter';
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import { breadcrumbStore } from '$lib/stores/breadcrumb';
 	import BreadCrumb from '$lib/components/bread-crumb.svelte';
@@ -18,6 +18,7 @@
 
 	async function handleSearch(query: string) {
 		setQuery(query);
+		resetCurrentPage();
 		goto(`/${ToQuery($appStateStore)}`);
 	}
 

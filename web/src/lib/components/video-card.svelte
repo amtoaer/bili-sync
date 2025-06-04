@@ -76,22 +76,11 @@
 
 	async function handleReset() {
 		resetting = true;
-		try {
-			if (onReset) {
-				await onReset();
-			} else {
-				await api.resetVideo(video.id);
-				window.location.reload();
-			}
-		} catch (error) {
-			console.error('重置失败:', error);
-			toast.error('重置失败', {
-				description: (error as ApiError).message
-			});
-		} finally {
-			resetting = false;
-			resetDialogOpen = false;
+		if (onReset) {
+			await onReset();
 		}
+		resetting = false;
+		resetDialogOpen = false;
 	}
 
 	function handleViewDetail() {
