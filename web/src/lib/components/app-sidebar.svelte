@@ -3,7 +3,13 @@
 	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
-	import { appStateStore, setVideoSourceFilter, clearAll, ToQuery } from '$lib/stores/filter';
+	import {
+		appStateStore,
+		setVideoSourceFilter,
+		clearAll,
+		ToQuery,
+		resetCurrentPage
+	} from '$lib/stores/filter';
 
 	import { type VideoSourcesResponse } from '$lib/types';
 	import { VIDEO_SOURCES } from '$lib/consts';
@@ -15,7 +21,11 @@
 	const items = Object.values(VIDEO_SOURCES);
 
 	function handleSourceClick(sourceType: string, sourceId: number) {
-		setVideoSourceFilter(sourceType, sourceId.toString());
+		setVideoSourceFilter({
+			type: sourceType,
+			id: sourceId.toString()
+		});
+		resetCurrentPage();
 		goto(`/${ToQuery($appStateStore)}`);
 		if (sidebar.isMobile) {
 			sidebar.setOpenMobile(false);
@@ -52,7 +62,7 @@
 		<div class="flex-1">
 			<Sidebar.Group>
 				<Sidebar.GroupLabel
-					class="text-muted-foreground mb-2 px-2 text-xs font-medium tracking-wider uppercase"
+					class="text-muted-foreground mb-2 px-2 text-xs font-medium uppercase tracking-wider"
 				>
 					视频来源
 				</Sidebar.GroupLabel>

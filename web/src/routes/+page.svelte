@@ -21,52 +21,57 @@
 	import {
 		appStateStore,
 		clearVideoSourceFilter,
+		resetCurrentPage,
+		setAll,
+		setCurrentPage,
 		setQuery,
 		setVideoSourceFilter,
 		ToQuery
 	} from '$lib/stores/filter';
 	import { toast } from 'svelte-sonner';
+	import { Title } from '$lib/components/ui/card';
+
+	const pageSize = 20;
 
 	let videosData: VideosResponse | null = null;
 	let loading = false;
-	let currentPage = 0;
-	const pageSize = 20;
-	let currentFilter: { type: string; id: string } | null = null;
+
 	let lastSearch: string | null = null;
 
-	// 重置所有视频相关状态
 	let resetAllDialogOpen = false;
 	let resettingAll = false;
 
-	// 从URL参数获取筛选条件
-	function getFilterFromURL(searchParams: URLSearchParams) {
+	function getApiParams(searchParams: URLSearchParams) {
+		let videoSource = null;
 		for (const source of Object.values(VIDEO_SOURCES)) {
 			const value = searchParams.get(source.type);
 			if (value) {
-				return { type: source.type, id: value };
+				videoSource = { type: source.type, id: value };
 			}
 		}
-		return null;
+		return {
+			query: searchParams.get('query') || '',
+			videoSource,
+			pageNum: parseInt(searchParams.get('page') || '0')
+		};
 	}
 
-	// 获取筛选项名称
-	function getFilterName(type: string, id: string): string {
+	function getFilterContent(type: string, id: string) {
+		const filterTitle = Object.values(VIDEO_SOURCES).find((s) => s.type === type)?.title || '';
+		let filterName = '';
 		const videoSources = $videoSourceStore;
-		if (!videoSources || !type || !id) return '';
-
-		const sources = videoSources[type as keyof VideoSourcesResponse];
-		const source = sources?.find((s) => s.id.toString() === id);
-		return source?.name || '';
-	}
-
-	// 获取筛选项标题
-	function getFilterTitle(type: string): string {
-		const sourceConfig = Object.values(VIDEO_SOURCES).find((s) => s.type === type);
-		return sourceConfig?.title || '';
+		if (videoSources && type && id) {
+			const sources = videoSources[type as keyof VideoSourcesResponse];
+			filterName = sources?.find((s) => s.id.toString() === id)?.name || '';
+		}
+		return {
+			title: filterTitle,
+			name: filterName
+		};
 	}
 
 	async function loadVideos(
-		query?: string,
+		query: string,
 		pageNum: number = 0,
 		filter?: { type: string; id: string } | null
 	) {
@@ -76,19 +81,14 @@
 				page: pageNum,
 				page_size: pageSize
 			};
-
 			if (query) {
 				params.query = query;
 			}
-
-			// 添加筛选参数
 			if (filter) {
 				params[filter.type] = parseInt(filter.id);
 			}
-
 			const result = await api.getVideos(params);
 			videosData = result.data;
-			currentPage = pageNum;
 		} catch (error) {
 			console.error('加载视频失败:', error);
 			toast.error('加载视频失败', {
@@ -100,29 +100,43 @@
 	}
 
 	async function handlePageChange(pageNum: number) {
-		const query = ToQuery($appStateStore);
-		if (query) {
-			goto(`/${query}&page=${pageNum}`);
-		} else {
-			goto(`/?page=${pageNum}`);
-		}
+		setCurrentPage(pageNum);
+		goto(`/${ToQuery($appStateStore)}`);
 	}
 
-	async function handleSearchParamsChange() {
-		const query = $page.url.searchParams.get('query');
-		currentFilter = getFilterFromURL($page.url.searchParams);
-		setQuery(query || '');
-		if (currentFilter) {
-			setVideoSourceFilter(currentFilter.type, currentFilter.id);
-		} else {
-			clearVideoSourceFilter();
-		}
-		loadVideos(query || '', parseInt($page.url.searchParams.get('page') || '0'), currentFilter);
+	async function handleSearchParamsChange(searchParams: URLSearchParams) {
+		const { query, videoSource, pageNum } = getApiParams(searchParams);
+		setAll(query, pageNum, videoSource);
+		loadVideos(query, pageNum, videoSource);
 	}
 
 	function handleFilterRemove() {
 		clearVideoSourceFilter();
+		resetCurrentPage();
 		goto(`/${ToQuery($appStateStore)}`);
+	}
+
+	async function handleResetVideo(id: number) {
+		try {
+			const result = await api.resetVideo(id);
+			const data = result.data;
+			if (data.resetted) {
+				toast.success('重置成功', {
+					description: `视频「${data.video.name}」已重置`
+				});
+				const { query, currentPage, videoSource } = $appStateStore;
+				await loadVideos(query, currentPage, videoSource);
+			} else {
+				toast.info('重置无效', {
+					description: `视频「${data.video.name}」没有失败的状态，无需重置`
+				});
+			}
+		} catch (error) {
+			console.error('重置失败:', error);
+			toast.error('重置失败', {
+				description: (error as ApiError).message
+			});
+		}
 	}
 
 	async function handleResetAllVideos() {
@@ -130,14 +144,12 @@
 		try {
 			const result = await api.resetAllVideos();
 			const data = result.data;
-
 			if (data.resetted) {
 				toast.success('重置成功', {
 					description: `已重置 ${data.resetted_videos_count} 个视频和 ${data.resetted_pages_count} 个分页`
 				});
-				// 重新加载当前页面的视频数据
-				const query = $page.url.searchParams.get('query');
-				loadVideos(query || '', currentPage, currentFilter);
+				const { query, currentPage, videoSource } = $appStateStore;
+				await loadVideos(query, currentPage, videoSource);
 			} else {
 				toast.info('没有需要重置的视频');
 			}
@@ -154,7 +166,7 @@
 
 	$: if ($page.url.search !== lastSearch) {
 		lastSearch = $page.url.search;
-		handleSearchParamsChange();
+		handleSearchParamsChange($page.url.searchParams);
 	}
 
 	onMount(async () => {
@@ -167,15 +179,20 @@
 	});
 
 	$: totalPages = videosData ? Math.ceil(videosData.total_count / pageSize) : 0;
-	$: filterTitle = currentFilter ? getFilterTitle(currentFilter.type) : '';
-	$: filterName = currentFilter ? getFilterName(currentFilter.type, currentFilter.id) : '';
+	$: filterContent = $appStateStore.videoSource
+		? getFilterContent($appStateStore.videoSource.type, $appStateStore.videoSource.id)
+		: { title: '', name: '' };
 </script>
 
 <svelte:head>
 	<title>主页 - Bili Sync</title>
 </svelte:head>
 
-<FilterBadge {filterTitle} {filterName} onRemove={handleFilterRemove} />
+<FilterBadge
+	filterTitle={filterContent.title}
+	filterName={filterContent.name}
+	onRemove={handleFilterRemove}
+/>
 
 <!-- 统计信息 -->
 {#if videosData}
@@ -214,13 +231,22 @@
 	>
 		{#each videosData.videos as video (video.id)}
 			<div style="max-width: 400px; width: 100%;">
-				<VideoCard {video} />
+				<VideoCard
+					{video}
+					onReset={async () => {
+						await handleResetVideo(video.id);
+					}}
+				/>
 			</div>
 		{/each}
 	</div>
 
 	<!-- 翻页组件 -->
-	<Pagination {currentPage} {totalPages} onPageChange={handlePageChange} />
+	<Pagination
+		currentPage={$appStateStore.currentPage}
+		{totalPages}
+		onPageChange={handlePageChange}
+	/>
 {:else}
 	<div class="flex items-center justify-center py-12">
 		<div class="space-y-2 text-center">

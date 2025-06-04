@@ -24,10 +24,8 @@
 			toast.error('无效的视频ID');
 			return;
 		}
-
 		loading = true;
 		error = null;
-
 		try {
 			const result = await api.getVideo(videoId);
 			videoData = result.data;
@@ -114,12 +112,17 @@
 				onReset={async () => {
 					try {
 						const result = await api.resetVideo((videoData as VideoResponse).video.id);
-						if (result.data.resetted) {
+						const data = result.data;
+						if (data.resetted) {
 							videoData = {
-								video: result.data.video,
-								pages: result.data.pages
+								video: data.video,
+								pages: data.pages
 							};
 							toast.success('重置成功');
+						} else {
+							toast.info('重置无效', {
+								description: `视频「${data.video.name}」没有失败的状态，无需重置`
+							});
 						}
 					} catch (error) {
 						console.error('重置失败:', error);

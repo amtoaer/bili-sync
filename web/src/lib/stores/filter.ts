@@ -2,35 +2,35 @@ import { writable } from 'svelte/store';
 
 export interface AppState {
 	query: string;
+	currentPage: number;
 	videoSource: {
-		key: string;
-		value: string;
-	};
+		type: string;
+		id: string;
+	} | null;
 }
 
-// 创建应用状态store
 export const appStateStore = writable<AppState>({
 	query: '',
-	videoSource: {
-		key: '',
-		value: ''
-	}
+	currentPage: 0,
+	videoSource: null,
 });
 
 export const ToQuery = (state: AppState): string => {
 	const { query, videoSource } = state;
 	const params = new URLSearchParams();
+	if (state.currentPage > 0) {
+		params.set('page', String(state.currentPage));
+	}
 	if (query.trim()) {
 		params.set('query', query);
 	}
-	if (videoSource.key && videoSource.value) {
-		params.set(videoSource.key, videoSource.value);
+	if (videoSource && videoSource.type && videoSource.id) {
+		params.set(videoSource.type, videoSource.id);
 	}
 	const queryString = params.toString();
 	return queryString ? `?${queryString}` : '';
 };
 
-// 便捷的设置方法
 export const setQuery = (query: string) => {
 	appStateStore.update((state) => ({
 		...state,
@@ -38,28 +38,46 @@ export const setQuery = (query: string) => {
 	}));
 };
 
-export const setVideoSourceFilter = (key: string, value: string) => {
+export const setVideoSourceFilter = (filter: { type: string; id: string }) => {
 	appStateStore.update((state) => ({
 		...state,
-		videoSource: { key, value }
+		videoSource: filter,
 	}));
 };
 
 export const clearVideoSourceFilter = () => {
 	appStateStore.update((state) => ({
 		...state,
-		videoSource: { key: '', value: '' }
+		videoSource: null,
 	}));
+};
+
+export const setCurrentPage = (page: number) => {
+	appStateStore.update((state) => ({
+		...state,
+		currentPage: page,
+	}));
+};
+
+export const resetCurrentPage = () => {
+	appStateStore.update((state) => ({
+		...state,
+		currentPage: 0,
+	}));
+};
+
+export const setAll = (query: string, currentPage: number, videoSource: { type: string; id: string } | null) => {
+	appStateStore.set({
+		query,
+		currentPage,
+		videoSource,
+	});
 };
 
 export const clearAll = () => {
 	appStateStore.set({
 		query: '',
-		videoSource: { key: '', value: '' }
+		currentPage: 0,
+		videoSource: null,
 	});
 };
-
-// 保留旧的接口以兼容现有代码
-export const filterStore = writable({ key: '', value: '' });
-export const setFilter = setVideoSourceFilter;
-export const clearFilter = clearVideoSourceFilter;
