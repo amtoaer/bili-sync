@@ -115,7 +115,10 @@
 					try {
 						const result = await api.resetVideo((videoData as VideoResponse).video.id);
 						if (result.data.resetted) {
-							await loadVideoDetail();
+							videoData = {
+								video: result.data.video,
+								pages: result.data.pages
+							};
 							toast.success('重置成功');
 						}
 					} catch (error) {

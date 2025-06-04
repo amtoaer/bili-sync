@@ -61,8 +61,15 @@ export interface VideoResponse {
 // 重置视频响应类型
 export interface ResetVideoResponse {
 	resetted: boolean;
-	video: number;
-	pages: number[];
+	video: VideoInfo,
+	pages: PageInfo[];
+}
+
+// 重置所有视频响应类型
+export interface ResetAllVideosResponse {
+	resetted: boolean;
+	resetted_videos_count: number;
+	resetted_pages_count: number;
 }
 
 // API 错误类型
