@@ -12,7 +12,7 @@ export interface AppState {
 export const appStateStore = writable<AppState>({
 	query: '',
 	currentPage: 0,
-	videoSource: null,
+	videoSource: null
 });
 
 export const ToQuery = (state: AppState): string => {
@@ -41,36 +41,40 @@ export const setQuery = (query: string) => {
 export const setVideoSourceFilter = (filter: { type: string; id: string }) => {
 	appStateStore.update((state) => ({
 		...state,
-		videoSource: filter,
+		videoSource: filter
 	}));
 };
 
 export const clearVideoSourceFilter = () => {
 	appStateStore.update((state) => ({
 		...state,
-		videoSource: null,
+		videoSource: null
 	}));
 };
 
 export const setCurrentPage = (page: number) => {
 	appStateStore.update((state) => ({
 		...state,
-		currentPage: page,
+		currentPage: page
 	}));
 };
 
 export const resetCurrentPage = () => {
 	appStateStore.update((state) => ({
 		...state,
-		currentPage: 0,
+		currentPage: 0
 	}));
 };
 
-export const setAll = (query: string, currentPage: number, videoSource: { type: string; id: string } | null) => {
+export const setAll = (
+	query: string,
+	currentPage: number,
+	videoSource: { type: string; id: string } | null
+) => {
 	appStateStore.set({
 		query,
 		currentPage,
-		videoSource,
+		videoSource
 	});
 };
 
@@ -78,6 +82,6 @@ export const clearAll = () => {
 	appStateStore.set({
 		query: '',
 		currentPage: 0,
-		videoSource: null,
+		videoSource: null
 	});
 };
