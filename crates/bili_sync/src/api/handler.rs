@@ -2,7 +2,6 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use anyhow::Result;
-use axum::Json;
 use axum::extract::{Extension, Path, Query};
 use bili_sync_entity::*;
 use bili_sync_migration::Expr;
