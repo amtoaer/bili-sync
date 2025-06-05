@@ -39,13 +39,20 @@ pub struct ResetAllVideosResponse {
     pub resetted_pages_count: usize,
 }
 
+#[derive(Serialize, ToSchema)]
+pub struct ResetVideoStatusResponse {
+    pub success: bool,
+    pub video: VideoInfo,
+    pub pages: Vec<PageInfo>,
+}
+
 #[derive(FromQueryResult, Serialize, ToSchema)]
 pub struct VideoSource {
     id: i32,
     name: String,
 }
 
-#[derive(Serialize, ToSchema, DerivePartialModel, FromQueryResult, Clone)]
+#[derive(Serialize, ToSchema, DerivePartialModel, FromQueryResult)]
 #[sea_orm(entity = "video::Entity")]
 pub struct VideoInfo {
     pub id: i32,

@@ -5,7 +5,7 @@ pub mod model;
 pub mod nfo;
 pub mod signal;
 pub mod status;
-
+pub mod validation;
 use tracing_subscriber::util::SubscriberInitExt;
 
 pub fn init_logger(log_level: &str) {

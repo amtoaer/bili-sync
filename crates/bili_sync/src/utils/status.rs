@@ -1,5 +1,6 @@
 use crate::error::ExecutionStatus;
 
+pub static STATUS_NOT_STARTED: u32 = 0b000;
 pub(super) static STATUS_MAX_RETRY: u32 = 0b100;
 pub static STATUS_OK: u32 = 0b111;
 pub static STATUS_COMPLETED: u32 = 1 << 31;
@@ -34,7 +35,7 @@ impl<const N: usize> Status<N> {
         for i in 0..N {
             let status = self.get_status(i);
             if !(status < STATUS_MAX_RETRY || status == STATUS_OK) {
-                self.set_status(i, 0);
+                self.set_status(i, STATUS_NOT_STARTED);
                 changed = true;
             }
         }

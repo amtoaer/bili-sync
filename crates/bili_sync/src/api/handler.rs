@@ -14,17 +14,17 @@ use utoipa::OpenApi;
 use crate::api::auth::OpenAPIAuth;
 use crate::api::error::InnerApiError;
 use crate::api::helper::{update_page_download_status, update_video_download_status};
-use crate::api::request::VideosRequest;
+use crate::api::request::{ResetVideoStatusRequest, VideosRequest};
 use crate::api::response::{
-    PageInfo, ResetAllVideosResponse, ResetVideoResponse, VideoInfo, VideoResponse, VideoSource, VideoSourcesResponse,
-    VideosResponse,
+    PageInfo, ResetAllVideosResponse, ResetVideoResponse, ResetVideoStatusResponse, VideoInfo, VideoResponse,
+    VideoSource, VideoSourcesResponse, VideosResponse,
 };
-use crate::api::wrapper::{ApiError, ApiResponse};
+use crate::api::wrapper::{ApiError, ApiResponse, ValidatedJson};
 use crate::utils::status::{PageStatus, VideoStatus};
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(get_video_sources, get_videos, get_video, reset_video, reset_all_videos),
+    paths(get_video_sources, get_videos, get_video, reset_video, reset_all_videos, reset_video_status),
     modifiers(&OpenAPIAuth),
     security(
         ("Token" = []),
@@ -197,7 +197,7 @@ pub async fn reset_video(
     }
     let resetted_videos_info = if video_resetted {
         video_info.download_status = video_status.into();
-        vec![video_info.clone()]
+        vec![&video_info]
     } else {
         vec![]
     };
@@ -281,5 +281,71 @@ pub async fn reset_all_videos(
         resetted,
         resetted_videos_count: resetted_videos_info.len(),
         resetted_pages_count: resetted_pages_info.len(),
+    }))
+}
+
+/// 重置指定视频及其分页的指定状态位
+#[utoipa::path(
+    post,
+    path = "/api/videos/{id}/reset-status",
+    request_body = ResetVideoStatusRequest,
+    responses(
+        (status = 200, body = ApiResponse<ResetVideoStatusResponse>),
+    )
+)]
+pub async fn reset_video_status(
+    Path(id): Path<i32>,
+    Extension(db): Extension<Arc<DatabaseConnection>>,
+    ValidatedJson(request): ValidatedJson<ResetVideoStatusRequest>,
+) -> Result<ApiResponse<ResetVideoStatusResponse>, ApiError> {
+    let (video_info, mut pages_info) = tokio::try_join!(
+        video::Entity::find_by_id(id)
+            .into_partial_model::<VideoInfo>()
+            .one(db.as_ref()),
+        page::Entity::find()
+            .filter(page::Column::VideoId.eq(id))
+            .order_by_asc(page::Column::Cid)
+            .into_partial_model::<PageInfo>()
+            .all(db.as_ref())
+    )?;
+    let Some(mut video_info) = video_info else {
+        return Err(InnerApiError::NotFound(id).into());
+    };
+    let mut video_status = VideoStatus::from(video_info.download_status);
+    for update in &request.video_updates {
+        video_status.set(update.status_index, update.status_value);
+    }
+    video_info.download_status = video_status.into();
+    let mut updated_pages_info = Vec::new();
+    let mut page_id_map = pages_info
+        .iter_mut()
+        .map(|page| (page.id, page))
+        .collect::<std::collections::HashMap<_, _>>();
+    for page_update in &request.page_updates {
+        if let Some(page_info) = page_id_map.remove(&page_update.page_id) {
+            let mut page_status = PageStatus::from(page_info.download_status);
+            for update in &page_update.updates {
+                page_status.set(update.status_index, update.status_value);
+            }
+            page_info.download_status = page_status.into();
+            updated_pages_info.push(page_info);
+        }
+    }
+    let has_video_updates = !request.video_updates.is_empty();
+    let has_page_updates = !updated_pages_info.is_empty();
+    if has_video_updates || has_page_updates {
+        let txn = db.begin().await?;
+        if has_video_updates {
+            update_video_download_status(&txn, &[&video_info], None).await?;
+        }
+        if has_page_updates {
+            update_page_download_status(&txn, &updated_pages_info, None).await?;
+        }
+        txn.commit().await?;
+    }
+    Ok(ApiResponse::ok(ResetVideoStatusResponse {
+        success: has_video_updates || has_page_updates,
+        video: video_info,
+        pages: pages_info,
     }))
 }

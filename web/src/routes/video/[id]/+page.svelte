@@ -4,11 +4,13 @@
 	import { onMount } from 'svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import api from '$lib/api';
-	import type { ApiError, VideoResponse } from '$lib/types';
+	import type { ApiError, VideoResponse, ResetVideoStatusRequest } from '$lib/types';
 	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
+	import EditIcon from '@lucide/svelte/icons/edit';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
 	import { appStateStore, ToQuery } from '$lib/stores/filter';
 	import VideoCard from '$lib/components/video-card.svelte';
+	import StatusEditor from '$lib/components/status-editor.svelte';
 	import { toast } from 'svelte-sonner';
 
 	let videoData: VideoResponse | null = null;
@@ -16,6 +18,8 @@
 	let error: string | null = null;
 	let resetDialogOpen = false;
 	let resetting = false;
+	let statusEditorOpen = false;
+	let statusEditorLoading = false;
 
 	async function loadVideoDetail() {
 		const videoId = parseInt($page.params.id);
@@ -55,6 +59,35 @@
 	$: if ($page.params.id) {
 		loadVideoDetail();
 	}
+
+	async function handleStatusEditorSubmit(request: ResetVideoStatusRequest) {
+		if (!videoData) return;
+
+		statusEditorLoading = true;
+		try {
+			const result = await api.resetVideoStatus(videoData.video.id, request);
+			const data = result.data;
+
+			if (data.success) {
+				// 更新本地数据
+				videoData = {
+					video: data.video,
+					pages: data.pages
+				};
+				statusEditorOpen = false;
+				toast.success('状态更新成功');
+			} else {
+				toast.error('状态更新失败');
+			}
+		} catch (error) {
+			console.error('状态更新失败:', error);
+			toast.error('状态更新失败', {
+				description: (error as ApiError).message
+			});
+		} finally {
+			statusEditorLoading = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -82,16 +115,28 @@
 	<section>
 		<div class="mb-4 flex items-center justify-between">
 			<h2 class="text-xl font-semibold">视频信息</h2>
-			<Button
-				size="sm"
-				variant="outline"
-				class="shrink-0"
-				onclick={() => (resetDialogOpen = true)}
-				disabled={resetting}
-			>
-				<RotateCcwIcon class="mr-2 h-4 w-4 {resetting ? 'animate-spin' : ''}" />
-				重置
-			</Button>
+			<div class="flex gap-2">
+				<Button
+					size="sm"
+					variant="outline"
+					class="shrink-0 cursor-pointer "
+					onclick={() => (statusEditorOpen = true)}
+					disabled={statusEditorLoading}
+				>
+					<EditIcon class="mr-2 h-4 w-4" />
+					编辑状态
+				</Button>
+				<Button
+					size="sm"
+					variant="outline"
+					class="shrink-0 cursor-pointer "
+					onclick={() => (resetDialogOpen = true)}
+					disabled={resetting}
+				>
+					<RotateCcwIcon class="mr-2 h-4 w-4 {resetting ? 'animate-spin' : ''}" />
+					重置
+				</Button>
+			</div>
 		</div>
 
 		<div style="margin-bottom: 1rem;">
@@ -175,4 +220,15 @@
 			</div>
 		{/if}
 	</section>
+
+	<!-- 状态编辑器 -->
+	{#if videoData}
+		<StatusEditor
+			bind:open={statusEditorOpen}
+			video={videoData.video}
+			pages={videoData.pages}
+			loading={statusEditorLoading}
+			onsubmit={handleStatusEditorSubmit}
+		/>
+	{/if}
 {/if}
