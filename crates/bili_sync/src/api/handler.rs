@@ -294,7 +294,6 @@ pub async fn reset_all_videos(
         (status = 200, body = ApiResponse<ResetVideoStatusResponse>),
     )
 )]
-#[axum::debug_handler]
 pub async fn reset_video_status(
     Path(id): Path<i32>,
     Extension(db): Extension<Arc<DatabaseConnection>>,

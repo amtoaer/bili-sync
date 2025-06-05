@@ -52,7 +52,7 @@ pub struct VideoSource {
     name: String,
 }
 
-#[derive(Serialize, ToSchema, DerivePartialModel, FromQueryResult, Clone)]
+#[derive(Serialize, ToSchema, DerivePartialModel, FromQueryResult)]
 #[sea_orm(entity = "video::Entity")]
 pub struct VideoInfo {
     pub id: i32,
@@ -62,7 +62,7 @@ pub struct VideoInfo {
     pub download_status: u32,
 }
 
-#[derive(Serialize, ToSchema, DerivePartialModel, FromQueryResult, Clone)]
+#[derive(Serialize, ToSchema, DerivePartialModel, FromQueryResult)]
 #[sea_orm(entity = "page::Entity")]
 pub struct PageInfo {
     pub id: i32,
