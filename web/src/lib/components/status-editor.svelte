@@ -9,13 +9,7 @@
 		SheetTitle
 	} from '$lib/components/ui/sheet/index.js';
 	import StatusTaskCard from './status-task-card.svelte';
-	import type {
-		VideoInfo,
-		PageInfo,
-		StatusUpdate,
-		PageStatusUpdate,
-		ResetVideoStatusRequest
-	} from '$lib/types';
+	import type { VideoInfo, PageInfo, StatusUpdate, ResetVideoStatusRequest } from '$lib/types';
 	import { toast } from 'svelte-sonner';
 
 	export let open = false;
@@ -190,7 +184,7 @@
 					<h3 class="mb-4 text-base font-medium">视频状态</h3>
 					<div class="bg-card rounded-lg border p-4">
 						<div class="space-y-3">
-							{#each videoTaskNames as taskName, index}
+							{#each videoTaskNames as taskName, index (index)}
 								<StatusTaskCard
 									{taskName}
 									currentStatus={videoStatuses[index] ?? 0}
@@ -209,13 +203,13 @@
 					<div>
 						<h3 class="mb-4 text-base font-medium">分页状态</h3>
 						<div class="space-y-4">
-							{#each pages as page}
+							{#each pages as page (page.id)}
 								<div class="bg-card rounded-lg border">
 									<div class="bg-muted/30 border-b px-4 py-3">
 										<h4 class="text-sm font-medium">P{page.pid}: {page.name}</h4>
 									</div>
 									<div class="space-y-3 p-4">
-										{#each pageTaskNames as taskName, index}
+										{#each pageTaskNames as taskName, index (index)}
 											<StatusTaskCard
 												{taskName}
 												currentStatus={(pageStatuses[page.id] || page.download_status)[index] ?? 0}

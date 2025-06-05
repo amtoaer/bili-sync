@@ -162,7 +162,10 @@ class ApiClient {
 	 * @param id 视频 ID
 	 * @param request 重置请求参数
 	 */
-	async resetVideoStatus(id: number, request: ResetVideoStatusRequest): Promise<ApiResponse<ResetVideoStatusResponse>> {
+	async resetVideoStatus(
+		id: number,
+		request: ResetVideoStatusRequest
+	): Promise<ApiResponse<ResetVideoStatusResponse>> {
 		return this.post<ResetVideoStatusResponse>(`/videos/${id}/reset-status`, request);
 	}
 }
@@ -200,7 +203,8 @@ export const api = {
 	/**
 	 * 重置视频状态位
 	 */
-	resetVideoStatus: (id: number, request: ResetVideoStatusRequest) => apiClient.resetVideoStatus(id, request),
+	resetVideoStatus: (id: number, request: ResetVideoStatusRequest) =>
+		apiClient.resetVideoStatus(id, request),
 
 	/**
 	 * 设置认证 token
