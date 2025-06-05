@@ -227,6 +227,7 @@ pub async fn download_video_pages(
     // 对于单页视频，page 的下载已经足够
     // 对于多页视频，page 下载仅包含了分集内容，需要额外补上视频的 poster 的 tvshow.nfo
     let (res_1, res_2, res_3, res_4, res_5) = tokio::join!(
+        // 下载视频封面
         fetch_video_poster(
             separate_status[0] && !is_single_page,
             &video_model,
@@ -234,22 +235,26 @@ pub async fn download_video_pages(
             base_path.join("poster.jpg"),
             base_path.join("fanart.jpg"),
         ),
+        // 生成视频信息的 nfo
         generate_video_nfo(
             separate_status[1] && !is_single_page,
             &video_model,
             base_path.join("tvshow.nfo"),
         ),
+        // 下载 Up 主头像
         fetch_upper_face(
             separate_status[2] && should_download_upper,
             &video_model,
             downloader,
             base_upper_path.join("folder.jpg"),
         ),
+        // 生成 Up 主信息的 nfo
         generate_upper_nfo(
             separate_status[3] && should_download_upper,
             &video_model,
             base_upper_path.join("person.nfo"),
         ),
+        // 分发并执行分 P 下载的任务
         dispatch_download_page(
             separate_status[4],
             bili_client,
@@ -418,6 +423,7 @@ pub async fn download_page(
         ..Default::default()
     };
     let (res_1, res_2, res_3, res_4, res_5) = tokio::join!(
+        // 下载分页封面
         fetch_page_poster(
             separate_status[0],
             video_model,
@@ -426,6 +432,7 @@ pub async fn download_page(
             poster_path,
             fanart_path
         ),
+        // 下载分页视频
         fetch_page_video(
             separate_status[1],
             bili_client,
@@ -434,8 +441,11 @@ pub async fn download_page(
             &page_info,
             &video_path
         ),
+        // 生成分页视频信息的 nfo
         generate_page_nfo(separate_status[2], video_model, &page_model, nfo_path),
+        // 下载分页弹幕
         fetch_page_danmaku(separate_status[3], bili_client, video_model, &page_info, danmaku_path),
+        // 下载分页字幕
         fetch_page_subtitle(separate_status[4], bili_client, video_model, &page_info, &subtitle_path)
     );
     let results = [res_1, res_2, res_3, res_4, res_5]
