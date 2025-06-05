@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use utoipa::{IntoParams, ToSchema};
-
+use validator::Validate;
 #[derive(Deserialize, IntoParams)]
 pub struct VideosRequest {
     pub collection: Option<i32>,
@@ -12,26 +12,27 @@ pub struct VideosRequest {
     pub page_size: Option<u64>,
 }
 
-#[derive(Deserialize, ToSchema)]
+#[derive(Deserialize, Validate, ToSchema)]
 pub struct StatusUpdate {
-    /// 状态位索引 (0-4)
+    #[validate(range(min = 0, max = 4))]
     pub status_index: usize,
-    /// 新的状态值 (0-7)
+    #[validate(custom(function = "crate::utils::validation::validate_status_value"))]
     pub status_value: u32,
 }
 
-#[derive(Deserialize, ToSchema)]
+#[derive(Deserialize, ToSchema, Validate)]
 pub struct PageStatusUpdate {
-    /// 页面ID
     pub page_id: i32,
-    /// 状态更新列表
+    #[validate(nested)]
     pub updates: Vec<StatusUpdate>,
 }
 
-#[derive(Deserialize, ToSchema)]
+#[derive(Deserialize, ToSchema, Validate)]
 pub struct ResetVideoStatusRequest {
-    /// 视频状态更新列表
+    #[serde(default)]
+    #[validate(nested)]
     pub video_updates: Vec<StatusUpdate>,
-    /// 页面状态更新列表
+    #[serde(default)]
+    #[validate(nested)]
     pub page_updates: Vec<PageStatusUpdate>,
 }

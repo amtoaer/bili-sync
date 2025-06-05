@@ -73,6 +73,7 @@ tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["chrono"] }
 utoipa = { version = "5.3.1", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "9.0.0", features = ["axum", "vendored"] }
+validator = { version = "0.20.0", features = ["derive"] }
 
 [workspace.metadata.release]
 release = false
