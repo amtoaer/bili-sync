@@ -4,8 +4,8 @@ use std::pin::Pin;
 
 use anyhow::{Context, Result, anyhow, bail};
 use bili_sync_entity::*;
-use futures::stream::{FuturesOrdered, FuturesUnordered};
-use futures::{Future, Stream, StreamExt, TryStreamExt};
+use futures::stream::FuturesUnordered;
+use futures::{Stream, StreamExt, TryStreamExt};
 use sea_orm::ActiveValue::Set;
 use sea_orm::TransactionTrait;
 use sea_orm::entity::prelude::*;
@@ -226,47 +226,49 @@ pub async fn download_video_pages(
     let is_single_page = video_model.single_page.context("single_page is null")?;
     // 对于单页视频，page 的下载已经足够
     // 对于多页视频，page 下载仅包含了分集内容，需要额外补上视频的 poster 的 tvshow.nfo
-    let tasks: Vec<Pin<Box<dyn Future<Output = Result<ExecutionStatus>> + Send>>> = vec![
+    let (res_1, res_2, res_3, res_4, res_5) = tokio::join!(
         // 下载视频封面
-        Box::pin(fetch_video_poster(
+        fetch_video_poster(
             separate_status[0] && !is_single_page,
             &video_model,
             downloader,
             base_path.join("poster.jpg"),
             base_path.join("fanart.jpg"),
-        )),
+        ),
         // 生成视频信息的 nfo
-        Box::pin(generate_video_nfo(
+        generate_video_nfo(
             separate_status[1] && !is_single_page,
             &video_model,
             base_path.join("tvshow.nfo"),
-        )),
+        ),
         // 下载 Up 主头像
-        Box::pin(fetch_upper_face(
+        fetch_upper_face(
             separate_status[2] && should_download_upper,
             &video_model,
             downloader,
             base_upper_path.join("folder.jpg"),
-        )),
+        ),
         // 生成 Up 主信息的 nfo
-        Box::pin(generate_upper_nfo(
+        generate_upper_nfo(
             separate_status[3] && should_download_upper,
             &video_model,
             base_upper_path.join("person.nfo"),
-        )),
+        ),
         // 分发并执行分 P 下载的任务
-        Box::pin(dispatch_download_page(
+        dispatch_download_page(
             separate_status[4],
             bili_client,
             &video_model,
             pages,
             connection,
             downloader,
-            &base_path,
-        )),
-    ];
-    let tasks: FuturesOrdered<_> = tasks.into_iter().collect();
-    let results: Vec<ExecutionStatus> = tasks.collect::<Vec<_>>().await.into_iter().map(Into::into).collect();
+            &base_path
+        )
+    );
+    let results = [res_1, res_2, res_3, res_4, res_5]
+        .into_iter()
+        .map(Into::into)
+        .collect::<Vec<_>>();
     status.update_status(&results);
     results
         .iter()
@@ -420,46 +422,36 @@ pub async fn download_page(
         dimension,
         ..Default::default()
     };
-    let tasks: Vec<Pin<Box<dyn Future<Output = Result<ExecutionStatus>> + Send>>> = vec![
-        Box::pin(fetch_page_poster(
+    let (res_1, res_2, res_3, res_4, res_5) = tokio::join!(
+        // 下载分页封面
+        fetch_page_poster(
             separate_status[0],
             video_model,
             &page_model,
             downloader,
             poster_path,
-            fanart_path,
-        )),
-        Box::pin(fetch_page_video(
+            fanart_path
+        ),
+        // 下载分页视频
+        fetch_page_video(
             separate_status[1],
             bili_client,
             video_model,
             downloader,
             &page_info,
-            &video_path,
-        )),
-        Box::pin(generate_page_nfo(
-            separate_status[2],
-            video_model,
-            &page_model,
-            nfo_path,
-        )),
-        Box::pin(fetch_page_danmaku(
-            separate_status[3],
-            bili_client,
-            video_model,
-            &page_info,
-            danmaku_path,
-        )),
-        Box::pin(fetch_page_subtitle(
-            separate_status[4],
-            bili_client,
-            video_model,
-            &page_info,
-            &subtitle_path,
-        )),
-    ];
-    let tasks: FuturesOrdered<_> = tasks.into_iter().collect();
-    let results: Vec<ExecutionStatus> = tasks.collect::<Vec<_>>().await.into_iter().map(Into::into).collect();
+            &video_path
+        ),
+        // 生成分页视频信息的 nfo
+        generate_page_nfo(separate_status[2], video_model, &page_model, nfo_path),
+        // 下载分页弹幕
+        fetch_page_danmaku(separate_status[3], bili_client, video_model, &page_info, danmaku_path),
+        // 下载分页字幕
+        fetch_page_subtitle(separate_status[4], bili_client, video_model, &page_info, &subtitle_path)
+    );
+    let results = [res_1, res_2, res_3, res_4, res_5]
+        .into_iter()
+        .map(Into::into)
+        .collect::<Vec<_>>();
     status.update_status(&results);
     results
         .iter()
