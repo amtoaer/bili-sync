@@ -60,12 +60,12 @@
 		loadVideoDetail();
 	}
 
-	async function handleStatusEditorSubmit(event: CustomEvent<ResetVideoStatusRequest>) {
+	async function handleStatusEditorSubmit(request: ResetVideoStatusRequest) {
 		if (!videoData) return;
 
 		statusEditorLoading = true;
 		try {
-			const result = await api.resetVideoStatus(videoData.video.id, event.detail);
+			const result = await api.resetVideoStatus(videoData.video.id, request);
 			const data = result.data;
 
 			if (data.success) {
@@ -87,10 +87,6 @@
 		} finally {
 			statusEditorLoading = false;
 		}
-	}
-
-	function handleStatusEditorCancel() {
-		statusEditorOpen = false;
 	}
 </script>
 
@@ -123,7 +119,7 @@
 				<Button
 					size="sm"
 					variant="outline"
-					class="shrink-0"
+					class="shrink-0 cursor-pointer "
 					onclick={() => (statusEditorOpen = true)}
 					disabled={statusEditorLoading}
 				>
@@ -133,7 +129,7 @@
 				<Button
 					size="sm"
 					variant="outline"
-					class="shrink-0"
+					class="shrink-0 cursor-pointer "
 					onclick={() => (resetDialogOpen = true)}
 					disabled={resetting}
 				>
@@ -232,8 +228,7 @@
 			video={videoData.video}
 			pages={videoData.pages}
 			loading={statusEditorLoading}
-			on:submit={handleStatusEditorSubmit}
-			on:cancel={handleStatusEditorCancel}
+			onsubmit={handleStatusEditorSubmit}
 		/>
 	{/if}
 {/if}

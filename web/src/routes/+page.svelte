@@ -201,7 +201,7 @@
 			<Button
 				size="sm"
 				variant="outline"
-				class="text-xs"
+				class="cursor-pointer text-xs"
 				onclick={() => (resetAllDialogOpen = true)}
 				disabled={resettingAll || loading}
 			>
