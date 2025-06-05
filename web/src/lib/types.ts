@@ -77,3 +77,28 @@ export interface ApiError {
 	message: string;
 	status?: number;
 }
+
+// 状态更新类型
+export interface StatusUpdate {
+	status_index: number;
+	status_value: number;
+}
+
+// 页面状态更新类型
+export interface PageStatusUpdate {
+	page_id: number;
+	updates: StatusUpdate[];
+}
+
+// 重置视频状态请求类型
+export interface ResetVideoStatusRequest {
+	video_updates?: StatusUpdate[];
+	page_updates?: PageStatusUpdate[];
+}
+
+// 重置视频状态响应类型
+export interface ResetVideoStatusResponse {
+	success: boolean;
+	video: VideoInfo;
+	pages: PageInfo[];
+}

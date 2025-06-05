@@ -13,7 +13,9 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::{Config, SwaggerUi};
 
 use crate::api::auth;
-use crate::api::handler::{ApiDoc, get_video, get_video_sources, get_videos, reset_all_videos, reset_video};
+use crate::api::handler::{
+    ApiDoc, get_video, get_video_sources, get_videos, reset_all_videos, reset_video, reset_video_status,
+};
 use crate::config::CONFIG;
 
 #[derive(Embed)]
@@ -26,6 +28,7 @@ pub async fn http_server(database_connection: Arc<DatabaseConnection>) -> Result
         .route("/api/videos", get(get_videos))
         .route("/api/videos/{id}", get(get_video))
         .route("/api/videos/{id}/reset", post(reset_video))
+        .route("/api/videos/{id}/reset-status", post(reset_video_status))
         .route("/api/videos/reset-all", post(reset_all_videos))
         .merge(
             SwaggerUi::new("/swagger-ui/")

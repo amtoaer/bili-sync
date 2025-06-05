@@ -6,6 +6,8 @@ import type {
 	VideoResponse,
 	ResetVideoResponse,
 	ResetAllVideosResponse,
+	ResetVideoStatusRequest,
+	ResetVideoStatusResponse,
 	ApiError
 } from './types';
 
@@ -154,6 +156,15 @@ class ApiClient {
 	async resetAllVideos(): Promise<ApiResponse<ResetAllVideosResponse>> {
 		return this.post<ResetAllVideosResponse>('/videos/reset-all');
 	}
+
+	/**
+	 * 重置视频状态位
+	 * @param id 视频 ID
+	 * @param request 重置请求参数
+	 */
+	async resetVideoStatus(id: number, request: ResetVideoStatusRequest): Promise<ApiResponse<ResetVideoStatusResponse>> {
+		return this.post<ResetVideoStatusResponse>(`/videos/${id}/reset-status`, request);
+	}
 }
 
 // 创建默认的 API 客户端实例
@@ -185,6 +196,11 @@ export const api = {
 	 * 重置所有视频下载状态
 	 */
 	resetAllVideos: () => apiClient.resetAllVideos(),
+
+	/**
+	 * 重置视频状态位
+	 */
+	resetVideoStatus: (id: number, request: ResetVideoStatusRequest) => apiClient.resetVideoStatus(id, request),
 
 	/**
 	 * 设置认证 token

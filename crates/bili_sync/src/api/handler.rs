@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use anyhow::Result;
+use axum::Json;
 use axum::extract::{Extension, Path, Query};
 use bili_sync_entity::*;
 use bili_sync_migration::Expr;
@@ -14,17 +15,17 @@ use utoipa::OpenApi;
 use crate::api::auth::OpenAPIAuth;
 use crate::api::error::InnerApiError;
 use crate::api::helper::{update_page_download_status, update_video_download_status};
-use crate::api::request::VideosRequest;
+use crate::api::request::{ResetVideoStatusRequest, VideosRequest};
 use crate::api::response::{
-    PageInfo, ResetAllVideosResponse, ResetVideoResponse, VideoInfo, VideoResponse, VideoSource, VideoSourcesResponse,
-    VideosResponse,
+    PageInfo, ResetAllVideosResponse, ResetVideoResponse, ResetVideoStatusResponse, VideoInfo, VideoResponse,
+    VideoSource, VideoSourcesResponse, VideosResponse,
 };
 use crate::api::wrapper::{ApiError, ApiResponse};
 use crate::utils::status::{PageStatus, VideoStatus};
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(get_video_sources, get_videos, get_video, reset_video, reset_all_videos),
+    paths(get_video_sources, get_videos, get_video, reset_video, reset_all_videos, reset_video_status),
     modifiers(&OpenAPIAuth),
     security(
         ("Token" = []),
@@ -281,5 +282,115 @@ pub async fn reset_all_videos(
         resetted,
         resetted_videos_count: resetted_videos_info.len(),
         resetted_pages_count: resetted_pages_info.len(),
+    }))
+}
+
+/// 重置指定视频及其分页的指定状态位
+#[utoipa::path(
+    post,
+    path = "/api/videos/{id}/reset-status",
+    request_body = ResetVideoStatusRequest,
+    responses(
+        (status = 200, body = ApiResponse<ResetVideoStatusResponse>),
+    )
+)]
+pub async fn reset_video_status(
+    Path(id): Path<i32>,
+    Extension(db): Extension<Arc<DatabaseConnection>>,
+    Json(request): Json<ResetVideoStatusRequest>,
+) -> Result<ApiResponse<ResetVideoStatusResponse>, ApiError> {
+    // 验证参数
+    for update in &request.video_updates {
+        if update.status_index >= 5 {
+            return Err(InnerApiError::BadRequest("video status_index must be between 0-4".to_string()).into());
+        }
+        if update.status_value >= 8 {
+            return Err(InnerApiError::BadRequest("video status_value must be between 0-7".to_string()).into());
+        }
+    }
+
+    for page_update in &request.page_updates {
+        for update in &page_update.updates {
+            if update.status_index >= 5 {
+                return Err(InnerApiError::BadRequest("page status_index must be between 0-4".to_string()).into());
+            }
+            if update.status_value >= 8 {
+                return Err(InnerApiError::BadRequest("page status_value must be between 0-7".to_string()).into());
+            }
+        }
+    }
+
+    // 获取视频和页面信息
+    let (video_info, pages_info) = tokio::try_join!(
+        video::Entity::find_by_id(id)
+            .into_partial_model::<VideoInfo>()
+            .one(db.as_ref()),
+        page::Entity::find()
+            .filter(page::Column::VideoId.eq(id))
+            .order_by_asc(page::Column::Cid)
+            .into_partial_model::<PageInfo>()
+            .all(db.as_ref())
+    )?;
+
+    let Some(mut video_info) = video_info else {
+        return Err(InnerApiError::NotFound(id).into());
+    };
+
+    // 更新视频状态
+    let mut video_status = VideoStatus::from(video_info.download_status);
+    for update in &request.video_updates {
+        video_status.set(update.status_index, update.status_value);
+    }
+    video_info.download_status = video_status.into();
+
+    // 更新页面状态
+    let mut updated_pages_info = Vec::new();
+    for page_update in &request.page_updates {
+        if let Some(mut page_info) = pages_info.iter().find(|p| p.id == page_update.page_id).cloned() {
+            let mut page_status = PageStatus::from(page_info.download_status);
+            for update in &page_update.updates {
+                page_status.set(update.status_index, update.status_value);
+            }
+            page_info.download_status = page_status.into();
+            updated_pages_info.push(page_info);
+        }
+    }
+
+    // 如果有更新，则提交到数据库
+    let has_video_updates = !request.video_updates.is_empty();
+    let has_page_updates = !updated_pages_info.is_empty();
+
+    if has_video_updates || has_page_updates {
+        let txn = db.begin().await?;
+
+        if has_video_updates {
+            update_video_download_status(&txn, &[video_info.clone()], None).await?;
+        }
+
+        if has_page_updates {
+            update_page_download_status(&txn, &updated_pages_info, None).await?;
+        }
+
+        txn.commit().await?;
+    }
+
+    // 返回更新后的完整数据
+    let final_pages = if has_page_updates {
+        // 合并更新后的页面和未更新的页面
+        let mut result = pages_info;
+        for updated_page in &updated_pages_info {
+            if let Some(page) = result.iter_mut().find(|p| p.id == updated_page.id) {
+                *page = updated_page.clone();
+            }
+        }
+        result
+    } else {
+        pages_info
+    };
+
+    Ok(ApiResponse::ok(ResetVideoStatusResponse {
+        success: has_video_updates || has_page_updates,
+        video: video_info,
+        pages: final_pages,
     }))
 }
