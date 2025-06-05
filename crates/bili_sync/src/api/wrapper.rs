@@ -57,6 +57,9 @@ impl IntoResponse for ApiError {
         if let Some(inner_error) = self.0.downcast_ref::<InnerApiError>() {
             match inner_error {
                 InnerApiError::NotFound(_) => return ApiResponse::not_found(self.0.to_string()).into_response(),
+                InnerApiError::BadRequest(_) => {
+                    return ApiResponse::ok(self.0.to_string()).into_response();
+                }
             }
         }
         ApiResponse::internal_server_error(self.0.to_string()).into_response()
