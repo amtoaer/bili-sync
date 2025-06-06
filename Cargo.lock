@@ -2801,20 +2801,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "rust-embed"
-version = "8.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "025908b8682a26ba8d12f6f2d66b987584a4a87bc024abc5bbc12553a8cd178a"
-dependencies = [
- "rust-embed-impl",
- "rust-embed-utils",
- "walkdir",
-]
-
-[[package]]
 name = "rust-embed-for-web"
 version = "11.2.1"
-source = "git+https://github.com/amtoaer/rust-embed-for-web?tag=1.0.2#e21cec8f3af2bf3f78d5c799f9a293c9ab444510"
+source = "git+https://github.com/amtoaer/rust-embed-for-web?tag=v1.0.0#b6eeb475cbe1ad5cae02d5373a1bba12ea58a869"
 dependencies = [
  "rust-embed-for-web-impl",
  "rust-embed-for-web-utils",
@@ -2824,7 +2813,7 @@ dependencies = [
 [[package]]
 name = "rust-embed-for-web-impl"
 version = "11.2.1"
-source = "git+https://github.com/amtoaer/rust-embed-for-web?tag=1.0.2#e21cec8f3af2bf3f78d5c799f9a293c9ab444510"
+source = "git+https://github.com/amtoaer/rust-embed-for-web?tag=v1.0.0#b6eeb475cbe1ad5cae02d5373a1bba12ea58a869"
 dependencies = [
  "brotli",
  "flate2",
@@ -2840,36 +2829,13 @@ dependencies = [
 [[package]]
 name = "rust-embed-for-web-utils"
 version = "11.2.1"
-source = "git+https://github.com/amtoaer/rust-embed-for-web?tag=1.0.2#e21cec8f3af2bf3f78d5c799f9a293c9ab444510"
+source = "git+https://github.com/amtoaer/rust-embed-for-web?tag=v1.0.0#b6eeb475cbe1ad5cae02d5373a1bba12ea58a869"
 dependencies = [
  "base85rs",
  "chrono",
  "enum_dispatch",
  "globset",
  "new_mime_guess",
- "sha2",
- "walkdir",
-]
-
-[[package]]
-name = "rust-embed-impl"
-version = "8.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6065f1a4392b71819ec1ea1df1120673418bf386f50de1d6f54204d836d4349c"
-dependencies = [
- "proc-macro2",
- "quote",
- "rust-embed-utils",
- "syn 2.0.96",
- "walkdir",
-]
-
-[[package]]
-name = "rust-embed-utils"
-version = "8.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6cc0c81648b20b70c491ff8cce00c1c3b223bb8ed2b5d41f0e54c6c4c0a3594"
-dependencies = [
  "sha2",
  "walkdir",
 ]
@@ -4072,8 +4038,7 @@ checksum = "711b9620af191e0cdc7468a8d14e709c3dcdb115b36f838e601583af800a370a"
 [[package]]
 name = "utoipa"
 version = "5.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "435c6f69ef38c9017b4b4eea965dfb91e71e53d869e896db40d1cf2441dd75c0"
+source = "git+https://github.com/amtoaer/utoipa.git?tag=v1.0.0#24742d6a32dcf1e89dcb159df9242d33cd73e2f1"
 dependencies = [
  "indexmap",
  "serde",
@@ -4084,8 +4049,7 @@ dependencies = [
 [[package]]
 name = "utoipa-gen"
 version = "5.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a77d306bc75294fd52f3e99b13ece67c02c1a2789190a6f31d32f736624326f7"
+source = "git+https://github.com/amtoaer/utoipa.git?tag=v1.0.0#24742d6a32dcf1e89dcb159df9242d33cd73e2f1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4096,14 +4060,13 @@ dependencies = [
 [[package]]
 name = "utoipa-swagger-ui"
 version = "9.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "161166ec520c50144922a625d8bc4925cc801b2dda958ab69878527c0e5c5d61"
+source = "git+https://github.com/amtoaer/utoipa.git?tag=v1.0.0#24742d6a32dcf1e89dcb159df9242d33cd73e2f1"
 dependencies = [
  "axum",
  "base64",
  "mime_guess",
  "regex",
- "rust-embed",
+ "rust-embed-for-web",
  "serde",
  "serde_json",
  "url",
@@ -4115,8 +4078,7 @@ dependencies = [
 [[package]]
 name = "utoipa-swagger-ui-vendored"
 version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2eebbbfe4093922c2b6734d7c679ebfebd704a0d7e56dfcb0d05818ce28977d"
+source = "git+https://github.com/amtoaer/utoipa.git?tag=v1.0.0#24742d6a32dcf1e89dcb159df9242d33cd73e2f1"
 
 [[package]]
 name = "uuid"

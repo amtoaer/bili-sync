@@ -52,7 +52,7 @@ reqwest = { version = "0.12.15", features = [
     "stream",
 ], default-features = false }
 rsa = { version = "0.9.8", features = ["sha2"] }
-rust-embed-for-web = { git = "https://github.com/amtoaer/rust-embed-for-web", tag = "1.0.2" }
+rust-embed-for-web = { git = "https://github.com/amtoaer/rust-embed-for-web", tag = "v1.0.0" }
 sea-orm = { version = "1.1.11", features = [
     "macros",
     "runtime-tokio-rustls",
@@ -70,8 +70,13 @@ toml = "0.8.22"
 tower = "0.5.2"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["chrono"] }
-utoipa = { version = "5.3.1", features = ["axum_extras"] }
-utoipa-swagger-ui = { version = "9.0.0", features = ["axum", "vendored"] }
+utoipa = { git = "https://github.com/amtoaer/utoipa.git", tag = "v1.0.0", features = [
+    "axum_extras",
+] }
+utoipa-swagger-ui = { git = "https://github.com/amtoaer/utoipa.git", tag = "v1.0.0", features = [
+    "axum",
+    "vendored",
+] }
 validator = { version = "0.20.0", features = ["derive"] }
 
 [workspace.metadata.release]
