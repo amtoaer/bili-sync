@@ -1,13 +1,14 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
+use axum::body::Body;
 use axum::extract::Request;
-use axum::http::{Uri, header};
+use axum::http::{Response, Uri, header};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Extension, Router, ServiceExt, middleware};
 use reqwest::StatusCode;
-use rust_embed::Embed;
+use rust_embed_for_web::{EmbedableFile, RustEmbed};
 use sea_orm::DatabaseConnection;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::{Config, SwaggerUi};
@@ -18,7 +19,9 @@ use crate::api::handler::{
 };
 use crate::config::CONFIG;
 
-#[derive(Embed)]
+#[derive(RustEmbed)]
+#[preserve_source = false]
+#[gzip = false]
 #[folder = "../../web/build"]
 struct Asset;
 
@@ -55,11 +58,27 @@ async fn frontend_files(uri: Uri) -> impl IntoResponse {
     if path.is_empty() || Asset::get(path).is_none() {
         path = "index.html";
     }
-    match Asset::get(path) {
-        Some(content) => {
-            let mime = mime_guess::from_path(path).first_or_octet_stream();
-            ([(header::CONTENT_TYPE, mime.as_ref())], content.data).into_response()
-        }
-        None => (StatusCode::NOT_FOUND, "404 Not Found").into_response(),
+    let Some(content) = Asset::get(path) else {
+        return (StatusCode::NOT_FOUND, "404 Not Found").into_response();
+    };
+    let mut resp = Response::builder()
+        .status(StatusCode::OK)
+        .header(
+            header::CONTENT_TYPE,
+            content.mime_type().as_deref().unwrap_or("application/octet-stream"),
+        )
+        .header(header::CONTENT_ENCODING, "br")
+        .header(header::CACHE_CONTROL, "max-age=604800, stale-while-revalidate=86400")
+        .header(header::VARY, "Accept-Encoding");
+    if let Some(last_modified) = content.last_modified() {
+        resp = resp.header(header::LAST_MODIFIED, last_modified.as_ref());
     }
+    let etag = content.etag();
+    if !etag.is_empty() {
+        resp = resp.header(header::ETAG, etag.as_ref());
+    }
+    // safety: `RustEmbed` will always generate br-compressed files if the feature is enabled
+    resp.body(Body::from(content.data_br().unwrap())).unwrap_or_else(|_| {
+        return (StatusCode::INTERNAL_SERVER_ERROR, "500 Internal Server Error").into_response();
+    })
 }
