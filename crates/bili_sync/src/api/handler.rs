@@ -14,9 +14,9 @@ use utoipa::OpenApi;
 use crate::api::auth::OpenAPIAuth;
 use crate::api::error::InnerApiError;
 use crate::api::helper::{update_page_download_status, update_video_download_status};
-use crate::api::request::{ResetVideoStatusRequest, VideosRequest};
+use crate::api::request::{UpdateVideoStatusRequest, VideosRequest};
 use crate::api::response::{
-    PageInfo, ResetAllVideosResponse, ResetVideoResponse, ResetVideoStatusResponse, VideoInfo, VideoResponse,
+    PageInfo, ResetAllVideosResponse, ResetVideoResponse, UpdateVideoStatusResponse, VideoInfo, VideoResponse,
     VideoSource, VideoSourcesResponse, VideosResponse,
 };
 use crate::api::wrapper::{ApiError, ApiResponse, ValidatedJson};
@@ -24,7 +24,7 @@ use crate::utils::status::{PageStatus, VideoStatus};
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(get_video_sources, get_videos, get_video, reset_video, reset_all_videos, reset_video_status),
+    paths(get_video_sources, get_videos, get_video, reset_video, reset_all_videos, update_video_status),
     modifiers(&OpenAPIAuth),
     security(
         ("Token" = []),
@@ -284,20 +284,20 @@ pub async fn reset_all_videos(
     }))
 }
 
-/// 重置指定视频及其分页的指定状态位
+/// 更新特定视频及其所含分页的状态位
 #[utoipa::path(
     post,
-    path = "/api/videos/{id}/reset-status",
-    request_body = ResetVideoStatusRequest,
+    path = "/api/videos/{id}/update-status",
+    request_body = UpdateVideoStatusRequest,
     responses(
-        (status = 200, body = ApiResponse<ResetVideoStatusResponse>),
+        (status = 200, body = ApiResponse<UpdateVideoStatusResponse>),
     )
 )]
-pub async fn reset_video_status(
+pub async fn update_video_status(
     Path(id): Path<i32>,
     Extension(db): Extension<Arc<DatabaseConnection>>,
-    ValidatedJson(request): ValidatedJson<ResetVideoStatusRequest>,
-) -> Result<ApiResponse<ResetVideoStatusResponse>, ApiError> {
+    ValidatedJson(request): ValidatedJson<UpdateVideoStatusRequest>,
+) -> Result<ApiResponse<UpdateVideoStatusResponse>, ApiError> {
     let (video_info, mut pages_info) = tokio::try_join!(
         video::Entity::find_by_id(id)
             .into_partial_model::<VideoInfo>()
@@ -343,7 +343,7 @@ pub async fn reset_video_status(
         }
         txn.commit().await?;
     }
-    Ok(ApiResponse::ok(ResetVideoStatusResponse {
+    Ok(ApiResponse::ok(UpdateVideoStatusResponse {
         success: has_video_updates || has_page_updates,
         video: video_info,
         pages: pages_info,

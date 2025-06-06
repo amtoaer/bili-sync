@@ -9,14 +9,14 @@
 		SheetTitle
 	} from '$lib/components/ui/sheet/index.js';
 	import StatusTaskCard from './status-task-card.svelte';
-	import type { VideoInfo, PageInfo, StatusUpdate, ResetVideoStatusRequest } from '$lib/types';
+	import type { VideoInfo, PageInfo, StatusUpdate, UpdateVideoStatusRequest } from '$lib/types';
 	import { toast } from 'svelte-sonner';
 
 	export let open = false;
 	export let video: VideoInfo;
 	export let pages: PageInfo[] = [];
 	export let loading = false;
-	export let onsubmit: (request: ResetVideoStatusRequest) => void;
+	export let onsubmit: (request: UpdateVideoStatusRequest) => void;
 
 	// 视频任务名称（与后端 VideoStatus 对应）
 	const videoTaskNames = ['视频封面', '视频信息', 'UP主头像', 'UP主信息', '分P下载'];
@@ -109,8 +109,8 @@
 		return hasVideoChanges() || hasPageChanges();
 	}
 
-	function buildRequest(): ResetVideoStatusRequest {
-		const request: ResetVideoStatusRequest = {};
+	function buildRequest(): UpdateVideoStatusRequest {
+		const request: UpdateVideoStatusRequest = {};
 
 		// 构建视频状态更新
 		if (hasVideoChanges()) {

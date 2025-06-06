@@ -6,8 +6,8 @@ import type {
 	VideoResponse,
 	ResetVideoResponse,
 	ResetAllVideosResponse,
-	ResetVideoStatusRequest,
-	ResetVideoStatusResponse,
+	UpdateVideoStatusRequest,
+	UpdateVideoStatusResponse,
 	ApiError
 } from './types';
 
@@ -162,11 +162,11 @@ class ApiClient {
 	 * @param id 视频 ID
 	 * @param request 重置请求参数
 	 */
-	async resetVideoStatus(
+	async updateVideoStatus(
 		id: number,
-		request: ResetVideoStatusRequest
-	): Promise<ApiResponse<ResetVideoStatusResponse>> {
-		return this.post<ResetVideoStatusResponse>(`/videos/${id}/reset-status`, request);
+		request: UpdateVideoStatusRequest
+	): Promise<ApiResponse<UpdateVideoStatusResponse>> {
+		return this.post<UpdateVideoStatusResponse>(`/videos/${id}/update-status`, request);
 	}
 }
 
@@ -203,8 +203,8 @@ export const api = {
 	/**
 	 * 重置视频状态位
 	 */
-	resetVideoStatus: (id: number, request: ResetVideoStatusRequest) =>
-		apiClient.resetVideoStatus(id, request),
+	updateVideoStatus: (id: number, request: UpdateVideoStatusRequest) =>
+		apiClient.updateVideoStatus(id, request),
 
 	/**
 	 * 设置认证 token
