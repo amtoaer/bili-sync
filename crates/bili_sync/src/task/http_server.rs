@@ -1,24 +1,27 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
+use axum::body::Body;
 use axum::extract::Request;
-use axum::http::{Uri, header};
+use axum::http::{Response, Uri, header};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Extension, Router, ServiceExt, middleware};
 use reqwest::StatusCode;
-use rust_embed::Embed;
+use rust_embed_for_web::{EmbedableFile, RustEmbed};
 use sea_orm::DatabaseConnection;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::{Config, SwaggerUi};
 
 use crate::api::auth;
 use crate::api::handler::{
-    ApiDoc, get_video, get_video_sources, get_videos, reset_all_videos, reset_video, reset_video_status,
+    ApiDoc, get_video, get_video_sources, get_videos, reset_all_videos, reset_video, update_video_status,
 };
 use crate::config::CONFIG;
 
-#[derive(Embed)]
+#[derive(RustEmbed)]
+#[preserve_source = false]
+#[gzip = false]
 #[folder = "../../web/build"]
 struct Asset;
 
@@ -28,7 +31,7 @@ pub async fn http_server(database_connection: Arc<DatabaseConnection>) -> Result
         .route("/api/videos", get(get_videos))
         .route("/api/videos/{id}", get(get_video))
         .route("/api/videos/{id}/reset", post(reset_video))
-        .route("/api/videos/{id}/reset-status", post(reset_video_status))
+        .route("/api/videos/{id}/update-status", post(update_video_status))
         .route("/api/videos/reset-all", post(reset_all_videos))
         .merge(
             SwaggerUi::new("/swagger-ui/")
@@ -55,11 +58,19 @@ async fn frontend_files(uri: Uri) -> impl IntoResponse {
     if path.is_empty() || Asset::get(path).is_none() {
         path = "index.html";
     }
-    match Asset::get(path) {
-        Some(content) => {
-            let mime = mime_guess::from_path(path).first_or_octet_stream();
-            ([(header::CONTENT_TYPE, mime.as_ref())], content.data).into_response()
-        }
-        None => (StatusCode::NOT_FOUND, "404 Not Found").into_response(),
-    }
+    let Some(content) = Asset::get(path) else {
+        return (StatusCode::NOT_FOUND, "404 Not Found").into_response();
+    };
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(
+            header::CONTENT_TYPE,
+            content.mime_type().as_deref().unwrap_or("application/octet-stream"),
+        )
+        .header(header::CONTENT_ENCODING, "br")
+        // safety: `RustEmbed` will always generate br-compressed files if the feature is enabled
+        .body(Body::from(content.data_br().unwrap()))
+        .unwrap_or_else(|_| {
+            return (StatusCode::INTERNAL_SERVER_ERROR, "500 Internal Server Error").into_response();
+        })
 }

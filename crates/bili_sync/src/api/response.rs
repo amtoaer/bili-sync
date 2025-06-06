@@ -40,7 +40,7 @@ pub struct ResetAllVideosResponse {
 }
 
 #[derive(Serialize, ToSchema)]
-pub struct ResetVideoStatusResponse {
+pub struct UpdateVideoStatusResponse {
     pub success: bool,
     pub video: VideoInfo,
     pub pages: Vec<PageInfo>,
@@ -58,6 +58,7 @@ pub struct VideoInfo {
     pub id: i32,
     pub name: String,
     pub upper_name: String,
+    #[schema(value_type = [u32; 5])]
     #[serde(serialize_with = "serde_video_download_status")]
     pub download_status: u32,
 }
@@ -69,6 +70,7 @@ pub struct PageInfo {
     pub video_id: i32,
     pub pid: i32,
     pub name: String,
+    #[schema(value_type = [u32; 5])]
     #[serde(serialize_with = "serde_page_download_status")]
     pub download_status: u32,
 }

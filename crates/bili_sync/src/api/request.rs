@@ -28,7 +28,7 @@ pub struct PageStatusUpdate {
 }
 
 #[derive(Deserialize, ToSchema, Validate)]
-pub struct ResetVideoStatusRequest {
+pub struct UpdateVideoStatusRequest {
     #[serde(default)]
     #[validate(nested)]
     pub video_updates: Vec<StatusUpdate>,

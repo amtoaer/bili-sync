@@ -4,7 +4,7 @@
 	import { onMount } from 'svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import api from '$lib/api';
-	import type { ApiError, VideoResponse, ResetVideoStatusRequest } from '$lib/types';
+	import type { ApiError, VideoResponse, UpdateVideoStatusRequest } from '$lib/types';
 	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
 	import EditIcon from '@lucide/svelte/icons/edit';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
@@ -60,12 +60,12 @@
 		loadVideoDetail();
 	}
 
-	async function handleStatusEditorSubmit(request: ResetVideoStatusRequest) {
+	async function handleStatusEditorSubmit(request: UpdateVideoStatusRequest) {
 		if (!videoData) return;
 
 		statusEditorLoading = true;
 		try {
-			const result = await api.resetVideoStatus(videoData.video.id, request);
+			const result = await api.updateVideoStatus(videoData.video.id, request);
 			const data = result.data;
 
 			if (data.success) {

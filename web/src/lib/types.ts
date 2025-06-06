@@ -91,13 +91,13 @@ export interface PageStatusUpdate {
 }
 
 // 重置视频状态请求类型
-export interface ResetVideoStatusRequest {
+export interface UpdateVideoStatusRequest {
 	video_updates?: StatusUpdate[];
 	page_updates?: PageStatusUpdate[];
 }
 
 // 重置视频状态响应类型
-export interface ResetVideoStatusResponse {
+export interface UpdateVideoStatusResponse {
 	success: boolean;
 	video: VideoInfo;
 	pages: PageInfo[];
