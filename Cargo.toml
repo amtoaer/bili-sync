@@ -70,10 +70,10 @@ toml = "0.8.22"
 tower = "0.5.2"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["chrono"] }
-utoipa = { git = "https://github.com/amtoaer/utoipa.git", tag = "v1.0.0", features = [
+utoipa = { git = "https://github.com/amtoaer/utoipa.git", tag = "v1.0.1", features = [
     "axum_extras",
 ] }
-utoipa-swagger-ui = { git = "https://github.com/amtoaer/utoipa.git", tag = "v1.0.0", features = [
+utoipa-swagger-ui = { git = "https://github.com/amtoaer/utoipa.git", tag = "v1.0.1", features = [
     "axum",
     "vendored",
 ] }

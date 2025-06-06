@@ -4038,7 +4038,7 @@ checksum = "711b9620af191e0cdc7468a8d14e709c3dcdb115b36f838e601583af800a370a"
 [[package]]
 name = "utoipa"
 version = "5.3.1"
-source = "git+https://github.com/amtoaer/utoipa.git?tag=v1.0.0#24742d6a32dcf1e89dcb159df9242d33cd73e2f1"
+source = "git+https://github.com/amtoaer/utoipa.git?tag=v1.0.1#6d66603333218fe4d0f36e40fc662628c6682a79"
 dependencies = [
  "indexmap",
  "serde",
@@ -4049,7 +4049,7 @@ dependencies = [
 [[package]]
 name = "utoipa-gen"
 version = "5.3.1"
-source = "git+https://github.com/amtoaer/utoipa.git?tag=v1.0.0#24742d6a32dcf1e89dcb159df9242d33cd73e2f1"
+source = "git+https://github.com/amtoaer/utoipa.git?tag=v1.0.1#6d66603333218fe4d0f36e40fc662628c6682a79"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4060,7 +4060,7 @@ dependencies = [
 [[package]]
 name = "utoipa-swagger-ui"
 version = "9.0.0"
-source = "git+https://github.com/amtoaer/utoipa.git?tag=v1.0.0#24742d6a32dcf1e89dcb159df9242d33cd73e2f1"
+source = "git+https://github.com/amtoaer/utoipa.git?tag=v1.0.1#6d66603333218fe4d0f36e40fc662628c6682a79"
 dependencies = [
  "axum",
  "base64",
@@ -4078,7 +4078,7 @@ dependencies = [
 [[package]]
 name = "utoipa-swagger-ui-vendored"
 version = "0.1.2"
-source = "git+https://github.com/amtoaer/utoipa.git?tag=v1.0.0#24742d6a32dcf1e89dcb159df9242d33cd73e2f1"
+source = "git+https://github.com/amtoaer/utoipa.git?tag=v1.0.1#6d66603333218fe4d0f36e40fc662628c6682a79"
 
 [[package]]
 name = "uuid"
