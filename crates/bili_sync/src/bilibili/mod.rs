@@ -12,6 +12,7 @@ pub use danmaku::DanmakuOption;
 pub use error::BiliError;
 pub use favorite_list::FavoriteList;
 use favorite_list::Upper;
+pub use me::Me;
 use once_cell::sync::Lazy;
 pub use submission::Submission;
 pub use video::{Dimension, PageInfo, Video};

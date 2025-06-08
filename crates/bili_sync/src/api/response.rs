@@ -90,3 +90,47 @@ where
     let status: [u32; 5] = PageStatus::from(*status).into();
     status.serialize(serializer)
 }
+
+#[derive(Serialize, ToSchema)]
+pub struct FavoriteWithSubscriptionStatus {
+    pub title: String,
+    pub media_count: i64,
+    pub fid: i64,
+    pub mid: i64,
+    pub subscribed: bool,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct CollectionWithSubscriptionStatus {
+    pub id: i64,
+    pub mid: i64,
+    pub state: i32,
+    pub title: String,
+    pub subscribed: bool,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct UpperWithSubscriptionStatus {
+    pub mid: i64,
+    pub uname: String,
+    pub face: String,
+    pub sign: String,
+    pub subscribed: bool,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct FavoritesResponse {
+    pub favorites: Vec<FavoriteWithSubscriptionStatus>,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct CollectionsResponse {
+    pub collections: Vec<CollectionWithSubscriptionStatus>,
+    pub total: i64,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct UppersResponse {
+    pub uppers: Vec<UpperWithSubscriptionStatus>,
+    pub total: i64,
+}

@@ -1,6 +1,8 @@
 use serde::Deserialize;
 use utoipa::{IntoParams, ToSchema};
 use validator::Validate;
+
+use crate::bilibili::CollectionType;
 #[derive(Deserialize, IntoParams)]
 pub struct VideosRequest {
     pub collection: Option<i32>,
@@ -35,4 +37,46 @@ pub struct UpdateVideoStatusRequest {
     #[serde(default)]
     #[validate(nested)]
     pub page_updates: Vec<PageStatusUpdate>,
+}
+
+#[derive(Deserialize, IntoParams)]
+pub struct FollowedCollectionsRequest {
+    pub page_num: Option<i32>,
+    pub page_size: Option<i32>,
+}
+
+#[derive(Deserialize, IntoParams)]
+pub struct FollowedUppersRequest {
+    pub page_num: Option<i32>,
+    pub page_size: Option<i32>,
+}
+
+#[derive(Deserialize, ToSchema, Validate)]
+pub struct UpsertFavoriteRequest {
+    pub fid: i64,
+    #[validate(custom(function = "crate::utils::validation::validate_path"))]
+    pub path: String,
+}
+
+#[derive(Deserialize, ToSchema, Validate)]
+pub struct UpsertCollectionRequest {
+    pub id: i64,
+    pub mid: i64,
+    #[schema(value_type = i8)]
+    #[serde(default)]
+    pub collection_type: CollectionType,
+    #[validate(custom(function = "crate::utils::validation::validate_path"))]
+    pub path: String,
+}
+
+#[derive(Deserialize, ToSchema, Validate)]
+pub struct UpsertSubmissionRequest {
+    pub upper_id: i64,
+    #[validate(custom(function = "crate::utils::validation::validate_path"))]
+    pub path: String,
+}
+
+#[derive(Deserialize, IntoParams)]
+pub struct ImageProxyParams {
+    pub url: String,
 }

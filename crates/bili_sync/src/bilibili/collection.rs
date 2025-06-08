@@ -10,9 +10,10 @@ use serde_json::Value;
 use crate::bilibili::credential::encoded_query;
 use crate::bilibili::{BiliClient, MIXIN_KEY, Validate, VideoInfo};
 
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone, Debug, Deserialize, Default)]
 pub enum CollectionType {
     Series,
+    #[default]
     Season,
 }
 

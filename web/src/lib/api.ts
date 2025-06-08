@@ -8,7 +8,13 @@ import type {
 	ResetAllVideosResponse,
 	UpdateVideoStatusRequest,
 	UpdateVideoStatusResponse,
-	ApiError
+	ApiError,
+	FavoritesResponse,
+	CollectionsResponse,
+	UppersResponse,
+	UpsertFavoriteRequest,
+	UpsertCollectionRequest,
+	UpsertSubmissionRequest
 } from './types';
 
 // API 基础配置
@@ -168,6 +174,67 @@ class ApiClient {
 	): Promise<ApiResponse<UpdateVideoStatusResponse>> {
 		return this.post<UpdateVideoStatusResponse>(`/videos/${id}/update-status`, request);
 	}
+
+	/**
+	 * 获取我的收藏夹
+	 */
+	async getCreatedFavorites(): Promise<ApiResponse<FavoritesResponse>> {
+		return this.get<FavoritesResponse>('/me/favorites');
+	}
+
+	/**
+	 * 获取关注的合集
+	 * @param page 页码
+	 */
+	async getFollowedCollections(
+		pageNum?: number,
+		pageSize?: number
+	): Promise<ApiResponse<CollectionsResponse>> {
+		const params = {
+			page_num: pageNum,
+			page_size: pageSize
+		};
+		return this.get<CollectionsResponse>('/me/collections', params);
+	}
+
+	/**
+	 * 获取关注的UP主
+	 * @param page 页码
+	 */
+	async getFollowedUppers(
+		pageNum?: number,
+		pageSize?: number
+	): Promise<ApiResponse<UppersResponse>> {
+		const params = {
+			page_num: pageNum,
+			page_size: pageSize
+		};
+		return this.get<UppersResponse>('/me/uppers', params);
+	}
+
+	/**
+	 * 订阅收藏夹
+	 * @param request 订阅请求参数
+	 */
+	async upsertFavorite(request: UpsertFavoriteRequest): Promise<ApiResponse<boolean>> {
+		return this.post<boolean>('/video-sources/favorites', request);
+	}
+
+	/**
+	 * 订阅合集
+	 * @param request 订阅请求参数
+	 */
+	async upsertCollection(request: UpsertCollectionRequest): Promise<ApiResponse<boolean>> {
+		return this.post<boolean>('/video-sources/collections', request);
+	}
+
+	/**
+	 * 订阅UP主投稿
+	 * @param request 订阅请求参数
+	 */
+	async upsertSubmission(request: UpsertSubmissionRequest): Promise<ApiResponse<boolean>> {
+		return this.post<boolean>('/video-sources/submissions', request);
+	}
 }
 
 // 创建默认的 API 客户端实例
@@ -205,6 +272,38 @@ export const api = {
 	 */
 	updateVideoStatus: (id: number, request: UpdateVideoStatusRequest) =>
 		apiClient.updateVideoStatus(id, request),
+
+	/**
+	 * 获取我的收藏夹
+	 */
+	getCreatedFavorites: () => apiClient.getCreatedFavorites(),
+
+	/**
+	 * 获取关注的合集
+	 */
+	getFollowedCollections: (pageNum?: number, pageSize?: number) =>
+		apiClient.getFollowedCollections(pageNum, pageSize),
+
+	/**
+	 * 获取关注的UP主
+	 */
+	getFollowedUppers: (pageNum?: number, pageSize?: number) =>
+		apiClient.getFollowedUppers(pageNum, pageSize),
+
+	/**
+	 * 订阅收藏夹
+	 */
+	upsertFavorite: (request: UpsertFavoriteRequest) => apiClient.upsertFavorite(request),
+
+	/**
+	 * 订阅合集
+	 */
+	upsertCollection: (request: UpsertCollectionRequest) => apiClient.upsertCollection(request),
+
+	/**
+	 * 订阅UP主投稿
+	 */
+	upsertSubmission: (request: UpsertSubmissionRequest) => apiClient.upsertSubmission(request),
 
 	/**
 	 * 设置认证 token

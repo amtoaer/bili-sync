@@ -156,7 +156,7 @@
 				bind:resetting
 				onReset={async () => {
 					try {
-						const result = await api.resetVideo((videoData as VideoResponse).video.id);
+						const result = await api.resetVideo(videoData!.video.id);
 						const data = result.data;
 						if (data.resetted) {
 							videoData = {

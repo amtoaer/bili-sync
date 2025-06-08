@@ -33,15 +33,15 @@ impl<'a> Me<'a> {
         Ok(serde_json::from_value(resp["data"]["list"].take())?)
     }
 
-    pub async fn get_followed_collections(&self, page: i32) -> Result<Collections> {
+    pub async fn get_followed_collections(&self, page_num: i32, page_size: i32) -> Result<Collections> {
         let mut resp = self
             .client
             .request(Method::GET, "https://api.bilibili.com/x/v3/fav/folder/collected/list")
             .await
             .query(&[
-                ("up_mid", self.mid.as_ref()),
-                ("pn", page.to_string().as_ref()),
-                ("ps", "20"),
+                ("up_mid", self.mid.as_str()),
+                ("pn", page_num.to_string().as_str()),
+                ("ps", page_size.to_string().as_str()),
                 ("platform", "web"),
             ])
             .send()
@@ -53,15 +53,15 @@ impl<'a> Me<'a> {
         Ok(serde_json::from_value(resp["data"].take())?)
     }
 
-    pub async fn get_followed_uppers(&self, page: i32) -> Result<FollowedUppers> {
+    pub async fn get_followed_uppers(&self, page_num: i32, page_size: i32) -> Result<FollowedUppers> {
         let mut resp = self
             .client
             .request(Method::GET, "https://api.bilibili.com/x/relation/followings")
             .await
             .query(&[
-                ("vmid", self.mid.as_ref()),
-                ("pn", page.to_string().as_ref()),
-                ("ps", "20"),
+                ("vmid", self.mid.as_str()),
+                ("pn", page_num.to_string().as_str()),
+                ("ps", page_size.to_string().as_str()),
             ])
             .send()
             .await?
@@ -86,6 +86,7 @@ impl<'a> Me<'a> {
 pub struct FavoriteItem {
     pub title: String,
     pub media_count: i64,
+    pub id: i64,
     pub fid: i64,
     pub mid: i64,
 }

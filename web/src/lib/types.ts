@@ -102,3 +102,62 @@ export interface UpdateVideoStatusResponse {
 	video: VideoInfo;
 	pages: PageInfo[];
 }
+
+// 收藏夹相关类型
+export interface FavoriteWithSubscriptionStatus {
+	title: string;
+	media_count: number;
+	id : number;
+	fid: number;
+	mid: number;
+	subscribed: boolean;
+}
+
+export interface FavoritesResponse {
+	favorites: FavoriteWithSubscriptionStatus[];
+}
+
+// 合集相关类型
+export interface CollectionWithSubscriptionStatus {
+	id: number;
+	mid: number;
+	state: number;
+	title: string;
+	subscribed: boolean;
+}
+
+export interface CollectionsResponse {
+	collections: CollectionWithSubscriptionStatus[];
+	total: number;
+}
+
+// UP主相关类型
+export interface UpperWithSubscriptionStatus {
+	mid: number;
+	uname: string;
+	face: string;
+	sign: string;
+	subscribed: boolean;
+}
+
+export interface UppersResponse {
+	uppers: UpperWithSubscriptionStatus[];
+	total: number;
+}
+
+export interface UpsertFavoriteRequest {
+	fid: number;
+	name: string;
+	path: string;
+}
+
+export interface UpsertCollectionRequest {
+	id: number;
+	mid: number;
+	path: string;
+}
+
+export interface UpsertSubmissionRequest {
+	upper_id: number;
+	path: string;
+}
