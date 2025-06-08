@@ -150,17 +150,17 @@
 		}
 	}
 
-	$: Icon = getIcon();
-	$: typeLabel = getTypeLabel();
-	$: title = getTitle();
-	$: subtitle = getSubtitle();
-	$: description = getDescription();
-	$: count = getCount();
-	$: countLabel = getCountLabel();
-	$: avatarUrl = getAvatarUrl();
-	$: subscribed = item.subscribed;
-	$: disabled = isDisabled();
-	$: disabledReason = getDisabledReason();
+	const Icon = getIcon();
+	const typeLabel = getTypeLabel();
+	const title = getTitle();
+	const subtitle = getSubtitle();
+	const description = getDescription();
+	const count = getCount();
+	const countLabel = getCountLabel();
+	const avatarUrl = getAvatarUrl();
+	const subscribed = item.subscribed;
+	const disabled = isDisabled();
+	const disabledReason = getDisabledReason();
 </script>
 
 <Card class="group transition-shadow hover:shadow-md {disabled ? 'opacity-60 grayscale' : ''}">

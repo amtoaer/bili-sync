@@ -39,15 +39,18 @@
 		if (!item) return '';
 
 		switch (type) {
-			case 'favorite':
+			case 'favorite': {
 				const favorite = item as FavoriteWithSubscriptionStatus;
 				return `收藏夹/${favorite.title}`;
-			case 'collection':
+			}
+			case 'collection': {
 				const collection = item as CollectionWithSubscriptionStatus;
 				return `合集/${collection.title}`;
-			case 'upper':
+			}
+			case 'upper': {
 				const upper = item as UpperWithSubscriptionStatus;
 				return `UP主/${upper.uname}`;
+			}
 			default:
 				return '';
 		}
@@ -149,8 +152,8 @@
 		customPath = generateDefaultPath();
 	}
 
-	$: typeLabel = getTypeLabel();
-	$: itemTitle = getItemTitle();
+	const typeLabel = getTypeLabel();
+	const itemTitle = getItemTitle();
 </script>
 
 <Sheet bind:open>

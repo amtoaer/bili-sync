@@ -107,7 +107,7 @@ export interface UpdateVideoStatusResponse {
 export interface FavoriteWithSubscriptionStatus {
 	title: string;
 	media_count: number;
-	id : number;
+	id: number;
 	fid: number;
 	mid: number;
 	subscribed: boolean;
