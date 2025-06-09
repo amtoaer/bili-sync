@@ -16,6 +16,7 @@ use std::fmt::Debug;
 use std::future::Future;
 use std::sync::Arc;
 
+use bilibili::BiliClient;
 use once_cell::sync::Lazy;
 use task::{http_server, video_downloader};
 use tokio_util::sync::CancellationToken;
@@ -29,12 +30,26 @@ use crate::utils::signal::terminate;
 #[tokio::main]
 async fn main() {
     init();
+    let bili_client = Arc::new(BiliClient::new());
     let connection = Arc::new(setup_database().await);
+
     let token = CancellationToken::new();
     let tracker = TaskTracker::new();
 
-    spawn_task("HTTP 服务", http_server(connection.clone()), &tracker, token.clone());
-    spawn_task("定时下载", video_downloader(connection), &tracker, token.clone());
+    spawn_task(
+        "HTTP 服务",
+        http_server(connection.clone(), bili_client.clone()),
+        &tracker,
+        token.clone(),
+    );
+    if !cfg!(debug_assertions) {
+        spawn_task(
+            "定时下载",
+            video_downloader(connection, bili_client),
+            &tracker,
+            token.clone(),
+        );
+    }
 
     tracker.close();
     handle_shutdown(tracker, token).await

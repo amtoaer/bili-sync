@@ -8,9 +8,8 @@ use crate::config::CONFIG;
 use crate::workflow::process_video_source;
 
 /// 启动周期下载视频的任务
-pub async fn video_downloader(connection: Arc<DatabaseConnection>) {
+pub async fn video_downloader(connection: Arc<DatabaseConnection>, bili_client: Arc<BiliClient>) {
     let mut anchor = chrono::Local::now().date_naive();
-    let bili_client = BiliClient::new();
     let video_sources = CONFIG.as_video_sources();
     loop {
         info!("开始执行本轮视频下载任务..");

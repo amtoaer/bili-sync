@@ -1,6 +1,9 @@
 <script lang="ts">
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import SettingsIcon from '@lucide/svelte/icons/settings';
+	import UserIcon from '@lucide/svelte/icons/user';
+	import HeartIcon from '@lucide/svelte/icons/heart';
+	import FolderIcon from '@lucide/svelte/icons/folder';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
 	import {
@@ -64,7 +67,7 @@
 				<Sidebar.GroupLabel
 					class="text-muted-foreground mb-2 px-2 text-xs font-medium tracking-wider uppercase"
 				>
-					视频来源
+					视频筛选
 				</Sidebar.GroupLabel>
 				<Sidebar.GroupContent>
 					<Sidebar.Menu class="space-y-1">
@@ -115,9 +118,69 @@
 					</Sidebar.Menu>
 				</Sidebar.GroupContent>
 			</Sidebar.Group>
+
+			<Sidebar.Group>
+				<Sidebar.GroupLabel
+					class="text-muted-foreground mb-2 px-2 text-xs font-medium tracking-wider uppercase"
+				>
+					快捷订阅
+				</Sidebar.GroupLabel>
+				<Sidebar.GroupContent>
+					<Sidebar.Menu class="space-y-1">
+						<Sidebar.MenuItem>
+							<Sidebar.MenuButton>
+								<a
+									href="/me/favorites"
+									class="hover:bg-accent/50 text-foreground flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200"
+									onclick={() => {
+										if (sidebar.isMobile) {
+											sidebar.setOpenMobile(false);
+										}
+									}}
+								>
+									<HeartIcon class="text-muted-foreground h-4 w-4" />
+									<span>创建的收藏夹</span>
+								</a>
+							</Sidebar.MenuButton>
+						</Sidebar.MenuItem>
+						<Sidebar.MenuItem>
+							<Sidebar.MenuButton>
+								<a
+									href="/me/collections"
+									class="hover:bg-accent/50 text-foreground flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200"
+									onclick={() => {
+										if (sidebar.isMobile) {
+											sidebar.setOpenMobile(false);
+										}
+									}}
+								>
+									<FolderIcon class="text-muted-foreground h-4 w-4" />
+									<span>关注的合集</span>
+								</a>
+							</Sidebar.MenuButton>
+						</Sidebar.MenuItem>
+						<Sidebar.MenuItem>
+							<Sidebar.MenuButton>
+								<a
+									href="/me/uppers"
+									class="hover:bg-accent/50 text-foreground flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200"
+									onclick={() => {
+										if (sidebar.isMobile) {
+											sidebar.setOpenMobile(false);
+										}
+									}}
+								>
+									<UserIcon class="text-muted-foreground h-4 w-4" />
+									<span>关注的 UP 主</span>
+								</a>
+							</Sidebar.MenuButton>
+						</Sidebar.MenuItem>
+					</Sidebar.Menu>
+				</Sidebar.GroupContent>
+			</Sidebar.Group>
 		</div>
 
-		<!-- 固定在底部的设置选项 -->
+		<!-- 固定在底部的菜单选项 -->
 		<div class="border-border mt-auto border-t pt-4">
 			<Sidebar.Menu class="space-y-1">
 				<Sidebar.MenuItem>
@@ -125,6 +188,11 @@
 						<a
 							href="/settings"
 							class="hover:bg-accent/50 text-foreground flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2.5 font-medium transition-all duration-200"
+							onclick={() => {
+								if (sidebar.isMobile) {
+									sidebar.setOpenMobile(false);
+								}
+							}}
 						>
 							<div class="flex flex-1 items-center gap-3">
 								<SettingsIcon class="text-muted-foreground h-4 w-4" />

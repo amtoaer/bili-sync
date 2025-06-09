@@ -5,7 +5,7 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{Response, Uri, header};
 use axum::response::IntoResponse;
-use axum::routing::{get, post};
+use axum::routing::get;
 use axum::{Extension, Router, ServiceExt, middleware};
 use reqwest::StatusCode;
 use rust_embed_for_web::{EmbedableFile, RustEmbed};
@@ -14,9 +14,8 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::{Config, SwaggerUi};
 
 use crate::api::auth;
-use crate::api::handler::{
-    ApiDoc, get_video, get_video_sources, get_videos, reset_all_videos, reset_video, update_video_status,
-};
+use crate::api::handler::{ApiDoc, api_router};
+use crate::bilibili::BiliClient;
 use crate::config::CONFIG;
 
 #[derive(RustEmbed)]
@@ -25,14 +24,9 @@ use crate::config::CONFIG;
 #[folder = "../../web/build"]
 struct Asset;
 
-pub async fn http_server(database_connection: Arc<DatabaseConnection>) -> Result<()> {
+pub async fn http_server(database_connection: Arc<DatabaseConnection>, bili_client: Arc<BiliClient>) -> Result<()> {
     let app = Router::new()
-        .route("/api/video-sources", get(get_video_sources))
-        .route("/api/videos", get(get_videos))
-        .route("/api/videos/{id}", get(get_video))
-        .route("/api/videos/{id}/reset", post(reset_video))
-        .route("/api/videos/{id}/update-status", post(update_video_status))
-        .route("/api/videos/reset-all", post(reset_all_videos))
+        .merge(api_router())
         .merge(
             SwaggerUi::new("/swagger-ui/")
                 .url("/api-docs/openapi.json", ApiDoc::openapi())
@@ -45,6 +39,7 @@ pub async fn http_server(database_connection: Arc<DatabaseConnection>) -> Result
         )
         .fallback_service(get(frontend_files))
         .layer(Extension(database_connection))
+        .layer(Extension(bili_client))
         .layer(middleware::from_fn(auth::auth));
     let listener = tokio::net::TcpListener::bind(&CONFIG.bind_address)
         .await
