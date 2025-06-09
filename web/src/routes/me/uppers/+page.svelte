@@ -63,7 +63,7 @@
 	<title>关注的UP主 - Bili Sync</title>
 </svelte:head>
 
-<div class="max-w-6xl">
+<div>
 	<div class="mb-6 flex items-center justify-between">
 		<div>
 			<h1 class="text-2xl font-bold">关注的UP主</h1>
@@ -81,13 +81,17 @@
 			<div class="text-muted-foreground">加载中...</div>
 		</div>
 	{:else if uppers.length > 0}
-		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+		<div
+			style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; width: 100%; max-width: none; justify-items: start;"
+		>
 			{#each uppers as upper (upper.mid)}
-				<SubscriptionCard
-					item={upper}
-					type="upper"
-					onSubscriptionSuccess={handleSubscriptionSuccess}
-				/>
+				<div style="max-width: 450px; width: 100%;">
+					<SubscriptionCard
+						item={upper}
+						type="upper"
+						onSubscriptionSuccess={handleSubscriptionSuccess}
+					/>
+				</div>
 			{/each}
 		</div>
 
