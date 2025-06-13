@@ -13,6 +13,7 @@ pub struct Model {
     pub path: String,
     pub created_at: String,
     pub latest_row_at: DateTime,
+    pub enabled: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
