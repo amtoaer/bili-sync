@@ -88,14 +88,14 @@ impl fmt::Display for CanvasStyles {
     }
 }
 
-pub struct AssWriter<W: AsyncWrite> {
+pub struct AssWriter<'a, W: AsyncWrite> {
     f: Pin<Box<BufWriter<W>>>,
     title: String,
-    canvas_config: CanvasConfig,
+    canvas_config: CanvasConfig<'a>,
 }
 
-impl<W: AsyncWrite> AssWriter<W> {
-    pub fn new(f: W, title: String, canvas_config: CanvasConfig) -> Self {
+impl<'a, W: AsyncWrite> AssWriter<'a, W> {
+    pub fn new(f: W, title: String, canvas_config: CanvasConfig<'a>) -> Self {
         AssWriter {
             // 对于 HDD、docker 之类的场景，磁盘 IO 是非常大的瓶颈。使用大缓存
             f: Box::pin(BufWriter::with_capacity(10 << 20, f)),
@@ -104,7 +104,7 @@ impl<W: AsyncWrite> AssWriter<W> {
         }
     }
 
-    pub async fn construct(f: W, title: String, canvas_config: CanvasConfig) -> Result<Self> {
+    pub async fn construct(f: W, title: String, canvas_config: CanvasConfig<'a>) -> Result<Self> {
         let mut res = Self::new(f, title, canvas_config);
         res.init().await?;
         Ok(res)

@@ -10,7 +10,7 @@ use crate::bilibili::danmaku::canvas::lane::Collision;
 use crate::bilibili::danmaku::danmu::DanmuType;
 use crate::bilibili::danmaku::{Danmu, DrawEffect, Drawable};
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct DanmakuOption {
     pub duration: f64,
     pub font: String,
@@ -54,13 +54,13 @@ impl Default for DanmakuOption {
 }
 
 #[derive(Clone)]
-pub struct CanvasConfig {
+pub struct CanvasConfig<'a> {
     pub width: u64,
     pub height: u64,
-    pub danmaku_option: &'static DanmakuOption,
+    pub danmaku_option: &'a DanmakuOption,
 }
-impl CanvasConfig {
-    pub fn new(danmaku_option: &'static DanmakuOption, page: &PageInfo) -> Self {
+impl<'a> CanvasConfig<'a> {
+    pub fn new(danmaku_option: &'a DanmakuOption, page: &PageInfo) -> Self {
         let (width, height) = Self::dimension(page);
         Self {
             width,
@@ -86,7 +86,7 @@ impl CanvasConfig {
         ((720.0 / height as f64 * width as f64) as u64, 720)
     }
 
-    pub fn canvas(self) -> Canvas {
+    pub fn canvas(self) -> Canvas<'a> {
         let float_lanes_cnt =
             (self.danmaku_option.float_percentage * self.height as f64 / self.danmaku_option.lane_size as f64) as usize;
 
@@ -97,12 +97,12 @@ impl CanvasConfig {
     }
 }
 
-pub struct Canvas {
-    pub config: CanvasConfig,
+pub struct Canvas<'a> {
+    pub config: CanvasConfig<'a>,
     pub float_lanes: Vec<Option<Lane>>,
 }
 
-impl Canvas {
+impl<'a> Canvas<'a> {
     pub fn draw(&mut self, mut danmu: Danmu) -> Result<Option<Drawable>> {
         danmu.timeline_s += self.config.danmaku_option.time_offset;
         if danmu.timeline_s < 0.0 {

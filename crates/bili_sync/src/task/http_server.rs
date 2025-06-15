@@ -16,7 +16,7 @@ use utoipa_swagger_ui::{Config, SwaggerUi};
 use crate::api::auth;
 use crate::api::handler::{ApiDoc, api_router};
 use crate::bilibili::BiliClient;
-use crate::config::CONFIG;
+use crate::config::config_template_owned;
 
 #[derive(RustEmbed)]
 #[preserve_source = false]
@@ -41,10 +41,12 @@ pub async fn http_server(database_connection: Arc<DatabaseConnection>, bili_clie
         .layer(Extension(database_connection))
         .layer(Extension(bili_client))
         .layer(middleware::from_fn(auth::auth));
-    let listener = tokio::net::TcpListener::bind(&CONFIG.bind_address)
+    let config_template = config_template_owned();
+    let config = &config_template.config;
+    let listener = tokio::net::TcpListener::bind(&config.bind_address)
         .await
         .context("bind address failed")?;
-    info!("开始运行管理页: http://{}", CONFIG.bind_address);
+    info!("开始运行管理页: http://{}", config.bind_address);
     Ok(axum::serve(listener, ServiceExt::<Request>::into_make_service(app)).await?)
 }
 

@@ -17,12 +17,11 @@ use std::future::Future;
 use std::sync::Arc;
 
 use bilibili::BiliClient;
-use once_cell::sync::Lazy;
 use task::{http_server, video_downloader};
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 
-use crate::config::{ARGS, CONFIG};
+use crate::config::GlobalState;
 use crate::database::setup_database;
 use crate::utils::init_logger;
 use crate::utils::signal::terminate;
@@ -32,6 +31,10 @@ async fn main() {
     init();
     let bili_client = Arc::new(BiliClient::new());
     let connection = Arc::new(setup_database().await);
+
+    GlobalState::init(connection.clone())
+        .await
+        .expect("Failed to initialize global state");
 
     let token = CancellationToken::new();
     let tracker = TaskTracker::new();
@@ -76,10 +79,11 @@ fn spawn_task(
 
 /// 初始化日志系统，打印欢迎信息，加载配置文件
 fn init() {
-    init_logger(&ARGS.log_level);
+    let args = &GlobalState::get().args;
+    init_logger(&args.log_level);
     info!("欢迎使用 Bili-Sync，当前程序版本：{}", config::version());
     info!("项目地址：https://github.com/amtoaer/bili-sync");
-    Lazy::force(&CONFIG);
+    info!("全局状态初始化完成");
 }
 
 async fn handle_shutdown(tracker: TaskTracker, token: CancellationToken) {

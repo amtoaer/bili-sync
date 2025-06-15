@@ -2,12 +2,13 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
+use arc_swap::access::Access;
 use leaky_bucket::RateLimiter;
 use reqwest::{Method, header};
 
 use crate::bilibili::Credential;
 use crate::bilibili::credential::WbiImg;
-use crate::config::{CONFIG, RateLimit};
+use crate::config::{RateLimit, config_borrowed, credential, set_credential};
 
 // 一个对 reqwest::Client 的简单封装，用于 Bilibili 请求
 #[derive(Clone)]
@@ -69,18 +70,20 @@ pub struct BiliClient {
 impl BiliClient {
     pub fn new() -> Self {
         let client = Client::new();
-        let limiter = CONFIG
-            .concurrent_limit
-            .rate_limit
-            .as_ref()
-            .map(|RateLimit { limit, duration }| {
-                RateLimiter::builder()
-                    .initial(*limit)
-                    .refill(*limit)
-                    .max(*limit)
-                    .interval(Duration::from_millis(*duration))
-                    .build()
-            });
+        let limiter =
+            config_borrowed()
+                .load()
+                .concurrent_limit
+                .rate_limit
+                .as_ref()
+                .map(|RateLimit { limit, duration }| {
+                    RateLimiter::builder()
+                        .initial(*limit)
+                        .refill(*limit)
+                        .max(*limit)
+                        .interval(Duration::from_millis(*duration))
+                        .build()
+                });
         Self { client, limiter }
     }
 
@@ -89,12 +92,12 @@ impl BiliClient {
         if let Some(limiter) = &self.limiter {
             limiter.acquire_one().await;
         }
-        let credential = CONFIG.credential.load();
+        let credential = credential();
         self.client.request(method, url, credential.as_deref())
     }
 
     pub async fn check_refresh(&self) -> Result<()> {
-        let credential = CONFIG.credential.load();
+        let credential = credential();
         let Some(credential) = credential.as_deref() else {
             return Ok(());
         };
@@ -102,13 +105,13 @@ impl BiliClient {
             return Ok(());
         }
         let new_credential = credential.refresh(&self.client).await?;
-        CONFIG.credential.store(Some(Arc::new(new_credential)));
-        CONFIG.save()
+        set_credential(Some(Arc::new(new_credential)));
+        Ok(())
     }
 
     /// 获取 wbi img，用于生成请求签名
     pub async fn wbi_img(&self) -> Result<WbiImg> {
-        let credential = CONFIG.credential.load();
+        let credential = credential();
         let credential = credential.as_deref().context("no credential found")?;
         credential.wbi_img(&self.client).await
     }

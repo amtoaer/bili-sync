@@ -40,7 +40,7 @@ impl Danmu {
     /// 计算弹幕的“像素长度”，会乘上一个缩放因子
     ///
     /// 汉字算一个全宽，英文算2/3宽
-    pub fn length(&self, config: &CanvasConfig) -> f64 {
+    pub fn length(&self, config: &CanvasConfig<'_>) -> f64 {
         let pts = config.danmaku_option.font_size
             * self
                 .content
