@@ -4,6 +4,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::{Context, Result, bail, ensure};
+use arc_swap::access::Access;
 use futures::TryStreamExt;
 use reqwest::{Method, header};
 use tokio::fs::{self, File, OpenOptions};
@@ -12,7 +13,7 @@ use tokio::task::JoinSet;
 use tokio_util::io::StreamReader;
 
 use crate::bilibili::Client;
-use crate::config::CONFIG;
+use crate::config::config_borrowed;
 pub struct Downloader {
     client: Client,
 }
@@ -26,7 +27,7 @@ impl Downloader {
     }
 
     pub async fn fetch(&self, url: &str, path: &Path) -> Result<()> {
-        if CONFIG.concurrent_limit.download.enable {
+        if config_borrowed().load().concurrent_limit.download.enable {
             self.fetch_parallel(url, path).await
         } else {
             self.fetch_serial(url, path).await
@@ -60,6 +61,13 @@ impl Downloader {
     }
 
     async fn fetch_parallel(&self, url: &str, path: &Path) -> Result<()> {
+        let (concurrency, threshold) = {
+            let config = config_borrowed().load();
+            (
+                config.concurrent_limit.download.concurrency,
+                config.concurrent_limit.download.threshold,
+            )
+        };
         let resp = self
             .client
             .request(Method::HEAD, url, None)
@@ -67,12 +75,12 @@ impl Downloader {
             .await?
             .error_for_status()?;
         let file_size = resp.header_content_length().unwrap_or_default();
-        let chunk_size = file_size / CONFIG.concurrent_limit.download.concurrency as u64;
+        let chunk_size = file_size / concurrency as u64;
         if resp
             .headers()
             .get(header::ACCEPT_RANGES)
             .is_none_or(|v| v.to_str().unwrap_or_default() == "none") // https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Accept-Ranges#none
-            || chunk_size < CONFIG.concurrent_limit.download.threshold
+            || chunk_size < threshold
         {
             return self.fetch_serial(url, path).await;
         }
@@ -85,9 +93,9 @@ impl Downloader {
         let mut tasks = JoinSet::new();
         let url = Arc::new(url.to_string());
         let path = Arc::new(path.to_path_buf());
-        for i in 0..CONFIG.concurrent_limit.download.concurrency {
+        for i in 0..concurrency {
             let start = i as u64 * chunk_size;
-            let end = if i == CONFIG.concurrent_limit.download.concurrency - 1 {
+            let end = if i == concurrency - 1 {
                 file_size
             } else {
                 start + chunk_size

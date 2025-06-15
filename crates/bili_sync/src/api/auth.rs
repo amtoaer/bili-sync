@@ -1,3 +1,4 @@
+use arc_swap::access::Access;
 use axum::extract::Request;
 use axum::http::HeaderMap;
 use axum::middleware::Next;
@@ -7,10 +8,10 @@ use utoipa::Modify;
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 
 use crate::api::wrapper::ApiResponse;
-use crate::config::CONFIG;
+use crate::config::config_borrowed;
 
 pub async fn auth(headers: HeaderMap, request: Request, next: Next) -> Result<Response, StatusCode> {
-    if request.uri().path().starts_with("/api/") && get_token(&headers) != CONFIG.auth_token {
+    if request.uri().path().starts_with("/api/") && get_token(&headers) != config_borrowed().load().auth_token {
         return Ok(ApiResponse::unauthorized(()).into_response());
     }
     Ok(next.run(request).await)

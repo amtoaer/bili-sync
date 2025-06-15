@@ -4,15 +4,17 @@ use sea_orm::DatabaseConnection;
 use tokio::time;
 
 use crate::bilibili::{self, BiliClient};
-use crate::config::CONFIG;
+use crate::config::config_template_owned;
 use crate::workflow::process_video_source;
 
 /// 启动周期下载视频的任务
 pub async fn video_downloader(connection: Arc<DatabaseConnection>, bili_client: Arc<BiliClient>) {
     let mut anchor = chrono::Local::now().date_naive();
-    let video_sources = CONFIG.as_video_sources();
     loop {
         info!("开始执行本轮视频下载任务..");
+        let config_template = config_template_owned();
+        let config = &config_template.config;
+        let video_sources = config.as_video_sources();
         'inner: {
             match bili_client.wbi_img().await.map(|wbi_img| wbi_img.into()) {
                 Ok(Some(mixin_key)) => bilibili::set_global_mixin_key(mixin_key),
@@ -39,6 +41,6 @@ pub async fn video_downloader(connection: Arc<DatabaseConnection>, bili_client: 
             }
             info!("本轮任务执行完毕，等待下一轮执行");
         }
-        time::sleep(time::Duration::from_secs(CONFIG.interval)).await;
+        time::sleep(time::Duration::from_secs(config.interval)).await;
     }
 }

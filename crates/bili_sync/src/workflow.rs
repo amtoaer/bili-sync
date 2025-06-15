@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::pin::Pin;
 
 use anyhow::{Context, Result, anyhow, bail};
+use arc_swap::access::Access;
 use bili_sync_entity::*;
 use futures::stream::FuturesUnordered;
 use futures::{Stream, StreamExt, TryStreamExt};
@@ -14,7 +15,7 @@ use tokio::sync::Semaphore;
 
 use crate::adapter::{Args, VideoSource, VideoSourceEnum, video_source_from};
 use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, PageInfo, Video, VideoInfo};
-use crate::config::{ARGS, CONFIG, PathSafeTemplate, TEMPLATE};
+use crate::config::{PathSafeTemplate, args, config_borrowed, config_template_borrowed, template_borrowed};
 use crate::downloader::Downloader;
 use crate::error::{DownloadAbortError, ExecutionStatus, ProcessPageError};
 use crate::utils::format_arg::{page_format_args, video_format_args};
@@ -27,18 +28,18 @@ use crate::utils::status::{PageStatus, STATUS_OK, VideoStatus};
 
 /// 完整地处理某个视频来源
 pub async fn process_video_source(
-    args: Args<'_>,
+    source_args: Args<'_>,
     bili_client: &BiliClient,
     path: &Path,
     connection: &DatabaseConnection,
 ) -> Result<()> {
     // 从参数中获取视频列表的 Model 与视频流
-    let (video_source, video_streams) = video_source_from(args, path, bili_client, connection).await?;
+    let (video_source, video_streams) = video_source_from(source_args, path, bili_client, connection).await?;
     // 从视频流中获取新视频的简要信息，写入数据库
     refresh_video_source(&video_source, video_streams, connection).await?;
     // 单独请求视频详情接口，获取视频的详情信息与所有的分页，写入数据库
     fetch_video_details(bili_client, &video_source, connection).await?;
-    if ARGS.scan_only {
+    if args().scan_only {
         warn!("已开启仅扫描模式，跳过视频下载..");
     } else {
         // 从数据库中查找所有未下载的视频与分页，下载并处理
@@ -154,7 +155,7 @@ pub async fn download_unprocessed_videos(
     connection: &DatabaseConnection,
 ) -> Result<()> {
     video_source.log_download_video_start();
-    let semaphore = Semaphore::new(CONFIG.concurrent_limit.video);
+    let semaphore = Semaphore::new(config_borrowed().load().concurrent_limit.video);
     let downloader = Downloader::new(bili_client.client.clone());
     let unhandled_videos_pages = filter_unhandled_video_pages(video_source.filter_expr(), connection).await?;
     let mut assigned_upper = HashSet::new();
@@ -215,14 +216,22 @@ pub async fn download_video_pages(
     let _permit = semaphore.acquire().await.context("acquire semaphore failed")?;
     let mut status = VideoStatus::from(video_model.download_status);
     let separate_status = status.should_run();
-    let base_path = video_source
-        .path()
-        .join(TEMPLATE.path_safe_render("video", &video_format_args(&video_model))?);
+
     let upper_id = video_model.upper_id.to_string();
-    let base_upper_path = &CONFIG
-        .upper_path
-        .join(upper_id.chars().next().context("upper_id is empty")?.to_string())
-        .join(upper_id);
+    let (base_path, base_upper_path) = {
+        let config_template = config_template_borrowed().load();
+        let base_path = video_source.path().join(
+            config_template
+                .template
+                .path_safe_render("video", &video_format_args(&video_model))?,
+        );
+        let base_upper_path = config_template
+            .config
+            .upper_path
+            .join(upper_id.chars().next().context("upper_id is empty")?.to_string())
+            .join(upper_id);
+        (base_path, base_upper_path)
+    };
     let is_single_page = video_model.single_page.context("single_page is null")?;
     // 对于单页视频，page 的下载已经足够
     // 对于多页视频，page 下载仅包含了分集内容，需要额外补上视频的 poster 的 tvshow.nfo
@@ -311,7 +320,7 @@ pub async fn dispatch_download_page(
     if !should_run {
         return Ok(ExecutionStatus::Skipped);
     }
-    let child_semaphore = Semaphore::new(CONFIG.concurrent_limit.page);
+    let child_semaphore = Semaphore::new(config_borrowed().load().concurrent_limit.page);
     let tasks = pages
         .into_iter()
         .map(|page_model| {
@@ -377,7 +386,9 @@ pub async fn download_page(
     let mut status = PageStatus::from(page_model.download_status);
     let separate_status = status.should_run();
     let is_single_page = video_model.single_page.context("single_page is null")?;
-    let base_name = TEMPLATE.path_safe_render("page", &page_format_args(video_model, &page_model))?;
+    let base_name = template_borrowed()
+        .load()
+        .path_safe_render("page", &page_format_args(video_model, &page_model))?;
     let (poster_path, video_path, nfo_path, danmaku_path, fanart_path, subtitle_path) = if is_single_page {
         (
             base_path.join(format!("{}-poster.jpg", &base_name)),
@@ -532,7 +543,7 @@ pub async fn fetch_page_video(
     let streams = bili_video
         .get_page_analyzer(page_info)
         .await?
-        .best_stream(&CONFIG.filter_option)?;
+        .best_stream(&config_borrowed().load().filter_option)?;
     match streams {
         BestStream::Mixed(mix_stream) => downloader.fetch_with_fallback(&mix_stream.urls(), page_path).await?,
         BestStream::VideoAudio {
@@ -727,13 +738,13 @@ mod tests {
         #[cfg(windows)]
         {
             assert_eq!(
-                template
+                template_borrowed
                     .path_safe_render("test_path_unix", &json!({"title": "关注/永雏塔菲喵"}))
                     .unwrap(),
                 "关注_永雏塔菲_test_a"
             );
             assert_eq!(
-                template
+                template_borrowed
                     .path_safe_render("test_path_windows", &json!({"title": "关注/永雏塔菲喵"}))
                     .unwrap(),
                 r"关注_永雏塔菲\\test\\a"

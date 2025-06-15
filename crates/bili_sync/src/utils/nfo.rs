@@ -1,4 +1,5 @@
 use anyhow::Result;
+use arc_swap::access::Access;
 use bili_sync_entity::*;
 use chrono::NaiveDateTime;
 use quick_xml::Error;
@@ -6,7 +7,7 @@ use quick_xml::events::{BytesCData, BytesText};
 use quick_xml::writer::Writer;
 use tokio::io::{AsyncWriteExt, BufWriter};
 
-use crate::config::{CONFIG, NFOTimeType};
+use crate::config::{NFOTimeType, config_borrowed};
 
 #[allow(clippy::upper_case_acronyms)]
 pub enum NFO<'a> {
@@ -339,7 +340,7 @@ impl<'a> From<&'a video::Model> for Movie<'a> {
             bvid: &video.bvid,
             upper_id: video.upper_id,
             upper_name: &video.upper_name,
-            aired: match CONFIG.nfo_time_type {
+            aired: match config_borrowed().load().nfo_time_type {
                 NFOTimeType::FavTime => video.favtime,
                 NFOTimeType::PubTime => video.pubtime,
             },
@@ -359,7 +360,7 @@ impl<'a> From<&'a video::Model> for TVShow<'a> {
             bvid: &video.bvid,
             upper_id: video.upper_id,
             upper_name: &video.upper_name,
-            aired: match CONFIG.nfo_time_type {
+            aired: match config_borrowed().load().nfo_time_type {
                 NFOTimeType::FavTime => video.favtime,
                 NFOTimeType::PubTime => video.pubtime,
             },
