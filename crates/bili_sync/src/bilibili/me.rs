@@ -4,7 +4,7 @@ use anyhow::Result;
 use reqwest::Method;
 
 use crate::bilibili::{BiliClient, Validate};
-use crate::config::{config_borrowed, credential};
+use crate::config::VersionedConfig;
 pub struct Me<'a> {
     client: &'a BiliClient,
     mid: String,
@@ -73,7 +73,7 @@ impl<'a> Me<'a> {
     }
 
     fn my_id() -> String {
-        credential().as_deref().map(|c| c.dedeuserid.clone()).unwrap()
+        VersionedConfig::get().load().credential.load().dedeuserid.clone()
     }
 }
 

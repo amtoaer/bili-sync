@@ -16,7 +16,7 @@ use utoipa_swagger_ui::{Config, SwaggerUi};
 use crate::api::auth;
 use crate::api::handler::{ApiDoc, api_router};
 use crate::bilibili::BiliClient;
-use crate::config::config_template_owned;
+use crate::config::VersionedConfig;
 
 #[derive(RustEmbed)]
 #[preserve_source = false]
@@ -41,8 +41,7 @@ pub async fn http_server(database_connection: Arc<DatabaseConnection>, bili_clie
         .layer(Extension(database_connection))
         .layer(Extension(bili_client))
         .layer(middleware::from_fn(auth::auth));
-    let config_template = config_template_owned();
-    let config = &config_template.config;
+    let config = VersionedConfig::get().load_full();
     let listener = tokio::net::TcpListener::bind(&config.bind_address)
         .await
         .context("bind address failed")?;
@@ -67,7 +66,5 @@ async fn frontend_files(uri: Uri) -> impl IntoResponse {
         .header(header::CONTENT_ENCODING, "br")
         // safety: `RustEmbed` will always generate br-compressed files if the feature is enabled
         .body(Body::from(content.data_br().unwrap()))
-        .unwrap_or_else(|_| {
-            return (StatusCode::INTERNAL_SERVER_ERROR, "500 Internal Server Error").into_response();
-        })
+        .unwrap_or_else(|_| (StatusCode::INTERNAL_SERVER_ERROR, "500 Internal Server Error").into_response())
 }

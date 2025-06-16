@@ -18,7 +18,7 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(Config::ConfigData).text().not_null())
+                    .col(ColumnDef::new(Config::Data).text().not_null())
                     .col(ColumnDef::new(Config::CreatedAt).text().not_null())
                     .to_owned(),
             )
@@ -34,6 +34,6 @@ impl MigrationTrait for Migration {
 enum Config {
     Table,
     Id,
-    ConfigData,
+    Data,
     CreatedAt,
 }

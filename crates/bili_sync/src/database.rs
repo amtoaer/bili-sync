@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use bili_sync_migration::{Migrator, MigratorTrait};
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 
@@ -25,7 +25,7 @@ async fn migrate_database() -> Result<()> {
 }
 
 /// 进行数据库迁移并获取数据库连接，供外部使用
-pub async fn setup_database() -> DatabaseConnection {
-    migrate_database().await.expect("数据库迁移失败");
-    database_connection().await.expect("获取数据库连接失败")
+pub async fn setup_database() -> Result<DatabaseConnection> {
+    migrate_database().await.context("Failed to migrate database")?;
+    database_connection().await.context("Failed to connect to database")
 }

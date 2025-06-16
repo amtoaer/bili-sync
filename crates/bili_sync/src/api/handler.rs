@@ -573,13 +573,14 @@ pub async fn upsert_collection(
     Extension(bili_client): Extension<Arc<BiliClient>>,
     ValidatedJson(request): ValidatedJson<UpsertCollectionRequest>,
 ) -> Result<ApiResponse<bool>, ApiError> {
-    let collection_item = CollectionItem {
-        sid: request.id.to_string(),
-        mid: request.mid.to_string(),
-        collection_type: request.collection_type,
-    };
-
-    let collection = Collection::new(bili_client.as_ref(), &collection_item);
+    let collection = Collection::new(
+        bili_client.as_ref(),
+        CollectionItem {
+            sid: request.id.to_string(),
+            mid: request.mid.to_string(),
+            collection_type: request.collection_type,
+        },
+    );
     let collection_info = collection.get_info().await?;
 
     collection::Entity::insert(collection::ActiveModel {

@@ -60,39 +60,37 @@ impl VideoSource for favorite::Model {
     fn log_download_video_end(&self) {
         info!("下载收藏夹「{}」视频完成", self.name);
     }
-}
 
-pub(super) async fn favorite_from<'a>(
-    fid: &str,
-    path: &Path,
-    bili_client: &'a BiliClient,
-    connection: &DatabaseConnection,
-) -> Result<(
-    VideoSourceEnum,
-    Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a + Send>>,
-)> {
-    let favorite = FavoriteList::new(bili_client, fid.to_owned());
-    let favorite_info = favorite.get_info().await?;
-    favorite::Entity::insert(favorite::ActiveModel {
-        f_id: Set(favorite_info.id),
-        name: Set(favorite_info.title.clone()),
-        path: Set(path.to_string_lossy().to_string()),
-        ..Default::default()
-    })
-    .on_conflict(
-        OnConflict::column(favorite::Column::FId)
-            .update_columns([favorite::Column::Name, favorite::Column::Path])
-            .to_owned(),
-    )
-    .exec(connection)
-    .await?;
-    Ok((
-        favorite::Entity::find()
-            .filter(favorite::Column::FId.eq(favorite_info.id))
-            .one(connection)
-            .await?
-            .context("favorite not found")?
-            .into(),
-        Box::pin(favorite.into_video_stream()),
-    ))
+    async fn refresh<'a>(
+        self,
+        bili_client: &'a BiliClient,
+        connection: &'a DatabaseConnection,
+    ) -> Result<(
+        VideoSourceEnum,
+        Pin<Box<dyn Stream<Item = Result<VideoInfo>> + Send + 'a>>,
+    )> {
+        let favorite = FavoriteList::new(bili_client, self.f_id.to_string());
+        let favorite_info = favorite.get_info().await?;
+        favorite::Entity::insert(favorite::ActiveModel {
+            f_id: Set(favorite_info.id),
+            name: Set(favorite_info.title.clone()),
+            ..Default::default()
+        })
+        .on_conflict(
+            OnConflict::column(favorite::Column::FId)
+                .update_column(favorite::Column::Name)
+                .to_owned(),
+        )
+        .exec(connection)
+        .await?;
+        Ok((
+            favorite::Entity::find()
+                .filter(favorite::Column::FId.eq(favorite_info.id))
+                .one(connection)
+                .await?
+                .context("favorite not found")?
+                .into(),
+            Box::pin(favorite.into_video_stream()),
+        ))
+    }
 }

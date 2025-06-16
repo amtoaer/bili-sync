@@ -6,7 +6,7 @@ use tokio::fs::{self, File};
 use crate::bilibili::PageInfo;
 use crate::bilibili::danmaku::canvas::CanvasConfig;
 use crate::bilibili::danmaku::{AssWriter, Danmu};
-use crate::config::config_template_owned;
+use crate::config::VersionedConfig;
 
 pub struct DanmakuWriter<'a> {
     page: &'a PageInfo,
@@ -22,8 +22,7 @@ impl<'a> DanmakuWriter<'a> {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).await?;
         }
-        let config_template = config_template_owned();
-        let config = &config_template.config;
+        let config = VersionedConfig::get().load_full();
         let canvas_config = CanvasConfig::new(&config.danmaku_option, self.page);
         let mut canvas = canvas_config.clone().canvas();
         let mut writer = AssWriter::construct(File::create(path).await?, self.page.name.clone(), canvas_config).await?;

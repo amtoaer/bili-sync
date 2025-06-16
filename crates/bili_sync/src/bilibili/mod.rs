@@ -154,13 +154,15 @@ mod tests {
             panic!("获取 mixin key 失败");
         };
         set_global_mixin_key(mixin_key);
-        // 测试视频合集
-        let collection_item = CollectionItem {
-            mid: "521722088".to_string(),
-            sid: "4523".to_string(),
-            collection_type: CollectionType::Season,
-        };
-        let collection = Collection::new(&bili_client, &collection_item);
+
+        let collection = Collection::new(
+            &bili_client,
+            CollectionItem {
+                mid: "521722088".to_string(),
+                sid: "4523".to_string(),
+                collection_type: CollectionType::Season,
+            },
+        );
         let videos = collection
             .into_video_stream()
             .take(20)

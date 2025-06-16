@@ -1,9 +1,8 @@
 use anyhow::{Context, Result, bail};
-use arc_swap::access::Access;
 use serde::{Deserialize, Serialize};
 
 use crate::bilibili::error::BiliError;
-use crate::config::config_borrowed;
+use crate::config::VersionedConfig;
 
 pub struct PageAnalyzer {
     info: serde_json::Value,
@@ -137,7 +136,7 @@ impl Stream {
                 let mut urls = std::iter::once(url.as_str())
                     .chain(backup_url.iter().map(|s| s.as_str()))
                     .collect::<Vec<_>>();
-                if config_borrowed().load().cdn_sorting {
+                if VersionedConfig::get().load().cdn_sorting {
                     urls.sort_by_key(|u| {
                         if u.contains("upos-") {
                             0 // 服务商 cdn
@@ -352,7 +351,7 @@ impl PageAnalyzer {
 mod tests {
     use super::*;
     use crate::bilibili::{BiliClient, Video};
-    use crate::config::config_borrowed;
+    use crate::config::VersionedConfig;
 
     #[test]
     fn test_quality_order() {
@@ -434,7 +433,7 @@ mod tests {
                 .get_page_analyzer(&first_page)
                 .await
                 .expect("failed to get page analyzer")
-                .best_stream(&config_borrowed().load().filter_option)
+                .best_stream(&VersionedConfig::get().load().filter_option)
                 .expect("failed to get best stream");
             dbg!(bvid, &best_stream);
             match best_stream {

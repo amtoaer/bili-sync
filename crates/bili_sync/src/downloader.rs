@@ -4,7 +4,6 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::{Context, Result, bail, ensure};
-use arc_swap::access::Access;
 use futures::TryStreamExt;
 use reqwest::{Method, header};
 use tokio::fs::{self, File, OpenOptions};
@@ -13,7 +12,7 @@ use tokio::task::JoinSet;
 use tokio_util::io::StreamReader;
 
 use crate::bilibili::Client;
-use crate::config::config_borrowed;
+use crate::config::VersionedConfig;
 pub struct Downloader {
     client: Client,
 }
@@ -27,7 +26,7 @@ impl Downloader {
     }
 
     pub async fn fetch(&self, url: &str, path: &Path) -> Result<()> {
-        if config_borrowed().load().concurrent_limit.download.enable {
+        if VersionedConfig::get().load().concurrent_limit.download.enable {
             self.fetch_parallel(url, path).await
         } else {
             self.fetch_serial(url, path).await
@@ -62,7 +61,7 @@ impl Downloader {
 
     async fn fetch_parallel(&self, url: &str, path: &Path) -> Result<()> {
         let (concurrency, threshold) = {
-            let config = config_borrowed().load();
+            let config = VersionedConfig::get().load();
             (
                 config.concurrent_limit.download.concurrency,
                 config.concurrent_limit.download.threshold,

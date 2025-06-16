@@ -1,6 +1,9 @@
 use std::borrow::Cow;
+use std::sync::LazyLock;
 
 use clap::Parser;
+
+pub static ARGS: LazyLock<Args> = LazyLock::new(Args::parse);
 
 #[derive(Parser)]
 #[command(name = "Bili-Sync", version = detail_version(), about, long_about = None)]

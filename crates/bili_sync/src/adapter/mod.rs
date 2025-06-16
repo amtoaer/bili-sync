@@ -20,11 +20,7 @@ use bili_sync_entity::favorite::Model as Favorite;
 use bili_sync_entity::submission::Model as Submission;
 use bili_sync_entity::watch_later::Model as WatchLater;
 
-use crate::adapter::collection::collection_from;
-use crate::adapter::favorite::favorite_from;
-use crate::adapter::submission::submission_from;
-use crate::adapter::watch_later::watch_later_from;
-use crate::bilibili::{BiliClient, CollectionItem, VideoInfo};
+use crate::bilibili::{BiliClient, VideoInfo};
 
 #[enum_dispatch]
 pub enum VideoSourceEnum {
@@ -84,31 +80,15 @@ pub trait VideoSource {
 
     /// 结束下载视频
     fn log_download_video_end(&self);
-}
 
-#[derive(Clone, Copy, Debug)]
-pub enum Args<'a> {
-    Favorite { fid: &'a str },
-    Collection { collection_item: &'a CollectionItem },
-    WatchLater,
-    Submission { upper_id: &'a str },
-}
-
-pub async fn video_source_from<'a>(
-    args: Args<'a>,
-    path: &Path,
-    bili_client: &'a BiliClient,
-    connection: &DatabaseConnection,
-) -> Result<(
-    VideoSourceEnum,
-    Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a + Send>>,
-)> {
-    match args {
-        Args::Favorite { fid } => favorite_from(fid, path, bili_client, connection).await,
-        Args::Collection { collection_item } => collection_from(collection_item, path, bili_client, connection).await,
-        Args::WatchLater => watch_later_from(path, bili_client, connection).await,
-        Args::Submission { upper_id } => submission_from(upper_id, path, bili_client, connection).await,
-    }
+    async fn refresh<'a>(
+        self,
+        bili_client: &'a BiliClient,
+        connection: &'a DatabaseConnection,
+    ) -> Result<(
+        VideoSourceEnum,
+        Pin<Box<dyn Stream<Item = Result<VideoInfo>> + Send + 'a>>,
+    )>;
 }
 
 pub enum _ActiveModel {

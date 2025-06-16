@@ -1,10 +1,9 @@
-use arc_swap::access::Access;
 use serde_json::json;
 
-use crate::config::config_borrowed;
+use crate::config::VersionedConfig;
 
 pub fn video_format_args(video_model: &bili_sync_entity::video::Model) -> serde_json::Value {
-    let config = config_borrowed().load();
+    let config = VersionedConfig::get().load();
     json!({
         "bvid": &video_model.bvid,
         "title": &video_model.name,
@@ -19,7 +18,7 @@ pub fn page_format_args(
     video_model: &bili_sync_entity::video::Model,
     page_model: &bili_sync_entity::page::Model,
 ) -> serde_json::Value {
-    let config = config_borrowed().load();
+    let config = VersionedConfig::get().load();
     json!({
         "bvid": &video_model.bvid,
         "title": &video_model.name,
