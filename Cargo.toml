@@ -69,7 +69,6 @@ tokio-util = { version = "0.7.15", features = ["io", "rt"] }
 toml = "0.8.22"
 tower = "0.5.2"
 tracing = "0.1.41"
-tracing-panic = "0.1.2"
 tracing-subscriber = { version = "0.3.19", features = ["chrono"] }
 utoipa = { git = "https://github.com/amtoaer/utoipa.git", tag = "v1.0.1", features = [
     "axum_extras",
