@@ -154,7 +154,6 @@ mod tests {
             panic!("获取 mixin key 失败");
         };
         set_global_mixin_key(mixin_key);
-
         let collection = Collection::new(
             &bili_client,
             CollectionItem {
