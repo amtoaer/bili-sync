@@ -18,7 +18,7 @@ pub static CONFIG_DIR: LazyLock<PathBuf> =
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     #[serde(default = "default_auth_token")]
-    pub auth_token: Option<String>,
+    pub auth_token: String,
     #[serde(default = "default_bind_address")]
     pub bind_address: String,
     pub credential: ArcSwap<Credential>,
@@ -103,7 +103,7 @@ impl Default for Config {
             video_name: "{{title}}".to_owned(),
             page_name: "{{bvid}}".to_owned(),
             interval: 1200,
-            upper_path: PathBuf::from("upper_face"),
+            upper_path: CONFIG_DIR.join("upper_face"),
             nfo_time_type: NFOTimeType::FavTime,
             concurrent_limit: ConcurrentLimit::default(),
             time_format: default_time_format(),

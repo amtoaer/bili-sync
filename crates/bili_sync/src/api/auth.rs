@@ -10,7 +10,9 @@ use crate::api::wrapper::ApiResponse;
 use crate::config::VersionedConfig;
 
 pub async fn auth(headers: HeaderMap, request: Request, next: Next) -> Result<Response, StatusCode> {
-    if request.uri().path().starts_with("/api/") && get_token(&headers) != VersionedConfig::get().load().auth_token {
+    if request.uri().path().starts_with("/api/")
+        && get_token(&headers).is_none_or(|token| token != VersionedConfig::get().load().auth_token)
+    {
         return Ok(ApiResponse::unauthorized(()).into_response());
     }
     Ok(next.run(request).await)

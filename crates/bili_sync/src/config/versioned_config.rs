@@ -21,18 +21,27 @@ impl VersionedConfig {
         let config = match Config::load_from_database(connection).await? {
             Some(Ok(config)) => config,
             Some(Err(e)) => bail!("解析数据库配置失败： {}", e),
-            None => match LegacyConfig::migrate_from_file(&CONFIG_DIR.join("config.toml"), connection).await {
-                Ok(config) => config,
-                Err(e) => {
-                    if e.downcast_ref::<std::io::Error>()
-                        .is_none_or(|e| e.kind() != std::io::ErrorKind::NotFound)
-                    {
-                        bail!("未成功读取并迁移旧版本配置：{:#}", e);
-                    } else {
-                        Config::default()
+            None => {
+                let config = match LegacyConfig::migrate_from_file(&CONFIG_DIR.join("config.toml"), connection).await {
+                    Ok(config) => config,
+                    Err(e) => {
+                        if e.downcast_ref::<std::io::Error>()
+                            .is_none_or(|e| e.kind() != std::io::ErrorKind::NotFound)
+                        {
+                            bail!("未成功读取并迁移旧版本配置：{:#}", e);
+                        } else {
+                            let config = Config::default();
+                            warn!(
+                                "生成 auth_token：{}，可使用该 token 登录 web UI，该信息仅在首次运行时打印",
+                                config.auth_token
+                            );
+                            config
+                        }
                     }
-                }
-            },
+                };
+                config.save_to_database(connection).await?;
+                config
+            }
         };
         let versioned_config = VersionedConfig::new(config);
         VERSIONED_CONFIG

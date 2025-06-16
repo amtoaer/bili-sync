@@ -17,7 +17,7 @@ use crate::utils::model::migrate_legacy_config;
 #[derive(Serialize, Deserialize)]
 pub struct LegacyConfig {
     #[serde(default = "default_auth_token")]
-    pub auth_token: Option<String>,
+    pub auth_token: String,
     #[serde(default = "default_bind_address")]
     pub bind_address: String,
     pub credential: ArcSwap<Credential>,
@@ -58,9 +58,7 @@ impl LegacyConfig {
     pub async fn migrate_from_file(path: &Path, connection: &DatabaseConnection) -> Result<Config> {
         let legacy_config = Self::load_from_file(path).await?;
         migrate_legacy_config(&legacy_config, connection).await?;
-        let config: Config = legacy_config.into();
-        config.save_to_database(connection).await?;
-        Ok(config)
+        Ok(legacy_config.into())
     }
 }
 

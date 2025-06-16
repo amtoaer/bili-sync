@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use axum::body::Body;
 use axum::extract::Request;
-use axum::http::{Response, Uri, header};
+use axum::http::{Uri, header};
 use axum::response::IntoResponse;
 use axum::routing::get;
 use axum::{Extension, Router, ServiceExt, middleware};
@@ -57,14 +56,21 @@ async fn frontend_files(uri: Uri) -> impl IntoResponse {
     let Some(content) = Asset::get(path) else {
         return (StatusCode::NOT_FOUND, "404 Not Found").into_response();
     };
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(
-            header::CONTENT_TYPE,
-            content.mime_type().as_deref().unwrap_or("application/octet-stream"),
+    let mime_type = content.mime_type();
+    let content_type = mime_type.as_deref().unwrap_or("application/octet-stream");
+    if cfg!(debug_assertions) {
+        (
+            [(header::CONTENT_TYPE, content_type)],
+            // safety: `RustEmbed` returns uncompressed files directly from the filesystem in debug mode
+            content.data().unwrap(),
         )
-        .header(header::CONTENT_ENCODING, "br")
-        // safety: `RustEmbed` will always generate br-compressed files if the feature is enabled
-        .body(Body::from(content.data_br().unwrap()))
-        .unwrap_or_else(|_| (StatusCode::INTERNAL_SERVER_ERROR, "500 Internal Server Error").into_response())
+            .into_response()
+    } else {
+        (
+            [(header::CONTENT_TYPE, content_type), (header::CONTENT_ENCODING, "br")],
+            // safety: `RustEmbed` will always generate br-compressed files if the feature is enabled
+            content.data_br().unwrap(),
+        )
+            .into_response()
+    }
 }
