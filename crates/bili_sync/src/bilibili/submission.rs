@@ -1,5 +1,4 @@
 use anyhow::{Context, Result, anyhow};
-use arc_swap::access::Access;
 use async_stream::try_stream;
 use futures::Stream;
 use reqwest::Method;

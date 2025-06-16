@@ -90,50 +90,55 @@ impl VideoSource for collection::Model {
     fn log_download_video_end(&self) {
         info!("下载{}「{}」视频完成", CollectionType::from(self.r#type), self.name);
     }
-}
 
-pub(super) async fn collection_from<'a>(
-    collection_item: &'a CollectionItem,
-    path: &Path,
-    bili_client: &'a BiliClient,
-    connection: &DatabaseConnection,
-) -> Result<(
-    VideoSourceEnum,
-    Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a + Send>>,
-)> {
-    let collection = Collection::new(bili_client, collection_item);
-    let collection_info = collection.get_info().await?;
-    collection::Entity::insert(collection::ActiveModel {
-        s_id: Set(collection_info.sid),
-        m_id: Set(collection_info.mid),
-        r#type: Set(collection_info.collection_type.into()),
-        name: Set(collection_info.name.clone()),
-        path: Set(path.to_string_lossy().to_string()),
-        ..Default::default()
-    })
-    .on_conflict(
-        OnConflict::columns([
-            collection::Column::SId,
-            collection::Column::MId,
-            collection::Column::Type,
-        ])
-        .update_columns([collection::Column::Name, collection::Column::Path])
-        .to_owned(),
-    )
-    .exec(connection)
-    .await?;
-    Ok((
-        collection::Entity::find()
-            .filter(
-                collection::Column::SId
-                    .eq(collection_item.sid.clone())
-                    .and(collection::Column::MId.eq(collection_item.mid.clone()))
-                    .and(collection::Column::Type.eq(Into::<i32>::into(collection_item.collection_type.clone()))),
-            )
-            .one(connection)
-            .await?
-            .context("collection not found")?
-            .into(),
-        Box::pin(collection.into_video_stream()),
-    ))
+    async fn refresh<'a>(
+        self,
+        bili_client: &'a BiliClient,
+        connection: &'a DatabaseConnection,
+    ) -> Result<(
+        VideoSourceEnum,
+        Pin<Box<dyn Stream<Item = Result<VideoInfo>> + Send + 'a>>,
+    )> {
+        let collection = Collection::new(
+            bili_client,
+            CollectionItem {
+                sid: self.s_id.to_string(),
+                mid: self.m_id.to_string(),
+                collection_type: CollectionType::from(self.r#type),
+            },
+        );
+        let collection_info = collection.get_info().await?;
+        collection::Entity::insert(collection::ActiveModel {
+            s_id: Set(collection_info.sid),
+            m_id: Set(collection_info.mid),
+            r#type: Set(collection_info.collection_type.into()),
+            name: Set(collection_info.name.clone()),
+            ..Default::default()
+        })
+        .on_conflict(
+            OnConflict::columns([
+                collection::Column::SId,
+                collection::Column::MId,
+                collection::Column::Type,
+            ])
+            .update_column(collection::Column::Name)
+            .to_owned(),
+        )
+        .exec(connection)
+        .await?;
+        Ok((
+            collection::Entity::find()
+                .filter(
+                    collection::Column::SId
+                        .eq(self.s_id)
+                        .and(collection::Column::MId.eq(self.m_id))
+                        .and(collection::Column::Type.eq(self.r#type)),
+                )
+                .one(connection)
+                .await?
+                .context("collection not found")?
+                .into(),
+            Box::pin(collection.into_video_stream()),
+        ))
+    }
 }

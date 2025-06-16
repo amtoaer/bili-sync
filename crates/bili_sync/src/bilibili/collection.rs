@@ -10,7 +10,7 @@ use serde_json::Value;
 use crate::bilibili::credential::encoded_query;
 use crate::bilibili::{BiliClient, MIXIN_KEY, Validate, VideoInfo};
 
-#[derive(PartialEq, Eq, Hash, Clone, Debug, Deserialize, Default)]
+#[derive(PartialEq, Eq, Hash, Clone, Debug, Deserialize, Default, Copy)]
 pub enum CollectionType {
     Series,
     #[default]
@@ -55,7 +55,7 @@ pub struct CollectionItem {
 
 pub struct Collection<'a> {
     client: &'a BiliClient,
-    collection: &'a CollectionItem,
+    collection: CollectionItem,
 }
 
 #[derive(Debug, PartialEq)]
@@ -94,7 +94,7 @@ impl<'de> Deserialize<'de> for CollectionInfo {
 }
 
 impl<'a> Collection<'a> {
-    pub fn new(client: &'a BiliClient, collection: &'a CollectionItem) -> Self {
+    pub fn new(client: &'a BiliClient, collection: CollectionItem) -> Self {
         Self { client, collection }
     }
 

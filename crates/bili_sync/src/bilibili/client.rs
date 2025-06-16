@@ -1,13 +1,14 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use leaky_bucket::RateLimiter;
 use reqwest::{Method, header};
+use sea_orm::DatabaseConnection;
 
 use crate::bilibili::Credential;
 use crate::bilibili::credential::WbiImg;
-use crate::config::{CONFIG, RateLimit};
+use crate::config::{RateLimit, VersionedCache, VersionedConfig};
 
 // 一个对 reqwest::Client 的简单封装，用于 Bilibili 请求
 #[derive(Clone)]
@@ -63,53 +64,54 @@ impl Default for Client {
 
 pub struct BiliClient {
     pub client: Client,
-    limiter: Option<RateLimiter>,
+    limiter: VersionedCache<Option<RateLimiter>>,
 }
 
 impl BiliClient {
     pub fn new() -> Self {
         let client = Client::new();
-        let limiter = CONFIG
-            .concurrent_limit
-            .rate_limit
-            .as_ref()
-            .map(|RateLimit { limit, duration }| {
-                RateLimiter::builder()
-                    .initial(*limit)
-                    .refill(*limit)
-                    .max(*limit)
-                    .interval(Duration::from_millis(*duration))
-                    .build()
-            });
+        let limiter = VersionedCache::new(|config| {
+            Ok(config
+                .concurrent_limit
+                .rate_limit
+                .as_ref()
+                .map(|RateLimit { limit, duration }| {
+                    RateLimiter::builder()
+                        .initial(*limit)
+                        .refill(*limit)
+                        .max(*limit)
+                        .interval(Duration::from_millis(*duration))
+                        .build()
+                }))
+        })
+        .expect("failed to create rate limiter");
         Self { client, limiter }
     }
 
     /// 获取一个预构建的请求，通过该方法获取请求时会检查并等待速率限制
     pub async fn request(&self, method: Method, url: &str) -> reqwest::RequestBuilder {
-        if let Some(limiter) = &self.limiter {
+        if let Some(limiter) = self.limiter.load().as_ref() {
             limiter.acquire_one().await;
         }
-        let credential = CONFIG.credential.load();
-        self.client.request(method, url, credential.as_deref())
+        let credential = VersionedConfig::get().load().credential.load();
+        self.client.request(method, url, Some(credential.as_ref()))
     }
 
-    pub async fn check_refresh(&self) -> Result<()> {
-        let credential = CONFIG.credential.load();
-        let Some(credential) = credential.as_deref() else {
-            return Ok(());
-        };
+    pub async fn check_refresh(&self, connection: &DatabaseConnection) -> Result<()> {
+        let credential = VersionedConfig::get().load().credential.load();
         if !credential.need_refresh(&self.client).await? {
             return Ok(());
         }
         let new_credential = credential.refresh(&self.client).await?;
-        CONFIG.credential.store(Some(Arc::new(new_credential)));
-        CONFIG.save()
+        let config = VersionedConfig::get().load();
+        config.credential.store(Arc::new(new_credential));
+        config.save_to_database(connection).await?;
+        Ok(())
     }
 
     /// 获取 wbi img，用于生成请求签名
     pub async fn wbi_img(&self) -> Result<WbiImg> {
-        let credential = CONFIG.credential.load();
-        let credential = credential.as_deref().context("no credential found")?;
+        let credential = VersionedConfig::get().load().credential.load();
         credential.wbi_img(&self.client).await
     }
 }

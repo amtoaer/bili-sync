@@ -7,10 +7,12 @@ use utoipa::Modify;
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 
 use crate::api::wrapper::ApiResponse;
-use crate::config::CONFIG;
+use crate::config::VersionedConfig;
 
 pub async fn auth(headers: HeaderMap, request: Request, next: Next) -> Result<Response, StatusCode> {
-    if request.uri().path().starts_with("/api/") && get_token(&headers) != CONFIG.auth_token {
+    if request.uri().path().starts_with("/api/")
+        && get_token(&headers).is_none_or(|token| token != VersionedConfig::get().load().auth_token)
+    {
         return Ok(ApiResponse::unauthorized(()).into_response());
     }
     Ok(next.run(request).await)

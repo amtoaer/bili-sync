@@ -60,39 +60,37 @@ impl VideoSource for submission::Model {
     fn log_download_video_end(&self) {
         info!("下载「{}」投稿视频完成", self.upper_name);
     }
-}
 
-pub(super) async fn submission_from<'a>(
-    upper_id: &str,
-    path: &Path,
-    bili_client: &'a BiliClient,
-    connection: &DatabaseConnection,
-) -> Result<(
-    VideoSourceEnum,
-    Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a + Send>>,
-)> {
-    let submission = Submission::new(bili_client, upper_id.to_owned());
-    let upper = submission.get_info().await?;
-    submission::Entity::insert(submission::ActiveModel {
-        upper_id: Set(upper.mid.parse()?),
-        upper_name: Set(upper.name),
-        path: Set(path.to_string_lossy().to_string()),
-        ..Default::default()
-    })
-    .on_conflict(
-        OnConflict::column(submission::Column::UpperId)
-            .update_columns([submission::Column::UpperName, submission::Column::Path])
-            .to_owned(),
-    )
-    .exec(connection)
-    .await?;
-    Ok((
-        submission::Entity::find()
-            .filter(submission::Column::UpperId.eq(upper.mid))
-            .one(connection)
-            .await?
-            .context("submission not found")?
-            .into(),
-        Box::pin(submission.into_video_stream()),
-    ))
+    async fn refresh<'a>(
+        self,
+        bili_client: &'a BiliClient,
+        connection: &'a DatabaseConnection,
+    ) -> Result<(
+        VideoSourceEnum,
+        Pin<Box<dyn Stream<Item = Result<VideoInfo>> + Send + 'a>>,
+    )> {
+        let submission = Submission::new(bili_client, self.upper_id.to_string());
+        let upper = submission.get_info().await?;
+        submission::Entity::insert(submission::ActiveModel {
+            upper_id: Set(upper.mid.parse()?),
+            upper_name: Set(upper.name),
+            ..Default::default()
+        })
+        .on_conflict(
+            OnConflict::column(submission::Column::UpperId)
+                .update_column(submission::Column::UpperName)
+                .to_owned(),
+        )
+        .exec(connection)
+        .await?;
+        Ok((
+            submission::Entity::find()
+                .filter(submission::Column::UpperId.eq(upper.mid))
+                .one(connection)
+                .await?
+                .context("submission not found")?
+                .into(),
+            Box::pin(submission.into_video_stream()),
+        ))
+    }
 }

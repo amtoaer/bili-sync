@@ -1,12 +1,12 @@
 use std::path::Path;
 use std::pin::Pin;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use bili_sync_entity::*;
 use futures::Stream;
 use sea_orm::ActiveValue::Set;
 use sea_orm::entity::prelude::*;
-use sea_orm::sea_query::{OnConflict, SimpleExpr};
+use sea_orm::sea_query::SimpleExpr;
 use sea_orm::{DatabaseConnection, Unchanged};
 
 use crate::adapter::{_ActiveModel, VideoSource, VideoSourceEnum};
@@ -60,36 +60,16 @@ impl VideoSource for watch_later::Model {
     fn log_download_video_end(&self) {
         info!("下载稍后再看视频完成");
     }
-}
 
-pub(super) async fn watch_later_from<'a>(
-    path: &Path,
-    bili_client: &'a BiliClient,
-    connection: &DatabaseConnection,
-) -> Result<(
-    VideoSourceEnum,
-    Pin<Box<dyn Stream<Item = Result<VideoInfo>> + 'a + Send>>,
-)> {
-    let watch_later = WatchLater::new(bili_client);
-    watch_later::Entity::insert(watch_later::ActiveModel {
-        id: Set(1),
-        path: Set(path.to_string_lossy().to_string()),
-        ..Default::default()
-    })
-    .on_conflict(
-        OnConflict::column(watch_later::Column::Id)
-            .update_column(watch_later::Column::Path)
-            .to_owned(),
-    )
-    .exec(connection)
-    .await?;
-    Ok((
-        watch_later::Entity::find()
-            .filter(watch_later::Column::Id.eq(1))
-            .one(connection)
-            .await?
-            .context("watch_later not found")?
-            .into(),
-        Box::pin(watch_later.into_video_stream()),
-    ))
+    async fn refresh<'a>(
+        self,
+        bili_client: &'a BiliClient,
+        _connection: &'a DatabaseConnection,
+    ) -> Result<(
+        VideoSourceEnum,
+        Pin<Box<dyn Stream<Item = Result<VideoInfo>> + Send + 'a>>,
+    )> {
+        let watch_later = WatchLater::new(bili_client);
+        Ok((self.into(), Box::pin(watch_later.into_video_stream())))
+    }
 }

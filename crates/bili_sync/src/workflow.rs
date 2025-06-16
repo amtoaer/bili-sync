@@ -12,9 +12,9 @@ use sea_orm::entity::prelude::*;
 use tokio::fs;
 use tokio::sync::Semaphore;
 
-use crate::adapter::{Args, VideoSource, VideoSourceEnum, video_source_from};
+use crate::adapter::{VideoSource, VideoSourceEnum};
 use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, PageInfo, Video, VideoInfo};
-use crate::config::{ARGS, CONFIG, PathSafeTemplate, TEMPLATE};
+use crate::config::{ARGS, PathSafeTemplate, TEMPLATE, VersionedConfig};
 use crate::downloader::Downloader;
 use crate::error::{DownloadAbortError, ExecutionStatus, ProcessPageError};
 use crate::utils::format_arg::{page_format_args, video_format_args};
@@ -27,13 +27,12 @@ use crate::utils::status::{PageStatus, STATUS_OK, VideoStatus};
 
 /// 完整地处理某个视频来源
 pub async fn process_video_source(
-    args: Args<'_>,
+    video_source: VideoSourceEnum,
     bili_client: &BiliClient,
-    path: &Path,
     connection: &DatabaseConnection,
 ) -> Result<()> {
     // 从参数中获取视频列表的 Model 与视频流
-    let (video_source, video_streams) = video_source_from(args, path, bili_client, connection).await?;
+    let (video_source, video_streams) = video_source.refresh(bili_client, connection).await?;
     // 从视频流中获取新视频的简要信息，写入数据库
     refresh_video_source(&video_source, video_streams, connection).await?;
     // 单独请求视频详情接口，获取视频的详情信息与所有的分页，写入数据库
@@ -154,7 +153,7 @@ pub async fn download_unprocessed_videos(
     connection: &DatabaseConnection,
 ) -> Result<()> {
     video_source.log_download_video_start();
-    let semaphore = Semaphore::new(CONFIG.concurrent_limit.video);
+    let semaphore = Semaphore::new(VersionedConfig::get().load().concurrent_limit.video);
     let downloader = Downloader::new(bili_client.client.clone());
     let unhandled_videos_pages = filter_unhandled_video_pages(video_source.filter_expr(), connection).await?;
     let mut assigned_upper = HashSet::new();
@@ -215,11 +214,14 @@ pub async fn download_video_pages(
     let _permit = semaphore.acquire().await.context("acquire semaphore failed")?;
     let mut status = VideoStatus::from(video_model.download_status);
     let separate_status = status.should_run();
-    let base_path = video_source
-        .path()
-        .join(TEMPLATE.path_safe_render("video", &video_format_args(&video_model))?);
+    let base_path = video_source.path().join(
+        TEMPLATE
+            .load()
+            .path_safe_render("video", &video_format_args(&video_model))?,
+    );
     let upper_id = video_model.upper_id.to_string();
-    let base_upper_path = &CONFIG
+    let base_upper_path = VersionedConfig::get()
+        .load()
         .upper_path
         .join(upper_id.chars().next().context("upper_id is empty")?.to_string())
         .join(upper_id);
@@ -311,7 +313,7 @@ pub async fn dispatch_download_page(
     if !should_run {
         return Ok(ExecutionStatus::Skipped);
     }
-    let child_semaphore = Semaphore::new(CONFIG.concurrent_limit.page);
+    let child_semaphore = Semaphore::new(VersionedConfig::get().load().concurrent_limit.page);
     let tasks = pages
         .into_iter()
         .map(|page_model| {
@@ -377,7 +379,9 @@ pub async fn download_page(
     let mut status = PageStatus::from(page_model.download_status);
     let separate_status = status.should_run();
     let is_single_page = video_model.single_page.context("single_page is null")?;
-    let base_name = TEMPLATE.path_safe_render("page", &page_format_args(video_model, &page_model))?;
+    let base_name = TEMPLATE
+        .load()
+        .path_safe_render("page", &page_format_args(video_model, &page_model))?;
     let (poster_path, video_path, nfo_path, danmaku_path, fanart_path, subtitle_path) = if is_single_page {
         (
             base_path.join(format!("{}-poster.jpg", &base_name)),
@@ -532,7 +536,7 @@ pub async fn fetch_page_video(
     let streams = bili_video
         .get_page_analyzer(page_info)
         .await?
-        .best_stream(&CONFIG.filter_option)?;
+        .best_stream(&VersionedConfig::get().load().filter_option)?;
     match streams {
         BestStream::Mixed(mix_stream) => downloader.fetch_with_fallback(&mix_stream.urls(), page_path).await?,
         BestStream::VideoAudio {
@@ -685,77 +689,4 @@ async fn generate_nfo(nfo: NFO<'_>, nfo_path: PathBuf) -> Result<()> {
     }
     fs::write(nfo_path, nfo.generate_nfo().await?.as_bytes()).await?;
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use handlebars::handlebars_helper;
-    use serde_json::json;
-
-    use super::*;
-
-    #[test]
-    fn test_template_usage() {
-        let mut template = handlebars::Handlebars::new();
-        handlebars_helper!(truncate: |s: String, len: usize| {
-            if s.chars().count() > len {
-                s.chars().take(len).collect::<String>()
-            } else {
-                s.to_string()
-            }
-        });
-        template.register_helper("truncate", Box::new(truncate));
-        let _ = template.path_safe_register("video", "test{{bvid}}test");
-        let _ = template.path_safe_register("test_truncate", "哈哈，{{ truncate title 30 }}");
-        let _ = template.path_safe_register("test_path_unix", "{{ truncate title 7 }}/test/a");
-        let _ = template.path_safe_register("test_path_windows", r"{{ truncate title 7 }}\\test\\a");
-        #[cfg(not(windows))]
-        {
-            assert_eq!(
-                template
-                    .path_safe_render("test_path_unix", &json!({"title": "关注/永雏塔菲喵"}))
-                    .unwrap(),
-                "关注_永雏塔菲/test/a"
-            );
-            assert_eq!(
-                template
-                    .path_safe_render("test_path_windows", &json!({"title": "关注/永雏塔菲喵"}))
-                    .unwrap(),
-                "关注_永雏塔菲_test_a"
-            );
-        }
-        #[cfg(windows)]
-        {
-            assert_eq!(
-                template
-                    .path_safe_render("test_path_unix", &json!({"title": "关注/永雏塔菲喵"}))
-                    .unwrap(),
-                "关注_永雏塔菲_test_a"
-            );
-            assert_eq!(
-                template
-                    .path_safe_render("test_path_windows", &json!({"title": "关注/永雏塔菲喵"}))
-                    .unwrap(),
-                r"关注_永雏塔菲\\test\\a"
-            );
-        }
-        assert_eq!(
-            template
-                .path_safe_render("video", &json!({"bvid": "BV1b5411h7g7"}))
-                .unwrap(),
-            "testBV1b5411h7g7test"
-        );
-        assert_eq!(
-            template
-                .path_safe_render(
-                    "test_truncate",
-                    &json!({"title": "你说得对，但是 Rust 是由 Mozilla 自主研发的一款全新的编译期格斗游戏。\
-                    编译将发生在一个被称作「Cargo」的构建系统中。在这里，被引用的指针将被授予「生命周期」之力，导引对象安全。\
-                    你将扮演一位名为「Rustacean」的神秘角色, 在与「Rustc」的搏斗中邂逅各种骨骼惊奇的傲娇报错。\
-                    征服她们、通过编译同时，逐步发掘「C++」程序崩溃的真相。"})
-                )
-                .unwrap(),
-            "哈哈，你说得对，但是 Rust 是由 Mozilla 自主研发的一"
-        );
-    }
 }
