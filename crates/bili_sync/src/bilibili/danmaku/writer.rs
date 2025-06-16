@@ -24,8 +24,9 @@ impl<'a> DanmakuWriter<'a> {
         }
         let config = VersionedConfig::get().load_full();
         let canvas_config = CanvasConfig::new(&config.danmaku_option, self.page);
-        let mut canvas = canvas_config.clone().canvas();
-        let mut writer = AssWriter::construct(File::create(path).await?, self.page.name.clone(), canvas_config).await?;
+        let mut writer =
+            AssWriter::construct(File::create(path).await?, self.page.name.clone(), canvas_config.clone()).await?;
+        let mut canvas = canvas_config.canvas();
         for danmuku in self.danmaku {
             if let Some(drawable) = canvas.draw(danmuku)? {
                 writer.write(drawable).await?;
