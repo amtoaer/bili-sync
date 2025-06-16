@@ -16,6 +16,7 @@ pub struct VersionedConfig {
 }
 
 impl VersionedConfig {
+    /// 初始化全局的 `VersionedConfig`，初始化失败或者已初始化过则返回错误
     pub async fn init(connection: &DatabaseConnection) -> Result<()> {
         let config = match Config::load_from_database(connection).await? {
             Some(Ok(config)) => config,
@@ -40,6 +41,16 @@ impl VersionedConfig {
         Ok(())
     }
 
+    #[cfg(test)]
+    /// 单元测试直接使用测试专用的配置即可
+    pub fn get() -> &'static VersionedConfig {
+        use std::sync::LazyLock;
+        static TEST_CONFIG: LazyLock<VersionedConfig> = LazyLock::new(|| VersionedConfig::new(Config::test_default()));
+        return &TEST_CONFIG;
+    }
+
+    #[cfg(not(test))]
+    /// 获取全局的 `VersionedConfig`，如果未初始化则会 panic
     pub fn get() -> &'static VersionedConfig {
         VERSIONED_CONFIG.get().expect("VERSIONED_CONFIG is not initialized")
     }
