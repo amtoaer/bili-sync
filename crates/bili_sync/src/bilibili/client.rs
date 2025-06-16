@@ -4,6 +4,7 @@ use std::time::Duration;
 use anyhow::Result;
 use leaky_bucket::RateLimiter;
 use reqwest::{Method, header};
+use sea_orm::DatabaseConnection;
 
 use crate::bilibili::Credential;
 use crate::bilibili::credential::WbiImg;
@@ -96,13 +97,15 @@ impl BiliClient {
         self.client.request(method, url, Some(credential.as_ref()))
     }
 
-    pub async fn check_refresh(&self) -> Result<()> {
+    pub async fn check_refresh(&self, connection: &DatabaseConnection) -> Result<()> {
         let credential = VersionedConfig::get().load().credential.load();
         if !credential.need_refresh(&self.client).await? {
             return Ok(());
         }
         let new_credential = credential.refresh(&self.client).await?;
-        VersionedConfig::get().load().credential.store(Arc::new(new_credential));
+        let config = VersionedConfig::get().load();
+        config.credential.store(Arc::new(new_credential));
+        config.save_to_database(connection).await?;
         Ok(())
     }
 

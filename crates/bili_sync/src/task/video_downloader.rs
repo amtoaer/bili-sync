@@ -32,7 +32,7 @@ pub async fn video_downloader(connection: Arc<DatabaseConnection>, bili_client: 
                 }
             };
             if anchor != chrono::Local::now().date_naive() {
-                if let Err(e) = bili_client.check_refresh().await {
+                if let Err(e) = bili_client.check_refresh(&connection).await {
                     error!("检查刷新 Credential 遇到错误：{:#}，等待下一轮执行", e);
                     break 'inner;
                 }
