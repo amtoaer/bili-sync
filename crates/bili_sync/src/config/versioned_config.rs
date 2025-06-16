@@ -27,7 +27,7 @@ impl VersionedConfig {
                     if e.downcast_ref::<std::io::Error>()
                         .is_none_or(|e| e.kind() != std::io::ErrorKind::NotFound)
                     {
-                        bail!("未成功读取并迁移旧版本配置： {}", e);
+                        bail!("未成功读取并迁移旧版本配置：{:#}", e);
                     } else {
                         Config::default()
                     }

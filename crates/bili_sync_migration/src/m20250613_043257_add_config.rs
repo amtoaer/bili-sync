@@ -19,7 +19,12 @@ impl MigrationTrait for Migration {
                             .primary_key(),
                     )
                     .col(ColumnDef::new(Config::Data).text().not_null())
-                    .col(ColumnDef::new(Config::CreatedAt).text().not_null())
+                    .col(
+                        ColumnDef::new(Config::CreatedAt)
+                            .timestamp()
+                            .default(Expr::current_timestamp())
+                            .not_null(),
+                    )
                     .to_owned(),
             )
             .await
