@@ -416,7 +416,8 @@ pub async fn get_created_favorites(
             .map(|fav| FavoriteWithSubscriptionStatus {
                 title: fav.title,
                 media_count: fav.media_count,
-                fid: fav.fid,
+                // api 返回的 id 才是真实的 fid
+                fid: fav.id,
                 mid: fav.mid,
                 subscribed: subscribed_set.contains(&fav.id),
             })
@@ -448,7 +449,7 @@ pub async fn get_followed_collections(
     let (page_num, page_size) = (params.page_num.unwrap_or(1), params.page_size.unwrap_or(50));
     let bili_collections = me.get_followed_collections(page_num, page_size).await?;
 
-    let collections = if let Some(collection_list) = &bili_collections.list {
+    let collections = if let Some(collection_list) = bili_collections.list {
         let bili_sids: Vec<_> = collection_list.iter().map(|col| col.id).collect();
 
         let subscribed_ids: Vec<i64> = collection::Entity::find()
@@ -461,12 +462,12 @@ pub async fn get_followed_collections(
         let subscribed_set: HashSet<i64> = subscribed_ids.into_iter().collect();
 
         collection_list
-            .iter()
+            .into_iter()
             .map(|col| CollectionWithSubscriptionStatus {
-                id: col.id,
+                title: col.title,
+                sid: col.id,
                 mid: col.mid,
-                state: col.state,
-                title: col.title.clone(),
+                invalid: col.state == 1,
                 subscribed: subscribed_set.contains(&col.id),
             })
             .collect()
@@ -515,6 +516,8 @@ pub async fn get_followed_uppers(
         .into_iter()
         .map(|upper| UpperWithSubscriptionStatus {
             mid: upper.mid,
+            // 官方没有提供字段，但是可以使用这种方式简单判断下
+            invalid: upper.uname == "账号已注销" && upper.face == "https://i0.hdslb.com/bfs/face/member/noface.jpg",
             uname: upper.uname,
             face: upper.face,
             sign: upper.sign,
@@ -576,7 +579,7 @@ pub async fn upsert_collection(
     let collection = Collection::new(
         bili_client.as_ref(),
         CollectionItem {
-            sid: request.id.to_string(),
+            sid: request.sid.to_string(),
             mid: request.mid.to_string(),
             collection_type: request.collection_type,
         },

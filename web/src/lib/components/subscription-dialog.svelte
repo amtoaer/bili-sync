@@ -95,9 +95,7 @@
 				case 'favorite': {
 					const favorite = item as FavoriteWithSubscriptionStatus;
 					const request: UpsertFavoriteRequest = {
-						// 数据库中保存的 fid 实际上是 favorite.id
-						fid: favorite.id,
-						name: favorite.title,
+						fid: favorite.fid,
 						path: customPath.trim()
 					};
 					response = await api.upsertFavorite(request);
@@ -106,7 +104,7 @@
 				case 'collection': {
 					const collection = item as CollectionWithSubscriptionStatus;
 					const request: UpsertCollectionRequest = {
-						id: collection.id,
+						sid: collection.sid,
 						mid: collection.mid,
 						path: customPath.trim()
 					};

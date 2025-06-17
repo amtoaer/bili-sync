@@ -89,14 +89,9 @@
 	function isDisabled(): boolean {
 		switch (type) {
 			case 'collection':
-				return (item as CollectionWithSubscriptionStatus).state === 1;
+				return (item as CollectionWithSubscriptionStatus).invalid;
 			case 'upper': {
-				const upper = item as UpperWithSubscriptionStatus;
-				// 没看到有 status 标记，这样判断应该没什么大问题
-				return (
-					upper.uname === '账号已注销' &&
-					upper.face === 'https://i0.hdslb.com/bfs/face/member/noface.jpg'
-				);
+				return (item as UpperWithSubscriptionStatus).invalid;
 			}
 			default:
 				return false;

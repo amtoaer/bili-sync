@@ -102,10 +102,10 @@ pub struct FavoriteWithSubscriptionStatus {
 
 #[derive(Serialize, ToSchema)]
 pub struct CollectionWithSubscriptionStatus {
-    pub id: i64,
-    pub mid: i64,
-    pub state: i32,
     pub title: String,
+    pub sid: i64,
+    pub mid: i64,
+    pub invalid: bool,
     pub subscribed: bool,
 }
 
@@ -115,6 +115,7 @@ pub struct UpperWithSubscriptionStatus {
     pub uname: String,
     pub face: String,
     pub sign: String,
+    pub invalid: bool,
     pub subscribed: bool,
 }
 
