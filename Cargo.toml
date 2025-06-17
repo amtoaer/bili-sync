@@ -90,6 +90,9 @@ pre-release-replacements = [
     { file = "../../docs/introduction.md", search = " v[0-9\\.]+，", replace = " v{{version}}，", exactly = 1 },
 ]
 
+[profile.dev.package."*"]
+debug = false
+
 [profile.release]
 strip = true
 lto = "thin"
