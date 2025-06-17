@@ -80,3 +80,10 @@ pub struct UpsertSubmissionRequest {
 pub struct ImageProxyParams {
     pub url: String,
 }
+
+#[derive(Deserialize, ToSchema, Validate)]
+pub struct UpdateVideoSourceRequest {
+    #[validate(custom(function = "crate::utils::validation::validate_path"))]
+    pub path: String,
+    pub enabled: bool,
+}

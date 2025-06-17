@@ -160,3 +160,25 @@ export interface UpsertSubmissionRequest {
 	upper_id: number;
 	path: string;
 }
+
+// 视频源详细信息类型
+export interface VideoSourceDetail {
+	id: number;
+	name: string;
+	path: string;
+	enabled: boolean;
+}
+
+// 视频源详细信息响应类型
+export interface VideoSourcesDetailsResponse {
+	collections: VideoSourceDetail[];
+	favorites: VideoSourceDetail[];
+	submissions: VideoSourceDetail[];
+	watch_later: VideoSourceDetail[];
+}
+
+// 更新视频源请求类型
+export interface UpdateVideoSourceRequest {
+	path: string;
+	enabled: boolean;
+}

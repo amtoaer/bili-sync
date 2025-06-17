@@ -48,8 +48,8 @@ pub struct UpdateVideoStatusResponse {
 
 #[derive(FromQueryResult, Serialize, ToSchema)]
 pub struct VideoSource {
-    id: i32,
-    name: String,
+    pub id: i32,
+    pub name: String,
 }
 
 #[derive(Serialize, ToSchema, DerivePartialModel, FromQueryResult)]
@@ -134,4 +134,20 @@ pub struct CollectionsResponse {
 pub struct UppersResponse {
     pub uppers: Vec<UpperWithSubscriptionStatus>,
     pub total: i64,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct VideoSourcesDetailsResponse {
+    pub collections: Vec<VideoSourceDetail>,
+    pub favorites: Vec<VideoSourceDetail>,
+    pub submissions: Vec<VideoSourceDetail>,
+    pub watch_later: Vec<VideoSourceDetail>,
+}
+
+#[derive(Serialize, ToSchema, FromQueryResult)]
+pub struct VideoSourceDetail {
+    pub id: i32,
+    pub name: String,
+    pub path: String,
+    pub enabled: bool,
 }

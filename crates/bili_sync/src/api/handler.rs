@@ -6,7 +6,7 @@ use axum::Router;
 use axum::body::Body;
 use axum::extract::{Extension, Path, Query};
 use axum::response::Response;
-use axum::routing::{get, post};
+use axum::routing::{get, post, put};
 use bili_sync_entity::*;
 use bili_sync_migration::{Expr, OnConflict};
 use reqwest::{Method, StatusCode, header};
@@ -18,17 +18,19 @@ use sea_orm::{
 use utoipa::OpenApi;
 
 use super::request::ImageProxyParams;
+use crate::adapter::_ActiveModel;
 use crate::api::auth::OpenAPIAuth;
 use crate::api::error::InnerApiError;
 use crate::api::helper::{update_page_download_status, update_video_download_status};
 use crate::api::request::{
-    FollowedCollectionsRequest, FollowedUppersRequest, UpdateVideoStatusRequest, UpsertCollectionRequest,
-    UpsertFavoriteRequest, UpsertSubmissionRequest, VideosRequest,
+    FollowedCollectionsRequest, FollowedUppersRequest, UpdateVideoSourceRequest, UpdateVideoStatusRequest,
+    UpsertCollectionRequest, UpsertFavoriteRequest, UpsertSubmissionRequest, VideosRequest,
 };
 use crate::api::response::{
     CollectionWithSubscriptionStatus, CollectionsResponse, FavoriteWithSubscriptionStatus, FavoritesResponse, PageInfo,
     ResetAllVideosResponse, ResetVideoResponse, UpdateVideoStatusResponse, UpperWithSubscriptionStatus, UppersResponse,
-    VideoInfo, VideoResponse, VideoSource, VideoSourcesResponse, VideosResponse,
+    VideoInfo, VideoResponse, VideoSource, VideoSourceDetail, VideoSourcesDetailsResponse, VideoSourcesResponse,
+    VideosResponse,
 };
 use crate::api::wrapper::{ApiError, ApiResponse, ValidatedJson};
 use crate::bilibili::{BiliClient, Collection, CollectionItem, FavoriteList, Me, Submission};
@@ -37,7 +39,7 @@ use crate::utils::status::{PageStatus, VideoStatus};
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        get_video_sources, get_videos, get_video, reset_video, reset_all_videos, update_video_status,
+        get_video_sources, get_video_sources_details, update_video_source, get_videos, get_video, reset_video, reset_all_videos, update_video_status,
         get_created_favorites, get_followed_collections, get_followed_uppers,
         upsert_favorite, upsert_collection, upsert_submission
     ),
@@ -51,6 +53,8 @@ pub struct ApiDoc;
 pub fn api_router() -> Router {
     Router::new()
         .route("/api/video-sources", get(get_video_sources))
+        .route("/api/video-sources/details", get(get_video_sources_details))
+        .route("/api/video-sources/{type}/{id}", put(update_video_source))
         .route("/api/video-sources/collections", post(upsert_collection))
         .route("/api/video-sources/favorites", post(upsert_favorite))
         .route("/api/video-sources/submissions", post(upsert_submission))
@@ -76,7 +80,7 @@ pub fn api_router() -> Router {
 pub async fn get_video_sources(
     Extension(db): Extension<Arc<DatabaseConnection>>,
 ) -> Result<ApiResponse<VideoSourcesResponse>, ApiError> {
-    let (collection, favorite, submission, watch_later) = tokio::try_join!(
+    let (collection, favorite, submission, mut watch_later) = tokio::try_join!(
         collection::Entity::find()
             .select_only()
             .columns([collection::Column::Id, collection::Column::Name])
@@ -100,6 +104,13 @@ pub async fn get_video_sources(
             .into_model::<VideoSource>()
             .all(db.as_ref())
     )?;
+    // watch_later 是一个特殊的视频来源，如果不存在则添加一个默认项
+    if watch_later.is_empty() {
+        watch_later.push(VideoSource {
+            id: 1,
+            name: "稍后再看".to_string(),
+        });
+    }
     Ok(ApiResponse::ok(VideoSourcesResponse {
         collection,
         favorite,
@@ -640,6 +651,135 @@ pub async fn upsert_submission(
     .exec(db.as_ref())
     .await?;
 
+    Ok(ApiResponse::ok(true))
+}
+
+/// 获取所有视频源的详细信息，包括 path 和 enabled 状态
+#[utoipa::path(
+    get,
+    path = "/api/video-sources/details",
+    responses(
+        (status = 200, body = ApiResponse<VideoSourcesDetailsResponse>),
+    )
+)]
+pub async fn get_video_sources_details(
+    Extension(db): Extension<Arc<DatabaseConnection>>,
+) -> Result<ApiResponse<VideoSourcesDetailsResponse>, ApiError> {
+    let (collections, favorites, submissions, mut watch_later) = tokio::try_join!(
+        collection::Entity::find()
+            .select_only()
+            .columns([
+                collection::Column::Id,
+                collection::Column::Name,
+                collection::Column::Path,
+                collection::Column::Enabled
+            ])
+            .into_model::<VideoSourceDetail>()
+            .all(db.as_ref()),
+        favorite::Entity::find()
+            .select_only()
+            .columns([
+                favorite::Column::Id,
+                favorite::Column::Name,
+                favorite::Column::Path,
+                favorite::Column::Enabled
+            ])
+            .into_model::<VideoSourceDetail>()
+            .all(db.as_ref()),
+        submission::Entity::find()
+            .select_only()
+            .column(submission::Column::Id)
+            .column_as(submission::Column::UpperName, "name")
+            .columns([submission::Column::Path, submission::Column::Enabled])
+            .into_model::<VideoSourceDetail>()
+            .all(db.as_ref()),
+        watch_later::Entity::find()
+            .select_only()
+            .column(watch_later::Column::Id)
+            .column_as(Expr::value("稍后再看"), "name")
+            .columns([watch_later::Column::Path, watch_later::Column::Enabled])
+            .into_model::<VideoSourceDetail>()
+            .all(db.as_ref())
+    )?;
+    if watch_later.is_empty() {
+        watch_later.push(VideoSourceDetail {
+            id: 1,
+            name: "稍后再看".to_string(),
+            path: String::new(),
+            enabled: false,
+        })
+    }
+    Ok(ApiResponse::ok(VideoSourcesDetailsResponse {
+        collections,
+        favorites,
+        submissions,
+        watch_later,
+    }))
+}
+
+/// 更新视频源的 path 和 enabled 状态
+#[utoipa::path(
+    put,
+    path = "/api/video-sources/{type}/{id}",
+    request_body = UpdateVideoSourceRequest,
+    responses(
+        (status = 200, body = ApiResponse<bool>),
+    )
+)]
+pub async fn update_video_source(
+    Path((source_type, id)): Path<(String, i32)>,
+    Extension(db): Extension<Arc<DatabaseConnection>>,
+    ValidatedJson(request): ValidatedJson<UpdateVideoSourceRequest>,
+) -> Result<ApiResponse<bool>, ApiError> {
+    let active_model = match source_type.as_str() {
+        "collections" => collection::Entity::find_by_id(id).one(db.as_ref()).await?.map(|model| {
+            let mut active_model: collection::ActiveModel = model.into();
+            active_model.path = Set(request.path);
+            active_model.enabled = Set(request.enabled);
+            _ActiveModel::Collection(active_model)
+        }),
+        "favorites" => favorite::Entity::find_by_id(id).one(db.as_ref()).await?.map(|model| {
+            let mut active_model: favorite::ActiveModel = model.into();
+            active_model.path = Set(request.path);
+            active_model.enabled = Set(request.enabled);
+            _ActiveModel::Favorite(active_model)
+        }),
+        "submissions" => submission::Entity::find_by_id(id).one(db.as_ref()).await?.map(|model| {
+            let mut active_model: submission::ActiveModel = model.into();
+            active_model.path = Set(request.path);
+            active_model.enabled = Set(request.enabled);
+            _ActiveModel::Submission(active_model)
+        }),
+        "watch_later" => match watch_later::Entity::find_by_id(id).one(db.as_ref()).await? {
+            // 稍后再看需要做特殊处理，get 时如果稍后再看不存在返回的是 id 为 1 的假记录
+            // 因此此处可能是更新也可能是插入，做个额外的处理
+            Some(model) => {
+                // 如果有记录，使用 id 对应的记录更新
+                let mut active_model: watch_later::ActiveModel = model.into();
+                active_model.path = Set(request.path);
+                active_model.enabled = Set(request.enabled);
+                Some(_ActiveModel::WatchLater(active_model))
+            }
+            None => {
+                if id != 1 {
+                    None
+                } else {
+                    // 如果没有记录且 id 为 1，插入一个新的稍后再看记录
+                    Some(_ActiveModel::WatchLater(watch_later::ActiveModel {
+                        id: Set(1),
+                        path: Set(request.path),
+                        enabled: Set(request.enabled),
+                        ..Default::default()
+                    }))
+                }
+            }
+        },
+        _ => return Err(InnerApiError::BadRequest("Invalid video source type".to_string()).into()),
+    };
+    let Some(active_model) = active_model else {
+        return Err(InnerApiError::NotFound(id).into());
+    };
+    active_model.save(db.as_ref()).await?;
     Ok(ApiResponse::ok(true))
 }
 
