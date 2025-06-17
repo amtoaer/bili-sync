@@ -66,7 +66,7 @@
 		<div class="flex-1">
 			<Sidebar.Group>
 				<Sidebar.GroupLabel
-					class="text-muted-foreground mb-2 px-2 text-xs font-medium uppercase tracking-wider"
+					class="text-muted-foreground mb-2 px-2 text-xs font-medium tracking-wider uppercase"
 				>
 					视频筛选
 				</Sidebar.GroupLabel>
@@ -122,7 +122,7 @@
 
 			<Sidebar.Group>
 				<Sidebar.GroupLabel
-					class="text-muted-foreground mb-2 px-2 text-xs font-medium uppercase tracking-wider"
+					class="text-muted-foreground mb-2 px-2 text-xs font-medium tracking-wider uppercase"
 				>
 					快捷订阅
 				</Sidebar.GroupLabel>

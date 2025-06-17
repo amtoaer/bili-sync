@@ -57,7 +57,7 @@
 		const sources = videoSourcesData[type as keyof VideoSourcesDetailsResponse];
 		if (!sources?.[index]) return;
 
-		const source = sources[index] as any;
+		const source = sources[index] as ExtendedVideoSource;
 		source.editing = true;
 		source.editingPath = source.path;
 		source.editingEnabled = source.enabled;
@@ -69,7 +69,7 @@
 		const sources = videoSourcesData[type as keyof VideoSourcesDetailsResponse];
 		if (!sources?.[index]) return;
 
-		const source = sources[index] as any;
+		const source = sources[index] as ExtendedVideoSource;
 		source.editing = false;
 		source.editingPath = undefined;
 		source.editingEnabled = undefined;
@@ -81,7 +81,7 @@
 		const sources = videoSourcesData[type as keyof VideoSourcesDetailsResponse];
 		if (!sources?.[index]) return;
 
-		const source = sources[index] as any;
+		const source = sources[index] as ExtendedVideoSource;
 		if (!source.editingPath?.trim()) {
 			toast.error('路径不能为空');
 			return;
@@ -115,9 +115,11 @@
 		] as VideoSourceDetail[];
 		// 直接返回原始数据的引用，只添加必要的属性
 		return sources.map((source, originalIndex) => {
-			(source as any).type = tabValue;
-			(source as any).originalIndex = originalIndex;
-			return source as ExtendedVideoSource;
+			// 使用类型断言来扩展 VideoSourceDetail
+			const extendedSource = source as ExtendedVideoSource;
+			extendedSource.type = tabValue;
+			extendedSource.originalIndex = originalIndex;
+			return extendedSource;
 		});
 	}
 
@@ -148,7 +150,7 @@
 	{:else if videoSourcesData}
 		<Tabs.Root bind:value={activeTab} class="w-full">
 			<Tabs.List class="grid h-12 w-full grid-cols-4 bg-transparent p-0">
-				{#each Object.entries(TAB_CONFIG) as [key, config]}
+				{#each Object.entries(TAB_CONFIG) as [key, config] (key)}
 					{@const sources = getSourcesForTab(key)}
 					<Tabs.Trigger
 						value={key}
@@ -167,7 +169,7 @@
 					</Tabs.Trigger>
 				{/each}
 			</Tabs.List>
-			{#each Object.entries(TAB_CONFIG) as [key, config]}
+			{#each Object.entries(TAB_CONFIG) as [key, config] (key)}
 				{@const sources = getSourcesForTab(key)}
 				<Tabs.Content value={key} class="mt-6">
 					{#if sources.length > 0}
@@ -182,14 +184,14 @@
 									</Table.Row>
 								</Table.Header>
 								<Table.Body>
-									{#each sources as source, index}
+									{#each sources as source, index (index)}
 										<Table.Row>
 											<Table.Cell class="w-[30%] font-medium md:w-[25%]">{source.name}</Table.Cell>
 											<Table.Cell class="w-[30%] md:w-[40%]">
 												{#if source.editing}
 													<input
 														bind:value={source.editingPath}
-														class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-8 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+														class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-8 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 														placeholder="输入下载路径"
 													/>
 												{:else}
@@ -208,7 +210,7 @@
 												{:else}
 													<div class="flex h-8 items-center gap-2">
 														<Switch checked={source.enabled} disabled />
-														<span class="text-muted-foreground whitespace-nowrap text-sm">
+														<span class="text-muted-foreground text-sm whitespace-nowrap">
 															{source.enabled ? '已启用' : '已禁用'}
 														</span>
 													</div>
