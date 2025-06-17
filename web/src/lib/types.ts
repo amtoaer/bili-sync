@@ -107,7 +107,6 @@ export interface UpdateVideoStatusResponse {
 export interface FavoriteWithSubscriptionStatus {
 	title: string;
 	media_count: number;
-	id: number;
 	fid: number;
 	mid: number;
 	subscribed: boolean;
@@ -119,10 +118,10 @@ export interface FavoritesResponse {
 
 // 合集相关类型
 export interface CollectionWithSubscriptionStatus {
-	id: number;
-	mid: number;
-	state: number;
 	title: string;
+	sid: number;
+	mid: number;
+	invalid: boolean;
 	subscribed: boolean;
 }
 
@@ -137,6 +136,7 @@ export interface UpperWithSubscriptionStatus {
 	uname: string;
 	face: string;
 	sign: string;
+	invalid: boolean;
 	subscribed: boolean;
 }
 
@@ -147,12 +147,11 @@ export interface UppersResponse {
 
 export interface UpsertFavoriteRequest {
 	fid: number;
-	name: string;
 	path: string;
 }
 
 export interface UpsertCollectionRequest {
-	id: number;
+	sid: number;
 	mid: number;
 	path: string;
 }

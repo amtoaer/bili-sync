@@ -60,7 +60,7 @@ pub struct UpsertFavoriteRequest {
 
 #[derive(Deserialize, ToSchema, Validate)]
 pub struct UpsertCollectionRequest {
-    pub id: i64,
+    pub sid: i64,
     pub mid: i64,
     #[schema(value_type = i8)]
     #[serde(default)]

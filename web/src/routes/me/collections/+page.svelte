@@ -86,7 +86,7 @@
 		<div
 			style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; width: 100%; max-width: none; justify-items: start;"
 		>
-			{#each collections as collection (collection.id)}
+			{#each collections as collection (collection.sid)}
 				<div style="max-width: 450px; width: 100%;">
 					<SubscriptionCard
 						item={collection}
