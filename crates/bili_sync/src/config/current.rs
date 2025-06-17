@@ -2,9 +2,10 @@ use std::path::PathBuf;
 use std::sync::LazyLock;
 
 use anyhow::{Result, bail};
-use arc_swap::ArcSwap;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+use validator::Validate;
 
 use crate::bilibili::{Credential, DanmakuOption, FilterOption};
 use crate::config::LegacyConfig;
@@ -15,28 +16,23 @@ use crate::utils::model::{load_db_config, save_db_config};
 pub static CONFIG_DIR: LazyLock<PathBuf> =
     LazyLock::new(|| dirs::config_dir().expect("No config path found").join("bili-sync"));
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, ToSchema, Validate, Clone)]
 pub struct Config {
-    #[serde(default = "default_auth_token")]
     pub auth_token: String,
-    #[serde(default = "default_bind_address")]
     pub bind_address: String,
-    pub credential: ArcSwap<Credential>,
+    pub credential: Credential,
     pub filter_option: FilterOption,
-    #[serde(default)]
     pub danmaku_option: DanmakuOption,
     pub video_name: String,
     pub page_name: String,
     pub interval: u64,
+    #[schema(value_type = String)]
     pub upper_path: PathBuf,
-    #[serde(default)]
     pub nfo_time_type: NFOTimeType,
-    #[serde(default)]
     pub concurrent_limit: ConcurrentLimit,
-    #[serde(default = "default_time_format")]
     pub time_format: String,
-    #[serde(default)]
     pub cdn_sorting: bool,
+    pub version: u64,
 }
 
 impl Config {
@@ -59,7 +55,7 @@ impl Config {
         if self.page_name.is_empty() {
             errors.push("未设置 page_name 模板");
         }
-        let credential = self.credential.load();
+        let credential = &self.credential;
         if credential.sessdata.is_empty()
             || credential.bili_jct.is_empty()
             || credential.buvid3.is_empty()
@@ -97,7 +93,7 @@ impl Default for Config {
         Self {
             auth_token: default_auth_token(),
             bind_address: default_bind_address(),
-            credential: ArcSwap::from_pointee(Credential::default()),
+            credential: Credential::default(),
             filter_option: FilterOption::default(),
             danmaku_option: DanmakuOption::default(),
             video_name: "{{title}}".to_owned(),
@@ -108,6 +104,7 @@ impl Default for Config {
             concurrent_limit: ConcurrentLimit::default(),
             time_format: default_time_format(),
             cdn_sorting: false,
+            version: 0,
         }
     }
 }
@@ -128,6 +125,7 @@ impl From<LegacyConfig> for Config {
             concurrent_limit: legacy.concurrent_limit,
             time_format: legacy.time_format,
             cdn_sorting: legacy.cdn_sorting,
+            version: 0,
         }
     }
 }

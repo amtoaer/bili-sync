@@ -34,6 +34,8 @@ use crate::api::response::{
 };
 use crate::api::wrapper::{ApiError, ApiResponse, ValidatedJson};
 use crate::bilibili::{BiliClient, Collection, CollectionItem, FavoriteList, Me, Submission};
+use crate::config::{Config, VersionedConfig};
+use crate::task::DOWNLOADER_TASK_RUNNING;
 use crate::utils::status::{PageStatus, VideoStatus};
 
 #[derive(OpenApi)]
@@ -66,6 +68,8 @@ pub fn api_router() -> Router {
         .route("/api/me/favorites", get(get_created_favorites))
         .route("/api/me/collections", get(get_followed_collections))
         .route("/api/me/uppers", get(get_followed_uppers))
+        .route("/api/config", get(get_config))
+        .route("/api/config", put(update_config))
         .route("/image-proxy", get(image_proxy))
 }
 
@@ -780,6 +784,39 @@ pub async fn update_video_source(
         return Err(InnerApiError::NotFound(id).into());
     };
     active_model.save(db.as_ref()).await?;
+    Ok(ApiResponse::ok(true))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/config",
+    responses(
+        (status = 200, body = ApiResponse<Config>),
+    )
+)]
+pub async fn get_config() -> Result<ApiResponse<Arc<Config>>, ApiError> {
+    Ok(ApiResponse::ok(VersionedConfig::get().load_full()))
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/config",
+    request_body = Config,
+    responses(
+        (status = 200, body = ApiResponse<bool>),
+    )
+)]
+pub async fn update_config(
+    Extension(db): Extension<Arc<DatabaseConnection>>,
+    ValidatedJson(config): ValidatedJson<Config>,
+) -> Result<ApiResponse<bool>, ApiError> {
+    let Ok(_lock) = DOWNLOADER_TASK_RUNNING.try_lock() else {
+        // 简单避免一下可能的不一致现象
+        return Err(InnerApiError::BadRequest("下载任务正在运行，无法修改配置".to_string()).into());
+    };
+    config.check()?;
+    VersionedConfig::get().update(config, db.as_ref()).await?;
+    drop(_lock);
     Ok(ApiResponse::ok(true))
 }
 

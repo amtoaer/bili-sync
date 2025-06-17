@@ -30,6 +30,7 @@ leaky-bucket = { workspace = true }
 md5 = { workspace = true }
 memchr = { workspace = true }
 once_cell = { workspace = true }
+parking_lot = { workspace = true }
 prost = { workspace = true }
 quick-xml = { workspace = true }
 rand = { workspace = true }

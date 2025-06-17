@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
@@ -93,25 +92,25 @@ impl BiliClient {
         if let Some(limiter) = self.limiter.load().as_ref() {
             limiter.acquire_one().await;
         }
-        let credential = VersionedConfig::get().load().credential.load();
-        self.client.request(method, url, Some(credential.as_ref()))
+        let credential = &VersionedConfig::get().load().credential;
+        self.client.request(method, url, Some(credential))
     }
 
     pub async fn check_refresh(&self, connection: &DatabaseConnection) -> Result<()> {
-        let credential = VersionedConfig::get().load().credential.load();
+        let credential = &VersionedConfig::get().load().credential;
         if !credential.need_refresh(&self.client).await? {
             return Ok(());
         }
         let new_credential = credential.refresh(&self.client).await?;
-        let config = VersionedConfig::get().load();
-        config.credential.store(Arc::new(new_credential));
-        config.save_to_database(connection).await?;
+        VersionedConfig::get()
+            .update_credential(new_credential, connection)
+            .await?;
         Ok(())
     }
 
     /// 获取 wbi img，用于生成请求签名
     pub async fn wbi_img(&self) -> Result<WbiImg> {
-        let credential = VersionedConfig::get().load().credential.load();
+        let credential = &VersionedConfig::get().load().credential;
         credential.wbi_img(&self.client).await
     }
 }

@@ -4,16 +4,18 @@ use sea_orm::DatabaseConnection;
 use tokio::time;
 
 use crate::bilibili::{self, BiliClient};
-use crate::config::{DOWNLOADER_RUNNING, VersionedConfig};
+use crate::config::VersionedConfig;
 use crate::utils::model::get_enabled_video_sources;
 use crate::workflow::process_video_source;
+
+pub static DOWNLOADER_TASK_RUNNING: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 /// 启动周期下载视频的任务
 pub async fn video_downloader(connection: Arc<DatabaseConnection>, bili_client: Arc<BiliClient>) {
     let mut anchor = chrono::Local::now().date_naive();
     loop {
         info!("开始执行本轮视频下载任务..");
-        DOWNLOADER_RUNNING.store(true, std::sync::atomic::Ordering::Relaxed);
+        let _lock = DOWNLOADER_TASK_RUNNING.lock().await;
         let config = VersionedConfig::get().load_full();
         'inner: {
             if let Err(e) = config.check() {
@@ -53,7 +55,7 @@ pub async fn video_downloader(connection: Arc<DatabaseConnection>, bili_client: 
             }
             info!("本轮任务执行完毕，等待下一轮执行");
         }
-        DOWNLOADER_RUNNING.store(false, std::sync::atomic::Ordering::Relaxed);
+        drop(_lock);
         time::sleep(time::Duration::from_secs(config.interval)).await;
     }
 }

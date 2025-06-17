@@ -73,7 +73,7 @@ impl<'a> Me<'a> {
     }
 
     fn my_id() -> String {
-        VersionedConfig::get().load().credential.load().dedeuserid.clone()
+        VersionedConfig::get().load().credential.dedeuserid.clone()
     }
 }
 
