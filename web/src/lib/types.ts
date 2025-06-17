@@ -153,6 +153,7 @@ export interface UpsertFavoriteRequest {
 export interface UpsertCollectionRequest {
 	sid: number;
 	mid: number;
+	collection_type?: number;
 	path: string;
 }
 
@@ -181,4 +182,62 @@ export interface VideoSourcesDetailsResponse {
 export interface UpdateVideoSourceRequest {
 	path: string;
 	enabled: boolean;
+}
+
+// 配置相关类型
+export interface Credential {
+	sessdata: string;
+	bili_jct: string;
+	buvid3: string;
+	dedeuserid: string;
+	ac_time_value: string;
+}
+
+export interface FilterOption {
+	video_max_quality: string;
+	video_min_quality: string;
+	audio_max_quality: string;
+	audio_min_quality: string;
+	codecs: string[];
+	no_dolby_video: boolean;
+	no_dolby_audio: boolean;
+	no_hdr: boolean;
+	no_hires: boolean;
+}
+
+export interface DanmakuOption {
+	duration: number;
+	font: string;
+	font_size: number;
+	width_ratio: number;
+	horizontal_gap: number;
+	lane_size: number;
+	float_percentage: number;
+	bottom_percentage: number;
+	opacity: number;
+	bold: boolean;
+	outline: number;
+	time_offset: number;
+}
+
+export interface ConcurrentLimit {
+	video: number;
+	page: number;
+}
+
+export interface Config {
+	auth_token: string;
+	bind_address: string;
+	credential: Credential;
+	filter_option: FilterOption;
+	danmaku_option: DanmakuOption;
+	video_name: string;
+	page_name: string;
+	interval: number;
+	upper_path: string;
+	nfo_time_type: string;
+	concurrent_limit: ConcurrentLimit;
+	time_format: string;
+	cdn_sorting: boolean;
+	version: number;
 }
