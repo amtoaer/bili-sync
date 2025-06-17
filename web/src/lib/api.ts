@@ -14,7 +14,9 @@ import type {
 	UppersResponse,
 	UpsertFavoriteRequest,
 	UpsertCollectionRequest,
-	UpsertSubmissionRequest
+	UpsertSubmissionRequest,
+	VideoSourcesDetailsResponse,
+	UpdateVideoSourceRequest
 } from './types';
 
 // API 基础配置
@@ -235,6 +237,27 @@ class ApiClient {
 	async upsertSubmission(request: UpsertSubmissionRequest): Promise<ApiResponse<boolean>> {
 		return this.post<boolean>('/video-sources/submissions', request);
 	}
+
+	/**
+	 * 获取所有视频源的详细信息
+	 */
+	async getVideoSourcesDetails(): Promise<ApiResponse<VideoSourcesDetailsResponse>> {
+		return this.get<VideoSourcesDetailsResponse>('/video-sources/details');
+	}
+
+	/**
+	 * 更新视频源
+	 * @param type 视频源类型
+	 * @param id 视频源 ID
+	 * @param request 更新请求
+	 */
+	async updateVideoSource(
+		type: string,
+		id: number,
+		request: UpdateVideoSourceRequest
+	): Promise<ApiResponse<boolean>> {
+		return this.put<boolean>(`/video-sources/${type}/${id}`, request);
+	}
 }
 
 // 创建默认的 API 客户端实例
@@ -304,6 +327,17 @@ export const api = {
 	 * 订阅UP主投稿
 	 */
 	upsertSubmission: (request: UpsertSubmissionRequest) => apiClient.upsertSubmission(request),
+
+	/**
+	 * 获取所有视频源的详细信息
+	 */
+	getVideoSourcesDetails: () => apiClient.getVideoSourcesDetails(),
+
+	/**
+	 * 更新视频源
+	 */
+	updateVideoSource: (type: string, id: number, request: UpdateVideoSourceRequest) =>
+		apiClient.updateVideoSource(type, id, request),
 
 	/**
 	 * 设置认证 token
