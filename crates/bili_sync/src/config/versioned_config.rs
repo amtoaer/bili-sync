@@ -100,19 +100,21 @@ impl VersionedConfig {
     }
 
     /// 外部 API 会调用这个方法，如果更新失败直接返回错误
-    pub async fn update(&self, mut new_config: Config, connection: &DatabaseConnection) -> Result<()> {
+    pub async fn update(&self, mut new_config: Config, connection: &DatabaseConnection) -> Result<Arc<Config>> {
         let _lock = self.update_lock.lock().await;
         let old_config = self.inner.load();
         if old_config.version != new_config.version {
             bail!("配置版本不匹配，请刷新页面修改后重新提交");
         }
         new_config.version += 1;
+        let new_config = Arc::new(new_config);
         if !Arc::ptr_eq(
             &old_config,
-            &self.inner.compare_and_swap(&old_config, Arc::new(new_config)),
+            &self.inner.compare_and_swap(&old_config, new_config.clone()),
         ) {
             bail!("配置版本不匹配，请刷新页面修改后重新提交");
         }
-        self.inner.load().save_to_database(connection).await
+        new_config.save_to_database(connection).await?;
+        Ok(new_config)
     }
 }

@@ -25,7 +25,7 @@
 		try {
 			const response = await api.getConfig();
 			config = response.data;
-			formData = { ...config }; // 创建配置的副本用于表单绑定
+			formData = { ...config };
 		} catch (error) {
 			console.error('加载配置失败:', error);
 			toast.error('加载配置失败', {
@@ -58,43 +58,11 @@
 			toast.error('配置未加载');
 			return;
 		}
-
-		// 基本验证
-		if (
-			!formData.credential.sessdata.trim() ||
-			!formData.credential.bili_jct.trim() ||
-			!formData.credential.buvid3.trim() ||
-			!formData.credential.dedeuserid.trim() ||
-			!formData.credential.ac_time_value.trim()
-		) {
-			toast.error('请填写完整的B站认证信息');
-			return;
-		}
-
-		if (!formData.video_name.trim()) {
-			toast.error('请设置视频名称模板');
-			return;
-		}
-
-		if (!formData.page_name.trim()) {
-			toast.error('请设置分页名称模板');
-			return;
-		}
-
-		if (!formData.upper_path.trim()) {
-			toast.error('请设置UP主头像保存路径');
-			return;
-		}
-
-		if (formData.concurrent_limit.video <= 0 || formData.concurrent_limit.page <= 0) {
-			toast.error('并发限制必须大于0');
-			return;
-		}
-
 		saving = true;
 		try {
-			await api.updateConfig(formData);
-			config = { ...formData }; // 更新config以反映保存的状态
+			let resp = await api.updateConfig(formData);
+			formData = resp.data;
+			config = { ...formData };
 			toast.success('配置已保存');
 		} catch (error) {
 			console.error('保存配置失败:', error);
@@ -213,15 +181,11 @@
 						</div>
 						<div class="space-y-2">
 							<Label for="video-name">视频名称模板</Label>
-							<Input
-								id="video-name"
-								placeholder="{'{'}title{'}'}"
-								bind:value={formData.video_name}
-							/>
+							<Input id="video-name" bind:value={formData.video_name} />
 						</div>
 						<div class="space-y-2">
 							<Label for="page-name">分页名称模板</Label>
-							<Input id="page-name" placeholder="{'{'}bvid{'}'}" bind:value={formData.page_name} />
+							<Input id="page-name" bind:value={formData.page_name} />
 						</div>
 						<div class="space-y-2">
 							<Label for="upper-path">UP主头像保存路径</Label>
@@ -323,7 +287,7 @@
 							<Label for="video-max-quality">最高视频质量</Label>
 							<select
 								id="video-max-quality"
-								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 								bind:value={formData.filter_option.video_max_quality}
 							>
 								<option value="Quality360p">360p</option>
@@ -342,7 +306,7 @@
 							<Label for="video-min-quality">最低视频质量</Label>
 							<select
 								id="video-min-quality"
-								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 								bind:value={formData.filter_option.video_min_quality}
 							>
 								<option value="Quality360p">360p</option>
@@ -361,7 +325,7 @@
 							<Label for="audio-max-quality">最高音频质量</Label>
 							<select
 								id="audio-max-quality"
-								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 								bind:value={formData.filter_option.audio_max_quality}
 							>
 								<option value="Quality64k">64k</option>
@@ -375,7 +339,7 @@
 							<Label for="audio-min-quality">最低音频质量</Label>
 							<select
 								id="audio-min-quality"
-								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 								bind:value={formData.filter_option.audio_min_quality}
 							>
 								<option value="Quality64k">64k</option>
@@ -393,7 +357,7 @@
 						<Label>视频编码格式偏好（按优先级排序）</Label>
 						<p class="text-muted-foreground text-sm">排在前面的编码格式优先级更高</p>
 						<div class="space-y-2">
-							{#each formData.filter_option.codecs as codec, index}
+							{#each formData.filter_option.codecs as codec, index (index)}
 								<div class="flex items-center space-x-2 rounded-lg border p-3">
 									<Badge variant="secondary">{index + 1}</Badge>
 									<span class="flex-1 font-medium">{codec}</span>
@@ -456,7 +420,7 @@
 								<div class="space-y-2">
 									<Label>添加编码格式</Label>
 									<div class="flex gap-2">
-										{#each ['AV1', 'HEV', 'AVC'] as codec}
+										{#each ['AV1', 'HEV', 'AVC'] as codec (codec)}
 											{#if !formData.filter_option.codecs.includes(codec)}
 												<Button
 													type="button"
@@ -656,7 +620,7 @@
 							<Label for="nfo-time-type">NFO时间类型</Label>
 							<select
 								id="nfo-time-type"
-								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 								bind:value={formData.nfo_time_type}
 							>
 								<option value="FavTime">收藏时间</option>

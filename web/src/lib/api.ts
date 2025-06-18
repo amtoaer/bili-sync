@@ -213,8 +213,8 @@ class ApiClient {
 		return this.get<Config>('/config');
 	}
 
-	async updateConfig(config: Config): Promise<ApiResponse<boolean>> {
-		return this.put<boolean>('/config', config);
+	async updateConfig(config: Config): Promise<ApiResponse<Config>> {
+		return this.put<Config>('/config', config);
 	}
 }
 
