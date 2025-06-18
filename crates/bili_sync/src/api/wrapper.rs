@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use anyhow::Error;
 use axum::Json;
 use axum::extract::rejection::JsonRejection;
@@ -14,28 +16,51 @@ use crate::api::error::InnerApiError;
 #[derive(ToSchema, Serialize)]
 pub struct ApiResponse<T: Serialize> {
     status_code: u16,
-    data: T,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    data: Option<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    message: Option<Cow<'static, str>>,
 }
 
 impl<T: Serialize> ApiResponse<T> {
     pub fn ok(data: T) -> Self {
-        Self { status_code: 200, data }
+        Self {
+            status_code: 200,
+            data: Some(data),
+            message: None,
+        }
     }
 
-    pub fn bad_request(data: T) -> Self {
-        Self { status_code: 400, data }
+    pub fn bad_request(message: impl Into<Cow<'static, str>>) -> Self {
+        Self {
+            status_code: 400,
+            data: None,
+            message: Some(message.into()),
+        }
     }
 
-    pub fn unauthorized(data: T) -> Self {
-        Self { status_code: 401, data }
+    pub fn unauthorized(message: impl Into<Cow<'static, str>>) -> Self {
+        Self {
+            status_code: 401,
+            data: None,
+            message: Some(message.into()),
+        }
     }
 
-    pub fn not_found(data: T) -> Self {
-        Self { status_code: 404, data }
+    pub fn not_found(message: impl Into<Cow<'static, str>>) -> Self {
+        Self {
+            status_code: 404,
+            data: None,
+            message: Some(message.into()),
+        }
     }
 
-    pub fn internal_server_error(data: T) -> Self {
-        Self { status_code: 500, data }
+    pub fn internal_server_error(message: impl Into<Cow<'static, str>>) -> Self {
+        Self {
+            status_code: 500,
+            data: None,
+            message: Some(message.into()),
+        }
     }
 }
 
@@ -64,13 +89,13 @@ impl IntoResponse for ApiError {
     fn into_response(self) -> axum::response::Response {
         if let Some(inner_error) = self.0.downcast_ref::<InnerApiError>() {
             match inner_error {
-                InnerApiError::NotFound(_) => return ApiResponse::not_found(self.0.to_string()).into_response(),
+                InnerApiError::NotFound(_) => return ApiResponse::<()>::not_found(self.0.to_string()).into_response(),
                 InnerApiError::BadRequest(_) => {
-                    return ApiResponse::bad_request(self.0.to_string()).into_response();
+                    return ApiResponse::<()>::bad_request(self.0.to_string()).into_response();
                 }
             }
         }
-        ApiResponse::internal_server_error(self.0.to_string()).into_response()
+        ApiResponse::<()>::internal_server_error(self.0.to_string()).into_response()
     }
 }
 

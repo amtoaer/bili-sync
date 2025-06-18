@@ -13,7 +13,7 @@ pub async fn auth(headers: HeaderMap, request: Request, next: Next) -> Result<Re
     if request.uri().path().starts_with("/api/")
         && get_token(&headers).is_none_or(|token| token != VersionedConfig::get().load().auth_token)
     {
-        return Ok(ApiResponse::unauthorized(()).into_response());
+        return Ok(ApiResponse::<()>::unauthorized("auth token does not match").into_response());
     }
     Ok(next.run(request).await)
 }
