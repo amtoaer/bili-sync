@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use arc_swap::ArcSwap;
 use sea_orm::DatabaseConnection;
 use serde::de::{Deserializer, MapAccess, Visitor};
 use serde::ser::SerializeMap;
@@ -20,7 +19,7 @@ pub struct LegacyConfig {
     pub auth_token: String,
     #[serde(default = "default_bind_address")]
     pub bind_address: String,
-    pub credential: ArcSwap<Credential>,
+    pub credential: Credential,
     pub filter_option: FilterOption,
     #[serde(default)]
     pub danmaku_option: DanmakuOption,

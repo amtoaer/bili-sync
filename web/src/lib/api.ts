@@ -16,7 +16,8 @@ import type {
 	UpsertCollectionRequest,
 	UpsertSubmissionRequest,
 	VideoSourcesDetailsResponse,
-	UpdateVideoSourceRequest
+	UpdateVideoSourceRequest,
+	Config
 } from './types';
 
 // API 基础配置
@@ -49,43 +50,21 @@ class ApiClient {
 		}
 	}
 
-	// 通用请求方法
-	private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
-		const url = `${this.baseURL}${endpoint}`;
-
-		const config: RequestInit = {
-			headers: {
-				...this.defaultHeaders,
-				...options.headers
-			},
-			...options
-		};
-
-		try {
-			const response = await fetch(url, config);
-
-			if (!response.ok) {
-				throw new Error(`HTTP error! status: ${response.status}`);
-			}
-
-			const data: ApiResponse<T> = await response.json();
-			return data;
-		} catch (error) {
-			const apiError: ApiError = {
-				message: error instanceof Error ? error.message : 'Unknown error occurred',
-				status: error instanceof TypeError ? undefined : (error as { status?: number }).status
-			};
-			throw apiError;
-		}
+	// 清除认证 token
+	clearAuthToken() {
+		delete this.defaultHeaders['Authorization'];
+		localStorage.removeItem('authToken');
 	}
 
-	// GET 请求
-	private async get<T>(
-		endpoint: string,
-		params?: VideosRequest | Record<string, unknown>
+	// 通用请求方法
+	private async request<T>(
+		url: string,
+		method: string = 'GET',
+		body?: unknown,
+		params?: Record<string, unknown>
 	): Promise<ApiResponse<T>> {
-		let queryString = '';
-
+		// 构建完整的 URL
+		let fullUrl = `${this.baseURL}${url}`;
 		if (params) {
 			const searchParams = new URLSearchParams();
 			Object.entries(params).forEach(([key, value]) => {
@@ -93,83 +72,86 @@ class ApiClient {
 					searchParams.append(key, String(value));
 				}
 			});
-			queryString = searchParams.toString();
+			const queryString = searchParams.toString();
+			if (queryString) {
+				fullUrl += `?${queryString}`;
+			}
 		}
 
-		const finalEndpoint = queryString ? `${endpoint}?${queryString}` : endpoint;
-		return this.request<T>(finalEndpoint, {
-			method: 'GET'
-		});
+		const config: RequestInit = {
+			method,
+			headers: this.defaultHeaders
+		};
+
+		if (body && method !== 'GET') {
+			config.body = JSON.stringify(body);
+		}
+
+		try {
+			const response = await fetch(fullUrl, config);
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				let errorMessage: string;
+				try {
+					const errorJson = JSON.parse(errorText);
+					errorMessage = errorJson.message || errorJson.error || '请求失败';
+				} catch {
+					errorMessage = errorText || `HTTP ${response.status}: ${response.statusText}`;
+				}
+				throw {
+					message: errorMessage,
+					status: response.status
+				} as ApiError;
+			}
+
+			return await response.json();
+		} catch (error) {
+			if (error && typeof error === 'object' && 'status' in error) {
+				throw error;
+			}
+			throw {
+				message: error instanceof Error ? error.message : '网络请求失败',
+				status: 0
+			} as ApiError;
+		}
+	}
+
+	// GET 请求
+	private async get<T>(url: string, params?: Record<string, unknown>): Promise<ApiResponse<T>> {
+		return this.request<T>(url, 'GET', undefined, params);
 	}
 
 	// POST 请求
-	private async post<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
-		return this.request<T>(endpoint, {
-			method: 'POST',
-			body: data ? JSON.stringify(data) : undefined
-		});
+	private async post<T>(url: string, data?: unknown): Promise<ApiResponse<T>> {
+		return this.request<T>(url, 'POST', data);
 	}
 
 	// PUT 请求
-	private async put<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
-		return this.request<T>(endpoint, {
-			method: 'PUT',
-			body: data ? JSON.stringify(data) : undefined
-		});
+	private async put<T>(url: string, data?: unknown): Promise<ApiResponse<T>> {
+		return this.request<T>(url, 'PUT', data);
 	}
 
-	// DELETE 请求
-	private async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
-		return this.request<T>(endpoint, {
-			method: 'DELETE'
-		});
-	}
-
-	// API 方法
-
-	/**
-	 * 获取所有视频来源
-	 */
 	async getVideoSources(): Promise<ApiResponse<VideoSourcesResponse>> {
 		return this.get<VideoSourcesResponse>('/video-sources');
 	}
 
-	/**
-	 * 获取视频列表
-	 * @param params 查询参数
-	 */
 	async getVideos(params?: VideosRequest): Promise<ApiResponse<VideosResponse>> {
-		return this.get<VideosResponse>('/videos', params);
+		return this.get<VideosResponse>('/videos', params as Record<string, unknown>);
 	}
 
-	/**
-	 * 获取单个视频详情
-	 * @param id 视频 ID
-	 */
 	async getVideo(id: number): Promise<ApiResponse<VideoResponse>> {
 		return this.get<VideoResponse>(`/videos/${id}`);
 	}
 
-	/**
-	 * 重置视频下载状态
-	 * @param id 视频 ID
-	 */
 	async resetVideo(id: number): Promise<ApiResponse<ResetVideoResponse>> {
 		return this.post<ResetVideoResponse>(`/videos/${id}/reset`);
 	}
 
-	/**
-	 * 重置所有视频下载状态
-	 */
 	async resetAllVideos(): Promise<ApiResponse<ResetAllVideosResponse>> {
 		return this.post<ResetAllVideosResponse>('/videos/reset-all');
 	}
 
-	/**
-	 * 重置视频状态位
-	 * @param id 视频 ID
-	 * @param request 重置请求参数
-	 */
 	async updateVideoStatus(
 		id: number,
 		request: UpdateVideoStatusRequest
@@ -177,17 +159,10 @@ class ApiClient {
 		return this.post<UpdateVideoStatusResponse>(`/videos/${id}/update-status`, request);
 	}
 
-	/**
-	 * 获取我的收藏夹
-	 */
 	async getCreatedFavorites(): Promise<ApiResponse<FavoritesResponse>> {
 		return this.get<FavoritesResponse>('/me/favorites');
 	}
 
-	/**
-	 * 获取关注的合集
-	 * @param page 页码
-	 */
 	async getFollowedCollections(
 		pageNum?: number,
 		pageSize?: number
@@ -196,13 +171,9 @@ class ApiClient {
 			page_num: pageNum,
 			page_size: pageSize
 		};
-		return this.get<CollectionsResponse>('/me/collections', params);
+		return this.get<CollectionsResponse>('/me/collections', params as Record<string, unknown>);
 	}
 
-	/**
-	 * 获取关注的UP主
-	 * @param page 页码
-	 */
 	async getFollowedUppers(
 		pageNum?: number,
 		pageSize?: number
@@ -211,46 +182,25 @@ class ApiClient {
 			page_num: pageNum,
 			page_size: pageSize
 		};
-		return this.get<UppersResponse>('/me/uppers', params);
+		return this.get<UppersResponse>('/me/uppers', params as Record<string, unknown>);
 	}
 
-	/**
-	 * 订阅收藏夹
-	 * @param request 订阅请求参数
-	 */
 	async upsertFavorite(request: UpsertFavoriteRequest): Promise<ApiResponse<boolean>> {
 		return this.post<boolean>('/video-sources/favorites', request);
 	}
 
-	/**
-	 * 订阅合集
-	 * @param request 订阅请求参数
-	 */
 	async upsertCollection(request: UpsertCollectionRequest): Promise<ApiResponse<boolean>> {
 		return this.post<boolean>('/video-sources/collections', request);
 	}
 
-	/**
-	 * 订阅UP主投稿
-	 * @param request 订阅请求参数
-	 */
 	async upsertSubmission(request: UpsertSubmissionRequest): Promise<ApiResponse<boolean>> {
 		return this.post<boolean>('/video-sources/submissions', request);
 	}
 
-	/**
-	 * 获取所有视频源的详细信息
-	 */
 	async getVideoSourcesDetails(): Promise<ApiResponse<VideoSourcesDetailsResponse>> {
 		return this.get<VideoSourcesDetailsResponse>('/video-sources/details');
 	}
 
-	/**
-	 * 更新视频源
-	 * @param type 视频源类型
-	 * @param id 视频源 ID
-	 * @param request 更新请求
-	 */
 	async updateVideoSource(
 		type: string,
 		id: number,
@@ -258,92 +208,43 @@ class ApiClient {
 	): Promise<ApiResponse<boolean>> {
 		return this.put<boolean>(`/video-sources/${type}/${id}`, request);
 	}
+
+	async getConfig(): Promise<ApiResponse<Config>> {
+		return this.get<Config>('/config');
+	}
+
+	async updateConfig(config: Config): Promise<ApiResponse<Config>> {
+		return this.put<Config>('/config', config);
+	}
 }
 
 // 创建默认的 API 客户端实例
 export const apiClient = new ApiClient();
 
 // 导出 API 方法的便捷函数
-export const api = {
-	/**
-	 * 获取所有视频来源
-	 */
+const api = {
 	getVideoSources: () => apiClient.getVideoSources(),
-
-	/**
-	 * 获取视频列表
-	 */
 	getVideos: (params?: VideosRequest) => apiClient.getVideos(params),
-
-	/**
-	 * 获取单个视频详情
-	 */
 	getVideo: (id: number) => apiClient.getVideo(id),
-
-	/**
-	 * 重置视频下载状态
-	 */
 	resetVideo: (id: number) => apiClient.resetVideo(id),
-
-	/**
-	 * 重置所有视频下载状态
-	 */
 	resetAllVideos: () => apiClient.resetAllVideos(),
-
-	/**
-	 * 重置视频状态位
-	 */
 	updateVideoStatus: (id: number, request: UpdateVideoStatusRequest) =>
 		apiClient.updateVideoStatus(id, request),
-
-	/**
-	 * 获取我的收藏夹
-	 */
 	getCreatedFavorites: () => apiClient.getCreatedFavorites(),
-
-	/**
-	 * 获取关注的合集
-	 */
 	getFollowedCollections: (pageNum?: number, pageSize?: number) =>
 		apiClient.getFollowedCollections(pageNum, pageSize),
-
-	/**
-	 * 获取关注的UP主
-	 */
 	getFollowedUppers: (pageNum?: number, pageSize?: number) =>
 		apiClient.getFollowedUppers(pageNum, pageSize),
-
-	/**
-	 * 订阅收藏夹
-	 */
 	upsertFavorite: (request: UpsertFavoriteRequest) => apiClient.upsertFavorite(request),
-
-	/**
-	 * 订阅合集
-	 */
 	upsertCollection: (request: UpsertCollectionRequest) => apiClient.upsertCollection(request),
-
-	/**
-	 * 订阅UP主投稿
-	 */
 	upsertSubmission: (request: UpsertSubmissionRequest) => apiClient.upsertSubmission(request),
-
-	/**
-	 * 获取所有视频源的详细信息
-	 */
 	getVideoSourcesDetails: () => apiClient.getVideoSourcesDetails(),
-
-	/**
-	 * 更新视频源
-	 */
 	updateVideoSource: (type: string, id: number, request: UpdateVideoSourceRequest) =>
 		apiClient.updateVideoSource(type, id, request),
-
-	/**
-	 * 设置认证 token
-	 */
-	setAuthToken: (token: string) => apiClient.setAuthToken(token)
+	getConfig: () => apiClient.getConfig(),
+	updateConfig: (config: Config) => apiClient.updateConfig(config),
+	setAuthToken: (token: string) => apiClient.setAuthToken(token),
+	clearAuthToken: () => apiClient.clearAuthToken()
 };
 
-// 默认导出
 export default api;

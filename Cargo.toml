@@ -38,6 +38,7 @@ leaky-bucket = "1.1.2"
 md5 = "0.7.0"
 memchr = "2.7.4"
 once_cell = "1.21.3"
+parking_lot = "0.12.4"
 prost = "0.13.5"
 quick-xml = { version = "0.37.5", features = ["async-tokio"] }
 rand = "0.8.5"

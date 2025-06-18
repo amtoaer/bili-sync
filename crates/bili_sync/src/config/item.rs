@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 use crate::utils::filenamify::filenamify;
 
@@ -13,7 +14,7 @@ pub struct WatchLaterConfig {
 }
 
 /// NFO 文件使用的时间类型
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, ToSchema, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum NFOTimeType {
     #[default]
@@ -22,7 +23,7 @@ pub enum NFOTimeType {
 }
 
 /// 并发下载相关的配置
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, ToSchema, Clone)]
 pub struct ConcurrentLimit {
     pub video: usize,
     pub page: usize,
@@ -31,7 +32,7 @@ pub struct ConcurrentLimit {
     pub download: ConcurrentDownloadLimit,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, ToSchema, Clone)]
 pub struct ConcurrentDownloadLimit {
     pub enable: bool,
     pub concurrency: usize,
@@ -48,7 +49,7 @@ impl Default for ConcurrentDownloadLimit {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, ToSchema, Clone)]
 pub struct RateLimit {
     pub limit: usize,
     pub duration: u64,

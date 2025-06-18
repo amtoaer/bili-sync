@@ -1,5 +1,6 @@
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 use crate::bilibili::error::BiliError;
 use crate::config::VersionedConfig;
@@ -8,7 +9,7 @@ pub struct PageAnalyzer {
     info: serde_json::Value,
 }
 
-#[derive(Debug, strum::FromRepr, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, strum::FromRepr, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema, Clone)]
 pub enum VideoQuality {
     Quality360p = 16,
     Quality480p = 32,
@@ -22,7 +23,7 @@ pub enum VideoQuality {
     Quality8k = 127,
 }
 
-#[derive(Debug, Clone, Copy, strum::FromRepr, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, strum::FromRepr, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub enum AudioQuality {
     Quality64k = 30216,
     Quality132k = 30232,
@@ -54,7 +55,18 @@ impl AudioQuality {
 }
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Debug, strum::EnumString, strum::Display, strum::AsRefStr, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    strum::EnumString,
+    strum::Display,
+    strum::AsRefStr,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    Deserialize,
+    ToSchema,
+    Clone,
+)]
 pub enum VideoCodecs {
     #[strum(serialize = "hev")]
     HEV,
@@ -79,7 +91,7 @@ impl TryFrom<u64> for VideoCodecs {
 }
 
 // 视频流的筛选偏好
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, ToSchema, Clone)]
 pub struct FilterOption {
     pub video_max_quality: VideoQuality,
     pub video_min_quality: VideoQuality,

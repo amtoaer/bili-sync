@@ -52,10 +52,6 @@
 
 <div>
 	<div class="mb-6 flex items-center justify-between">
-		<div>
-			<h1 class="text-2xl font-bold">我的收藏夹</h1>
-			<p class="text-muted-foreground mt-1">管理您在B站创建的收藏夹订阅</p>
-		</div>
 		<div class="text-muted-foreground text-sm">
 			{#if !loading}
 				共 {favorites.length} 个收藏夹

@@ -13,6 +13,7 @@ fn create_template(config: &Config) -> Result<handlebars::Handlebars<'static>> {
     let mut handlebars = handlebars::Handlebars::new();
     handlebars.register_helper("truncate", Box::new(truncate));
     handlebars.path_safe_register("video", config.video_name.to_owned())?;
+    handlebars.path_safe_register("page", config.page_name.to_owned())?;
     Ok(handlebars)
 }
 
