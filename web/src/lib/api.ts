@@ -50,6 +50,12 @@ class ApiClient {
 		}
 	}
 
+	// 清除认证 token
+	clearAuthToken() {
+		delete this.defaultHeaders['Authorization'];
+		localStorage.removeItem('authToken');
+	}
+
 	// 通用请求方法
 	private async request<T>(
 		url: string,
@@ -237,7 +243,8 @@ const api = {
 		apiClient.updateVideoSource(type, id, request),
 	getConfig: () => apiClient.getConfig(),
 	updateConfig: (config: Config) => apiClient.updateConfig(config),
-	setAuthToken: (token: string) => apiClient.setAuthToken(token)
+	setAuthToken: (token: string) => apiClient.setAuthToken(token),
+	clearAuthToken: () => apiClient.clearAuthToken()
 };
 
 export default api;
