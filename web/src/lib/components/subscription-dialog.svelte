@@ -16,9 +16,9 @@
 		FavoriteWithSubscriptionStatus,
 		CollectionWithSubscriptionStatus,
 		UpperWithSubscriptionStatus,
-		UpsertFavoriteRequest,
-		UpsertCollectionRequest,
-		UpsertSubmissionRequest,
+		InsertFavoriteRequest,
+		InsertCollectionRequest,
+		InsertSubmissionRequest,
 		ApiError
 	} from '$lib/types';
 
@@ -94,30 +94,30 @@
 			switch (type) {
 				case 'favorite': {
 					const favorite = item as FavoriteWithSubscriptionStatus;
-					const request: UpsertFavoriteRequest = {
+					const request: InsertFavoriteRequest = {
 						fid: favorite.fid,
 						path: customPath.trim()
 					};
-					response = await api.upsertFavorite(request);
+					response = await api.insertFavorite(request);
 					break;
 				}
 				case 'collection': {
 					const collection = item as CollectionWithSubscriptionStatus;
-					const request: UpsertCollectionRequest = {
+					const request: InsertCollectionRequest = {
 						sid: collection.sid,
 						mid: collection.mid,
 						path: customPath.trim()
 					};
-					response = await api.upsertCollection(request);
+					response = await api.insertCollection(request);
 					break;
 				}
 				case 'upper': {
 					const upper = item as UpperWithSubscriptionStatus;
-					const request: UpsertSubmissionRequest = {
+					const request: InsertSubmissionRequest = {
 						upper_id: upper.mid,
 						path: customPath.trim()
 					};
-					response = await api.upsertSubmission(request);
+					response = await api.insertSubmission(request);
 					break;
 				}
 			}

@@ -8,7 +8,7 @@ use axum::extract::{Extension, Path, Query};
 use axum::response::Response;
 use axum::routing::{get, post, put};
 use bili_sync_entity::*;
-use bili_sync_migration::{Expr, OnConflict};
+use bili_sync_migration::Expr;
 use reqwest::{Method, StatusCode, header};
 use sea_orm::ActiveValue::Set;
 use sea_orm::{
@@ -23,8 +23,8 @@ use crate::api::auth::OpenAPIAuth;
 use crate::api::error::InnerApiError;
 use crate::api::helper::{update_page_download_status, update_video_download_status};
 use crate::api::request::{
-    FollowedCollectionsRequest, FollowedUppersRequest, UpdateVideoSourceRequest, UpdateVideoStatusRequest,
-    UpsertCollectionRequest, UpsertFavoriteRequest, UpsertSubmissionRequest, VideosRequest,
+    FollowedCollectionsRequest, FollowedUppersRequest, InsertCollectionRequest, InsertFavoriteRequest,
+    InsertSubmissionRequest, UpdateVideoSourceRequest, UpdateVideoStatusRequest, VideosRequest,
 };
 use crate::api::response::{
     CollectionWithSubscriptionStatus, CollectionsResponse, FavoriteWithSubscriptionStatus, FavoritesResponse, PageInfo,
@@ -43,7 +43,7 @@ use crate::utils::status::{PageStatus, VideoStatus};
     paths(
         get_video_sources, get_video_sources_details, update_video_source, get_videos, get_video, reset_video, reset_all_videos, update_video_status,
         get_created_favorites, get_followed_collections, get_followed_uppers,
-        upsert_favorite, upsert_collection, upsert_submission
+        insert_favorite, insert_collection, insert_submission
     ),
     modifiers(&OpenAPIAuth),
     security(
@@ -57,9 +57,9 @@ pub fn api_router() -> Router {
         .route("/api/video-sources", get(get_video_sources))
         .route("/api/video-sources/details", get(get_video_sources_details))
         .route("/api/video-sources/{type}/{id}", put(update_video_source))
-        .route("/api/video-sources/collections", post(upsert_collection))
-        .route("/api/video-sources/favorites", post(upsert_favorite))
-        .route("/api/video-sources/submissions", post(upsert_submission))
+        .route("/api/video-sources/collections", post(insert_collection))
+        .route("/api/video-sources/favorites", post(insert_favorite))
+        .route("/api/video-sources/submissions", post(insert_submission))
         .route("/api/videos", get(get_videos))
         .route("/api/videos/{id}", get(get_video))
         .route("/api/videos/{id}/reset", post(reset_video))
@@ -314,19 +314,20 @@ pub async fn reset_all_videos(
             }
         })
         .collect::<Vec<_>>();
-    let resetted = !(resetted_videos_info.is_empty() && resetted_pages_info.is_empty());
-    if resetted {
+    let has_video_updates = !resetted_videos_info.is_empty();
+    let has_page_updates = !resetted_pages_info.is_empty();
+    if has_video_updates || has_page_updates {
         let txn = db.begin().await?;
-        if !resetted_videos_info.is_empty() {
+        if has_video_updates {
             update_video_download_status(&txn, &resetted_videos_info, Some(500)).await?;
         }
-        if !resetted_pages_info.is_empty() {
+        if has_page_updates {
             update_page_download_status(&txn, &resetted_pages_info, Some(500)).await?;
         }
         txn.commit().await?;
     }
     Ok(ApiResponse::ok(ResetAllVideosResponse {
-        resetted,
+        resetted: has_video_updates || has_page_updates,
         resetted_videos_count: resetted_videos_info.len(),
         resetted_pages_count: resetted_pages_info.len(),
     }))
@@ -549,15 +550,15 @@ pub async fn get_followed_uppers(
 #[utoipa::path(
     post,
     path = "/api/video-sources/favorites",
-    request_body = UpsertFavoriteRequest,
+    request_body = InsertFavoriteRequest,
     responses(
         (status = 200, body = ApiResponse<bool>),
     )
 )]
-pub async fn upsert_favorite(
+pub async fn insert_favorite(
     Extension(db): Extension<Arc<DatabaseConnection>>,
     Extension(bili_client): Extension<Arc<BiliClient>>,
-    ValidatedJson(request): ValidatedJson<UpsertFavoriteRequest>,
+    ValidatedJson(request): ValidatedJson<InsertFavoriteRequest>,
 ) -> Result<ApiResponse<bool>, ApiError> {
     let favorite = FavoriteList::new(bili_client.as_ref(), request.fid.to_string());
     let favorite_info = favorite.get_info().await?;
@@ -567,11 +568,6 @@ pub async fn upsert_favorite(
         path: Set(request.path),
         ..Default::default()
     })
-    .on_conflict(
-        OnConflict::column(favorite::Column::FId)
-            .update_columns([favorite::Column::Name, favorite::Column::Path])
-            .to_owned(),
-    )
     .exec(db.as_ref())
     .await?;
 
@@ -581,15 +577,15 @@ pub async fn upsert_favorite(
 #[utoipa::path(
     post,
     path = "/api/video-sources/collections",
-    request_body = UpsertCollectionRequest,
+    request_body = InsertCollectionRequest,
     responses(
         (status = 200, body = ApiResponse<bool>),
     )
 )]
-pub async fn upsert_collection(
+pub async fn insert_collection(
     Extension(db): Extension<Arc<DatabaseConnection>>,
     Extension(bili_client): Extension<Arc<BiliClient>>,
-    ValidatedJson(request): ValidatedJson<UpsertCollectionRequest>,
+    ValidatedJson(request): ValidatedJson<InsertCollectionRequest>,
 ) -> Result<ApiResponse<bool>, ApiError> {
     let collection = Collection::new(
         bili_client.as_ref(),
@@ -609,15 +605,6 @@ pub async fn upsert_collection(
         path: Set(request.path),
         ..Default::default()
     })
-    .on_conflict(
-        OnConflict::columns([
-            collection::Column::SId,
-            collection::Column::MId,
-            collection::Column::Type,
-        ])
-        .update_columns([collection::Column::Name, collection::Column::Path])
-        .to_owned(),
-    )
     .exec(db.as_ref())
     .await?;
 
@@ -628,15 +615,15 @@ pub async fn upsert_collection(
 #[utoipa::path(
     post,
     path = "/api/video-sources/submissions",
-    request_body = UpsertSubmissionRequest,
+    request_body = InsertSubmissionRequest,
     responses(
         (status = 200, body = ApiResponse<bool>),
     )
 )]
-pub async fn upsert_submission(
+pub async fn insert_submission(
     Extension(db): Extension<Arc<DatabaseConnection>>,
     Extension(bili_client): Extension<Arc<BiliClient>>,
-    ValidatedJson(request): ValidatedJson<UpsertSubmissionRequest>,
+    ValidatedJson(request): ValidatedJson<InsertSubmissionRequest>,
 ) -> Result<ApiResponse<bool>, ApiError> {
     let submission = Submission::new(bili_client.as_ref(), request.upper_id.to_string());
     let upper = submission.get_info().await?;
@@ -647,11 +634,6 @@ pub async fn upsert_submission(
         path: Set(request.path),
         ..Default::default()
     })
-    .on_conflict(
-        OnConflict::column(submission::Column::UpperId)
-            .update_columns([submission::Column::UpperName, submission::Column::Path])
-            .to_owned(),
-    )
     .exec(db.as_ref())
     .await?;
 
