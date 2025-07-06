@@ -5,7 +5,7 @@ use axum::extract::Request;
 use axum::http::{Uri, header};
 use axum::response::IntoResponse;
 use axum::routing::get;
-use axum::{Extension, Router, ServiceExt};
+use axum::{Extension, ServiceExt};
 use reqwest::StatusCode;
 use rust_embed_for_web::{EmbedableFile, RustEmbed};
 use sea_orm::DatabaseConnection;
