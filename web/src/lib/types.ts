@@ -145,19 +145,19 @@ export interface UppersResponse {
 	total: number;
 }
 
-export interface UpsertFavoriteRequest {
+export interface InsertFavoriteRequest {
 	fid: number;
 	path: string;
 }
 
-export interface UpsertCollectionRequest {
+export interface InsertCollectionRequest {
 	sid: number;
 	mid: number;
 	collection_type?: number;
 	path: string;
 }
 
-export interface UpsertSubmissionRequest {
+export interface InsertSubmissionRequest {
 	upper_id: number;
 	path: string;
 }

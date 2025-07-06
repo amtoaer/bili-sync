@@ -12,9 +12,9 @@ import type {
 	FavoritesResponse,
 	CollectionsResponse,
 	UppersResponse,
-	UpsertFavoriteRequest,
-	UpsertCollectionRequest,
-	UpsertSubmissionRequest,
+	InsertFavoriteRequest,
+	InsertCollectionRequest,
+	InsertSubmissionRequest,
 	VideoSourcesDetailsResponse,
 	UpdateVideoSourceRequest,
 	Config
@@ -185,15 +185,15 @@ class ApiClient {
 		return this.get<UppersResponse>('/me/uppers', params as Record<string, unknown>);
 	}
 
-	async upsertFavorite(request: UpsertFavoriteRequest): Promise<ApiResponse<boolean>> {
+	async insertFavorite(request: InsertFavoriteRequest): Promise<ApiResponse<boolean>> {
 		return this.post<boolean>('/video-sources/favorites', request);
 	}
 
-	async upsertCollection(request: UpsertCollectionRequest): Promise<ApiResponse<boolean>> {
+	async insertCollection(request: InsertCollectionRequest): Promise<ApiResponse<boolean>> {
 		return this.post<boolean>('/video-sources/collections', request);
 	}
 
-	async upsertSubmission(request: UpsertSubmissionRequest): Promise<ApiResponse<boolean>> {
+	async insertSubmission(request: InsertSubmissionRequest): Promise<ApiResponse<boolean>> {
 		return this.post<boolean>('/video-sources/submissions', request);
 	}
 
@@ -235,9 +235,9 @@ const api = {
 		apiClient.getFollowedCollections(pageNum, pageSize),
 	getFollowedUppers: (pageNum?: number, pageSize?: number) =>
 		apiClient.getFollowedUppers(pageNum, pageSize),
-	upsertFavorite: (request: UpsertFavoriteRequest) => apiClient.upsertFavorite(request),
-	upsertCollection: (request: UpsertCollectionRequest) => apiClient.upsertCollection(request),
-	upsertSubmission: (request: UpsertSubmissionRequest) => apiClient.upsertSubmission(request),
+	insertFavorite: (request: InsertFavoriteRequest) => apiClient.insertFavorite(request),
+	insertCollection: (request: InsertCollectionRequest) => apiClient.insertCollection(request),
+	insertSubmission: (request: InsertSubmissionRequest) => apiClient.insertSubmission(request),
 	getVideoSourcesDetails: () => apiClient.getVideoSourcesDetails(),
 	updateVideoSource: (type: string, id: number, request: UpdateVideoSourceRequest) =>
 		apiClient.updateVideoSource(type, id, request),

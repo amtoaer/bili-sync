@@ -52,14 +52,14 @@ pub struct FollowedUppersRequest {
 }
 
 #[derive(Deserialize, ToSchema, Validate)]
-pub struct UpsertFavoriteRequest {
+pub struct InsertFavoriteRequest {
     pub fid: i64,
     #[validate(custom(function = "crate::utils::validation::validate_path"))]
     pub path: String,
 }
 
 #[derive(Deserialize, ToSchema, Validate)]
-pub struct UpsertCollectionRequest {
+pub struct InsertCollectionRequest {
     pub sid: i64,
     pub mid: i64,
     #[schema(value_type = i8)]
@@ -70,7 +70,7 @@ pub struct UpsertCollectionRequest {
 }
 
 #[derive(Deserialize, ToSchema, Validate)]
-pub struct UpsertSubmissionRequest {
+pub struct InsertSubmissionRequest {
     pub upper_id: i64,
     #[validate(custom(function = "crate::utils::validation::validate_path"))]
     pub path: String,
