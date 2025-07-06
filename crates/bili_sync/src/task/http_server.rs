@@ -5,13 +5,12 @@ use axum::extract::Request;
 use axum::http::{Uri, header};
 use axum::response::IntoResponse;
 use axum::routing::get;
-use axum::{Extension, Router, ServiceExt, middleware};
+use axum::{Extension, Router, ServiceExt};
 use reqwest::StatusCode;
 use rust_embed_for_web::{EmbedableFile, RustEmbed};
 use sea_orm::DatabaseConnection;
 
-use crate::api::auth;
-use crate::api::handler::api_router;
+use crate::api::router;
 use crate::bilibili::BiliClient;
 use crate::config::VersionedConfig;
 
@@ -23,11 +22,10 @@ struct Asset;
 
 pub async fn http_server(database_connection: Arc<DatabaseConnection>, bili_client: Arc<BiliClient>) -> Result<()> {
     let app = Router::new()
-        .merge(api_router())
+        .merge(router())
         .fallback_service(get(frontend_files))
         .layer(Extension(database_connection))
-        .layer(Extension(bili_client))
-        .layer(middleware::from_fn(auth::auth));
+        .layer(Extension(bili_client));
     let config = VersionedConfig::get().load_full();
     let listener = tokio::net::TcpListener::bind(&config.bind_address)
         .await
