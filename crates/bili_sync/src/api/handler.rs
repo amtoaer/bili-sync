@@ -15,11 +15,9 @@ use sea_orm::{
     ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect,
     TransactionTrait,
 };
-use utoipa::OpenApi;
 
 use super::request::ImageProxyParams;
 use crate::adapter::_ActiveModel;
-use crate::api::auth::OpenAPIAuth;
 use crate::api::error::InnerApiError;
 use crate::api::helper::{update_page_download_status, update_video_download_status};
 use crate::api::request::{
@@ -37,20 +35,6 @@ use crate::bilibili::{BiliClient, Collection, CollectionItem, FavoriteList, Me, 
 use crate::config::{Config, VersionedConfig};
 use crate::task::DOWNLOADER_TASK_RUNNING;
 use crate::utils::status::{PageStatus, VideoStatus};
-
-#[derive(OpenApi)]
-#[openapi(
-    paths(
-        get_video_sources, get_video_sources_details, update_video_source, get_videos, get_video, reset_video, reset_all_videos, update_video_status,
-        get_created_favorites, get_followed_collections, get_followed_uppers,
-        insert_favorite, insert_collection, insert_submission
-    ),
-    modifiers(&OpenAPIAuth),
-    security(
-        ("Token" = []),
-    )
-)]
-pub struct ApiDoc;
 
 pub fn api_router() -> Router {
     Router::new()
@@ -74,13 +58,6 @@ pub fn api_router() -> Router {
 }
 
 /// 列出所有视频来源
-#[utoipa::path(
-    get,
-    path = "/api/video-sources",
-    responses(
-        (status = 200, body = ApiResponse<VideoSourcesResponse>),
-    )
-)]
 pub async fn get_video_sources(
     Extension(db): Extension<Arc<DatabaseConnection>>,
 ) -> Result<ApiResponse<VideoSourcesResponse>, ApiError> {
@@ -124,16 +101,6 @@ pub async fn get_video_sources(
 }
 
 /// 列出视频的基本信息，支持根据视频来源筛选、名称查找和分页
-#[utoipa::path(
-    get,
-    path = "/api/videos",
-    params(
-        VideosRequest,
-    ),
-    responses(
-        (status = 200, body = ApiResponse<VideosResponse>),
-    )
-)]
 pub async fn get_videos(
     Extension(db): Extension<Arc<DatabaseConnection>>,
     Query(params): Query<VideosRequest>,
@@ -169,14 +136,6 @@ pub async fn get_videos(
     }))
 }
 
-/// 获取视频详细信息，包括关联的所有 page
-#[utoipa::path(
-    get,
-    path = "/api/videos/{id}",
-    responses(
-        (status = 200, body = ApiResponse<VideoResponse>),
-    )
-)]
 pub async fn get_video(
     Path(id): Path<i32>,
     Extension(db): Extension<Arc<DatabaseConnection>>,
@@ -200,14 +159,6 @@ pub async fn get_video(
     }))
 }
 
-/// 将某个视频与其所有分页的失败状态清空为未下载状态，这样在下次下载任务中会触发重试
-#[utoipa::path(
-    post,
-    path = "/api/videos/{id}/reset",
-    responses(
-        (status = 200, body = ApiResponse<ResetVideoResponse>),
-    )
-)]
 pub async fn reset_video(
     Path(id): Path<i32>,
     Extension(db): Extension<Arc<DatabaseConnection>>,
@@ -268,14 +219,6 @@ pub async fn reset_video(
     }))
 }
 
-/// 重置所有视频和页面的失败状态为未下载状态，这样在下次下载任务中会触发重试
-#[utoipa::path(
-    post,
-    path = "/api/videos/reset-all",
-    responses(
-        (status = 200, body = ApiResponse<ResetAllVideosResponse>),
-    )
-)]
 pub async fn reset_all_videos(
     Extension(db): Extension<Arc<DatabaseConnection>>,
 ) -> Result<ApiResponse<ResetAllVideosResponse>, ApiError> {
@@ -333,15 +276,6 @@ pub async fn reset_all_videos(
     }))
 }
 
-/// 更新特定视频及其所含分页的状态位
-#[utoipa::path(
-    post,
-    path = "/api/video/{id}/update-status",
-    request_body = UpdateVideoStatusRequest,
-    responses(
-        (status = 200, body = ApiResponse<UpdateVideoStatusResponse>),
-    )
-)]
 pub async fn update_video_status(
     Path(id): Path<i32>,
     Extension(db): Extension<Arc<DatabaseConnection>>,
@@ -399,14 +333,6 @@ pub async fn update_video_status(
     }))
 }
 
-/// 获取当前用户创建的收藏夹列表，包含订阅状态
-#[utoipa::path(
-    get,
-    path = "/api/me/favorites",
-    responses(
-        (status = 200, body = ApiResponse<FavoritesResponse>),
-    )
-)]
 pub async fn get_created_favorites(
     Extension(db): Extension<Arc<DatabaseConnection>>,
     Extension(bili_client): Extension<Arc<BiliClient>>,
@@ -445,17 +371,6 @@ pub async fn get_created_favorites(
     Ok(ApiResponse::ok(FavoritesResponse { favorites }))
 }
 
-/// 获取当前用户关注的合集列表，包含订阅状态
-#[utoipa::path(
-    get,
-    path = "/api/me/collections",
-    params(
-        FollowedCollectionsRequest,
-    ),
-    responses(
-        (status = 200, body = ApiResponse<CollectionsResponse>),
-    )
-)]
 pub async fn get_followed_collections(
     Extension(db): Extension<Arc<DatabaseConnection>>,
     Extension(bili_client): Extension<Arc<BiliClient>>,
@@ -497,16 +412,6 @@ pub async fn get_followed_collections(
     }))
 }
 
-#[utoipa::path(
-    get,
-    path = "/api/me/uppers",
-    params(
-        FollowedUppersRequest,
-    ),
-    responses(
-        (status = 200, body = ApiResponse<UppersResponse>),
-    )
-)]
 pub async fn get_followed_uppers(
     Extension(db): Extension<Arc<DatabaseConnection>>,
     Extension(bili_client): Extension<Arc<BiliClient>>,
@@ -547,14 +452,6 @@ pub async fn get_followed_uppers(
     }))
 }
 
-#[utoipa::path(
-    post,
-    path = "/api/video-sources/favorites",
-    request_body = InsertFavoriteRequest,
-    responses(
-        (status = 200, body = ApiResponse<bool>),
-    )
-)]
 pub async fn insert_favorite(
     Extension(db): Extension<Arc<DatabaseConnection>>,
     Extension(bili_client): Extension<Arc<BiliClient>>,
@@ -574,14 +471,6 @@ pub async fn insert_favorite(
     Ok(ApiResponse::ok(true))
 }
 
-#[utoipa::path(
-    post,
-    path = "/api/video-sources/collections",
-    request_body = InsertCollectionRequest,
-    responses(
-        (status = 200, body = ApiResponse<bool>),
-    )
-)]
 pub async fn insert_collection(
     Extension(db): Extension<Arc<DatabaseConnection>>,
     Extension(bili_client): Extension<Arc<BiliClient>>,
@@ -611,15 +500,6 @@ pub async fn insert_collection(
     Ok(ApiResponse::ok(true))
 }
 
-/// 订阅UP主投稿
-#[utoipa::path(
-    post,
-    path = "/api/video-sources/submissions",
-    request_body = InsertSubmissionRequest,
-    responses(
-        (status = 200, body = ApiResponse<bool>),
-    )
-)]
 pub async fn insert_submission(
     Extension(db): Extension<Arc<DatabaseConnection>>,
     Extension(bili_client): Extension<Arc<BiliClient>>,
@@ -640,14 +520,6 @@ pub async fn insert_submission(
     Ok(ApiResponse::ok(true))
 }
 
-/// 获取所有视频源的详细信息，包括 path 和 enabled 状态
-#[utoipa::path(
-    get,
-    path = "/api/video-sources/details",
-    responses(
-        (status = 200, body = ApiResponse<VideoSourcesDetailsResponse>),
-    )
-)]
 pub async fn get_video_sources_details(
     Extension(db): Extension<Arc<DatabaseConnection>>,
 ) -> Result<ApiResponse<VideoSourcesDetailsResponse>, ApiError> {
@@ -703,15 +575,6 @@ pub async fn get_video_sources_details(
     }))
 }
 
-/// 更新视频源的 path 和 enabled 状态
-#[utoipa::path(
-    put,
-    path = "/api/video-sources/{type}/{id}",
-    request_body = UpdateVideoSourceRequest,
-    responses(
-        (status = 200, body = ApiResponse<bool>),
-    )
-)]
 pub async fn update_video_source(
     Path((source_type, id)): Path<(String, i32)>,
     Extension(db): Extension<Arc<DatabaseConnection>>,
@@ -769,25 +632,10 @@ pub async fn update_video_source(
     Ok(ApiResponse::ok(true))
 }
 
-#[utoipa::path(
-    get,
-    path = "/api/config",
-    responses(
-        (status = 200, body = ApiResponse<Config>),
-    )
-)]
 pub async fn get_config() -> Result<ApiResponse<Arc<Config>>, ApiError> {
     Ok(ApiResponse::ok(VersionedConfig::get().load_full()))
 }
 
-#[utoipa::path(
-    put,
-    path = "/api/config",
-    request_body = Config,
-    responses(
-        (status = 200, body = ApiResponse<Config>),
-    )
-)]
 pub async fn update_config(
     Extension(db): Extension<Arc<DatabaseConnection>>,
     ValidatedJson(config): ValidatedJson<Config>,

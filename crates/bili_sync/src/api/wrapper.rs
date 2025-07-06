@@ -8,12 +8,11 @@ use axum::response::IntoResponse;
 use reqwest::StatusCode;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-use utoipa::ToSchema;
 use validator::Validate;
 
 use crate::api::error::InnerApiError;
 
-#[derive(ToSchema, Serialize)]
+#[derive(Serialize)]
 pub struct ApiResponse<T: Serialize> {
     status_code: u16,
     #[serde(skip_serializing_if = "Option::is_none")]

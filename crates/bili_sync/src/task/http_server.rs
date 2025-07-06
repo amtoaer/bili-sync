@@ -9,11 +9,9 @@ use axum::{Extension, Router, ServiceExt, middleware};
 use reqwest::StatusCode;
 use rust_embed_for_web::{EmbedableFile, RustEmbed};
 use sea_orm::DatabaseConnection;
-use utoipa::OpenApi;
-use utoipa_swagger_ui::{Config, SwaggerUi};
 
 use crate::api::auth;
-use crate::api::handler::{ApiDoc, api_router};
+use crate::api::handler::api_router;
 use crate::bilibili::BiliClient;
 use crate::config::VersionedConfig;
 
@@ -26,16 +24,6 @@ struct Asset;
 pub async fn http_server(database_connection: Arc<DatabaseConnection>, bili_client: Arc<BiliClient>) -> Result<()> {
     let app = Router::new()
         .merge(api_router())
-        .merge(
-            SwaggerUi::new("/swagger-ui/")
-                .url("/api-docs/openapi.json", ApiDoc::openapi())
-                .config(
-                    Config::default()
-                        .try_it_out_enabled(true)
-                        .persist_authorization(true)
-                        .validator_url("none"),
-                ),
-        )
         .fallback_service(get(frontend_files))
         .layer(Extension(database_connection))
         .layer(Extension(bili_client))
