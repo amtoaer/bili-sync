@@ -10,7 +10,6 @@ use rsa::pkcs8::DecodePublicKey;
 use rsa::sha2::Sha256;
 use rsa::{Oaep, RsaPublicKey};
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 
 use crate::bilibili::{Client, Validate};
 
@@ -20,7 +19,7 @@ const MIXIN_KEY_ENC_TAB: [usize; 64] = [
     20, 34, 44, 52,
 ];
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Credential {
     pub sessdata: String,
     pub bili_jct: String,

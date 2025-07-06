@@ -50,8 +50,6 @@ toml = { workspace = true }
 tower = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-utoipa = { workspace = true }
-utoipa-swagger-ui = { workspace = true }
 validator = { workspace = true }
 
 [dev-dependencies]

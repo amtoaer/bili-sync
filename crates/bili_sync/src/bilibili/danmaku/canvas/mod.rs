@@ -4,14 +4,13 @@ mod lane;
 use anyhow::Result;
 use float_ord::FloatOrd;
 use lane::Lane;
-use utoipa::ToSchema;
 
 use crate::bilibili::PageInfo;
 use crate::bilibili::danmaku::canvas::lane::Collision;
 use crate::bilibili::danmaku::danmu::DanmuType;
 use crate::bilibili::danmaku::{Danmu, DrawEffect, Drawable};
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct DanmakuOption {
     pub duration: f64,
     pub font: String,

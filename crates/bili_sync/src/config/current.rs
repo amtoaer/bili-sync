@@ -4,7 +4,6 @@ use std::sync::LazyLock;
 use anyhow::{Result, bail};
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 use validator::Validate;
 
 use crate::bilibili::{Credential, DanmakuOption, FilterOption};
@@ -16,7 +15,7 @@ use crate::utils::model::{load_db_config, save_db_config};
 pub static CONFIG_DIR: LazyLock<PathBuf> =
     LazyLock::new(|| dirs::config_dir().expect("No config path found").join("bili-sync"));
 
-#[derive(Serialize, Deserialize, ToSchema, Validate, Clone)]
+#[derive(Serialize, Deserialize, Validate, Clone)]
 pub struct Config {
     pub auth_token: String,
     pub bind_address: String,
@@ -26,7 +25,6 @@ pub struct Config {
     pub video_name: String,
     pub page_name: String,
     pub interval: u64,
-    #[schema(value_type = String)]
     pub upper_path: PathBuf,
     pub nfo_time_type: NFOTimeType,
     pub concurrent_limit: ConcurrentLimit,

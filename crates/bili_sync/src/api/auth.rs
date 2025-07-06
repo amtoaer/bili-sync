@@ -3,8 +3,6 @@ use axum::http::HeaderMap;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use reqwest::StatusCode;
-use utoipa::Modify;
-use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 
 use crate::api::wrapper::ApiResponse;
 use crate::config::VersionedConfig;
@@ -23,20 +21,4 @@ fn get_token(headers: &HeaderMap) -> Option<String> {
         .get("Authorization")
         .and_then(|v| v.to_str().ok())
         .map(Into::into)
-}
-
-pub(super) struct OpenAPIAuth;
-
-impl Modify for OpenAPIAuth {
-    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
-        if let Some(schema) = openapi.components.as_mut() {
-            schema.add_security_scheme(
-                "Token",
-                SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-                    "Authorization",
-                    "与配置文件中的 auth_token 相同",
-                ))),
-            );
-        }
-    }
 }
