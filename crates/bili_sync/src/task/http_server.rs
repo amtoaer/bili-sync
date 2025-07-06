@@ -21,8 +21,7 @@ use crate::config::VersionedConfig;
 struct Asset;
 
 pub async fn http_server(database_connection: Arc<DatabaseConnection>, bili_client: Arc<BiliClient>) -> Result<()> {
-    let app = Router::new()
-        .merge(router())
+    let app = router()
         .fallback_service(get(frontend_files))
         .layer(Extension(database_connection))
         .layer(Extension(bili_client));
