@@ -9,6 +9,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Router, middleware};
 use reqwest::{Method, StatusCode, header};
+use url::Url;
 
 use super::request::ImageProxyParams;
 use crate::api::wrapper::ApiResponse;
@@ -16,6 +17,7 @@ use crate::bilibili::BiliClient;
 use crate::config::VersionedConfig;
 
 mod config;
+mod dashboard;
 mod me;
 mod video_sources;
 mod videos;
@@ -27,15 +29,20 @@ pub fn router() -> Router {
             .merge(me::router())
             .merge(video_sources::router())
             .merge(videos::router())
+            .merge(dashboard::router())
             .layer(middleware::from_fn(auth)),
     )
 }
 
 /// 中间件：验证请求头中的 Authorization 是否与配置中的 auth_token 匹配
 pub async fn auth(headers: HeaderMap, request: Request, next: Next) -> Result<Response, StatusCode> {
+    let config = VersionedConfig::get().load();
+    let token = config.auth_token.as_str();
     if headers
         .get("Authorization")
-        .is_some_and(|v| v.to_str().is_ok_and(|s| s == VersionedConfig::get().load().auth_token))
+        .is_some_and(|v| v.to_str().is_ok_and(|s| s == token))
+        || Url::parse(&format!("http://example.com/{}", request.uri()))
+            .is_ok_and(|url| url.query_pairs().any(|(k, v)| k == "token" && v == token))
     {
         return Ok(next.run(request).await);
     }

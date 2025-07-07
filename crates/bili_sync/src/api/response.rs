@@ -142,6 +142,40 @@ pub struct VideoSourcesDetailsResponse {
 }
 
 #[derive(Serialize, FromQueryResult)]
+pub struct DayCountPair {
+    pub day: String,
+    pub cnt: i64,
+}
+
+#[derive(Serialize)]
+pub struct DashBoardResponse {
+    pub enabled_favorites: u64,
+    pub enabled_collections: u64,
+    pub enabled_submissions: u64,
+    pub enable_watch_later: bool,
+    pub videos_by_day: Vec<DayCountPair>,
+}
+
+#[derive(Serialize)]
+pub struct SysInfoResponse {
+    pub total_memory: u64,
+    pub used_memory: u64,
+    pub process_memory: u64,
+    pub used_cpu: f32,
+    pub process_cpu: f32,
+    pub total_disk: u64,
+    pub available_disk: u64,
+}
+
+#[derive(Serialize)]
+pub struct TaskStatusResponse {
+    pub running: bool,
+    pub last_run: Option<String>,
+    pub next_run: Option<String>,
+    pub last_error: Option<String>,
+}
+
+#[derive(Serialize, FromQueryResult)]
 pub struct VideoSourceDetail {
     pub id: i32,
     pub name: String,
