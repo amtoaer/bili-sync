@@ -152,8 +152,7 @@
 	onMount(async () => {
 		setBreadcrumb([
 			{
-				label: '主页',
-				isActive: true
+				label: '视频'
 			}
 		]);
 	});

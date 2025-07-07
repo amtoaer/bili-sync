@@ -43,15 +43,7 @@
 	}
 
 	onMount(async () => {
-		setBreadcrumb([
-			{
-				label: '主页',
-				onClick: () => {
-					goto(`/${ToQuery($appStateStore)}`);
-				}
-			},
-			{ label: '关注的UP主', isActive: true }
-		]);
+		setBreadcrumb([{ label: '我关注的UP主' }]);
 
 		await loadUppers();
 	});

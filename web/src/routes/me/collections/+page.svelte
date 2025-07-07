@@ -5,7 +5,6 @@
 	import SubscriptionCard from '$lib/components/subscription-card.svelte';
 	import Pagination from '$lib/components/pagination.svelte';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
-	import { appStateStore, ToQuery } from '$lib/stores/filter';
 	import api from '$lib/api';
 	import type { CollectionWithSubscriptionStatus, ApiError } from '$lib/types';
 
@@ -45,14 +44,7 @@
 	onMount(async () => {
 		setBreadcrumb([
 			{
-				label: '主页',
-				onClick: () => {
-					goto(`/${ToQuery($appStateStore)}`);
-				}
-			},
-			{
-				label: '关注的合集',
-				isActive: true
+				label: '我关注的合集'
 			}
 		]);
 		await loadCollections();

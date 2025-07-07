@@ -32,15 +32,7 @@
 	}
 
 	onMount(async () => {
-		setBreadcrumb([
-			{
-				label: '主页',
-				onClick: () => {
-					goto(`/${ToQuery($appStateStore)}`);
-				}
-			},
-			{ label: '我的收藏夹', isActive: true }
-		]);
+		setBreadcrumb([{ label: '我创建的收藏夹' }]);
 
 		await loadFavorites();
 	});

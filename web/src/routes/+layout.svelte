@@ -3,6 +3,7 @@
 	import AppSidebar from '$lib/components/app-sidebar.svelte';
 	import BreadCrumb from '$lib/components/bread-crumb.svelte';
 	import { Separator } from '$lib/components/ui/separator/index.js';
+	import { breadcrumbStore } from '$lib/stores/breadcrumb';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 </script>
 
@@ -13,7 +14,7 @@
 			<div class="flex items-center gap-2 px-4">
 				<Sidebar.Trigger class="-ml-1" />
 				<Separator orientation="vertical" class="mr-2 data-[orientation=vertical]:h-4" />
-				<BreadCrumb />
+				<BreadCrumb items={$breadcrumbStore} />
 			</div>
 		</header>
 		<div class="w-full px-6 py-2">

@@ -78,7 +78,7 @@
 	}
 
 	onMount(() => {
-		setBreadcrumb([{ label: '仪表盘', isActive: true }]);
+		setBreadcrumb([{ label: '仪表盘' }]);
 		loadDashboard();
 		startSysInfoStream();
 	});
