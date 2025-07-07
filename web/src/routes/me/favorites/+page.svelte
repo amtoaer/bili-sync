@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { goto } from '$app/navigation';
+
 	import SubscriptionCard from '$lib/components/subscription-card.svelte';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
-	import { appStateStore, ToQuery } from '$lib/stores/filter';
+
 	import api from '$lib/api';
 	import type { FavoriteWithSubscriptionStatus, ApiError } from '$lib/types';
 

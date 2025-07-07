@@ -98,7 +98,7 @@
 			<CardTitle
 				class="line-clamp-2 min-w-0 flex-1 cursor-default {mode === 'default'
 					? 'text-sm'
-					: 'text-sm'} font-medium leading-relaxed"
+					: 'text-sm'} leading-relaxed font-medium"
 				title={displayTitle}
 			>
 				{displayTitle}
@@ -117,7 +117,7 @@
 		{/if}
 	</CardHeader>
 	<CardContent
-		class={mode === 'default' ? 'flex min-w-0 flex-1 flex-col justify-end pb-3 pt-0' : 'pb-4 pt-0'}
+		class={mode === 'default' ? 'flex min-w-0 flex-1 flex-col justify-end pt-0 pb-3' : 'pt-0 pb-4'}
 	>
 		<div class="space-y-3">
 			<!-- 进度条区域 -->

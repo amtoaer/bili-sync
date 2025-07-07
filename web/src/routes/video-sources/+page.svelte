@@ -17,8 +17,6 @@
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import { toast } from 'svelte-sonner';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
-	import { goto } from '$app/navigation';
-	import { appStateStore, ToQuery } from '$lib/stores/filter';
 	import type { ApiError, VideoSourceDetail, VideoSourcesDetailsResponse } from '$lib/types';
 	import api from '$lib/api';
 
@@ -255,7 +253,7 @@
 												{#if source.editing}
 													<input
 														bind:value={source.editingPath}
-														class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-8 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+														class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-8 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 														placeholder="输入下载路径"
 													/>
 												{:else}
@@ -274,7 +272,7 @@
 												{:else}
 													<div class="flex h-8 items-center gap-2">
 														<Switch checked={source.enabled} disabled />
-														<span class="text-muted-foreground whitespace-nowrap text-sm">
+														<span class="text-muted-foreground text-sm whitespace-nowrap">
 															{source.enabled ? '已启用' : '已禁用'}
 														</span>
 													</div>
@@ -358,7 +356,7 @@
 	<Dialog.Root bind:open={showAddDialog}>
 		<Dialog.Overlay class="data-[state=open]:animate-overlay-show fixed inset-0 bg-black/30" />
 		<Dialog.Content
-			class="data-[state=open]:animate-content-show bg-background fixed left-1/2 top-1/2 z-50 max-h-[85vh] w-full max-w-3xl -translate-x-1/2 -translate-y-1/2 rounded-lg border p-6 shadow-md outline-none"
+			class="data-[state=open]:animate-content-show bg-background fixed top-1/2 left-1/2 z-50 max-h-[85vh] w-full max-w-3xl -translate-x-1/2 -translate-y-1/2 rounded-lg border p-6 shadow-md outline-none"
 		>
 			<Dialog.Title class="text-lg font-semibold">
 				{#if addDialogType === 'favorites'}
@@ -390,7 +388,7 @@
 							<select
 								id="collection-type"
 								bind:value={collectionForm.collection_type}
-								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring mt-1 flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring mt-1 flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								<option value="1">列表 (Series)</option>
 								<option value="2">合集 (Season)</option>

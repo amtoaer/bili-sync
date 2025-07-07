@@ -1,11 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { goto } from '$app/navigation';
 	import SubscriptionCard from '$lib/components/subscription-card.svelte';
 	import Pagination from '$lib/components/pagination.svelte';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
-	import { appStateStore, ToQuery } from '$lib/stores/filter';
 	import api from '$lib/api';
 	import type { UpperWithSubscriptionStatus, ApiError } from '$lib/types';
 
