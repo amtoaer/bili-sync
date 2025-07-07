@@ -1,0 +1,419 @@
+<script lang="ts">
+	import { onMount, onDestroy } from 'svelte';
+	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
+	import { Progress } from '$lib/components/ui/progress/index.js';
+	import { Badge } from '$lib/components/ui/badge/index.js';
+	import * as Chart from '$lib/components/ui/chart/index.js';
+	import MyChartTooltip from '$lib/components/custom/my-chart-tooltip.svelte';
+	import { curveNatural } from 'd3-shape';
+	import { BarChart, AreaChart } from 'layerchart';
+	import { setBreadcrumb } from '$lib/stores/breadcrumb';
+	import { toast } from 'svelte-sonner';
+	import api from '$lib/api';
+	import type { DashBoardResponse, SysInfoResponse, ApiError } from '$lib/types';
+	import DatabaseIcon from '@lucide/svelte/icons/database';
+	import HeartIcon from '@lucide/svelte/icons/heart';
+	import FolderIcon from '@lucide/svelte/icons/folder';
+	import UserIcon from '@lucide/svelte/icons/user';
+	import ClockIcon from '@lucide/svelte/icons/clock';
+	import VideoIcon from '@lucide/svelte/icons/video';
+	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
+	import CpuIcon from '@lucide/svelte/icons/cpu';
+	import MemoryStickIcon from '@lucide/svelte/icons/memory-stick';
+
+	let dashboardData: DashBoardResponse | null = null;
+	let sysInfo: SysInfoResponse | null = null;
+	let loading = false;
+	let sysInfoEventSource: EventSource | null = null;
+
+	function formatBytes(bytes: number): string {
+		if (bytes === 0) return '0 B';
+		const k = 1024;
+		const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+		const i = Math.floor(Math.log(bytes) / Math.log(k));
+		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+	}
+
+	function formatCpu(cpu: number): string {
+		return `${cpu.toFixed(1)}%`;
+	}
+
+	async function loadDashboard() {
+		loading = true;
+		try {
+			const response = await api.getDashboard();
+			dashboardData = response.data;
+		} catch (error) {
+			console.error('加载仪表盘数据失败:', error);
+			toast.error('加载仪表盘数据失败', {
+				description: (error as ApiError).message
+			});
+		} finally {
+			loading = false;
+		}
+	}
+
+	// 启动系统信息流
+	function startSysInfoStream() {
+		try {
+			sysInfoEventSource = api.createSysInfoStream(
+				(data) => {
+					sysInfo = data;
+				},
+				(error) => {
+					toast.error('系统信息流异常中断');
+				}
+			);
+		} catch (error) {
+			console.error('启动系统信息流失败:', error);
+		}
+	}
+
+	// 停止系统信息流
+	function stopSysInfoStream() {
+		if (sysInfoEventSource) {
+			sysInfoEventSource.close();
+			sysInfoEventSource = null;
+		}
+	}
+
+	onMount(() => {
+		setBreadcrumb([{ label: '仪表盘', isActive: true }]);
+		loadDashboard();
+		startSysInfoStream();
+	});
+
+	onDestroy(() => {
+		stopSysInfoStream();
+	});
+
+	// 图表配置
+	const videoChartConfig = {
+		videos: {
+			label: '视频数量',
+			color: 'var(--chart-1)'
+		}
+	} satisfies Chart.ChartConfig;
+
+	const memoryChartConfig = {
+		used: {
+			label: '整体占用',
+			color: 'var(--chart-1)'
+		},
+		process: {
+			label: '程序占用',
+			color: 'var(--chart-2)'
+		}
+	} satisfies Chart.ChartConfig;
+
+	const cpuChartConfig = {
+		used: {
+			label: '整体占用',
+			color: 'var(--chart-1)'
+		},
+		process: {
+			label: '程序占用',
+			color: 'var(--chart-2)'
+		}
+	} satisfies Chart.ChartConfig;
+
+	// 内存和 CPU 数据历史记录
+	let memoryHistory: Array<{ time: Date; used: number; process: number }> = [];
+	let cpuHistory: Array<{ time: Date; used: number; process: number }> = [];
+
+	// 更新历史数据
+	$: if (sysInfo) {
+		memoryHistory = [
+			...memoryHistory.slice(-19),
+			{
+				time: new Date(),
+				used: sysInfo.used_memory,
+				process: sysInfo.process_memory
+			}
+		];
+		cpuHistory = [
+			...cpuHistory.slice(-19),
+			{
+				time: new Date(),
+				used: sysInfo.used_cpu,
+				process: sysInfo.process_cpu
+			}
+		];
+	}
+	// 计算磁盘使用率
+	$: diskUsagePercent = sysInfo
+		? ((sysInfo.total_disk - sysInfo.available_disk) / sysInfo.total_disk) * 100
+		: 0;
+</script>
+
+<svelte:head>
+	<title>仪表盘 - Bili Sync</title>
+</svelte:head>
+
+<div class="space-y-6">
+	{#if loading}
+		<div class="flex items-center justify-center py-12">
+			<div class="text-muted-foreground">加载中...</div>
+		</div>
+	{:else}
+		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+			<!-- 存储空间卡片 -->
+			<Card class="lg:col-span-2">
+				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+					<CardTitle class="text-sm font-medium">存储空间</CardTitle>
+					<HardDriveIcon class="text-muted-foreground h-4 w-4" />
+				</CardHeader>
+				<CardContent>
+					{#if sysInfo}
+						<div class="space-y-2">
+							<div class="flex items-center justify-between">
+								<div class="text-2xl font-bold">{formatBytes(sysInfo.available_disk)} 可用</div>
+								<div class="text-muted-foreground text-sm">
+									共 {formatBytes(sysInfo.total_disk)}
+								</div>
+							</div>
+							<Progress value={diskUsagePercent} class="h-2" />
+							<div class="text-muted-foreground text-xs">
+								已使用 {diskUsagePercent.toFixed(1)}% 的存储空间
+							</div>
+						</div>
+					{:else}
+						<div class="text-muted-foreground text-sm">加载中...</div>
+					{/if}
+				</CardContent>
+			</Card>
+
+			<Card class="lg:col-span-2">
+				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+					<CardTitle class="text-sm font-medium">启用状态</CardTitle>
+					<DatabaseIcon class="text-muted-foreground h-4 w-4" />
+				</CardHeader>
+				<CardContent>
+					{#if dashboardData}
+						<div class="grid grid-cols-2 gap-4">
+							<div class="flex items-center justify-between">
+								<div class="flex items-center gap-2">
+									<HeartIcon class="text-muted-foreground h-4 w-4" />
+									<span class="text-sm">收藏夹</span>
+								</div>
+								<Badge variant="outline">{dashboardData.enabled_favorites}</Badge>
+							</div>
+							<div class="flex items-center justify-between">
+								<div class="flex items-center gap-2">
+									<FolderIcon class="text-muted-foreground h-4 w-4" />
+									<span class="text-sm">合集</span>
+								</div>
+								<Badge variant="outline">{dashboardData.enabled_collections}</Badge>
+							</div>
+							<div class="flex items-center justify-between">
+								<div class="flex items-center gap-2">
+									<UserIcon class="text-muted-foreground h-4 w-4" />
+									<span class="text-sm">投稿</span>
+								</div>
+								<Badge variant="outline">{dashboardData.enabled_submissions}</Badge>
+							</div>
+							<div class="flex items-center justify-between">
+								<div class="flex items-center gap-2">
+									<ClockIcon class="text-muted-foreground h-4 w-4" />
+									<span class="text-sm">稍后再看</span>
+								</div>
+								<Badge variant={dashboardData.enable_watch_later ? 'default' : 'secondary'}>
+									{dashboardData.enable_watch_later ? '已启用' : '未启用'}
+								</Badge>
+							</div>
+						</div>
+					{:else}
+						<div class="text-muted-foreground text-sm">加载中...</div>
+					{/if}
+				</CardContent>
+			</Card>
+		</div>
+
+		<!-- 第二行：视频统计图表 -->
+		<div class="grid gap-4 md:grid-cols-1">
+			<Card>
+				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+					<CardTitle class="text-sm font-medium">每日视频统计</CardTitle>
+					<VideoIcon class="text-muted-foreground h-4 w-4" />
+				</CardHeader>
+				<CardContent
+					>{#if dashboardData && dashboardData.videos_by_day.length > 0}
+						<Chart.Container config={videoChartConfig} class="h-[200px] w-full">
+							<BarChart
+								data={dashboardData.videos_by_day}
+								x="day"
+								axis="x"
+								series={[
+									{
+										key: 'cnt',
+										label: '视频数量',
+										color: videoChartConfig.videos.color
+									}
+								]}
+								props={{
+									bars: {
+										stroke: 'none',
+										rounded: 'all',
+										radius: 8,
+										initialHeight: 0
+									},
+									highlight: { area: { fill: 'none' } },
+									xAxis: { format: () => '' }
+								}}
+							>
+								{#snippet tooltip()}
+									<MyChartTooltip indicator="line" />
+								{/snippet}
+							</BarChart>
+						</Chart.Container>
+					{:else}
+						<div class="text-muted-foreground flex h-[300px] items-center justify-center text-sm">
+							暂无视频统计数据
+						</div>
+					{/if}</CardContent
+				>
+			</Card>
+		</div>
+
+		<!-- 第三行：系统监控 -->
+		<div class="grid gap-4 md:grid-cols-2">
+			<!-- 内存使用情况 -->
+			<Card>
+				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+					<CardTitle class="text-sm font-medium">内存使用情况</CardTitle>
+					<MemoryStickIcon class="text-muted-foreground h-4 w-4" />
+				</CardHeader>
+				<CardContent>
+					{#if sysInfo}
+						<div class="mb-4 space-y-2">
+							<div class="flex items-center justify-between text-sm">
+								<span>当前内存使用</span>
+								<span class="font-medium"
+									>{formatBytes(sysInfo.used_memory)} / {formatBytes(sysInfo.total_memory)}</span
+								>
+							</div>
+						</div>
+					{/if}
+					{#if memoryHistory.length > 0}
+						<Chart.Container config={memoryChartConfig} class="h-[150px] w-full">
+							<AreaChart
+								data={memoryHistory}
+								x="time"
+								axis="x"
+								series={[
+									{
+										key: 'used',
+										label: memoryChartConfig.used.label,
+										color: memoryChartConfig.used.color
+									},
+									{
+										key: 'process',
+										label: memoryChartConfig.process.label,
+										color: memoryChartConfig.process.color
+									}
+								]}
+								props={{
+									area: {
+										curve: curveNatural,
+										line: { class: 'stroke-1' },
+										'fill-opacity': 0.4
+									},
+									xAxis: {
+										format: () => ''
+									}
+								}}
+							>
+								{#snippet tooltip()}
+									<MyChartTooltip
+										labelFormatter={(v: Date) => {
+											return new Intl.DateTimeFormat('en-US', {
+												hour: '2-digit',
+												minute: '2-digit',
+												second: '2-digit',
+												hour12: true
+											}).format(v);
+										}}
+										valueFormatter={(v: number) => formatBytes(v)}
+										indicator="line"
+									/>
+								{/snippet}
+							</AreaChart>
+						</Chart.Container>
+					{:else}
+						<div class="text-muted-foreground flex h-[200px] items-center justify-center text-sm">
+							等待数据...
+						</div>
+					{/if}
+				</CardContent>
+			</Card>
+
+			<!-- CPU 使用情况 -->
+			<Card>
+				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+					<CardTitle class="text-sm font-medium">CPU 使用情况</CardTitle>
+					<CpuIcon class="text-muted-foreground h-4 w-4" />
+				</CardHeader>
+				<CardContent>
+					{#if sysInfo}
+						<div class="mb-4 space-y-2">
+							<div class="flex items-center justify-between text-sm">
+								<span>当前 CPU 使用率</span>
+								<span class="font-medium">{formatCpu(sysInfo.used_cpu)}</span>
+							</div>
+						</div>
+					{/if}
+					{#if cpuHistory.length > 0}
+						<Chart.Container config={cpuChartConfig} class="h-[150px] w-full">
+							<AreaChart
+								data={cpuHistory}
+								x="time"
+								axis="x"
+								series={[
+									{
+										key: 'used',
+										label: cpuChartConfig.used.label,
+										color: cpuChartConfig.used.color
+									},
+									{
+										key: 'process',
+										label: cpuChartConfig.process.label,
+										color: cpuChartConfig.process.color
+									}
+								]}
+								props={{
+									area: {
+										curve: curveNatural,
+										line: { class: 'stroke-1' },
+										'fill-opacity': 0.4
+									},
+									xAxis: {
+										format: () => ''
+									}
+								}}
+							>
+								{#snippet tooltip()}
+									<MyChartTooltip
+										labelFormatter={(v: Date) => {
+											return new Intl.DateTimeFormat('en-US', {
+												hour: '2-digit',
+												minute: '2-digit',
+												second: '2-digit',
+												hour12: true
+											}).format(v);
+										}}
+										valueFormatter={(v: number) => formatCpu(v)}
+										indicator="line"
+									/>
+								{/snippet}
+							</AreaChart>
+						</Chart.Container>
+					{:else}
+						<div class="text-muted-foreground flex h-[150px] items-center justify-center text-sm">
+							等待数据...
+						</div>
+					{/if}
+				</CardContent>
+			</Card>
+		</div>
+	{/if}
+</div>

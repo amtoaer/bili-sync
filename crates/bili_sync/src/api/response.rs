@@ -161,12 +161,10 @@ pub struct SysInfoResponse {
     pub total_memory: u64,
     pub used_memory: u64,
     pub process_memory: u64,
-    pub total_cpu: f32,
     pub used_cpu: f32,
     pub process_cpu: f32,
     pub total_disk: u64,
-    pub used_disk: u64,
-    pub uptime: u64,
+    pub available_disk: u64,
 }
 
 #[derive(Serialize)]

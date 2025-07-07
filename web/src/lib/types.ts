@@ -241,3 +241,31 @@ export interface Config {
 	cdn_sorting: boolean;
 	version: number;
 }
+
+// 日期计数对类型
+export interface DayCountPair {
+	day: string;
+	cnt: number;
+}
+
+// 仪表盘响应类型
+export interface DashBoardResponse {
+	enabled_favorites: number;
+	enabled_collections: number;
+	enabled_submissions: number;
+	enable_watch_later: boolean;
+	videos_by_day: DayCountPair[];
+}
+
+// 系统信息响应类型
+export interface SysInfoResponse {
+	total_memory: number;
+	used_memory: number;
+	process_memory: number;
+	used_cpu: number;
+	process_cpu: number;
+	total_disk: number;
+	used_disk: number;
+	available_disk: number;
+	uptime: number;
+}

@@ -41,7 +41,7 @@ pub async fn auth(headers: HeaderMap, request: Request, next: Next) -> Result<Re
     if headers
         .get("Authorization")
         .is_some_and(|v| v.to_str().is_ok_and(|s| s == token))
-        || Url::parse(&request.uri().to_string())
+        || Url::parse(&format!("http://example.com/{}", request.uri()))
             .is_ok_and(|url| url.query_pairs().any(|(k, v)| k == "token" && v == token))
     {
         return Ok(next.run(request).await);

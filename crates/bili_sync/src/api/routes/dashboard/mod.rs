@@ -45,21 +45,36 @@ async fn get_dashboard(
             // 用 SeaORM 太复杂了，直接写个裸 SQL
             "
 SELECT
-	all_dates.day AS day,
+	dates.day AS day,
 	COUNT(video.id) AS cnt
 FROM
 	(
 		SELECT
 			STRFTIME(
 				'%Y-%m-%d',
-			DATE('now', '-' || value || ' days', 'localtime')) AS day
+			DATE('now', '-' || n || ' days', 'localtime')) AS day
 		FROM
-	generate_series (0, 6)) AS all_dates
-	LEFT JOIN video ON all_dates.day = STRFTIME('%Y-%m-%d', date(video.created_at, 'localtime'))
+			(
+				SELECT
+					0 AS n UNION ALL
+				SELECT
+					1 UNION ALL
+				SELECT
+					2 UNION ALL
+				SELECT
+					3 UNION ALL
+				SELECT
+					4 UNION ALL
+				SELECT
+					5 UNION ALL
+				SELECT
+			6)) AS dates
+	LEFT JOIN video ON STRFTIME('%Y-%m-%d', video.created_at, 'localtime') = dates.day
 GROUP BY
-	all_dates.day
+	dates.day
 ORDER BY
-	all_dates.day;"
+	dates.day;
+    "
         ))
         .all(db.as_ref()),
     )?;
@@ -91,12 +106,10 @@ async fn get_sysinfo() -> Sse<impl futures::Stream<Item = Result<Event, Infallib
                 total_memory: system.total_memory(),
                 used_memory: system.used_memory(),
                 process_memory: process.memory(),
-                total_cpu: system.cpus().len() as f32,
                 used_cpu: system.global_cpu_usage(),
-                process_cpu: process.cpu_usage(),
+                process_cpu: process.cpu_usage() / system.cpus().len() as f32,
                 total_disk: disks.iter().map(|d| d.total_space()).sum(),
-                used_disk: disks.iter().map(|d| d.total_space() - d.available_space()).sum(),
-                uptime: process.run_time(),
+                available_disk: disks.iter().map(|d| d.available_space()).sum(),
             };
             serde_json::to_string(&info).ok()
         })

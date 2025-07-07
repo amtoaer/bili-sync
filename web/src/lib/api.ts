@@ -17,7 +17,9 @@ import type {
 	InsertSubmissionRequest,
 	VideoSourcesDetailsResponse,
 	UpdateVideoSourceRequest,
-	Config
+	Config,
+	DashBoardResponse,
+	SysInfoResponse
 } from './types';
 
 // API 基础配置
@@ -216,6 +218,42 @@ class ApiClient {
 	async updateConfig(config: Config): Promise<ApiResponse<Config>> {
 		return this.put<Config>('/config', config);
 	}
+
+	async getDashboard(): Promise<ApiResponse<DashBoardResponse>> {
+		return this.get<DashBoardResponse>('/dashboard');
+	}
+
+	// 获取系统信息流（SSE）
+	async getSysInfoStream(): Promise<EventSource> {
+		const token = localStorage.getItem('authToken');
+		const url = `/api/dashboard/sysinfo${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+		return new EventSource(url);
+	}
+
+	// 创建系统信息流的便捷方法
+	createSysInfoStream(
+		onMessage: (data: SysInfoResponse) => void,
+		onError?: (error: Event) => void
+	): EventSource {
+		const token = localStorage.getItem('authToken');
+		const url = `/api/dashboard/sysinfo${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+		const eventSource = new EventSource(url);
+
+		eventSource.onmessage = (event) => {
+			try {
+				const data = JSON.parse(event.data) as SysInfoResponse;
+				onMessage(data);
+			} catch (error) {
+				console.error('Failed to parse SSE data:', error);
+			}
+		};
+
+		if (onError) {
+			eventSource.onerror = onError;
+		}
+
+		return eventSource;
+	}
 }
 
 // 创建默认的 API 客户端实例
@@ -243,6 +281,12 @@ const api = {
 		apiClient.updateVideoSource(type, id, request),
 	getConfig: () => apiClient.getConfig(),
 	updateConfig: (config: Config) => apiClient.updateConfig(config),
+	getDashboard: () => apiClient.getDashboard(),
+	getSysInfoStream: () => apiClient.getSysInfoStream(),
+	createSysInfoStream: (
+		onMessage: (data: SysInfoResponse) => void,
+		onError?: (error: Event) => void
+	) => apiClient.createSysInfoStream(onMessage, onError),
 	setAuthToken: (token: string) => apiClient.setAuthToken(token),
 	clearAuthToken: () => apiClient.clearAuthToken()
 };
