@@ -16,10 +16,8 @@
 				<BreadCrumb />
 			</div>
 		</header>
-		<div class="bg-background min-h-screen w-full">
-			<div class="w-full px-6 py-6">
-				<slot />
-			</div>
+		<div class="w-full px-6 py-2">
+			<slot />
 		</div>
 	</Sidebar.Inset>
 </Sidebar.Provider>

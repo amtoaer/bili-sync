@@ -117,11 +117,9 @@
 		}
 	} satisfies Chart.ChartConfig;
 
-	// 内存和 CPU 数据历史记录
 	let memoryHistory: Array<{ time: Date; used: number; process: number }> = [];
 	let cpuHistory: Array<{ time: Date; used: number; process: number }> = [];
 
-	// 更新历史数据
 	$: if (sysInfo) {
 		memoryHistory = [
 			...memoryHistory.slice(-19),
@@ -148,6 +146,13 @@
 
 <svelte:head>
 	<title>仪表盘 - Bili Sync</title>
+
+	<style>
+		body {
+			/* 避免最右侧 tooltip 溢出导致的无限抖动 */
+			overflow-x: hidden;
+		}
+	</style>
 </svelte:head>
 
 <div class="space-y-6">
@@ -157,7 +162,6 @@
 		</div>
 	{:else}
 		<div class="grid gap-4 md:grid-cols-3">
-			<!-- 存储空间卡片 -->
 			<Card class="md:col-span-1">
 				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<CardTitle class="text-sm font-medium">存储空间</CardTitle>
@@ -353,7 +357,6 @@
 				</CardContent>
 			</Card>
 
-			<!-- CPU 使用情况 -->
 			<Card>
 				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<CardTitle class="text-sm font-medium">CPU 使用情况</CardTitle>
