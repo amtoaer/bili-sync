@@ -1,6 +1,5 @@
 <script lang="ts">
 	import VideoCard from '$lib/components/video-card.svelte';
-	import FilterBadge from '$lib/components/filter-badge.svelte';
 	import Pagination from '$lib/components/pagination.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
@@ -9,6 +8,7 @@
 	import type { VideosResponse, VideoSourcesResponse, ApiError } from '$lib/types';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
+	import HeartIcon from '@lucide/svelte/icons/heart';
 	import { goto } from '$app/navigation';
 	import { videoSourceStore } from '$lib/stores/video-source';
 	import { VIDEO_SOURCES } from '$lib/consts';
@@ -22,6 +22,7 @@
 		ToQuery
 	} from '$lib/stores/filter';
 	import { toast } from 'svelte-sonner';
+	import DropdownFilter from '$lib/components/dropdown-filter.svelte';
 
 	const pageSize = 20;
 
@@ -180,11 +181,31 @@
 	<title>主页 - Bili Sync</title>
 </svelte:head>
 
-<FilterBadge
-	filterTitle={filterContent.title}
-	filterName={filterContent.name}
-	onRemove={handleFilterRemove}
-/>
+<div class="mb-4 flex items-center gap-2">
+	<span class="text-muted-foreground text-sm">当前筛选:</span>
+	<DropdownFilter
+		title="筛选"
+		filters={[
+			{
+				key: 'videoSource',
+				name: '视频来源',
+				icon: HeartIcon,
+				values: [
+					{
+						name: '全部',
+						id: ''
+					}
+				]
+			}
+		]}
+		selectedLabel={{
+			key: 'videoSource',
+			name: '视频来源',
+			valueName: filterContent.name || '全部',
+			valueId: $appStateStore.videoSource?.id || ''
+		}}
+	/>
+</div>
 
 <!-- 统计信息 -->
 {#if videosData}
