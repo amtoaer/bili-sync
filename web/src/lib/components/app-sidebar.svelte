@@ -3,8 +3,9 @@
 	import FileVideoIcon from '@lucide/svelte/icons/file-video';
 	import BotIcon from '@lucide/svelte/icons/bot';
 	import ChartPieIcon from '@lucide/svelte/icons/chart-pie';
-	import LifeBuoyIcon from '@lucide/svelte/icons/life-buoy';
-	import MapIcon from '@lucide/svelte/icons/map';
+	import HeartIcon from '@lucide/svelte/icons/heart';
+	import FolderIcon from '@lucide/svelte/icons/folder';
+	import UserIcon from '@lucide/svelte/icons/user';
 	import Settings2Icon from '@lucide/svelte/icons/settings-2';
 	import SquareTerminalIcon from '@lucide/svelte/icons/square-terminal';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
@@ -54,17 +55,17 @@
 				items: [
 					{
 						title: '我创建的收藏夹',
-						icon: Settings2Icon,
+						icon: HeartIcon,
 						href: '/me/favorites'
 					},
 					{
 						title: '我关注的合集',
-						icon: MapIcon,
+						icon: FolderIcon,
 						href: '/me/collections'
 					},
 					{
 						title: '我关注的 up 主',
-						icon: LifeBuoyIcon,
+						icon: UserIcon,
 						href: '/me/uppers'
 					}
 				]
