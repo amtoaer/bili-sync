@@ -156,9 +156,9 @@
 			<div class="text-muted-foreground">加载中...</div>
 		</div>
 	{:else}
-		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+		<div class="grid gap-4 md:grid-cols-3">
 			<!-- 存储空间卡片 -->
-			<Card class="lg:col-span-2">
+			<Card class="md:col-span-1">
 				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<CardTitle class="text-sm font-medium">存储空间</CardTitle>
 					<HardDriveIcon class="text-muted-foreground h-4 w-4" />
@@ -182,10 +182,9 @@
 					{/if}
 				</CardContent>
 			</Card>
-
-			<Card class="lg:col-span-2">
+			<Card class="md:col-span-2">
 				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-					<CardTitle class="text-sm font-medium">启用状态</CardTitle>
+					<CardTitle class="text-sm font-medium">当前监听</CardTitle>
 					<DatabaseIcon class="text-muted-foreground h-4 w-4" />
 				</CardHeader>
 				<CardContent>
@@ -217,8 +216,8 @@
 									<ClockIcon class="text-muted-foreground h-4 w-4" />
 									<span class="text-sm">稍后再看</span>
 								</div>
-								<Badge variant={dashboardData.enable_watch_later ? 'default' : 'secondary'}>
-									{dashboardData.enable_watch_later ? '已启用' : '未启用'}
+								<Badge variant="outline">
+									{dashboardData.enable_watch_later ? '启用' : '禁用'}
 								</Badge>
 							</div>
 						</div>
@@ -229,15 +228,22 @@
 			</Card>
 		</div>
 
-		<!-- 第二行：视频统计图表 -->
-		<div class="grid gap-4 md:grid-cols-1">
+		<div class="grid grid-cols-1 gap-4">
 			<Card>
 				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-					<CardTitle class="text-sm font-medium">每日视频统计</CardTitle>
+					<CardTitle class="text-sm font-medium">最近入库</CardTitle>
 					<VideoIcon class="text-muted-foreground h-4 w-4" />
 				</CardHeader>
-				<CardContent
-					>{#if dashboardData && dashboardData.videos_by_day.length > 0}
+				<CardContent>
+					{#if dashboardData && dashboardData.videos_by_day.length > 0}
+						<div class="mb-4 space-y-2">
+							<div class="flex items-center justify-between text-sm">
+								<span>近七日共新增视频</span>
+								<span class="font-medium"
+									>{dashboardData.videos_by_day.reduce((sum, v) => sum + v.cnt, 0)} 个</span
+								>
+							</div>
+						</div>
 						<Chart.Container config={videoChartConfig} class="h-[200px] w-full">
 							<BarChart
 								data={dashboardData.videos_by_day}
@@ -246,7 +252,7 @@
 								series={[
 									{
 										key: 'cnt',
-										label: '视频数量',
+										label: '新增视频',
 										color: videoChartConfig.videos.color
 									}
 								]}
