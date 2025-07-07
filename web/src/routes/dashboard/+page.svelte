@@ -60,7 +60,7 @@
 				(data) => {
 					sysInfo = data;
 				},
-				(error) => {
+				(_error) => {
 					toast.error('系统信息流异常中断');
 				}
 			);

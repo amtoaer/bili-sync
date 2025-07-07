@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { THEMES, type ChartConfig } from "./chart-utils.js";
+	import { THEMES, type ChartConfig } from './chart-utils.js';
 
 	let { id, config }: { id: string; config: ChartConfig } = $props();
 
@@ -19,12 +19,12 @@
 				return color ? `\t--color-${key}: ${color};` : null;
 			});
 
-			content += color.join("\n") + "\n}";
+			content += color.join('\n') + '\n}';
 
 			themeContents.push(content);
 		}
 
-		return themeContents.join("\n");
+		return themeContents.join('\n');
 	});
 </script>
 

@@ -14,6 +14,7 @@
 		return `${value}`;
 	}
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	function defaultValueFormatter(value: any) {
 		return value.toLocaleString();
 	}
@@ -43,6 +44,7 @@
 		labelClassName?: string;
 		labelFormatter?: // eslint-disable-next-line @typescript-eslint/no-explicit-any
 		((value: any, payload: TooltipPayload[]) => string | number | Snippet) | null;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		valueFormatter?: ((value: any) => string | number | Snippet) | null;
 		formatter?: Snippet<
 			[
@@ -129,7 +131,7 @@
 						{:else if !hideIndicator}
 							<div
 								style="--color-bg: {indicatorColor}; --color-border: {indicatorColor};"
-								class={cn('border-(--color-border) bg-(--color-bg) shrink-0 rounded-[2px]', {
+								class={cn('shrink-0 rounded-[2px] border-(--color-border) bg-(--color-bg)', {
 									'size-2.5': indicator === 'dot',
 									'h-full w-1': indicator === 'line',
 									'w-0 border-[1.5px] border-dashed bg-transparent': indicator === 'dashed',
