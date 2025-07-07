@@ -169,7 +169,7 @@
 </svelte:head>
 
 <div class="mb-4 flex items-center gap-2">
-	<span class="text-muted-foreground text-sm">当前筛选:</span>
+	<span class="text-sm">当前筛选:</span>
 	<DropdownFilter
 		title="筛选视频源"
 		filters={[
@@ -194,14 +194,13 @@
 	/>
 </div>
 
-<!-- 统计信息 -->
 {#if videosData}
 	<div class="mb-6 flex items-center justify-between">
-		<div class="flex items-center gap-4">
-			<div class="text-muted-foreground text-sm">
+		<div class="flex items-center gap-6">
+			<div class=" text-sm font-medium">
 				共 {videosData.total_count} 个视频
 			</div>
-			<div class="text-muted-foreground text-sm">
+			<div class=" text-sm font-medium">
 				共 {totalPages} 页
 			</div>
 		</div>
@@ -209,35 +208,32 @@
 			<Button
 				size="sm"
 				variant="outline"
-				class="cursor-pointer text-xs"
+				class="hover:bg-accent hover:text-accent-foreground h-8 cursor-pointer text-xs font-medium"
 				onclick={() => (resetAllDialogOpen = true)}
 				disabled={resettingAll || loading}
 			>
 				<RotateCcwIcon class="mr-1.5 h-3 w-3 {resettingAll ? 'animate-spin' : ''}" />
-				重置所有视频
+				重置所有
 			</Button>
 		</div>
 	</div>
 {/if}
 
-<!-- 视频卡片网格 -->
 {#if loading}
-	<div class="flex items-center justify-center py-12">
-		<div class="text-muted-foreground">加载中...</div>
+	<div class="flex items-center justify-center py-16">
+		<div class="text-muted-foreground/70 text-sm">加载中...</div>
 	</div>
 {:else if videosData?.videos.length}
 	<div
-		style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; width: 100%; max-width: none; justify-items: start;"
+		class="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
 	>
 		{#each videosData.videos as video (video.id)}
-			<div style="max-width: 400px; width: 100%;">
-				<VideoCard
-					{video}
-					onReset={async () => {
-						await handleResetVideo(video.id);
-					}}
-				/>
-			</div>
+			<VideoCard
+				{video}
+				onReset={async () => {
+					await handleResetVideo(video.id);
+				}}
+			/>
 		{/each}
 	</div>
 
@@ -248,10 +244,10 @@
 		onPageChange={handlePageChange}
 	/>
 {:else}
-	<div class="flex items-center justify-center py-12">
-		<div class="space-y-2 text-center">
-			<p class="text-muted-foreground">暂无视频数据</p>
-			<p class="text-muted-foreground text-sm">尝试搜索或检查视频来源配置</p>
+	<div class="flex items-center justify-center py-16">
+		<div class="space-y-3 text-center">
+			<p class="text-muted-foreground text-sm">暂无视频数据</p>
+			<p class="text-muted-foreground/70 text-xs">尝试搜索或检查视频来源配置</p>
 		</div>
 	</div>
 {/if}

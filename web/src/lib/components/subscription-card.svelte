@@ -67,11 +67,11 @@
 	function getSubtitle(): string {
 		switch (type) {
 			case 'favorite':
-				return `UP主ID: ${(item as FavoriteWithSubscriptionStatus).mid}`;
+				return `uid: ${(item as FavoriteWithSubscriptionStatus).mid}`;
 			case 'collection':
-				return `UP主ID: ${(item as CollectionWithSubscriptionStatus).mid}`;
+				return `uid: ${(item as CollectionWithSubscriptionStatus).mid}`;
 			case 'upper':
-				return ''; // UP主不需要副标题
+				return '';
 			default:
 				return '';
 		}
@@ -158,101 +158,112 @@
 	const disabledReason = getDisabledReason();
 </script>
 
-<Card class="group transition-shadow hover:shadow-md {disabled ? 'opacity-60 grayscale' : ''}">
-	<CardHeader class="pb-3">
-		<div class="flex items-start justify-between gap-3">
-			<div class="flex min-w-0 flex-1 items-start gap-3">
-				<!-- 头像或图标 -->
-				<div
-					class="bg-muted flex h-12 w-12 shrink-0 items-center justify-center rounded-lg {disabled
-						? 'opacity-50'
-						: ''}"
-				>
-					{#if avatarUrl && type === 'upper'}
-						<img
-							src={avatarUrl}
-							alt={title}
-							class="h-full w-full rounded-lg object-cover {disabled ? 'grayscale' : ''}"
-							loading="lazy"
-						/>
-					{:else}
-						<Icon class="text-muted-foreground h-6 w-6" />
-					{/if}
-				</div>
+<Card
+	class="hover:shadow-primary/5 border-border/50 group flex h-full flex-col transition-all hover:shadow-lg {disabled
+		? 'opacity-60'
+		: ''}"
+>
+	<CardHeader class="flex-shrink-0 pb-4">
+		<div class="flex items-start gap-3">
+			<!-- 头像或图标 - 简化设计 -->
+			<div
+				class="bg-accent/50 flex h-10 w-10 shrink-0 items-center justify-center rounded-full {disabled
+					? 'opacity-50'
+					: ''}"
+			>
+				{#if avatarUrl && type === 'upper'}
+					<img
+						src={avatarUrl}
+						alt={title}
+						class="h-full w-full rounded-full object-cover {disabled ? 'grayscale' : ''}"
+						loading="lazy"
+					/>
+				{:else}
+					<Icon class="text-muted-foreground h-5 w-5" />
+				{/if}
+			</div>
 
-				<!-- 标题和信息 -->
-				<div class="min-w-0 flex-1">
+			<!-- 内容区域 -->
+			<div class="min-w-0 flex-1 space-y-2">
+				<div class="flex items-start justify-between gap-2">
 					<CardTitle
-						class="line-clamp-2 text-base leading-tight {disabled
+						class="line-clamp-2 text-sm font-medium leading-relaxed {disabled
 							? 'text-muted-foreground line-through'
 							: ''}"
 						{title}
 					>
 						{title}
 					</CardTitle>
-					{#if subtitle}
-						<div class="text-muted-foreground mt-1 flex items-center gap-1.5 text-sm">
-							<UserIcon class="h-3 w-3 shrink-0" />
-							<span class="truncate" title={subtitle}>{subtitle}</span>
-						</div>
-					{/if}
-					{#if description}
-						<p class="text-muted-foreground mt-1 line-clamp-2 text-xs" title={description}>
-							{description}
-						</p>
+
+					<!-- 状态标记 -->
+					{#if disabled}
+						<Badge variant="destructive" class="shrink-0 text-xs">不可用</Badge>
+					{:else}
+						<Badge variant={subscribed ? 'outline' : 'secondary'} class="shrink-0 text-xs">
+							{subscribed ? '已订阅' : typeLabel}
+						</Badge>
 					{/if}
 				</div>
-			</div>
 
-			<!-- 状态标记 -->
-			<div class="flex shrink-0 flex-col items-end gap-2">
-				{#if disabled}
-					<Badge variant="destructive" class="text-xs">不可用</Badge>
-					<div class="text-muted-foreground text-xs">
-						{disabledReason}
+				<!-- 副标题和描述 -->
+				{#if subtitle && !disabled}
+					<div class="text-muted-foreground flex items-center gap-1 text-sm">
+						<UserIcon class="h-3 w-3 shrink-0" />
+						<span class="truncate" title={subtitle}>{subtitle}</span>
 					</div>
-				{:else}
-					<Badge variant={subscribed ? 'default' : 'outline'} class="text-xs">
-						{subscribed ? '已订阅' : typeLabel}
-					</Badge>
-					{#if count !== null}
-						<div class="text-muted-foreground text-xs">
-							{count}
-							{countLabel}
-						</div>
-					{/if}
+				{/if}
+
+				{#if description && !disabled}
+					<p class="text-muted-foreground line-clamp-1 text-sm" title={description}>
+						{description}
+					</p>
+				{/if}
+
+				<!-- 计数信息 -->
+				{#if count !== null && !disabled}
+					<div class="text-muted-foreground text-sm">
+						{count}
+						{countLabel}
+					</div>
 				{/if}
 			</div>
 		</div>
 	</CardHeader>
 
-	<CardContent class="pt-0">
+	<!-- 底部按钮区域 -->
+	<CardContent class="flex min-w-0 flex-1 flex-col justify-end pb-4 pt-0">
 		<div class="flex justify-end">
 			{#if disabled}
-				<Button size="sm" variant="outline" disabled class="cursor-not-allowed opacity-50">
-					<XIcon class="mr-2 h-4 w-4" />
-					不可用
+				<Button
+					size="sm"
+					variant="outline"
+					disabled
+					class="h-8 cursor-not-allowed text-xs opacity-50"
+				>
+					<XIcon class="mr-1 h-3 w-3" />
+					{disabledReason}
 				</Button>
 			{:else if subscribed}
-				<Button size="sm" variant="outline" disabled class="cursor-not-allowed">
-					<CheckIcon class="mr-2 h-4 w-4" />
+				<Button size="sm" variant="outline" disabled class="h-8 cursor-not-allowed text-xs">
+					<CheckIcon class="mr-1 h-3 w-3" />
 					已订阅
 				</Button>
 			{:else}
 				<Button
 					size="sm"
-					variant="default"
+					variant="outline"
 					onclick={handleSubscribe}
-					class="cursor-pointer"
-					{disabled}
+					class="h-8 cursor-pointer text-xs font-medium"
 				>
-					<PlusIcon class="mr-2 h-4 w-4" />
-					快捷订阅
+					<PlusIcon class="mr-1 h-3 w-3" />
+					订阅
 				</Button>
 			{/if}
 		</div>
 	</CardContent>
 </Card>
 
+<!-- 订阅对话框 -->
+<SubscriptionDialog bind:open={dialogOpen} {item} {type} onSuccess={handleSubscriptionSuccess} />
 <!-- 订阅对话框 -->
 <SubscriptionDialog bind:open={dialogOpen} {item} {type} onSuccess={handleSubscriptionSuccess} />

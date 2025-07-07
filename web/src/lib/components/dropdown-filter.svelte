@@ -49,33 +49,33 @@
 </script>
 
 <div class="inline-flex items-center gap-1">
-	<span class="bg-primary text-primary-foreground rounded-lg px-2 py-1 text-xs font-medium">
+	<span class="bg-secondary text-secondary-foreground rounded-lg px-2 py-1 text-xs font-medium">
 		{selectedLabel.valueName}
 	</span>
 	<DropdownMenu.Root bind:open>
 		<DropdownMenu.Trigger bind:ref={triggerRef}>
 			{#snippet child({ props })}
-				<Button variant="ghost" size="sm" {...props} aria-label="Open menu" class="h-6 w-6 p-0">
+				<Button variant="ghost" size="sm" {...props} class="h-6 w-6 p-0">
 					<EllipsisIcon class="h-3 w-3" />
 				</Button>
 			{/snippet}
 		</DropdownMenu.Trigger>
 		<DropdownMenu.Content class="w-[200px]" align="end">
 			<DropdownMenu.Group>
-				<DropdownMenu.Label class="px-2 py-1 text-sm font-medium">
+				<DropdownMenu.Label class="px-2 py-1 text-sm">
 					{title}
 				</DropdownMenu.Label>
 				{#each filters as filter (filter.key)}
 					<DropdownMenu.Sub>
 						<DropdownMenu.SubTrigger>
-							{@render filter.icon({ class: 'mr-2 size-4' })}
+							<filter.icon class="mr-2 size-4" />
 							{filter.name}
 						</DropdownMenu.SubTrigger>
 						<DropdownMenu.SubContent class="p-0">
 							<Command.Root value={selectedLabel.key === filter.key ? selectedLabel.valueId : ''}>
-								<Command.Input autofocus placeholder="Filter {filter.name.toLowerCase()}..." />
+								<Command.Input autofocus placeholder="查找 {filter.name.toLowerCase()}..." />
 								<Command.List>
-									<Command.Empty>No {filter.name.toLowerCase()} found.</Command.Empty>
+									<Command.Empty>未找到“{filter.name.toLowerCase()}”</Command.Empty>
 									<Command.Group>
 										{#each filter.values as value (value.id)}
 											<Command.Item
@@ -102,8 +102,7 @@
 				<DropdownMenu.Separator />
 				<DropdownMenu.Item class="text-red-600">
 					<TrashIcon class="mr-2 size-4" />
-					Delete
-					<DropdownMenu.Shortcut>⌘⌫</DropdownMenu.Shortcut>
+					移除
 				</DropdownMenu.Item>
 			</DropdownMenu.Group>
 		</DropdownMenu.Content>

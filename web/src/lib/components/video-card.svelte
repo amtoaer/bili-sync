@@ -17,8 +17,6 @@
 	export let customSubtitle: string = ''; // 自定义副标题
 	export let taskNames: string[] = []; // 自定义任务名称
 	export let showProgress: boolean = true; // 是否显示进度信息
-	export let progressHeight: string = 'h-2'; // 进度条高度
-	export let gap: string = 'gap-1'; // 进度条间距
 	export let onReset: (() => Promise<void>) | null = null; // 自定义重置函数
 	export let resetDialogOpen = false; // 导出对话框状态，让父组件可以控制
 	export let resetting = false;
@@ -35,11 +33,11 @@
 
 	function getSegmentColor(status: number): string {
 		if (status === 7) {
-			return 'bg-green-500'; // 绿色 - 成功
+			return 'bg-emerald-500'; // 恢复更高对比度的绿色
 		} else if (status === 0) {
-			return 'bg-yellow-500'; // 黄色 - 未开始
+			return 'bg-slate-400'; // 恢复更清晰的灰色 - 未开始
 		} else {
-			return 'bg-red-500'; // 红色 - 失败
+			return 'bg-rose-500'; // 恢复更清晰的红色 - 失败
 		}
 	}
 
@@ -52,9 +50,9 @@
 		const failed = downloadStatus.filter((status) => status !== 7 && status !== 0).length;
 
 		if (completed === total) {
-			return { text: '全部完成', color: 'default' };
+			return { text: '完成', color: 'outline' }; // 更简洁的文案
 		} else if (failed > 0) {
-			return { text: '部分失败', color: 'destructive' };
+			return { text: '失败', color: 'destructive' };
 		} else {
 			return { text: '进行中', color: 'secondary' };
 		}
@@ -88,33 +86,30 @@
 	// 根据模式确定显示的标题和副标题
 	$: displayTitle = customTitle || video.name;
 	$: displaySubtitle = customSubtitle || video.upper_name;
-	$: showUserIcon = mode === 'default';
 	$: cardClasses =
 		mode === 'default'
-			? 'group flex h-full min-w-0 flex-col transition-shadow hover:shadow-md'
-			: 'transition-shadow hover:shadow-md';
+			? 'group flex h-full min-w-0 flex-col transition-all hover:shadow-lg hover:shadow-primary/5 border-border/50'
+			: 'transition-all hover:shadow-lg border-border/50';
 </script>
 
 <Card class={cardClasses}>
-	<CardHeader class={mode === 'default' ? 'flex-shrink-0 pb-3' : 'pb-3'}>
-		<div class="flex min-w-0 items-start justify-between gap-2">
+	<CardHeader class="flex-shrink-0 pb-3">
+		<div class="flex min-w-0 items-start justify-between gap-3">
 			<CardTitle
 				class="line-clamp-2 min-w-0 flex-1 cursor-default {mode === 'default'
-					? 'text-base'
-					: 'text-base'} leading-tight"
+					? 'text-sm'
+					: 'text-sm'} font-medium leading-relaxed"
 				title={displayTitle}
 			>
 				{displayTitle}
 			</CardTitle>
-			<Badge variant={overallStatus.color} class="shrink-0 text-xs">
+			<Badge variant={overallStatus.color} class="shrink-0 px-2 py-1 text-xs font-medium">
 				{overallStatus.text}
 			</Badge>
 		</div>
 		{#if displaySubtitle}
-			<div class="text-muted-foreground flex min-w-0 items-center gap-1 text-sm">
-				{#if showUserIcon}
-					<UserIcon class="h-3 w-3 shrink-0" />
-				{/if}
+			<div class="text-muted-foreground mt-1.5 flex min-w-0 items-center gap-1 text-sm">
+				<UserIcon class="h-3.5 w-3.5 shrink-0" />
 				<span class="min-w-0 cursor-default truncate" title={displaySubtitle}>
 					{displaySubtitle}
 				</span>
@@ -122,34 +117,30 @@
 		{/if}
 	</CardHeader>
 	<CardContent
-		class={mode === 'default' ? 'flex min-w-0 flex-1 flex-col justify-end pt-0' : 'pt-0'}
+		class={mode === 'default' ? 'flex min-w-0 flex-1 flex-col justify-end pb-3 pt-0' : 'pb-4 pt-0'}
 	>
 		<div class="space-y-3">
 			<!-- 进度条区域 -->
 			{#if showProgress}
 				<div class="space-y-2">
-					<div
-						class="text-muted-foreground flex justify-between {mode === 'default'
-							? 'text-xs'
-							: 'text-xs'}"
-					>
+					<!-- 进度信息 -->
+					<div class="text-muted-foreground flex justify-between text-sm font-medium">
 						<span class="truncate">下载进度</span>
 						<span class="shrink-0">{completed}/{total}</span>
 					</div>
-
 					<!-- 进度条 -->
-					<div class="flex w-full {gap}">
+					<div class="flex w-full gap-0.5">
 						{#each video.download_status as status, index (index)}
 							<Tooltip.Root>
 								<Tooltip.Trigger class="flex-1">
 									<div
-										class="{progressHeight} w-full cursor-help rounded-sm transition-all {getSegmentColor(
+										class="h-1.5 w-full cursor-help rounded-full transition-all {getSegmentColor(
 											status
-										)}"
+										)} hover:opacity-80"
 									></div>
 								</Tooltip.Trigger>
 								<Tooltip.Content>
-									<p>{getTaskName(index)}: {getStatusText(status)}</p>
+									<p class="text-sm">{getTaskName(index)}: {getStatusText(status)}</p>
 								</Tooltip.Content>
 							</Tooltip.Root>
 						{/each}
@@ -157,13 +148,12 @@
 				</div>
 			{/if}
 
-			<!-- 操作按钮 -->
 			{#if showActions && mode === 'default'}
-				<div class="flex min-w-0 gap-1.5">
+				<div class="flex min-w-0 gap-1.5 pt-1">
 					<Button
 						size="sm"
 						variant="outline"
-						class="min-w-0 flex-1 cursor-pointer px-2 text-xs"
+						class="hover:bg-accent hover:text-accent-foreground h-8 min-w-0 flex-1 cursor-pointer px-2 text-xs font-medium"
 						onclick={handleViewDetail}
 					>
 						<InfoIcon class="mr-1 h-3 w-3 shrink-0" />
@@ -172,7 +162,7 @@
 					<Button
 						size="sm"
 						variant="outline"
-						class="shrink-0 cursor-pointer px-2"
+						class="hover:bg-accent hover:text-accent-foreground h-8 shrink-0 cursor-pointer px-2"
 						onclick={() => (resetDialogOpen = true)}
 					>
 						<RotateCcwIcon class="h-3 w-3" />
