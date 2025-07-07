@@ -64,13 +64,16 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 serde_urlencoded = "0.7.1"
 strum = { version = "0.27.1", features = ["derive"] }
+sysinfo = "0.35.2"
 thiserror = "2.0.12"
 tokio = { version = "1.45.0", features = ["full"] }
+tokio-stream = "0.1.17"
 tokio-util = { version = "0.7.15", features = ["io", "rt"] }
 toml = "0.8.22"
 tower = "0.5.2"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["chrono"] }
+url = "2.5.4"
 validator = { version = "0.20.0", features = ["derive"] }
 
 [workspace.metadata.release]
