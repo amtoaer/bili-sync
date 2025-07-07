@@ -14,6 +14,7 @@
 	interface Filter {
 		key: string;
 		name: string;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		icon: any;
 		values: FilterValue[];
 	}
@@ -61,6 +62,9 @@
 		</DropdownMenu.Trigger>
 		<DropdownMenu.Content class="w-[200px]" align="end">
 			<DropdownMenu.Group>
+				<DropdownMenu.Label class="px-2 py-1 text-sm font-medium">
+					{title}
+				</DropdownMenu.Label>
 				{#each filters as filter (filter.key)}
 					<DropdownMenu.Sub>
 						<DropdownMenu.SubTrigger>

@@ -13,14 +13,7 @@
 	import { videoSourceStore } from '$lib/stores/video-source';
 	import { VIDEO_SOURCES } from '$lib/consts';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
-	import {
-		appStateStore,
-		clearVideoSourceFilter,
-		resetCurrentPage,
-		setAll,
-		setCurrentPage,
-		ToQuery
-	} from '$lib/stores/filter';
+	import { appStateStore, setAll, setCurrentPage, ToQuery } from '$lib/stores/filter';
 	import { toast } from 'svelte-sonner';
 	import DropdownFilter from '$lib/components/dropdown-filter.svelte';
 
@@ -103,12 +96,6 @@
 		loadVideos(query, pageNum, videoSource);
 	}
 
-	function handleFilterRemove() {
-		clearVideoSourceFilter();
-		resetCurrentPage();
-		goto(`/${ToQuery($appStateStore)}`);
-	}
-
 	async function handleResetVideo(id: number) {
 		try {
 			const result = await api.resetVideo(id);
@@ -184,7 +171,7 @@
 <div class="mb-4 flex items-center gap-2">
 	<span class="text-muted-foreground text-sm">当前筛选:</span>
 	<DropdownFilter
-		title="筛选"
+		title="筛选视频源"
 		filters={[
 			{
 				key: 'videoSource',

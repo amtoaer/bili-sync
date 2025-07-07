@@ -1,15 +1,16 @@
-<script lang="ts" module>
-	import BookOpenIcon from '@lucide/svelte/icons/book-open';
+<script lang="ts">
 	import DatabaseIcon from '@lucide/svelte/icons/database';
 	import FileVideoIcon from '@lucide/svelte/icons/file-video';
 	import BotIcon from '@lucide/svelte/icons/bot';
 	import ChartPieIcon from '@lucide/svelte/icons/chart-pie';
 	import LifeBuoyIcon from '@lucide/svelte/icons/life-buoy';
 	import MapIcon from '@lucide/svelte/icons/map';
-	import SendIcon from '@lucide/svelte/icons/send';
 	import Settings2Icon from '@lucide/svelte/icons/settings-2';
 	import SquareTerminalIcon from '@lucide/svelte/icons/square-terminal';
+	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
+	import type { ComponentProps } from 'svelte';
 
+	let { ref = $bindable(null), ...restProps }: ComponentProps<typeof Sidebar.Root> = $props();
 	const data = {
 		header: {
 			title: 'Bili Sync',
@@ -77,14 +78,6 @@
 			}
 		]
 	};
-</script>
-
-<script lang="ts">
-	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
-	import CommandIcon from '@lucide/svelte/icons/command';
-	import type { ComponentProps } from 'svelte';
-
-	let { ref = $bindable(null), ...restProps }: ComponentProps<typeof Sidebar.Root> = $props();
 </script>
 
 <Sidebar.Root bind:ref variant="inset" {...restProps}>
