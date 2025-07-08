@@ -5,17 +5,24 @@
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
 	import api from '$lib/api';
-	import type { VideosResponse, VideoSourcesResponse, ApiError } from '$lib/types';
+	import type { VideosResponse, VideoSourcesResponse, ApiError, VideoSource } from '$lib/types';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
-	import HeartIcon from '@lucide/svelte/icons/heart';
 	import { goto } from '$app/navigation';
-	import { videoSourceStore } from '$lib/stores/video-source';
 	import { VIDEO_SOURCES } from '$lib/consts';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
-	import { appStateStore, setAll, setCurrentPage, ToQuery } from '$lib/stores/filter';
+	import {
+		appStateStore,
+		clearVideoSourceFilter,
+		resetCurrentPage,
+		setAll,
+		setCurrentPage,
+		setQuery,
+		setVideoSourceFilter,
+		ToQuery
+	} from '$lib/stores/filter';
 	import { toast } from 'svelte-sonner';
-	import DropdownFilter from '$lib/components/dropdown-filter.svelte';
+	import DropdownFilter, { type Filter } from '$lib/components/dropdown-filter.svelte';
 	import SearchBar from '$lib/components/search-bar.svelte';
 
 	const pageSize = 20;
@@ -27,6 +34,9 @@
 
 	let resetAllDialogOpen = false;
 	let resettingAll = false;
+
+	let videoSources: VideoSourcesResponse | null = null;
+	let filters: Record<string, Filter> | null = null;
 
 	function getApiParams(searchParams: URLSearchParams) {
 		let videoSource = null;
@@ -40,20 +50,6 @@
 			query: searchParams.get('query') || '',
 			videoSource,
 			pageNum: parseInt(searchParams.get('page') || '0')
-		};
-	}
-
-	function getFilterContent(type: string, id: string) {
-		const filterTitle = Object.values(VIDEO_SOURCES).find((s) => s.type === type)?.title || '';
-		let filterName = '';
-		const videoSources = $videoSourceStore;
-		if (videoSources && type && id) {
-			const sources = videoSources[type as keyof VideoSourcesResponse];
-			filterName = sources?.find((s) => s.id.toString() === id)?.name || '';
-		}
-		return {
-			title: filterTitle,
-			name: filterName
 		};
 	}
 
@@ -150,18 +146,35 @@
 		handleSearchParamsChange($page.url.searchParams);
 	}
 
+	$: if (videoSources) {
+		filters = Object.fromEntries(
+			Object.values(VIDEO_SOURCES).map((source) => [
+				source.type,
+				{
+					name: source.title,
+					icon: source.icon,
+					values: Object.fromEntries(
+						(videoSources![source.type as keyof VideoSourcesResponse] as VideoSource[]).map(
+							(item) => [item.id, item.name]
+						)
+					)
+				}
+			])
+		);
+	} else {
+		filters = null;
+	}
+
 	onMount(async () => {
 		setBreadcrumb([
 			{
 				label: '视频'
 			}
 		]);
+		videoSources = (await api.getVideoSources()).data;
 	});
 
 	$: totalPages = videosData ? Math.ceil(videosData.total_count / pageSize) : 0;
-	$: filterContent = $appStateStore.videoSource
-		? getFilterContent($appStateStore.videoSource.type, $appStateStore.videoSource.id)
-		: { title: '', name: '' };
 </script>
 
 <svelte:head>
@@ -173,31 +186,23 @@
 		placeholder="搜索标题.."
 		value={$appStateStore.query}
 		onSearch={(value) => {
-			setAll(value, 0, $appStateStore.videoSource);
-			loadVideos(value, 0, $appStateStore.videoSource);
+			setQuery(value);
+			resetCurrentPage();
+			goto(`/${ToQuery($appStateStore)}`);
 		}}
 	></SearchBar>
 	<div class="flex items-center gap-2">
 		<span class="text-muted-foreground text-sm">筛选视频源：</span>
 		<DropdownFilter
-			filters={[
-				{
-					key: 'videoSource',
-					name: '视频来源',
-					icon: HeartIcon,
-					values: [
-						{
-							name: '全部',
-							id: ''
-						}
-					]
-				}
-			]}
-			selectedLabel={{
-				key: 'videoSource',
-				name: '视频来源',
-				valueName: filterContent.name || '全部',
-				valueId: $appStateStore.videoSource?.id || ''
+			{filters}
+			selectedLabel={$appStateStore.videoSource}
+			onSelect={(type, id) => {
+				setAll('', 0, { type, id });
+				goto(`/${ToQuery($appStateStore)}`);
+			}}
+			onRemove={() => {
+				setAll('', 0, null);
+				goto(`/${ToQuery($appStateStore)}`);
 			}}
 		/>
 	</div>

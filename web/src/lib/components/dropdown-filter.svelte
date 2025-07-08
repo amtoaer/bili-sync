@@ -6,32 +6,26 @@
 	import * as Command from '$lib/components/ui/command/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 
-	interface FilterValue {
-		name: string;
-		id: string;
-	}
-
-	interface Filter {
-		key: string;
+	export interface Filter {
 		name: string;
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		icon: any;
-		values: FilterValue[];
+		values: Record<string, string>;
 	}
 
 	interface SelectedLabel {
-		key: string;
-		name: string;
-		valueName: string;
-		valueId: string;
+		type: string;
+		id: string;
 	}
 
 	interface Props {
-		filters: Filter[];
-		selectedLabel: SelectedLabel;
+		filters: Record<string, Filter> | null;
+		selectedLabel: SelectedLabel | null;
+		onSelect?: (type: string, id: string) => void;
+		onRemove?: () => void;
 	}
 
-	let { filters, selectedLabel = $bindable() }: Props = $props();
+	let { filters, selectedLabel = $bindable(), onSelect, onRemove }: Props = $props();
 
 	let open = $state(false);
 	let triggerRef = $state<HTMLButtonElement>(null!);
@@ -48,9 +42,18 @@
 </script>
 
 <div class="inline-flex items-center gap-1">
-	<span class="bg-secondary text-secondary-foreground rounded-lg px-2 py-1 text-xs font-medium">
-		{selectedLabel.valueName}
-	</span>
+	{#if filters}
+		<span class="bg-secondary text-secondary-foreground rounded-lg px-2 py-1 text-xs font-medium">
+			{#if selectedLabel && selectedLabel.type && selectedLabel.id}
+				「{filters[selectedLabel.type]?.name || ''} : {filters[selectedLabel.type]!.values[
+					selectedLabel.id
+				] || ''}」
+			{:else}
+				未应用
+			{/if}
+		</span>
+	{/if}
+
 	<DropdownMenu.Root bind:open>
 		<DropdownMenu.Trigger bind:ref={triggerRef}>
 			{#snippet child({ props })}
@@ -61,49 +64,55 @@
 		</DropdownMenu.Trigger>
 		<DropdownMenu.Content class="w-[200px]" align="end">
 			<DropdownMenu.Group>
-				{#each filters as filter (filter.key)}
-					<DropdownMenu.Sub>
-						<DropdownMenu.SubTrigger>
-							<filter.icon class="mr-2 size-3" />
-							<span class="text-xs font-medium">
-								{filter.name}
-							</span>
-						</DropdownMenu.SubTrigger>
-						<DropdownMenu.SubContent class="p-0">
-							<Command.Root value={selectedLabel.key === filter.key ? selectedLabel.valueId : ''}>
-								<Command.Input
-									class="text-xs"
-									autofocus
-									placeholder="查找{filter.name.toLowerCase()}..."
-								/>
-								<Command.List>
-									<Command.Empty class="text-xs">未找到“{filter.name.toLowerCase()}”</Command.Empty>
-									<Command.Group>
-										{#each filter.values as value (value.id)}
-											<Command.Item
-												value={value.id}
-												class="text-xs"
-												onSelect={() => {
-													selectedLabel = {
-														key: filter.key,
-														name: filter.name,
-														valueName: value.name,
-														valueId: value.id
-													};
-													closeAndFocusTrigger();
-												}}
-											>
-												{value.name}
-											</Command.Item>
-										{/each}
-									</Command.Group>
-								</Command.List>
-							</Command.Root>
-						</DropdownMenu.SubContent>
-					</DropdownMenu.Sub>
-				{/each}
+				{#if filters}
+					{#each Object.entries(filters) as [key, filter] (key)}
+						<DropdownMenu.Sub>
+							<DropdownMenu.SubTrigger>
+								<filter.icon class="mr-2 size-3" />
+								<span class="text-xs font-medium">
+									{filter.name}
+								</span>
+							</DropdownMenu.SubTrigger>
+							<DropdownMenu.SubContent class="p-0">
+								<Command.Root
+									value={selectedLabel && selectedLabel.type === key ? selectedLabel.id : ''}
+								>
+									<Command.Input
+										class="text-xs"
+										autofocus
+										placeholder="查找{filter.name.toLowerCase()}..."
+									/>
+									<Command.List>
+										<Command.Empty class="text-xs"
+											>未找到"{filter.name.toLowerCase()}"</Command.Empty
+										>
+										<Command.Group>
+											{#each Object.entries(filter.values) as [id, name] (id)}
+												<Command.Item
+													value={id}
+													class="text-xs"
+													onSelect={() => {
+														closeAndFocusTrigger();
+														onSelect?.(key, id);
+													}}
+												>
+													{name}
+												</Command.Item>
+											{/each}
+										</Command.Group>
+									</Command.List>
+								</Command.Root>
+							</DropdownMenu.SubContent>
+						</DropdownMenu.Sub>
+					{/each}
+				{/if}
 				<DropdownMenu.Separator />
-				<DropdownMenu.Item>
+				<DropdownMenu.Item
+					onclick={() => {
+						closeAndFocusTrigger();
+						onRemove?.();
+					}}
+				>
 					<TrashIcon class="mr-2 size-3" />
 					<span class="text-xs font-medium"> 移除筛选 </span>
 				</DropdownMenu.Item>
