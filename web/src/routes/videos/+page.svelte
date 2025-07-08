@@ -13,12 +13,10 @@
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
 	import {
 		appStateStore,
-		clearVideoSourceFilter,
 		resetCurrentPage,
 		setAll,
 		setCurrentPage,
 		setQuery,
-		setVideoSourceFilter,
 		ToQuery
 	} from '$lib/stores/filter';
 	import { toast } from 'svelte-sonner';
