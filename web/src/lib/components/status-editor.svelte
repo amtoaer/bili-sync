@@ -39,21 +39,16 @@
 		pageStatuses = { ...pageStatuses };
 	}
 
-	// 编辑状态
 	let videoStatuses: number[] = [];
 	let pageStatuses: Record<number, number[]> = {};
 
-	// 原始状态备份
 	let originalVideoStatuses: number[] = [];
 	let originalPageStatuses: Record<number, number[]> = {};
 
-	// 响应式更新状态 - 当 video 或 pages props 变化时重新初始化
 	$: {
-		// 初始化视频状态
 		videoStatuses = [...video.download_status];
 		originalVideoStatuses = [...video.download_status];
 
-		// 初始化分页状态
 		if (pages.length > 0) {
 			pageStatuses = pages.reduce(
 				(acc, page) => {
@@ -77,20 +72,28 @@
 
 	function handleVideoStatusChange(taskIndex: number, newValue: number) {
 		videoStatuses[taskIndex] = newValue;
-		videoStatuses = [...videoStatuses];
 	}
 
 	function handlePageStatusChange(pageId: number, taskIndex: number, newValue: number) {
 		if (!pageStatuses[pageId]) {
-			pageStatuses[pageId] = [];
+			return;
 		}
 		pageStatuses[pageId][taskIndex] = newValue;
-		pageStatuses = { ...pageStatuses };
 	}
 
 	function resetAllStatuses() {
 		videoStatuses = [...originalVideoStatuses];
-		pageStatuses = { ...originalPageStatuses };
+		if (pages.length > 0) {
+			pageStatuses = pages.reduce(
+				(acc, page) => {
+					acc[page.id] = [...page.download_status];
+					return acc;
+				},
+				{} as Record<number, number[]>
+			);
+		} else {
+			pageStatuses = {};
+		}
 	}
 
 	function hasVideoChanges(): boolean {
@@ -112,44 +115,37 @@
 	function buildRequest(): UpdateVideoStatusRequest {
 		const request: UpdateVideoStatusRequest = {};
 
-		// 构建视频状态更新
-		if (hasVideoChanges()) {
-			request.video_updates = [];
-			videoStatuses.forEach((status, index) => {
-				if (status !== originalVideoStatuses[index]) {
-					request.video_updates!.push({
+		request.video_updates = [];
+		videoStatuses.forEach((status, index) => {
+			if (status !== originalVideoStatuses[index]) {
+				request.video_updates!.push({
+					status_index: index,
+					status_value: status
+				});
+			}
+		});
+		request.page_updates = [];
+		pages.forEach((page) => {
+			const currentStatuses = pageStatuses[page.id] || [];
+			const originalStatuses = originalPageStatuses[page.id] || [];
+			const updates: StatusUpdate[] = [];
+
+			currentStatuses.forEach((status, index) => {
+				if (status !== originalStatuses[index]) {
+					updates.push({
 						status_index: index,
 						status_value: status
 					});
 				}
 			});
-		}
 
-		// 构建分页状态更新
-		if (hasPageChanges()) {
-			request.page_updates = [];
-			pages.forEach((page) => {
-				const currentStatuses = pageStatuses[page.id] || [];
-				const originalStatuses = originalPageStatuses[page.id] || [];
-				const updates: StatusUpdate[] = [];
-
-				currentStatuses.forEach((status, index) => {
-					if (status !== originalStatuses[index]) {
-						updates.push({
-							status_index: index,
-							status_value: status
-						});
-					}
+			if (updates.length > 0) {
+				request.page_updates!.push({
+					page_id: page.id,
+					updates
 				});
-
-				if (updates.length > 0) {
-					request.page_updates!.push({
-						page_id: page.id,
-						updates
-					});
-				}
-			});
-		}
+			}
+		});
 
 		return request;
 	}
@@ -159,8 +155,11 @@
 			toast.info('没有状态变更需要提交');
 			return;
 		}
-
 		const request = buildRequest();
+		if (!request.video_updates?.length && !request.page_updates?.length) {
+			toast.info('没有状态变更需要提交');
+			return;
+		}
 		onsubmit(request);
 	}
 </script>
@@ -179,7 +178,6 @@
 
 		<div class="flex-1 overflow-y-auto px-6">
 			<div class="space-y-6 py-2">
-				<!-- 视频状态编辑 -->
 				<div>
 					<h3 class="mb-4 text-base font-medium">视频状态</h3>
 					<div class="bg-card rounded-lg border p-4">
