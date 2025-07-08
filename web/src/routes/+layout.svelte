@@ -9,7 +9,7 @@
 
 <Sidebar.Provider>
 	<AppSidebar />
-	<Sidebar.Inset>
+	<Sidebar.Inset class="flex flex-col" style="height: calc(100vh - 1rem)">
 		<header class="flex h-16 shrink-0 items-center gap-2">
 			<div class="flex items-center gap-2 px-4">
 				<Sidebar.Trigger class="-ml-1" />
@@ -17,7 +17,7 @@
 				<BreadCrumb items={$breadcrumbStore} />
 			</div>
 		</header>
-		<div class="w-full px-6 py-2">
+		<div class="w-full overflow-y-auto px-6 py-2" style="scrollbar-width: thin;">
 			<slot />
 		</div>
 	</Sidebar.Inset>

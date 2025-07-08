@@ -5,4 +5,4 @@ mod response;
 mod routes;
 mod wrapper;
 
-pub use routes::router;
+pub use routes::{MpscWriter, router};

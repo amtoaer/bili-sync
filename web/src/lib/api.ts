@@ -223,14 +223,22 @@ class ApiClient {
 		return this.get<DashBoardResponse>('/dashboard');
 	}
 
-	// 获取系统信息流（SSE）
-	async getSysInfoStream(): Promise<EventSource> {
+	createLogStream(
+		onMessage: (data: string) => void,
+		onError?: (error: Event) => void
+	): EventSource {
 		const token = localStorage.getItem('authToken');
-		const url = `/api/dashboard/sysinfo${token ? `?token=${encodeURIComponent(token)}` : ''}`;
-		return new EventSource(url);
+		const url = `/api/logs${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+		const eventSource = new EventSource(url);
+		eventSource.onmessage = (event) => {
+			onMessage(event.data);
+		};
+		if (onError) {
+			eventSource.onerror = onError;
+		}
+		return eventSource;
 	}
 
-	// 创建系统信息流的便捷方法
 	createSysInfoStream(
 		onMessage: (data: SysInfoResponse) => void,
 		onError?: (error: Event) => void
@@ -238,7 +246,6 @@ class ApiClient {
 		const token = localStorage.getItem('authToken');
 		const url = `/api/dashboard/sysinfo${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 		const eventSource = new EventSource(url);
-
 		eventSource.onmessage = (event) => {
 			try {
 				const data = JSON.parse(event.data) as SysInfoResponse;
@@ -247,11 +254,9 @@ class ApiClient {
 				console.error('Failed to parse SSE data:', error);
 			}
 		};
-
 		if (onError) {
 			eventSource.onerror = onError;
 		}
-
 		return eventSource;
 	}
 }
@@ -282,11 +287,14 @@ const api = {
 	getConfig: () => apiClient.getConfig(),
 	updateConfig: (config: Config) => apiClient.updateConfig(config),
 	getDashboard: () => apiClient.getDashboard(),
-	getSysInfoStream: () => apiClient.getSysInfoStream(),
 	createSysInfoStream: (
 		onMessage: (data: SysInfoResponse) => void,
 		onError?: (error: Event) => void
 	) => apiClient.createSysInfoStream(onMessage, onError),
+	createLogStream: (
+		onMessage: (data: string) => void,
+		onError?: (error: Event) => void
+	) => apiClient.createLogStream(onMessage, onError),
 	setAuthToken: (token: string) => apiClient.setAuthToken(token),
 	clearAuthToken: () => apiClient.clearAuthToken()
 };
