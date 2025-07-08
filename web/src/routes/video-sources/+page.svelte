@@ -17,8 +17,6 @@
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import { toast } from 'svelte-sonner';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
-	import { goto } from '$app/navigation';
-	import { appStateStore, ToQuery } from '$lib/stores/filter';
 	import type { ApiError, VideoSourceDetail, VideoSourcesDetailsResponse } from '$lib/types';
 	import api from '$lib/api';
 
@@ -200,15 +198,7 @@
 
 	// 初始化
 	onMount(() => {
-		setBreadcrumb([
-			{
-				label: '主页',
-				onClick: () => {
-					goto(`/${ToQuery($appStateStore)}`);
-				}
-			},
-			{ label: '视频源管理', isActive: true }
-		]);
+		setBreadcrumb([{ label: '视频源' }]);
 		loadVideoSources();
 	});
 </script>
@@ -236,7 +226,7 @@
 				{@const sources = getSourcesForTab(key)}
 				<Tabs.Content value={key} class="mt-6">
 					<div class="mb-4 flex items-center justify-between">
-						<h3 class="text-lg font-medium">{config.label}管理</h3>
+						<div></div>
 						{#if key === 'favorites' || key === 'collections' || key === 'submissions'}
 							<Button size="sm" onclick={() => openAddDialog(key)} class="flex items-center gap-2">
 								<PlusIcon class="h-4 w-4" />

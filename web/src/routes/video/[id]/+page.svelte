@@ -46,12 +46,10 @@
 	onMount(() => {
 		setBreadcrumb([
 			{
-				label: '主页',
-				onClick: () => {
-					goto(`/${ToQuery($appStateStore)}`);
-				}
+				label: '视频',
+				href: `/${ToQuery($appStateStore)}`
 			},
-			{ label: '视频详情', isActive: true }
+			{ label: '视频详情' }
 		]);
 	});
 
@@ -149,8 +147,6 @@
 				}}
 				mode="detail"
 				showActions={false}
-				progressHeight="h-3"
-				gap="gap-2"
 				taskNames={['视频封面', '视频信息', 'UP主头像', 'UP主信息', '分P下载']}
 				bind:resetDialogOpen
 				bind:resetting

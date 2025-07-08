@@ -10,7 +10,7 @@ use reqwest::StatusCode;
 use rust_embed_for_web::{EmbedableFile, RustEmbed};
 use sea_orm::DatabaseConnection;
 
-use crate::api::router;
+use crate::api::{MpscWriter, router};
 use crate::bilibili::BiliClient;
 use crate::config::VersionedConfig;
 
@@ -20,11 +20,16 @@ use crate::config::VersionedConfig;
 #[folder = "../../web/build"]
 struct Asset;
 
-pub async fn http_server(database_connection: Arc<DatabaseConnection>, bili_client: Arc<BiliClient>) -> Result<()> {
+pub async fn http_server(
+    database_connection: Arc<DatabaseConnection>,
+    bili_client: Arc<BiliClient>,
+    log_writer: MpscWriter,
+) -> Result<()> {
     let app = router()
         .fallback_service(get(frontend_files))
         .layer(Extension(database_connection))
-        .layer(Extension(bili_client));
+        .layer(Extension(bili_client))
+        .layer(Extension(log_writer));
     let config = VersionedConfig::get().load_full();
     let listener = tokio::net::TcpListener::bind(&config.bind_address)
         .await

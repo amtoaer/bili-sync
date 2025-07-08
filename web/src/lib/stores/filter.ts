@@ -28,7 +28,7 @@ export const ToQuery = (state: AppState): string => {
 		params.set(videoSource.type, videoSource.id);
 	}
 	const queryString = params.toString();
-	return queryString ? `?${queryString}` : '';
+	return queryString ? `videos?${queryString}` : 'videos';
 };
 
 export const setQuery = (query: string) => {

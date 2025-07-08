@@ -1,11 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { goto } from '$app/navigation';
 	import SubscriptionCard from '$lib/components/subscription-card.svelte';
 	import Pagination from '$lib/components/pagination.svelte';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
-	import { appStateStore, ToQuery } from '$lib/stores/filter';
 	import api from '$lib/api';
 	import type { CollectionWithSubscriptionStatus, ApiError } from '$lib/types';
 
@@ -45,14 +43,7 @@
 	onMount(async () => {
 		setBreadcrumb([
 			{
-				label: '主页',
-				onClick: () => {
-					goto(`/${ToQuery($appStateStore)}`);
-				}
-			},
-			{
-				label: '关注的合集',
-				isActive: true
+				label: '我关注的合集'
 			}
 		]);
 		await loadCollections();
@@ -67,7 +58,7 @@
 
 <div>
 	<div class="mb-6 flex items-center justify-between">
-		<div class="text-muted-foreground text-sm">
+		<div class=" text-sm">
 			{#if !loading}
 				共 {totalCount} 个合集
 			{/if}

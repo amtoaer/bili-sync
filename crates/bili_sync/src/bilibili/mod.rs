@@ -147,7 +147,7 @@ mod tests {
     #[ignore = "only for manual test"]
     #[tokio::test]
     async fn test_video_info_type() {
-        init_logger("None,bili_sync=debug");
+        init_logger("None,bili_sync=debug", None);
         let bili_client = BiliClient::new();
         // 请求 UP 主视频必须要获取 mixin key，使用 key 计算请求参数的签名，否则直接提示权限不足返回空
         let Ok(Some(mixin_key)) = bili_client.wbi_img().await.map(|wbi_img| wbi_img.into()) else {

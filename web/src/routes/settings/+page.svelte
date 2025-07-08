@@ -10,8 +10,6 @@
 	import api from '$lib/api';
 	import { toast } from 'svelte-sonner';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
-	import { goto } from '$app/navigation';
-	import { appStateStore, ToQuery } from '$lib/stores/filter';
 	import type { Config, ApiError } from '$lib/types';
 
 	let frontendToken = ''; // 前端认证token
@@ -45,8 +43,8 @@
 		try {
 			api.setAuthToken(frontendToken.trim());
 			localStorage.setItem('authToken', frontendToken.trim());
+			loadConfig();
 			toast.success('前端认证成功');
-			loadConfig(); // 认证成功后加载配置
 		} catch (error) {
 			console.error('前端认证失败:', error);
 			toast.error('认证失败，请检查Token是否正确');
@@ -75,15 +73,7 @@
 	}
 
 	onMount(() => {
-		setBreadcrumb([
-			{
-				label: '主页',
-				onClick: () => {
-					goto(`/${ToQuery($appStateStore)}`);
-				}
-			},
-			{ label: '设置', isActive: true }
-		]);
+		setBreadcrumb([{ label: '设置' }]);
 
 		const savedToken = localStorage.getItem('authToken');
 		if (savedToken) {

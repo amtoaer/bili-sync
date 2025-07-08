@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { goto } from '$app/navigation';
+
 	import SubscriptionCard from '$lib/components/subscription-card.svelte';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
-	import { appStateStore, ToQuery } from '$lib/stores/filter';
+
 	import api from '$lib/api';
 	import type { FavoriteWithSubscriptionStatus, ApiError } from '$lib/types';
 
@@ -32,15 +32,7 @@
 	}
 
 	onMount(async () => {
-		setBreadcrumb([
-			{
-				label: '主页',
-				onClick: () => {
-					goto(`/${ToQuery($appStateStore)}`);
-				}
-			},
-			{ label: '我的收藏夹', isActive: true }
-		]);
+		setBreadcrumb([{ label: '我创建的收藏夹' }]);
 
 		await loadFavorites();
 	});
@@ -52,7 +44,7 @@
 
 <div>
 	<div class="mb-6 flex items-center justify-between">
-		<div class="text-muted-foreground text-sm">
+		<div class="text-sm">
 			{#if !loading}
 				共 {favorites.length} 个收藏夹
 			{/if}

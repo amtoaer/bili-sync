@@ -18,9 +18,12 @@ use crate::config::VersionedConfig;
 
 mod config;
 mod dashboard;
+mod logs;
 mod me;
 mod video_sources;
 mod videos;
+
+pub use logs::MpscWriter;
 
 pub fn router() -> Router {
     Router::new().route("/image-proxy", get(image_proxy)).nest(
@@ -30,6 +33,7 @@ pub fn router() -> Router {
             .merge(video_sources::router())
             .merge(videos::router())
             .merge(dashboard::router())
+            .merge(logs::router())
             .layer(middleware::from_fn(auth)),
     )
 }

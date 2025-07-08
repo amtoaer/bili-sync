@@ -12,16 +12,19 @@ mod task;
 mod utils;
 mod workflow;
 
+use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::future::Future;
 use std::sync::Arc;
 
 use bilibili::BiliClient;
+use parking_lot::Mutex;
 use sea_orm::DatabaseConnection;
 use task::{http_server, video_downloader};
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 
+use crate::api::MpscWriter;
 use crate::config::{ARGS, VersionedConfig};
 use crate::database::setup_database;
 use crate::utils::init_logger;
@@ -29,7 +32,7 @@ use crate::utils::signal::terminate;
 
 #[tokio::main]
 async fn main() {
-    let connection = init().await;
+    let (connection, log_writer) = init().await;
     let bili_client = Arc::new(BiliClient::new());
 
     let token = CancellationToken::new();
@@ -37,7 +40,7 @@ async fn main() {
 
     spawn_task(
         "HTTP 服务",
-        http_server(connection.clone(), bili_client.clone()),
+        http_server(connection.clone(), bili_client.clone(), log_writer),
         &tracker,
         token.clone(),
     );
@@ -73,9 +76,13 @@ fn spawn_task(
     });
 }
 
-/// 初始化日志系统、打印欢迎信息，初始化数据库连接和全局配置，最终返回数据库连接
-async fn init() -> Arc<DatabaseConnection> {
-    init_logger(&ARGS.log_level);
+/// 初始化日志系统、打印欢迎信息，初始化数据库连接和全局配置
+async fn init() -> (Arc<DatabaseConnection>, MpscWriter) {
+    let (tx, _rx) = tokio::sync::broadcast::channel(30);
+    let log_history = Arc::new(Mutex::new(VecDeque::with_capacity(20)));
+    let log_writer = MpscWriter::new(tx, log_history.clone());
+
+    init_logger(&ARGS.log_level, Some(log_writer.clone()));
     info!("欢迎使用 Bili-Sync，当前程序版本：{}", config::version());
     info!("项目地址：https://github.com/amtoaer/bili-sync");
     let connection = Arc::new(setup_database().await.expect("数据库初始化失败"));
@@ -83,7 +90,7 @@ async fn init() -> Arc<DatabaseConnection> {
     VersionedConfig::init(&connection).await.expect("配置初始化失败");
     info!("配置初始化完成");
 
-    connection
+    (connection, log_writer)
 }
 
 async fn handle_shutdown(tracker: TaskTracker, token: CancellationToken) {

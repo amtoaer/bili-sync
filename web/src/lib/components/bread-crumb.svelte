@@ -4,30 +4,21 @@
 	export let items: Array<{
 		href?: string;
 		label: string;
-		isActive?: boolean;
-		onClick?: () => void;
 	}> = [{ href: '/', label: '主页' }];
 </script>
 
 <Breadcrumb.Root>
 	<Breadcrumb.List>
 		{#each items as item, index (item.label)}
-			<Breadcrumb.Item>
-				{#if item.isActive || (!item.href && !item.onClick)}
-					<Breadcrumb.Page>{item.label}</Breadcrumb.Page>
-				{:else if item.onClick}
-					<button
-						class="hover:text-foreground cursor-pointer transition-colors"
-						onclick={item.onClick}
-					>
-						{item.label}
-					</button>
-				{:else}
+			<Breadcrumb.Item class="hidden md:block">
+				{#if item.href}
 					<Breadcrumb.Link href={item.href}>{item.label}</Breadcrumb.Link>
+				{:else}
+					<Breadcrumb.Page>{item.label}</Breadcrumb.Page>
 				{/if}
 			</Breadcrumb.Item>
 			{#if index < items.length - 1}
-				<Breadcrumb.Separator />
+				<Breadcrumb.Separator class="hidden md:block" />
 			{/if}
 		{/each}
 	</Breadcrumb.List>
