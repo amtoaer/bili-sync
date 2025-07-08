@@ -3,6 +3,7 @@
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
 	import { onMount } from 'svelte';
 	import { Badge } from '$lib/components/ui/badge';
+	import { toast } from 'svelte-sonner';
 
 	let logEventSource: EventSource | null = null;
 	let logs: Array<{ timestamp: string; level: string; message: string }> = [];
@@ -30,6 +31,7 @@
 			},
 			(error: Event) => {
 				console.error('日志流错误:', error);
+				toast.error('日志流出现错误，请稍后重试');
 			}
 		);
 	}

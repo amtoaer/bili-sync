@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
 	import { Progress } from '$lib/components/ui/progress/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
@@ -55,18 +55,15 @@
 
 	// 启动系统信息流
 	function startSysInfoStream() {
-		try {
-			sysInfoEventSource = api.createSysInfoStream(
-				(data) => {
-					sysInfo = data;
-				},
-				(_error) => {
-					toast.error('系统信息流异常中断');
-				}
-			);
-		} catch (error) {
-			console.error('启动系统信息流失败:', error);
-		}
+		sysInfoEventSource = api.createSysInfoStream(
+			(data) => {
+				sysInfo = data;
+			},
+			(error) => {
+				console.error('系统信息流错误:', error);
+				toast.error('系统信息流出现错误，请稍后重试');
+			}
+		);
 	}
 
 	// 停止系统信息流
@@ -81,10 +78,9 @@
 		setBreadcrumb([{ label: '仪表盘' }]);
 		loadDashboard();
 		startSysInfoStream();
-	});
-
-	onDestroy(() => {
-		stopSysInfoStream();
+		return () => {
+			stopSysInfoStream();
+		};
 	});
 
 	// 图表配置

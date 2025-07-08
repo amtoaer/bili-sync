@@ -5,8 +5,10 @@
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import { breadcrumbStore } from '$lib/stores/breadcrumb';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
+	import { Toaster } from '$lib/components/ui/sonner/index.js';
 </script>
 
+<Toaster />
 <Sidebar.Provider>
 	<AppSidebar />
 	<Sidebar.Inset class="flex flex-col" style="height: calc(100vh - 1rem)">
