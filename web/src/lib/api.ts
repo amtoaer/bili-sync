@@ -291,10 +291,8 @@ const api = {
 		onMessage: (data: SysInfoResponse) => void,
 		onError?: (error: Event) => void
 	) => apiClient.createSysInfoStream(onMessage, onError),
-	createLogStream: (
-		onMessage: (data: string) => void,
-		onError?: (error: Event) => void
-	) => apiClient.createLogStream(onMessage, onError),
+	createLogStream: (onMessage: (data: string) => void, onError?: (error: Event) => void) =>
+		apiClient.createLogStream(onMessage, onError),
 	setAuthToken: (token: string) => apiClient.setAuthToken(token),
 	clearAuthToken: () => apiClient.clearAuthToken()
 };

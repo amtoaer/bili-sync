@@ -71,7 +71,7 @@
 </svelte:head>
 
 <div class="space-y-1">
-	{#each logs as log, index}
+	{#each logs as log, index (index)}
 		<div
 			class="flex items-center gap-3 rounded-md p-1 font-mono text-xs {index % 2 === 0
 				? 'bg-muted/50'
