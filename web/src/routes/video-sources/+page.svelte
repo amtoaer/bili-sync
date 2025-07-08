@@ -226,7 +226,7 @@
 				{@const sources = getSourcesForTab(key)}
 				<Tabs.Content value={key} class="mt-6">
 					<div class="mb-4 flex items-center justify-between">
-						<h3 class="text-lg font-medium">{config.label}管理</h3>
+						<div></div>
 						{#if key === 'favorites' || key === 'collections' || key === 'submissions'}
 							<Button size="sm" onclick={() => openAddDialog(key)} class="flex items-center gap-2">
 								<PlusIcon class="h-4 w-4" />

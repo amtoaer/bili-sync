@@ -16,6 +16,7 @@
 	import { appStateStore, setAll, setCurrentPage, ToQuery } from '$lib/stores/filter';
 	import { toast } from 'svelte-sonner';
 	import DropdownFilter from '$lib/components/dropdown-filter.svelte';
+	import SearchBar from '$lib/components/search-bar.svelte';
 
 	const pageSize = 20;
 
@@ -167,30 +168,39 @@
 	<title>主页 - Bili Sync</title>
 </svelte:head>
 
-<div class="mb-4 flex items-center gap-2">
-	<span class="text-sm">当前筛选:</span>
-	<DropdownFilter
-		title="筛选视频源"
-		filters={[
-			{
+<div class="mb-4 flex items-center justify-between">
+	<SearchBar
+		placeholder="搜索标题.."
+		value={$appStateStore.query}
+		onSearch={(value) => {
+			setAll(value, 0, $appStateStore.videoSource);
+			loadVideos(value, 0, $appStateStore.videoSource);
+		}}
+	></SearchBar>
+	<div class="flex items-center gap-2">
+		<span class="text-muted-foreground text-sm">筛选视频源：</span>
+		<DropdownFilter
+			filters={[
+				{
+					key: 'videoSource',
+					name: '视频来源',
+					icon: HeartIcon,
+					values: [
+						{
+							name: '全部',
+							id: ''
+						}
+					]
+				}
+			]}
+			selectedLabel={{
 				key: 'videoSource',
 				name: '视频来源',
-				icon: HeartIcon,
-				values: [
-					{
-						name: '全部',
-						id: ''
-					}
-				]
-			}
-		]}
-		selectedLabel={{
-			key: 'videoSource',
-			name: '视频来源',
-			valueName: filterContent.name || '全部',
-			valueId: $appStateStore.videoSource?.id || ''
-		}}
-	/>
+				valueName: filterContent.name || '全部',
+				valueId: $appStateStore.videoSource?.id || ''
+			}}
+		/>
+	</div>
 </div>
 
 {#if videosData}

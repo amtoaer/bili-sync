@@ -27,12 +27,11 @@
 	}
 
 	interface Props {
-		title: string;
 		filters: Filter[];
 		selectedLabel: SelectedLabel;
 	}
 
-	let { title = 'Actions', filters, selectedLabel = $bindable() }: Props = $props();
+	let { filters, selectedLabel = $bindable() }: Props = $props();
 
 	let open = $state(false);
 	let triggerRef = $state<HTMLButtonElement>(null!);
@@ -62,24 +61,28 @@
 		</DropdownMenu.Trigger>
 		<DropdownMenu.Content class="w-[200px]" align="end">
 			<DropdownMenu.Group>
-				<DropdownMenu.Label class="px-2 py-1 text-sm">
-					{title}
-				</DropdownMenu.Label>
 				{#each filters as filter (filter.key)}
 					<DropdownMenu.Sub>
 						<DropdownMenu.SubTrigger>
-							<filter.icon class="mr-2 size-4" />
-							{filter.name}
+							<filter.icon class="mr-2 size-3" />
+							<span class="text-xs font-medium">
+								{filter.name}
+							</span>
 						</DropdownMenu.SubTrigger>
 						<DropdownMenu.SubContent class="p-0">
 							<Command.Root value={selectedLabel.key === filter.key ? selectedLabel.valueId : ''}>
-								<Command.Input autofocus placeholder="查找 {filter.name.toLowerCase()}..." />
+								<Command.Input
+									class="text-xs"
+									autofocus
+									placeholder="查找{filter.name.toLowerCase()}..."
+								/>
 								<Command.List>
-									<Command.Empty>未找到“{filter.name.toLowerCase()}”</Command.Empty>
+									<Command.Empty class="text-xs">未找到“{filter.name.toLowerCase()}”</Command.Empty>
 									<Command.Group>
 										{#each filter.values as value (value.id)}
 											<Command.Item
 												value={value.id}
+												class="text-xs"
 												onSelect={() => {
 													selectedLabel = {
 														key: filter.key,
@@ -100,9 +103,9 @@
 					</DropdownMenu.Sub>
 				{/each}
 				<DropdownMenu.Separator />
-				<DropdownMenu.Item class="text-red-600">
-					<TrashIcon class="mr-2 size-4" />
-					移除
+				<DropdownMenu.Item>
+					<TrashIcon class="mr-2 size-3" />
+					<span class="text-xs font-medium"> 移除筛选 </span>
 				</DropdownMenu.Item>
 			</DropdownMenu.Group>
 		</DropdownMenu.Content>

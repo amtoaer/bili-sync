@@ -41,8 +41,7 @@
 	}
 
 	onMount(async () => {
-		setBreadcrumb([{ label: '我关注的UP主' }]);
-
+		setBreadcrumb([{ label: '我关注的 UP 主' }]);
 		await loadUppers();
 	});
 
@@ -55,9 +54,9 @@
 
 <div>
 	<div class="mb-6 flex items-center justify-between">
-		<div class="text-muted-foreground text-sm">
+		<div class=" text-sm">
 			{#if !loading}
-				共 {totalCount} 个UP主
+				共 {totalCount} 个 UP 主
 			{/if}
 		</div>
 	</div>
