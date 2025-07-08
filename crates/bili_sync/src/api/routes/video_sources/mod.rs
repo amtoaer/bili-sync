@@ -197,11 +197,11 @@ pub async fn insert_favorite(
         f_id: Set(favorite_info.id),
         name: Set(favorite_info.title.clone()),
         path: Set(request.path),
+        enabled: Set(true),
         ..Default::default()
     })
     .exec(db.as_ref())
     .await?;
-
     Ok(ApiResponse::ok(true))
 }
 
@@ -220,13 +220,13 @@ pub async fn insert_collection(
         },
     );
     let collection_info = collection.get_info().await?;
-
     collection::Entity::insert(collection::ActiveModel {
         s_id: Set(collection_info.sid),
         m_id: Set(collection_info.mid),
         r#type: Set(collection_info.collection_type.into()),
         name: Set(collection_info.name.clone()),
         path: Set(request.path),
+        enabled: Set(true),
         ..Default::default()
     })
     .exec(db.as_ref())
@@ -243,15 +243,14 @@ pub async fn insert_submission(
 ) -> Result<ApiResponse<bool>, ApiError> {
     let submission = Submission::new(bili_client.as_ref(), request.upper_id.to_string());
     let upper = submission.get_info().await?;
-
     submission::Entity::insert(submission::ActiveModel {
         upper_id: Set(upper.mid.parse()?),
         upper_name: Set(upper.name),
         path: Set(request.path),
+        enabled: Set(true),
         ..Default::default()
     })
     .exec(db.as_ref())
     .await?;
-
     Ok(ApiResponse::ok(true))
 }
