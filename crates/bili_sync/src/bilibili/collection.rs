@@ -55,7 +55,7 @@ pub struct CollectionItem {
 
 pub struct Collection<'a> {
     client: &'a BiliClient,
-    collection: CollectionItem,
+    pub collection: CollectionItem,
 }
 
 #[derive(Debug, PartialEq)]

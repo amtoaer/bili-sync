@@ -7,16 +7,14 @@ use axum::response::IntoResponse;
 use axum::routing::get;
 use axum::{Extension, ServiceExt};
 use reqwest::StatusCode;
-use rust_embed_for_web::{EmbedableFile, RustEmbed};
+use rust_embed::Embed;
 use sea_orm::DatabaseConnection;
 
 use crate::api::{MpscWriter, router};
 use crate::bilibili::BiliClient;
 use crate::config::VersionedConfig;
 
-#[derive(RustEmbed)]
-#[preserve_source = false]
-#[gzip = false]
+#[derive(Embed)]
 #[folder = "../../web/build"]
 struct Asset;
 
@@ -46,21 +44,6 @@ async fn frontend_files(uri: Uri) -> impl IntoResponse {
     let Some(content) = Asset::get(path) else {
         return (StatusCode::NOT_FOUND, "404 Not Found").into_response();
     };
-    let mime_type = content.mime_type();
-    let content_type = mime_type.as_deref().unwrap_or("application/octet-stream");
-    if cfg!(debug_assertions) {
-        (
-            [(header::CONTENT_TYPE, content_type)],
-            // safety: `RustEmbed` returns uncompressed files directly from the filesystem in debug mode
-            content.data().unwrap(),
-        )
-            .into_response()
-    } else {
-        (
-            [(header::CONTENT_TYPE, content_type), (header::CONTENT_ENCODING, "br")],
-            // safety: `RustEmbed` will always generate br-compressed files if the feature is enabled
-            content.data_br().unwrap(),
-        )
-            .into_response()
-    }
+    let mime = mime_guess::from_path(path).first_or_octet_stream();
+    ([(header::CONTENT_TYPE, mime.as_ref())], content.data).into_response()
 }

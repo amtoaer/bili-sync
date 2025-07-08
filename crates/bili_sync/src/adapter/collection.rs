@@ -1,13 +1,13 @@
 use std::path::Path;
 use std::pin::Pin;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, ensure};
 use bili_sync_entity::*;
 use chrono::Utc;
 use futures::Stream;
 use sea_orm::ActiveValue::Set;
 use sea_orm::entity::prelude::*;
-use sea_orm::sea_query::{OnConflict, SimpleExpr};
+use sea_orm::sea_query::SimpleExpr;
 use sea_orm::{DatabaseConnection, Unchanged};
 
 use crate::adapter::{_ActiveModel, VideoSource, VideoSourceEnum};
@@ -108,32 +108,24 @@ impl VideoSource for collection::Model {
             },
         );
         let collection_info = collection.get_info().await?;
-        collection::Entity::insert(collection::ActiveModel {
-            s_id: Set(collection_info.sid),
-            m_id: Set(collection_info.mid),
-            r#type: Set(collection_info.collection_type.into()),
+        ensure!(
+            collection_info.sid == self.s_id
+                && collection_info.mid == self.m_id
+                && collection_info.collection_type == CollectionType::from(self.r#type),
+            "collection info mismatch: {:?} != {:?}",
+            collection_info,
+            collection.collection
+        );
+        collection::ActiveModel {
+            id: Unchanged(self.id),
             name: Set(collection_info.name.clone()),
             ..Default::default()
-        })
-        .on_conflict(
-            OnConflict::columns([
-                collection::Column::SId,
-                collection::Column::MId,
-                collection::Column::Type,
-            ])
-            .update_column(collection::Column::Name)
-            .to_owned(),
-        )
-        .exec(connection)
+        }
+        .save(connection)
         .await?;
         Ok((
             collection::Entity::find()
-                .filter(
-                    collection::Column::SId
-                        .eq(self.s_id)
-                        .and(collection::Column::MId.eq(self.m_id))
-                        .and(collection::Column::Type.eq(self.r#type)),
-                )
+                .filter(collection::Column::Id.eq(self.id))
                 .one(connection)
                 .await?
                 .context("collection not found")?
