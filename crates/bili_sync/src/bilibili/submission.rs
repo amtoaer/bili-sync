@@ -9,7 +9,7 @@ use crate::bilibili::favorite_list::Upper;
 use crate::bilibili::{BiliClient, MIXIN_KEY, Validate, VideoInfo};
 pub struct Submission<'a> {
     client: &'a BiliClient,
-    upper_id: String,
+    pub upper_id: String,
 }
 
 impl<'a> Submission<'a> {

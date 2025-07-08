@@ -1,12 +1,12 @@
 use std::path::Path;
 use std::pin::Pin;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, ensure};
 use bili_sync_entity::*;
 use futures::Stream;
 use sea_orm::ActiveValue::Set;
 use sea_orm::entity::prelude::*;
-use sea_orm::sea_query::{OnConflict, SimpleExpr};
+use sea_orm::sea_query::SimpleExpr;
 use sea_orm::{DatabaseConnection, Unchanged};
 
 use crate::adapter::{_ActiveModel, VideoSource, VideoSourceEnum};
@@ -71,21 +71,22 @@ impl VideoSource for favorite::Model {
     )> {
         let favorite = FavoriteList::new(bili_client, self.f_id.to_string());
         let favorite_info = favorite.get_info().await?;
-        favorite::Entity::insert(favorite::ActiveModel {
-            f_id: Set(favorite_info.id),
+        ensure!(
+            favorite_info.id == self.f_id,
+            "favorite id mismatch: {} != {}",
+            favorite_info.id,
+            self.f_id
+        );
+        favorite::ActiveModel {
+            id: Unchanged(self.id),
             name: Set(favorite_info.title.clone()),
             ..Default::default()
-        })
-        .on_conflict(
-            OnConflict::column(favorite::Column::FId)
-                .update_column(favorite::Column::Name)
-                .to_owned(),
-        )
-        .exec(connection)
+        }
+        .save(connection)
         .await?;
         Ok((
             favorite::Entity::find()
-                .filter(favorite::Column::FId.eq(favorite_info.id))
+                .filter(favorite::Column::Id.eq(self.id))
                 .one(connection)
                 .await?
                 .context("favorite not found")?

@@ -1,12 +1,12 @@
 use std::path::Path;
 use std::pin::Pin;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, ensure};
 use bili_sync_entity::*;
 use futures::Stream;
 use sea_orm::ActiveValue::Set;
 use sea_orm::entity::prelude::*;
-use sea_orm::sea_query::{OnConflict, SimpleExpr};
+use sea_orm::sea_query::SimpleExpr;
 use sea_orm::{DatabaseConnection, Unchanged};
 
 use crate::adapter::{_ActiveModel, VideoSource, VideoSourceEnum};
@@ -71,21 +71,22 @@ impl VideoSource for submission::Model {
     )> {
         let submission = Submission::new(bili_client, self.upper_id.to_string());
         let upper = submission.get_info().await?;
-        submission::Entity::insert(submission::ActiveModel {
-            upper_id: Set(upper.mid.parse()?),
+        ensure!(
+            upper.mid == submission.upper_id,
+            "submission upper id mismatch: {} != {}",
+            upper.mid,
+            submission.upper_id
+        );
+        submission::ActiveModel {
+            id: Unchanged(self.id),
             upper_name: Set(upper.name),
             ..Default::default()
-        })
-        .on_conflict(
-            OnConflict::column(submission::Column::UpperId)
-                .update_column(submission::Column::UpperName)
-                .to_owned(),
-        )
-        .exec(connection)
+        }
+        .save(connection)
         .await?;
         Ok((
             submission::Entity::find()
-                .filter(submission::Column::UpperId.eq(upper.mid))
+                .filter(submission::Column::Id.eq(self.id))
                 .one(connection)
                 .await?
                 .context("submission not found")?
