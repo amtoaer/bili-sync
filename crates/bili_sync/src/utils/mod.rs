@@ -5,6 +5,7 @@ pub mod model;
 pub mod nfo;
 pub mod signal;
 pub mod status;
+pub mod task_notifier;
 pub mod validation;
 use tracing_subscriber::fmt;
 use tracing_subscriber::layer::SubscriberExt;

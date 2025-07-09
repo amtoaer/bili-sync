@@ -228,7 +228,7 @@ class ApiClient {
 		onError?: (error: Event) => void
 	): EventSource {
 		const token = localStorage.getItem('authToken');
-		const url = `/api/logs${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+		const url = `/api/sse/logs${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 		const eventSource = new EventSource(url);
 		eventSource.onmessage = (event) => {
 			onMessage(event.data);
@@ -244,7 +244,7 @@ class ApiClient {
 		onError?: (error: Event) => void
 	): EventSource {
 		const token = localStorage.getItem('authToken');
-		const url = `/api/dashboard/sysinfo${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+		const url = `/api/sse/sysinfo${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 		const eventSource = new EventSource(url);
 		eventSource.onmessage = (event) => {
 			try {
@@ -253,6 +253,22 @@ class ApiClient {
 			} catch (error) {
 				console.error('Failed to parse SSE data:', error);
 			}
+		};
+		if (onError) {
+			eventSource.onerror = onError;
+		}
+		return eventSource;
+	}
+
+	createTasksStream(
+		onMessage: (data: string) => void,
+		onError?: (error: Event) => void
+	): EventSource {
+		const token = localStorage.getItem('authToken');
+		const url = `/api/sse/tasks${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+		const eventSource = new EventSource(url);
+		eventSource.onmessage = (event) => {
+			onMessage(event.data);
 		};
 		if (onError) {
 			eventSource.onerror = onError;
@@ -293,6 +309,8 @@ const api = {
 	) => apiClient.createSysInfoStream(onMessage, onError),
 	createLogStream: (onMessage: (data: string) => void, onError?: (error: Event) => void) =>
 		apiClient.createLogStream(onMessage, onError),
+	createTasksStream: (onMessage: (data: string) => void, onError?: (error: Event) => void) =>
+		apiClient.createTasksStream(onMessage, onError),
 	setAuthToken: (token: string) => apiClient.setAuthToken(token),
 	clearAuthToken: () => apiClient.clearAuthToken()
 };

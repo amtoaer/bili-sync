@@ -9,7 +9,7 @@ use sea_orm::DatabaseConnection;
 use crate::api::error::InnerApiError;
 use crate::api::wrapper::{ApiError, ApiResponse, ValidatedJson};
 use crate::config::{Config, VersionedConfig};
-use crate::task::DOWNLOADER_TASK_RUNNING;
+use crate::utils::task_notifier::TASK_STATUS_NOTIFIER;
 
 pub(super) fn router() -> Router {
     Router::new().route("/config", get(get_config).put(update_config))
@@ -25,7 +25,7 @@ pub async fn update_config(
     Extension(db): Extension<Arc<DatabaseConnection>>,
     ValidatedJson(config): ValidatedJson<Config>,
 ) -> Result<ApiResponse<Arc<Config>>, ApiError> {
-    let Ok(_lock) = DOWNLOADER_TASK_RUNNING.try_lock() else {
+    let Some(_lock) = TASK_STATUS_NOTIFIER.detect_running() else {
         // 简单避免一下可能的不一致现象
         return Err(InnerApiError::BadRequest("下载任务正在运行，无法修改配置".to_string()).into());
     };

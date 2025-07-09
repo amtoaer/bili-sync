@@ -6,6 +6,31 @@
 	import { breadcrumbStore } from '$lib/stores/breadcrumb';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
+	import { onMount } from 'svelte';
+	import { setTaskStatus, type TaskStatus } from '$lib/stores/tasks';
+	import api from '$lib/api';
+	import { toast } from 'svelte-sonner';
+
+	let tasksStream: EventSource | undefined;
+
+	onMount(() => {
+		tasksStream = api.createTasksStream(
+			(data: string) => {
+				const status: TaskStatus = JSON.parse(data);
+				setTaskStatus(status);
+			},
+			(error: Event) => {
+				console.error('任务状态流错误:', error);
+				toast.error('任务状态流错误，请检查网络连接或稍后重试。');
+			}
+		);
+		return () => {
+			if (tasksStream) {
+				tasksStream.close();
+				tasksStream = undefined;
+			}
+		};
+	});
 </script>
 
 <Toaster />
