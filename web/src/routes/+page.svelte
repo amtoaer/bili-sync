@@ -87,29 +87,29 @@
 	const videoChartConfig = {
 		videos: {
 			label: '视频数量',
-			color: 'var(--chart-1)'
+			color: 'var(--color-slate-700)'
 		}
 	} satisfies Chart.ChartConfig;
 
 	const memoryChartConfig = {
 		used: {
 			label: '整体占用',
-			color: 'var(--chart-1)'
+			color: 'var(--color-slate-700)'
 		},
 		process: {
 			label: '程序占用',
-			color: 'var(--chart-2)'
+			color: 'var(--color-slate-950)'
 		}
 	} satisfies Chart.ChartConfig;
 
 	const cpuChartConfig = {
 		used: {
 			label: '整体占用',
-			color: 'var(--chart-1)'
+			color: 'var(--color-slate-700)'
 		},
 		process: {
 			label: '程序占用',
-			color: 'var(--chart-2)'
+			color: 'var(--color-slate-950)'
 		}
 	} satisfies Chart.ChartConfig;
 

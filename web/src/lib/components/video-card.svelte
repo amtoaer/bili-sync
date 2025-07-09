@@ -33,11 +33,11 @@
 
 	function getSegmentColor(status: number): string {
 		if (status === 7) {
-			return 'bg-emerald-500'; // 恢复更高对比度的绿色
+			return 'bg-emerald-500';
 		} else if (status === 0) {
-			return 'bg-slate-400'; // 恢复更清晰的灰色 - 未开始
+			return 'bg-yellow-500';
 		} else {
-			return 'bg-rose-500'; // 恢复更清晰的红色 - 失败
+			return 'bg-rose-500';
 		}
 	}
 
@@ -50,7 +50,7 @@
 		const failed = downloadStatus.filter((status) => status !== 7 && status !== 0).length;
 
 		if (completed === total) {
-			return { text: '完成', color: 'outline' }; // 更简洁的文案
+			return { text: '完成', color: 'outline' };
 		} else if (failed > 0) {
 			return { text: '失败', color: 'destructive' };
 		} else {
@@ -98,7 +98,7 @@
 			<CardTitle
 				class="line-clamp-2 min-w-0 flex-1 cursor-default {mode === 'default'
 					? 'text-sm'
-					: 'text-sm'} leading-relaxed font-medium"
+					: 'text-sm'} font-medium leading-relaxed"
 				title={displayTitle}
 			>
 				{displayTitle}
@@ -117,7 +117,7 @@
 		{/if}
 	</CardHeader>
 	<CardContent
-		class={mode === 'default' ? 'flex min-w-0 flex-1 flex-col justify-end pt-0 pb-3' : 'pt-0 pb-4'}
+		class={mode === 'default' ? 'flex min-w-0 flex-1 flex-col justify-end pb-3 pt-0' : 'pb-4 pt-0'}
 	>
 		<div class="space-y-3">
 			<!-- 进度条区域 -->
@@ -136,7 +136,7 @@
 									<div
 										class="h-1.5 w-full cursor-help rounded-full transition-all {getSegmentColor(
 											status
-										)} hover:opacity-80"
+										)}"
 									></div>
 								</Tooltip.Trigger>
 								<Tooltip.Content>

@@ -11,10 +11,11 @@
 
 	// 获取状态显示信息
 	function getStatusInfo(value: number) {
-		if (value === 7) return { label: '已完成', class: 'text-green-600', dotClass: 'bg-green-500' };
+		if (value === 7)
+			return { label: '已完成', class: 'text-emerald-600', dotClass: 'bg-emerald-600' };
 		if (value >= 1 && value <= 4)
-			return { label: `失败${value}次`, class: 'text-red-600', dotClass: 'bg-red-500' };
-		return { label: '未开始', class: 'text-yellow-600', dotClass: 'bg-yellow-500' };
+			return { label: `失败${value}次`, class: 'text-rose-600', dotClass: 'bg-rose-600' };
+		return { label: '未开始', class: 'text-yellow-600', dotClass: 'bg-yellow-600' };
 	}
 
 	$: statusInfo = getStatusInfo(currentStatus);
@@ -71,8 +72,8 @@
 			onclick={() => onStatusChange(7)}
 			{disabled}
 			class="h-7 min-w-[60px] cursor-pointer px-3 text-xs {currentStatus === 7
-				? 'border-green-600 bg-green-600 font-medium text-white hover:bg-green-700'
-				: 'hover:border-green-400 hover:bg-green-50 hover:text-green-700'}"
+				? 'border-emerald-600 bg-emerald-600 font-medium text-white hover:bg-emerald-700'
+				: 'hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700'}"
 		>
 			已完成
 		</Button>

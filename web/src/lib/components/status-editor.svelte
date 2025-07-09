@@ -170,7 +170,7 @@
 			<SheetTitle class="text-lg">编辑状态</SheetTitle>
 			<SheetDescription class="text-muted-foreground space-y-1 text-sm">
 				<div>修改视频和分页的下载状态。可以将任务重置为未开始状态，或者标记为已完成。</div>
-				<div class="font-medium text-red-600">
+				<div class="font-medium text-rose-600">
 					⚠️ 已完成任务被重置为未开始，任务重新执行时会覆盖现存文件。
 				</div>
 			</SheetDescription>

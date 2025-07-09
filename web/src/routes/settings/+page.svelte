@@ -112,8 +112,8 @@
 			{:else}
 				<div class="flex items-center gap-3">
 					<div class="flex items-center gap-2">
-						<div class="h-2 w-2 rounded-full bg-green-500"></div>
-						<span class="text-sm text-green-600">已认证</span>
+						<div class="h-2 w-2 rounded-full bg-emerald-500"></div>
+						<span class="text-sm text-emerald-600">已认证</span>
 					</div>
 					<Button
 						variant="outline"
@@ -277,7 +277,7 @@
 							<Label for="video-max-quality">最高视频质量</Label>
 							<select
 								id="video-max-quality"
-								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 								bind:value={formData.filter_option.video_max_quality}
 							>
 								<option value="Quality360p">360p</option>
@@ -296,7 +296,7 @@
 							<Label for="video-min-quality">最低视频质量</Label>
 							<select
 								id="video-min-quality"
-								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 								bind:value={formData.filter_option.video_min_quality}
 							>
 								<option value="Quality360p">360p</option>
@@ -315,7 +315,7 @@
 							<Label for="audio-max-quality">最高音频质量</Label>
 							<select
 								id="audio-max-quality"
-								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 								bind:value={formData.filter_option.audio_max_quality}
 							>
 								<option value="Quality64k">64k</option>
@@ -329,7 +329,7 @@
 							<Label for="audio-min-quality">最低音频质量</Label>
 							<select
 								id="audio-min-quality"
-								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 								bind:value={formData.filter_option.audio_min_quality}
 							>
 								<option value="Quality64k">64k</option>
@@ -610,7 +610,7 @@
 							<Label for="nfo-time-type">NFO时间类型</Label>
 							<select
 								id="nfo-time-type"
-								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 								bind:value={formData.nfo_time_type}
 							>
 								<option value="favtime">收藏时间</option>

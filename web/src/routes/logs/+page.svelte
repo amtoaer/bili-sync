@@ -56,12 +56,12 @@
 	function getLevelColor(level: string) {
 		switch (level) {
 			case 'ERROR':
-				return 'text-red-600';
+				return 'text-rose-600';
 			case 'WARN':
 				return 'text-yellow-600';
 			case 'INFO':
 			default:
-				return 'text-green-600';
+				return 'text-emerald-600';
 		}
 	}
 </script>
