@@ -37,7 +37,6 @@ hex = "0.4.3"
 leaky-bucket = "1.1.2"
 md5 = "0.7.0"
 memchr = "2.7.4"
-mime_guess = "2.0.5"
 once_cell = "1.21.3"
 parking_lot = "0.12.4"
 prost = "0.13.5"
@@ -54,7 +53,7 @@ reqwest = { version = "0.12.15", features = [
     "stream",
 ], default-features = false }
 rsa = { version = "0.9.8", features = ["sha2"] }
-rust-embed = "8.7.2"
+rust-embed-for-web = { git = "https://github.com/amtoaer/rust-embed-for-web", tag = "v1.0.0" }
 sea-orm = { version = "1.1.11", features = [
     "macros",
     "runtime-tokio-rustls",
