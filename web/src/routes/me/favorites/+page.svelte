@@ -44,7 +44,7 @@
 
 <div>
 	<div class="mb-6 flex items-center justify-between">
-		<div class="text-sm">
+		<div class="text-sm font-medium">
 			{#if !loading}
 				共 {favorites.length} 个收藏夹
 			{/if}

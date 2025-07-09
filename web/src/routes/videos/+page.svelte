@@ -190,7 +190,7 @@
 		}}
 	></SearchBar>
 	<div class="flex items-center gap-2">
-		<span class="text-muted-foreground text-sm">筛选视频源：</span>
+		<span class="text-muted-foreground text-sm">筛选：</span>
 		<DropdownFilter
 			{filters}
 			selectedLabel={$appStateStore.videoSource}
@@ -213,7 +213,7 @@
 				共 {videosData.total_count} 个视频
 			</div>
 			<div class=" text-sm font-medium">
-				共 {totalPages} 页
+				当前第 {$appStateStore.currentPage + 1} / {totalPages} 页
 			</div>
 		</div>
 		<div class="flex items-center gap-2">

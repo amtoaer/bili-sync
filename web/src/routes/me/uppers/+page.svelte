@@ -54,9 +54,14 @@
 
 <div>
 	<div class="mb-6 flex items-center justify-between">
-		<div class=" text-sm">
+		<div class="flex items-center gap-6">
 			{#if !loading}
-				共 {totalCount} 个 UP 主
+				<div class=" text-sm font-medium">
+					共 {totalCount} 个 UP 主
+				</div>
+				<div class=" text-sm font-medium">
+					当前第 {currentPage + 1} / {totalPages} 页
+				</div>
 			{/if}
 		</div>
 	</div>

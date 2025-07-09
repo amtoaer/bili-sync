@@ -54,17 +54,17 @@
 				category: '快捷订阅',
 				items: [
 					{
-						title: '收藏夹',
+						title: '我创建的收藏夹',
 						icon: HeartIcon,
 						href: '/me/favorites'
 					},
 					{
-						title: '合集',
+						title: '我关注的合集',
 						icon: FolderIcon,
 						href: '/me/collections'
 					},
 					{
-						title: 'up 主',
+						title: '我关注的 up 主',
 						icon: UserIcon,
 						href: '/me/uppers'
 					}

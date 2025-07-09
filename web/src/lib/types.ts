@@ -33,6 +33,7 @@ export interface VideoSourcesResponse {
 // 视频信息类型
 export interface VideoInfo {
 	id: number;
+	bvid: string;
 	name: string;
 	upper_name: string;
 	download_status: [number, number, number, number, number];
