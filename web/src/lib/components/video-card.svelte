@@ -3,10 +3,13 @@
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import type { VideoInfo } from '$lib/types';
 	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
 	import InfoIcon from '@lucide/svelte/icons/info';
 	import UserIcon from '@lucide/svelte/icons/user';
+	import SquareArrowOutUpRightIcon from '@lucide/svelte/icons/square-arrow-out-up-right';
+	import MoreHorizontalIcon from '@lucide/svelte/icons/more-horizontal';
 	import { goto } from '$app/navigation';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
@@ -124,7 +127,7 @@
 			{#if showProgress}
 				<div class="space-y-2">
 					<!-- 进度信息 -->
-					<div class="text-muted-foreground flex justify-between text-sm font-medium">
+					<div class="text-muted-foreground flex justify-between text-xs font-medium">
 						<span class="truncate">下载进度</span>
 						<span class="shrink-0">{completed}/{total}</span>
 					</div>
@@ -140,7 +143,7 @@
 									></div>
 								</Tooltip.Trigger>
 								<Tooltip.Content>
-									<p class="text-sm">{getTaskName(index)}: {getStatusText(status)}</p>
+									<p class="text-xs">{getTaskName(index)}: {getStatusText(status)}</p>
 								</Tooltip.Content>
 							</Tooltip.Root>
 						{/each}
@@ -149,24 +152,45 @@
 			{/if}
 
 			{#if showActions && mode === 'default'}
-				<div class="flex min-w-0 gap-1.5 pt-1">
+				<div class="flex min-w-0 gap-2 pt-1">
 					<Button
 						size="sm"
 						variant="outline"
-						class="hover:bg-accent hover:text-accent-foreground h-8 min-w-0 flex-1 cursor-pointer px-2 text-xs font-medium"
+						class="hover:bg-accent hover:text-accent-foreground h-8 min-w-0 flex-1 cursor-pointer px-3 text-xs font-medium"
 						onclick={handleViewDetail}
 					>
-						<InfoIcon class="mr-1 h-3 w-3 shrink-0" />
+						<InfoIcon class="mr-1.5 h-3 w-3 shrink-0" />
 						<span class="truncate">详情</span>
 					</Button>
-					<Button
-						size="sm"
-						variant="outline"
-						class="hover:bg-accent hover:text-accent-foreground h-8 shrink-0 cursor-pointer px-2"
-						onclick={() => (resetDialogOpen = true)}
-					>
-						<RotateCcwIcon class="h-3 w-3" />
-					</Button>
+
+					<DropdownMenu.Root>
+						<DropdownMenu.Trigger>
+							{#snippet child({ props })}
+								<Button
+									{...props}
+									size="sm"
+									variant="outline"
+									class="hover:bg-accent hover:text-accent-foreground h-8 shrink-0 cursor-pointer px-2"
+								>
+									<MoreHorizontalIcon class="h-3 w-3" />
+								</Button>
+							{/snippet}
+						</DropdownMenu.Trigger>
+						<DropdownMenu.Content align="start" class="w-48">
+							<DropdownMenu.Item
+								class="cursor-pointer"
+								onclick={() =>
+									window.open(`https://www.bilibili.com/video/${video.bvid}/`, '_blank')}
+							>
+								<SquareArrowOutUpRightIcon class="mr-2 h-4 w-4" />
+								在 B 站打开
+							</DropdownMenu.Item>
+							<DropdownMenu.Item class="cursor-pointer" onclick={() => (resetDialogOpen = true)}>
+								<RotateCcwIcon class="mr-2 h-4 w-4" />
+								重置下载状态
+							</DropdownMenu.Item>
+						</DropdownMenu.Content>
+					</DropdownMenu.Root>
 				</div>
 			{/if}
 		</div>

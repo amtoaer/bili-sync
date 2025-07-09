@@ -55,6 +55,7 @@ pub struct VideoSource {
 #[sea_orm(entity = "video::Entity")]
 pub struct VideoInfo {
     pub id: i32,
+    pub bvid: String,
     pub name: String,
     pub upper_name: String,
     #[serde(serialize_with = "serde_video_download_status")]

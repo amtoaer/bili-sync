@@ -4,6 +4,7 @@
 	import { onMount } from 'svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import api from '$lib/api';
+	import SquareArrowOutUpRightIcon from '@lucide/svelte/icons/square-arrow-out-up-right';
 	import type { ApiError, VideoResponse, UpdateVideoStatusRequest } from '$lib/types';
 	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
 	import EditIcon from '@lucide/svelte/icons/edit';
@@ -134,6 +135,17 @@
 					<RotateCcwIcon class="mr-2 h-4 w-4 {resetting ? 'animate-spin' : ''}" />
 					重置
 				</Button>
+				<Button
+					size="sm"
+					variant="outline"
+					class="shrink-0 cursor-pointer "
+					onclick={() =>
+						window.open(`https://www.bilibili.com/video/${videoData?.video.bvid}/`, '_blank')}
+					disabled={statusEditorLoading}
+				>
+					<SquareArrowOutUpRightIcon class="mr-2 h-4 w-4" />
+					在 B 站打开
+				</Button>
 			</div>
 		</div>
 
@@ -141,6 +153,7 @@
 			<VideoCard
 				video={{
 					id: videoData.video.id,
+					bvid: videoData.video.bvid,
 					name: videoData.video.name,
 					upper_name: videoData.video.upper_name,
 					download_status: videoData.video.download_status
