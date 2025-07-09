@@ -18,6 +18,7 @@ pub struct TaskStatus {
 pub struct TaskStatusNotifier {
     mutex: tokio::sync::Mutex<()>,
     tx: tokio::sync::watch::Sender<Arc<TaskStatus>>,
+    rx: tokio::sync::watch::Receiver<Arc<TaskStatus>>,
 }
 
 impl Default for TaskStatus {
@@ -33,10 +34,11 @@ impl Default for TaskStatus {
 
 impl TaskStatusNotifier {
     pub fn new() -> Self {
-        let (tx, _) = tokio::sync::watch::channel(Arc::new(TaskStatus::default()));
+        let (tx, rx) = tokio::sync::watch::channel(Arc::new(TaskStatus::default()));
         Self {
             mutex: tokio::sync::Mutex::const_new(()),
             tx,
+            rx,
         }
     }
 
@@ -72,6 +74,6 @@ impl TaskStatusNotifier {
     }
 
     pub fn subscribe(&self) -> tokio::sync::watch::Receiver<Arc<TaskStatus>> {
-        self.tx.subscribe()
+        self.rx.clone()
     }
 }
