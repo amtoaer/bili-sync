@@ -89,7 +89,7 @@
 										<Command.Group>
 											{#each Object.entries(filter.values) as [id, name] (id)}
 												<Command.Item
-													value={id}
+													value={name}
 													class="text-xs"
 													onSelect={() => {
 														closeAndFocusTrigger();
