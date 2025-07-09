@@ -19,7 +19,7 @@
 				<BreadCrumb items={$breadcrumbStore} />
 			</div>
 		</header>
-		<div class="w-full overflow-y-auto px-6 py-2" style="scrollbar-width: thin;">
+		<div class="w-full overflow-y-auto px-6 py-2" style="scrollbar-width: thin;" id="main">
 			<slot />
 		</div>
 	</Sidebar.Inset>

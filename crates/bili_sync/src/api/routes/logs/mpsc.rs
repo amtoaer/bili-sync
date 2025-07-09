@@ -5,7 +5,7 @@ use parking_lot::Mutex;
 use tokio::sync::broadcast;
 use tracing_subscriber::fmt::MakeWriter;
 
-const MAX_HISTORY_LOGS: usize = 20;
+pub const MAX_HISTORY_LOGS: usize = 30;
 
 pub struct MpscWriter {
     pub sender: broadcast::Sender<String>,
