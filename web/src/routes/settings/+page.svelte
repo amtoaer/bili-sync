@@ -112,8 +112,8 @@
 			{:else}
 				<div class="flex items-center gap-3">
 					<div class="flex items-center gap-2">
-						<div class="h-2 w-2 rounded-full bg-green-500"></div>
-						<span class="text-sm text-green-600">已认证</span>
+						<div class="h-2 w-2 rounded-full bg-emerald-500"></div>
+						<span class="text-sm text-emerald-600">已认证</span>
 					</div>
 					<Button
 						variant="outline"

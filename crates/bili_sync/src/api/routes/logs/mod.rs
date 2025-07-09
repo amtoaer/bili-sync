@@ -6,7 +6,7 @@ use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::routing::get;
 use axum::{Extension, Router};
 use futures::{Stream, StreamExt};
-pub use mpsc::MpscWriter;
+pub use mpsc::{MAX_HISTORY_LOGS, MpscWriter};
 use tokio_stream::wrappers::BroadcastStream;
 
 pub(super) fn router() -> Router {

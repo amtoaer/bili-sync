@@ -23,7 +23,7 @@ mod me;
 mod video_sources;
 mod videos;
 
-pub use logs::MpscWriter;
+pub use logs::{MAX_HISTORY_LOGS, MpscWriter};
 
 pub fn router() -> Router {
     Router::new().route("/image-proxy", get(image_proxy)).nest(

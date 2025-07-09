@@ -8,15 +8,18 @@
 	let logEventSource: EventSource | null = null;
 	let logs: Array<{ timestamp: string; level: string; message: string }> = [];
 	let shouldAutoScroll = true;
+	let main: HTMLElement | null = null;
 
 	function checkScrollPosition() {
-		const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
-		shouldAutoScroll = scrollTop + clientHeight >= scrollHeight - 5;
+		if (main) {
+			const { scrollTop, scrollHeight, clientHeight } = main;
+			shouldAutoScroll = scrollTop + clientHeight >= scrollHeight - 5;
+		}
 	}
 
 	function scrollToBottom() {
-		if (shouldAutoScroll) {
-			window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+		if (shouldAutoScroll && main) {
+			main.scrollTop = main.scrollHeight;
 		}
 	}
 
@@ -45,23 +48,24 @@
 
 	onMount(() => {
 		setBreadcrumb([{ label: '日志' }]);
-		window.addEventListener('scroll', checkScrollPosition);
+		main = document.getElementById('main');
+		main?.addEventListener('scroll', checkScrollPosition);
 		startLogStream();
 		return () => {
 			stopLogStream();
-			window.removeEventListener('scroll', checkScrollPosition);
+			main?.removeEventListener('scroll', checkScrollPosition);
 		};
 	});
 
 	function getLevelColor(level: string) {
 		switch (level) {
 			case 'ERROR':
-				return 'text-red-600';
+				return 'text-rose-600';
 			case 'WARN':
 				return 'text-yellow-600';
 			case 'INFO':
 			default:
-				return 'text-green-600';
+				return 'text-emerald-600';
 		}
 	}
 </script>

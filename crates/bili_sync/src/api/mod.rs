@@ -5,4 +5,4 @@ mod response;
 mod routes;
 mod wrapper;
 
-pub use routes::{MpscWriter, router};
+pub use routes::{MAX_HISTORY_LOGS, MpscWriter, router};
