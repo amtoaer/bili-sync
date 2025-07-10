@@ -7,6 +7,7 @@
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import PasswordInput from '$lib/components/custom/password-input.svelte';
 	import api from '$lib/api';
 	import { toast } from 'svelte-sonner';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
@@ -101,12 +102,7 @@
 			</div>
 			{#if !formData}
 				<div class="flex gap-3">
-					<Input
-						type="password"
-						placeholder="输入认证Token"
-						bind:value={frontendToken}
-						class="w-64"
-					/>
+					<PasswordInput bind:value={frontendToken} placeholder="输入认证Token" />
 					<Button onclick={authenticateFrontend} disabled={!frontendToken.trim()}>认证</Button>
 				</div>
 			{:else}
@@ -199,11 +195,10 @@
 
 					<div class="space-y-4">
 						<div class="space-y-2">
-							<Label for="backend-auth-token">后端API认证Token</Label>
-							<Input
+							<Label for="backend-auth-token">后端 API 认证Token</Label>
+							<PasswordInput
 								id="backend-auth-token"
-								type="password"
-								placeholder="设置后端API认证Token"
+								placeholder="设置后端 API 认证Token"
 								bind:value={formData.auth_token}
 							/>
 							<p class="text-muted-foreground text-xs">
@@ -227,25 +222,23 @@
 					<div class="space-y-4">
 						<div class="space-y-2">
 							<Label for="sessdata">SESSDATA</Label>
-							<Input
+							<PasswordInput
 								id="sessdata"
-								type="password"
 								placeholder="请输入SESSDATA"
 								bind:value={formData.credential.sessdata}
 							/>
 						</div>
 						<div class="space-y-2">
 							<Label for="bili-jct">bili_jct</Label>
-							<Input
+							<PasswordInput
 								id="bili-jct"
-								type="password"
 								placeholder="请输入bili_jct"
 								bind:value={formData.credential.bili_jct}
 							/>
 						</div>
 						<div class="space-y-2">
 							<Label for="buvid3">buvid3</Label>
-							<Input
+							<PasswordInput
 								id="buvid3"
 								placeholder="请输入buvid3"
 								bind:value={formData.credential.buvid3}
@@ -253,7 +246,7 @@
 						</div>
 						<div class="space-y-2">
 							<Label for="dedeuserid">dedeuserid</Label>
-							<Input
+							<PasswordInput
 								id="dedeuserid"
 								placeholder="请输入dedeuserid"
 								bind:value={formData.credential.dedeuserid}
@@ -261,7 +254,7 @@
 						</div>
 						<div class="space-y-2">
 							<Label for="ac-time-value">ac_time_value</Label>
-							<Input
+							<PasswordInput
 								id="ac-time-value"
 								placeholder="请输入ac_time_value"
 								bind:value={formData.credential.ac_time_value}
@@ -618,22 +611,88 @@
 							</select>
 						</div>
 					</div>
-				</Tabs.Content>
 
-				<!-- Token管理 -->
-				<Tabs.Content value="token" class="mt-6 space-y-6">
+					<Separator />
+
 					<div class="space-y-4">
-						<div class="space-y-2">
-							<Label for="backend-auth-token">后端认证Token</Label>
-							<Input
-								id="backend-auth-token"
-								type="password"
-								placeholder="设置后端API认证Token"
-								bind:value={formData.auth_token}
+						<div class="mb-4 flex items-center space-x-2">
+							<Switch
+								id="rate-limit-enable"
+								checked={formData.concurrent_limit.rate_limit !== null &&
+									formData.concurrent_limit.rate_limit !== undefined}
+								onCheckedChange={(checked) => {
+									if (checked) {
+										formData!.concurrent_limit.rate_limit = { limit: 4, duration: 250 };
+									} else {
+										formData!.concurrent_limit.rate_limit = undefined;
+									}
+								}}
 							/>
-							<p class="text-muted-foreground text-xs">
-								用于保护后端API的认证令牌，修改后需要重新进行前端认证
-							</p>
+							<Label for="rate-limit-enable">启用请求频率限制</Label>
+						</div>
+						{#if formData.concurrent_limit.rate_limit}
+							<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+								<div class="space-y-2">
+									<Label for="rate-limit-duration">时间间隔（毫秒）</Label>
+									<Input
+										id="rate-limit-duration"
+										type="number"
+										min="100"
+										bind:value={formData.concurrent_limit.rate_limit.duration}
+									/>
+									<p class="text-muted-foreground text-xs">请求限制的时间窗口（毫秒）</p>
+								</div>
+								<div class="space-y-2">
+									<Label for="rate-limit-limit">限制请求数</Label>
+									<Input
+										id="rate-limit-limit"
+										type="number"
+										min="1"
+										bind:value={formData.concurrent_limit.rate_limit.limit}
+									/>
+									<p class="text-muted-foreground text-xs">每个时间间隔内允许的最大请求数</p>
+								</div>
+							</div>
+						{/if}
+					</div>
+
+					<Separator />
+					<div class="space-y-4">
+						<div class="mb-4 flex items-center space-x-2">
+							<Switch
+								id="download-enable"
+								bind:checked={formData.concurrent_limit.download.enable}
+							/>
+							<Label for="rate-limit-duration">启用单文件分块下载</Label>
+						</div>
+						<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+							<div class="space-y-2">
+								<Label for="download-concurrency">下载分块数</Label>
+								<Input
+									id="download-concurrency"
+									type="number"
+									min="1"
+									max="16"
+									disabled={!formData.concurrent_limit.download.enable}
+									bind:value={formData.concurrent_limit.download.concurrency}
+								/>
+								<p class="text-muted-foreground text-xs">
+									单文件将分为若干大小相同的块并行下载，所有分块下载完毕后合并
+								</p>
+							</div>
+							<div class="space-y-2">
+								<Label for="download-threshold">启用分块下载的文件大小阈值（字节）</Label>
+								<Input
+									id="download-threshold"
+									type="number"
+									min="1048576"
+									disabled={!formData.concurrent_limit.download?.enable}
+									bind:value={formData.concurrent_limit.download.threshold}
+								/>
+								<p class="text-muted-foreground text-xs">
+									大于该阈值的文件才使用分块下载，文件过小时分块下载的拆分合并成本可能大于带来的增益
+								</p>
+							</div>
 						</div>
 					</div>
 				</Tabs.Content>
@@ -649,9 +708,6 @@
 		<div class="flex items-center justify-center py-16">
 			<div class="space-y-4 text-center">
 				<p class="text-muted-foreground">请先进行前端认证以加载配置</p>
-				<Button onclick={() => frontendToken && authenticateFrontend()} disabled={!frontendToken}>
-					重新加载配置
-				</Button>
 			</div>
 		</div>
 	{/if}

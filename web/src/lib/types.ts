@@ -221,9 +221,22 @@ export interface DanmakuOption {
 	time_offset: number;
 }
 
+export interface RateLimit {
+	limit: number;
+	duration: number;
+}
+
+export interface ConcurrentDownloadLimit {
+	enable: boolean;
+	concurrency: number;
+	threshold: number;
+}
+
 export interface ConcurrentLimit {
 	video: number;
 	page: number;
+	rate_limit?: RateLimit;
+	download: ConcurrentDownloadLimit;
 }
 
 export interface Config {

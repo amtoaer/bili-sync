@@ -191,7 +191,7 @@
 							<div class="flex items-center justify-between">
 								<div class="flex items-center gap-2">
 									<FolderIcon class="text-muted-foreground h-4 w-4" />
-									<span class="text-sm">合集</span>
+									<span class="text-sm">合集 / 列表</span>
 								</div>
 								<Badge variant="outline">{dashboardData.enabled_collections}</Badge>
 							</div>
