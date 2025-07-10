@@ -13,7 +13,8 @@
 	import { goto } from '$app/navigation';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
-	export let video: VideoInfo;
+	// 将 bvid 设置为可选属性，但保留 VideoInfo 的其它所有属性
+	export let video: Omit<VideoInfo, 'bvid'> & { bvid?: string };
 	export let showActions: boolean = true; // 控制是否显示操作按钮
 	export let mode: 'default' | 'detail' | 'page' = 'default'; // 卡片模式
 	export let customTitle: string = ''; // 自定义标题
@@ -101,7 +102,7 @@
 			<CardTitle
 				class="line-clamp-2 min-w-0 flex-1 cursor-default {mode === 'default'
 					? 'text-sm'
-					: 'text-sm'} leading-relaxed font-medium"
+					: 'text-sm'} font-medium leading-relaxed"
 				title={displayTitle}
 			>
 				{displayTitle}
@@ -120,7 +121,7 @@
 		{/if}
 	</CardHeader>
 	<CardContent
-		class={mode === 'default' ? 'flex min-w-0 flex-1 flex-col justify-end pt-0 pb-3' : 'pt-0 pb-4'}
+		class={mode === 'default' ? 'flex min-w-0 flex-1 flex-col justify-end pb-3 pt-0' : 'pb-4 pt-0'}
 	>
 		<div class="space-y-3">
 			<!-- 进度条区域 -->
