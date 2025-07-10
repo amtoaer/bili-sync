@@ -21,7 +21,7 @@
 			},
 			(error: Event) => {
 				console.error('任务状态流错误:', error);
-				toast.error('任务状态流错误，请检查网络连接或稍后重试。');
+				toast.error('任务状态流错误，请检查网络连接或稍后重试');
 			}
 		);
 		return () => {

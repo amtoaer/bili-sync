@@ -34,7 +34,7 @@
 		"tw-animate-css": "^1.3.2",
 		"typescript": "^5.0.0",
 		"typescript-eslint": "^8.20.0",
-		"vite": "7.0.2"
+		"vite": "7.0.3"
 	},
 	"private": true,
 	"scripts": {
@@ -47,8 +47,5 @@
 		"format": "prettier --write .",
 		"lint": "prettier --check . && eslint ."
 	},
-	"type": "module",
-	"dependencies": {
-		"@tanstack/svelte-query": "^5.81.5"
-	}
+	"type": "module"
 }
