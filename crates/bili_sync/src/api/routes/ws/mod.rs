@@ -6,11 +6,11 @@ use std::time::Duration;
 use axum::extract::WebSocketUpgrade;
 use axum::extract::ws::{Message, WebSocket};
 use axum::response::IntoResponse;
-use axum::routing::get;
+use axum::routing::any;
 use axum::{Extension, Router};
 use dashmap::DashMap;
 use futures::stream::{SplitSink, SplitStream};
-use futures::{SinkExt, StreamExt};
+use futures::{SinkExt, StreamExt, future};
 pub use log_helper::{LogHelper, MAX_HISTORY_LOGS};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -28,7 +28,7 @@ use crate::utils::task_notifier::{TASK_STATUS_NOTIFIER, TaskStatus};
 static WEBSOCKET_HANDLER: LazyLock<WebSocketHandler> = LazyLock::new(WebSocketHandler::new);
 
 pub(super) fn router() -> Router {
-    Router::new().route("/ws", get(websocket_handler))
+    Router::new().route("/ws", any(websocket_handler))
 }
 
 async fn websocket_handler(ws: WebSocketUpgrade, Extension(log_writer): Extension<LogHelper>) -> impl IntoResponse {
@@ -37,6 +37,7 @@ async fn websocket_handler(ws: WebSocketUpgrade, Extension(log_writer): Extensio
 
 // 事件类型枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 enum EventType {
     Logs,
     Tasks,
@@ -44,12 +45,14 @@ enum EventType {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 enum ClientEvent {
-    Subscribe { event_type: EventType },
-    Unsubscribe { event_type: EventType },
+    Subscribe(EventType),
+    Unsubscribe(EventType),
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 enum ServerEvent {
     Logs(String),
     Tasks(Arc<TaskStatus>),
@@ -57,14 +60,14 @@ enum ServerEvent {
 }
 
 struct WebSocketHandler {
-    sysinfo_subscribers: DashMap<Uuid, tokio::sync::mpsc::Sender<ServerEvent>>,
+    sysinfo_subscribers: Arc<DashMap<Uuid, tokio::sync::mpsc::Sender<ServerEvent>>>,
     sysinfo_handles: RwLock<Option<JoinHandle<()>>>,
 }
 
 impl WebSocketHandler {
     fn new() -> Self {
         Self {
-            sysinfo_subscribers: DashMap::new(),
+            sysinfo_subscribers: Arc::new(DashMap::new()),
             sysinfo_handles: RwLock::new(None),
         }
     }
@@ -103,7 +106,7 @@ impl WebSocketHandler {
         while let Some(Ok(msg)) = receiver.next().await {
             if let Message::Text(text) = msg {
                 match serde_json::from_str::<ClientEvent>(&text) {
-                    Ok(ClientEvent::Subscribe { event_type }) => match event_type {
+                    Ok(ClientEvent::Subscribe(event_type)) => match event_type {
                         EventType::Logs => {
                             if log_handle.as_ref().is_none_or(|h: &JoinHandle<()>| h.is_finished()) {
                                 let log_writer_clone = log_writer.clone();
@@ -143,7 +146,7 @@ impl WebSocketHandler {
                         }
                         EventType::SysInfo => self.add_sysinfo_subscriber(uuid, tx.clone()).await,
                     },
-                    Ok(ClientEvent::Unsubscribe { event_type }) => match event_type {
+                    Ok(ClientEvent::Unsubscribe(event_type)) => match event_type {
                         EventType::Logs => {
                             if let Some(handle) = log_handle.take() {
                                 handle.abort();
@@ -215,11 +218,16 @@ impl WebSocketHandler {
                     });
                 while let Some(sys_info) = stream.next().await {
                     let sys_info = Arc::new(sys_info);
-                    for subscriber in sysinfo_subscribers.iter() {
+                    future::join_all(sysinfo_subscribers.iter().map(async |subscriber| {
                         if let Err(e) = subscriber.send(ServerEvent::SysInfo(sys_info.clone())).await {
-                            error!("Failed to send sysinfo to subscriber {}: {:?}", subscriber.key(), e);
+                            error!(
+                                "Failed to send sysinfo event to subscriber {}: {:?}",
+                                subscriber.key(),
+                                e
+                            );
                         }
-                    }
+                    }))
+                    .await;
                 }
             }));
         }

@@ -44,6 +44,9 @@ pub async fn auth(headers: HeaderMap, request: Request, next: Next) -> Result<Re
     if headers
         .get("Authorization")
         .is_some_and(|v| v.to_str().is_ok_and(|s| s == token))
+        || headers
+            .get("Sec-WebSocket-Protocol")
+            .is_some_and(|v| v.to_str().is_ok_and(|s| s == token))
     {
         return Ok(next.run(request).await);
     }

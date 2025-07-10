@@ -6,6 +6,11 @@ export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
 	server: {
 		proxy: {
+			'/api/ws': {
+				target: 'ws://localhost:12345',
+				ws: true,
+				rewriteWsOrigin: true
+			},
 			'/api': 'http://localhost:12345',
 			'/image-proxy': 'http://localhost:12345'
 		},

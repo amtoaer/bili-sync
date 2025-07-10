@@ -19,8 +19,10 @@ import type {
 	UpdateVideoSourceRequest,
 	Config,
 	DashBoardResponse,
-	SysInfoResponse
+	SysInfo,
+	TaskStatus
 } from './types';
+import { wsManager } from './ws';
 
 // API 基础配置
 const API_BASE_URL = '/api';
@@ -56,6 +58,8 @@ class ApiClient {
 	clearAuthToken() {
 		delete this.defaultHeaders['Authorization'];
 		localStorage.removeItem('authToken');
+		// 断开WebSocket连接，因为token已经无效
+		wsManager.disconnect();
 	}
 
 	// 通用请求方法
@@ -222,58 +226,14 @@ class ApiClient {
 	async getDashboard(): Promise<ApiResponse<DashBoardResponse>> {
 		return this.get<DashBoardResponse>('/dashboard');
 	}
-
-	createLogStream(
-		onMessage: (data: string) => void,
-		onError?: (error: Event) => void
-	): EventSource {
-		const token = localStorage.getItem('authToken');
-		const url = `/api/sse/logs${token ? `?token=${encodeURIComponent(token)}` : ''}`;
-		const eventSource = new EventSource(url);
-		eventSource.onmessage = (event) => {
-			onMessage(event.data);
-		};
-		if (onError) {
-			eventSource.onerror = onError;
-		}
-		return eventSource;
+	subscribeToLogs(onMessage: (data: string) => void) {
+		return wsManager.subscribeToLogs(onMessage);
 	}
-
-	createSysInfoStream(
-		onMessage: (data: SysInfoResponse) => void,
-		onError?: (error: Event) => void
-	): EventSource {
-		const token = localStorage.getItem('authToken');
-		const url = `/api/sse/sysinfo${token ? `?token=${encodeURIComponent(token)}` : ''}`;
-		const eventSource = new EventSource(url);
-		eventSource.onmessage = (event) => {
-			try {
-				const data = JSON.parse(event.data) as SysInfoResponse;
-				onMessage(data);
-			} catch (error) {
-				console.error('Failed to parse SSE data:', error);
-			}
-		};
-		if (onError) {
-			eventSource.onerror = onError;
-		}
-		return eventSource;
+	subscribeToSysInfo(onMessage: (data: SysInfo) => void) {
+		return wsManager.subscribeToSysInfo(onMessage);
 	}
-
-	createTasksStream(
-		onMessage: (data: string) => void,
-		onError?: (error: Event) => void
-	): EventSource {
-		const token = localStorage.getItem('authToken');
-		const url = `/api/sse/tasks${token ? `?token=${encodeURIComponent(token)}` : ''}`;
-		const eventSource = new EventSource(url);
-		eventSource.onmessage = (event) => {
-			onMessage(event.data);
-		};
-		if (onError) {
-			eventSource.onerror = onError;
-		}
-		return eventSource;
+	subscribeToTasks(onMessage: (data: TaskStatus) => void) {
+		return wsManager.subscribeToTasks(onMessage);
 	}
 }
 
@@ -303,14 +263,14 @@ const api = {
 	getConfig: () => apiClient.getConfig(),
 	updateConfig: (config: Config) => apiClient.updateConfig(config),
 	getDashboard: () => apiClient.getDashboard(),
-	createSysInfoStream: (
-		onMessage: (data: SysInfoResponse) => void,
-		onError?: (error: Event) => void
-	) => apiClient.createSysInfoStream(onMessage, onError),
-	createLogStream: (onMessage: (data: string) => void, onError?: (error: Event) => void) =>
-		apiClient.createLogStream(onMessage, onError),
-	createTasksStream: (onMessage: (data: string) => void, onError?: (error: Event) => void) =>
-		apiClient.createTasksStream(onMessage, onError),
+	subscribeToSysInfo: (onMessage: (data: SysInfo) => void) =>
+		apiClient.subscribeToSysInfo(onMessage),
+
+	subscribeToLogs: (onMessage: (data: string) => void) => apiClient.subscribeToLogs(onMessage),
+
+	subscribeToTasks: (onMessage: (data: TaskStatus) => void) =>
+		apiClient.subscribeToTasks(onMessage),
+
 	setAuthToken: (token: string) => apiClient.setAuthToken(token),
 	clearAuthToken: () => apiClient.clearAuthToken()
 };
