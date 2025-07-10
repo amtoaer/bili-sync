@@ -61,7 +61,8 @@ export class WebSocketManager {
 		const token = localStorage.getItem('authToken') || '';
 
 		try {
-			this.socket = new WebSocket(`ws://${window.location.host}/api/ws`, [token]);
+			const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+			this.socket = new WebSocket(`${protocol}${window.location.host}/api/ws`, [token]);
 
 			this.socket.onopen = () => {
 				this.connected = true;
