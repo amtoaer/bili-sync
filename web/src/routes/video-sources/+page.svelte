@@ -216,7 +216,6 @@
 		<Tabs.Root bind:value={activeTab} class="w-full">
 			<Tabs.List class="grid w-full grid-cols-4">
 				{#each Object.entries(TAB_CONFIG) as [key, config] (key)}
-					{@const sources = getSourcesForTab(key)}
 					<Tabs.Trigger value={key} class="relative">
 						{config.label}
 					</Tabs.Trigger>
