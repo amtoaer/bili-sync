@@ -3,9 +3,8 @@
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
 	import { onMount } from 'svelte';
 	import { Badge } from '$lib/components/ui/badge';
-	import { toast } from 'svelte-sonner';
 
-	let logEventSource: EventSource | null = null;
+	let unsubscribeLog: (() => void) | null = null;
 	let logs: Array<{ timestamp: string; level: string; message: string }> = [];
 	let shouldAutoScroll = true;
 	let main: HTMLElement | null = null;
@@ -23,37 +22,20 @@
 		}
 	}
 
-	function startLogStream() {
-		if (logEventSource) {
-			logEventSource.close();
-		}
-		logEventSource = api.createLogStream(
-			(data: string) => {
-				logs = [...logs.slice(-200), JSON.parse(data)];
-				setTimeout(scrollToBottom, 0);
-			},
-			(error: Event) => {
-				console.error('日志流错误:', error);
-				toast.error('日志流出现错误，请检查网络连接或稍后重试');
-			}
-		);
-	}
-
-	function stopLogStream() {
-		if (logEventSource) {
-			logEventSource.close();
-			logEventSource = null;
-		}
-	}
-
 	onMount(() => {
 		setBreadcrumb([{ label: '日志' }]);
 		main = document.getElementById('main');
 		main?.addEventListener('scroll', checkScrollPosition);
-		startLogStream();
+		unsubscribeLog = api.subscribeToLogs((data: string) => {
+			logs = [...logs.slice(-200), JSON.parse(data)];
+			setTimeout(scrollToBottom, 0);
+		});
 		return () => {
-			stopLogStream();
 			main?.removeEventListener('scroll', checkScrollPosition);
+			if (unsubscribeLog) {
+				unsubscribeLog();
+				unsubscribeLog = null;
+			}
 		};
 	});
 

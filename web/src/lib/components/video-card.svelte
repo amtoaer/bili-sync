@@ -13,7 +13,8 @@
 	import { goto } from '$app/navigation';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
-	export let video: VideoInfo;
+	// 将 bvid 设置为可选属性，但保留 VideoInfo 的其它所有属性
+	export let video: Omit<VideoInfo, 'bvid'> & { bvid?: string };
 	export let showActions: boolean = true; // 控制是否显示操作按钮
 	export let mode: 'default' | 'detail' | 'page' = 'default'; // 卡片模式
 	export let customTitle: string = ''; // 自定义标题

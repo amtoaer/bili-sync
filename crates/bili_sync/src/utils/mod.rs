@@ -11,9 +11,9 @@ use tracing_subscriber::fmt;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-use crate::api::MpscWriter;
+use crate::api::LogHelper;
 
-pub fn init_logger(log_level: &str, log_writer: Option<MpscWriter>) {
+pub fn init_logger(log_level: &str, log_writer: Option<LogHelper>) {
     let log = tracing_subscriber::fmt::Subscriber::builder()
         .compact()
         .with_env_filter(tracing_subscriber::EnvFilter::builder().parse_lossy(log_level))

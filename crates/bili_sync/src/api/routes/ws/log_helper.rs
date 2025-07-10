@@ -7,18 +7,19 @@ use tracing_subscriber::fmt::MakeWriter;
 
 pub const MAX_HISTORY_LOGS: usize = 30;
 
-pub struct MpscWriter {
+/// LogHelper 维护了日志发送器和一个日志历史记录的缓冲区
+pub struct LogHelper {
     pub sender: broadcast::Sender<String>,
     pub log_history: Arc<Mutex<VecDeque<String>>>,
 }
 
-impl MpscWriter {
+impl LogHelper {
     pub fn new(sender: broadcast::Sender<String>, log_history: Arc<Mutex<VecDeque<String>>>) -> Self {
-        MpscWriter { sender, log_history }
+        LogHelper { sender, log_history }
     }
 }
 
-impl<'a> MakeWriter<'a> for MpscWriter {
+impl<'a> MakeWriter<'a> for LogHelper {
     type Writer = Self;
 
     fn make_writer(&'a self) -> Self::Writer {
@@ -26,7 +27,7 @@ impl<'a> MakeWriter<'a> for MpscWriter {
     }
 }
 
-impl std::io::Write for MpscWriter {
+impl std::io::Write for LogHelper {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         let log_message = String::from_utf8_lossy(buf).to_string();
         let _ = self.sender.send(log_message.clone());
@@ -43,9 +44,9 @@ impl std::io::Write for MpscWriter {
     }
 }
 
-impl Clone for MpscWriter {
+impl Clone for LogHelper {
     fn clone(&self) -> Self {
-        MpscWriter {
+        LogHelper {
             sender: self.sender.clone(),
             log_history: self.log_history.clone(),
         }

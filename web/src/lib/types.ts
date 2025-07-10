@@ -259,7 +259,7 @@ export interface DashBoardResponse {
 }
 
 // 系统信息响应类型
-export interface SysInfoResponse {
+export interface SysInfo {
 	total_memory: number;
 	used_memory: number;
 	process_memory: number;
@@ -269,4 +269,11 @@ export interface SysInfoResponse {
 	used_disk: number;
 	available_disk: number;
 	uptime: number;
+}
+
+export interface TaskStatus {
+	is_running: boolean;
+	last_run: Date | null;
+	last_finish: Date | null;
+	next_run: Date | null;
 }

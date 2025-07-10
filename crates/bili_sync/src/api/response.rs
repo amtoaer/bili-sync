@@ -158,7 +158,7 @@ pub struct DashBoardResponse {
 }
 
 #[derive(Serialize)]
-pub struct SysInfoResponse {
+pub struct SysInfo {
     pub total_memory: u64,
     pub used_memory: u64,
     pub process_memory: u64,

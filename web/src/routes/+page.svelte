@@ -11,7 +11,7 @@
 	import { toast } from 'svelte-sonner';
 	import CloudDownloadIcon from '@lucide/svelte/icons/cloud-download';
 	import api from '$lib/api';
-	import type { DashBoardResponse, SysInfoResponse, ApiError } from '$lib/types';
+	import type { DashBoardResponse, SysInfo, ApiError, TaskStatus } from '$lib/types';
 	import DatabaseIcon from '@lucide/svelte/icons/database';
 	import HeartIcon from '@lucide/svelte/icons/heart';
 	import FolderIcon from '@lucide/svelte/icons/folder';
@@ -24,12 +24,13 @@
 	import PlayIcon from '@lucide/svelte/icons/play';
 	import CheckCircleIcon from '@lucide/svelte/icons/check-circle';
 	import CalendarIcon from '@lucide/svelte/icons/calendar';
-	import { taskStatusStore } from '$lib/stores/tasks';
 
 	let dashboardData: DashBoardResponse | null = null;
-	let sysInfo: SysInfoResponse | null = null;
+	let sysInfo: SysInfo | null = null;
+	let taskStatus: TaskStatus | null = null;
 	let loading = false;
-	let sysInfoEventSource: EventSource | null = null;
+	let unsubscribeSysInfo: (() => void) | null = null;
+	let unsubscribeTasks: (() => void) | null = null;
 
 	function formatBytes(bytes: number): string {
 		if (bytes === 0) return '0 B';
@@ -58,33 +59,25 @@
 		}
 	}
 
-	// 启动系统信息流
-	function startSysInfoStream() {
-		sysInfoEventSource = api.createSysInfoStream(
-			(data) => {
-				sysInfo = data;
-			},
-			(error) => {
-				console.error('系统信息流错误:', error);
-				toast.error('系统信息流出现错误，请检查网络连接或稍后重试');
-			}
-		);
-	}
-
-	// 停止系统信息流
-	function stopSysInfoStream() {
-		if (sysInfoEventSource) {
-			sysInfoEventSource.close();
-			sysInfoEventSource = null;
-		}
-	}
-
 	onMount(() => {
 		setBreadcrumb([{ label: '仪表盘' }]);
+
+		unsubscribeSysInfo = api.subscribeToSysInfo((data) => {
+			sysInfo = data;
+		});
+		unsubscribeTasks = api.subscribeToTasks((data: TaskStatus) => {
+			taskStatus = data;
+		});
 		loadDashboard();
-		startSysInfoStream();
 		return () => {
-			stopSysInfoStream();
+			if (unsubscribeSysInfo) {
+				unsubscribeSysInfo();
+				unsubscribeSysInfo = null;
+			}
+			if (unsubscribeTasks) {
+				unsubscribeTasks();
+				unsubscribeTasks = null;
+			}
 		};
 	});
 
@@ -236,7 +229,7 @@
 					{#if dashboardData && dashboardData.videos_by_day.length > 0}
 						<div class="mb-4 space-y-2">
 							<div class="flex items-center justify-between text-sm">
-								<span>近七日共新增视频</span>
+								<span>近七日新增视频</span>
 								<span class="font-medium"
 									>{dashboardData.videos_by_day.reduce((sum, v) => sum + v.cnt, 0)} 个</span
 								>
@@ -283,14 +276,14 @@
 					<CloudDownloadIcon class="text-muted-foreground h-4 w-4" />
 				</CardHeader>
 				<CardContent>
-					{#if $taskStatusStore}
+					{#if taskStatus}
 						<div class="space-y-4">
 							<div class="grid grid-cols-1 gap-6">
 								<div class="mb-4 space-y-2">
 									<div class="flex items-center justify-between text-sm">
 										<span>当前任务状态</span>
-										<Badge variant={$taskStatusStore.is_running ? 'default' : 'outline'}>
-											{$taskStatusStore.is_running ? '运行中' : '未运行'}
+										<Badge variant={taskStatus.is_running ? 'default' : 'outline'}>
+											{taskStatus.is_running ? '运行中' : '未运行'}
 										</Badge>
 									</div>
 								</div>
@@ -300,8 +293,8 @@
 										<span class="text-sm">开始运行</span>
 									</div>
 									<span class="text-muted-foreground text-sm">
-										{$taskStatusStore.last_run
-											? new Date($taskStatusStore.last_run).toLocaleString('en-US', {
+										{taskStatus.last_run
+											? new Date(taskStatus.last_run).toLocaleString('en-US', {
 													hour: '2-digit',
 													minute: '2-digit',
 													second: '2-digit',
@@ -316,8 +309,8 @@
 										<span class="text-sm">运行结束</span>
 									</div>
 									<span class="text-muted-foreground text-sm">
-										{$taskStatusStore.last_finish
-											? new Date($taskStatusStore.last_finish).toLocaleString('en-US', {
+										{taskStatus.last_finish
+											? new Date(taskStatus.last_finish).toLocaleString('en-US', {
 													hour: '2-digit',
 													minute: '2-digit',
 													second: '2-digit',
@@ -332,8 +325,8 @@
 										<span class="text-sm">下次运行</span>
 									</div>
 									<span class="text-muted-foreground text-sm">
-										{$taskStatusStore.next_run
-											? new Date($taskStatusStore.next_run).toLocaleString('en-US', {
+										{taskStatus.next_run
+											? new Date(taskStatus.next_run).toLocaleString('en-US', {
 													hour: '2-digit',
 													minute: '2-digit',
 													second: '2-digit',
