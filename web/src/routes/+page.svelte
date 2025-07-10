@@ -9,6 +9,7 @@
 	import { BarChart, AreaChart } from 'layerchart';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
 	import { toast } from 'svelte-sonner';
+	import CloudDownloadIcon from '@lucide/svelte/icons/cloud-download';
 	import api from '$lib/api';
 	import type { DashBoardResponse, SysInfoResponse, ApiError } from '$lib/types';
 	import DatabaseIcon from '@lucide/svelte/icons/database';
@@ -20,6 +21,10 @@
 	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
 	import CpuIcon from '@lucide/svelte/icons/cpu';
 	import MemoryStickIcon from '@lucide/svelte/icons/memory-stick';
+	import PlayIcon from '@lucide/svelte/icons/play';
+	import CheckCircleIcon from '@lucide/svelte/icons/check-circle';
+	import CalendarIcon from '@lucide/svelte/icons/calendar';
+	import { taskStatusStore } from '$lib/stores/tasks';
 
 	let dashboardData: DashBoardResponse | null = null;
 	let sysInfo: SysInfoResponse | null = null;
@@ -61,7 +66,7 @@
 			},
 			(error) => {
 				console.error('系统信息流错误:', error);
-				toast.error('系统信息流出现错误，请稍后重试');
+				toast.error('系统信息流出现错误，请检查网络连接或稍后重试');
 			}
 		);
 	}
@@ -142,13 +147,6 @@
 
 <svelte:head>
 	<title>仪表盘 - Bili Sync</title>
-
-	<style>
-		body {
-			/* 避免最右侧 tooltip 溢出导致的无限抖动 */
-			overflow-x: hidden;
-		}
-	</style>
 </svelte:head>
 
 <div class="space-y-6">
@@ -228,8 +226,8 @@
 			</Card>
 		</div>
 
-		<div class="grid grid-cols-1 gap-4">
-			<Card>
+		<div class="grid gap-4 md:grid-cols-3">
+			<Card class="max-w-full overflow-hidden md:col-span-2">
 				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<CardTitle class="text-sm font-medium">最近入库</CardTitle>
 					<VideoIcon class="text-muted-foreground h-4 w-4" />
@@ -273,18 +271,90 @@
 							</BarChart>
 						</Chart.Container>
 					{:else}
-						<div class="text-muted-foreground flex h-[300px] items-center justify-center text-sm">
+						<div class="text-muted-foreground flex h-[200px] items-center justify-center text-sm">
 							暂无视频统计数据
 						</div>
 					{/if}</CardContent
 				>
+			</Card>
+			<Card class="max-w-full md:col-span-1">
+				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+					<CardTitle class="text-sm font-medium">下载任务状态</CardTitle>
+					<CloudDownloadIcon class="text-muted-foreground h-4 w-4" />
+				</CardHeader>
+				<CardContent>
+					{#if $taskStatusStore}
+						<div class="space-y-4">
+							<div class="grid grid-cols-1 gap-6">
+								<div class="mb-4 space-y-2">
+									<div class="flex items-center justify-between text-sm">
+										<span>当前任务状态</span>
+										<Badge variant={$taskStatusStore.is_running ? 'default' : 'outline'}>
+											{$taskStatusStore.is_running ? '运行中' : '未运行'}
+										</Badge>
+									</div>
+								</div>
+								<div class="flex items-center justify-between">
+									<div class="flex items-center gap-2">
+										<PlayIcon class="text-muted-foreground h-4 w-4" />
+										<span class="text-sm">开始运行</span>
+									</div>
+									<span class="text-muted-foreground text-sm">
+										{$taskStatusStore.last_run
+											? new Date($taskStatusStore.last_run).toLocaleString('en-US', {
+													hour: '2-digit',
+													minute: '2-digit',
+													second: '2-digit',
+													hour12: true
+												})
+											: '-'}
+									</span>
+								</div>
+								<div class="flex items-center justify-between">
+									<div class="flex items-center gap-2">
+										<CheckCircleIcon class="text-muted-foreground h-4 w-4" />
+										<span class="text-sm">运行结束</span>
+									</div>
+									<span class="text-muted-foreground text-sm">
+										{$taskStatusStore.last_finish
+											? new Date($taskStatusStore.last_finish).toLocaleString('en-US', {
+													hour: '2-digit',
+													minute: '2-digit',
+													second: '2-digit',
+													hour12: true
+												})
+											: '-'}
+									</span>
+								</div>
+								<div class="flex items-center justify-between">
+									<div class="flex items-center gap-2">
+										<CalendarIcon class="text-muted-foreground h-4 w-4" />
+										<span class="text-sm">下次运行</span>
+									</div>
+									<span class="text-muted-foreground text-sm">
+										{$taskStatusStore.next_run
+											? new Date($taskStatusStore.next_run).toLocaleString('en-US', {
+													hour: '2-digit',
+													minute: '2-digit',
+													second: '2-digit',
+													hour12: true
+												})
+											: '-'}
+									</span>
+								</div>
+							</div>
+						</div>
+					{:else}
+						<div class="text-muted-foreground text-sm">加载中...</div>
+					{/if}
+				</CardContent>
 			</Card>
 		</div>
 
 		<!-- 第三行：系统监控 -->
 		<div class="grid gap-4 md:grid-cols-2">
 			<!-- 内存使用情况 -->
-			<Card>
+			<Card class="overflow-hidden">
 				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<CardTitle class="text-sm font-medium">内存使用情况</CardTitle>
 					<MemoryStickIcon class="text-muted-foreground h-4 w-4" />
@@ -332,12 +402,12 @@
 								{#snippet tooltip()}
 									<MyChartTooltip
 										labelFormatter={(v: Date) => {
-											return new Intl.DateTimeFormat('en-US', {
+											return v.toLocaleString('en-US', {
 												hour: '2-digit',
 												minute: '2-digit',
 												second: '2-digit',
 												hour12: true
-											}).format(v);
+											});
 										}}
 										valueFormatter={(v: number) => formatBytes(v)}
 										indicator="line"
@@ -353,12 +423,12 @@
 				</CardContent>
 			</Card>
 
-			<Card>
+			<Card class="overflow-hidden">
 				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<CardTitle class="text-sm font-medium">CPU 使用情况</CardTitle>
 					<CpuIcon class="text-muted-foreground h-4 w-4" />
 				</CardHeader>
-				<CardContent>
+				<CardContent class="overflow-hidden">
 					{#if sysInfo}
 						<div class="mb-4 space-y-2">
 							<div class="flex items-center justify-between text-sm">
@@ -399,12 +469,12 @@
 								{#snippet tooltip()}
 									<MyChartTooltip
 										labelFormatter={(v: Date) => {
-											return new Intl.DateTimeFormat('en-US', {
+											return v.toLocaleString('en-US', {
 												hour: '2-digit',
 												minute: '2-digit',
 												second: '2-digit',
 												hour12: true
-											}).format(v);
+											});
 										}}
 										valueFormatter={(v: number) => formatCpu(v)}
 										indicator="line"

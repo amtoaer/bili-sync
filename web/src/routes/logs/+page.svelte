@@ -34,7 +34,7 @@
 			},
 			(error: Event) => {
 				console.error('日志流错误:', error);
-				toast.error('日志流出现错误，请稍后重试');
+				toast.error('日志流出现错误，请检查网络连接或稍后重试');
 			}
 		);
 	}

@@ -18,12 +18,12 @@ use crate::config::VersionedConfig;
 
 mod config;
 mod dashboard;
-mod logs;
 mod me;
+mod sse;
 mod video_sources;
 mod videos;
 
-pub use logs::{MAX_HISTORY_LOGS, MpscWriter};
+pub use sse::{MAX_HISTORY_LOGS, MpscWriter};
 
 pub fn router() -> Router {
     Router::new().route("/image-proxy", get(image_proxy)).nest(
@@ -33,7 +33,7 @@ pub fn router() -> Router {
             .merge(video_sources::router())
             .merge(videos::router())
             .merge(dashboard::router())
-            .merge(logs::router())
+            .merge(sse::router())
             .layer(middleware::from_fn(auth)),
     )
 }

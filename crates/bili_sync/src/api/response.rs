@@ -168,14 +168,6 @@ pub struct SysInfoResponse {
     pub available_disk: u64,
 }
 
-#[derive(Serialize)]
-pub struct TaskStatusResponse {
-    pub running: bool,
-    pub last_run: Option<String>,
-    pub next_run: Option<String>,
-    pub last_error: Option<String>,
-}
-
 #[derive(Serialize, FromQueryResult)]
 pub struct VideoSourceDetail {
     pub id: i32,

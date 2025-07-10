@@ -6,16 +6,15 @@ use tokio::time;
 use crate::bilibili::{self, BiliClient};
 use crate::config::VersionedConfig;
 use crate::utils::model::get_enabled_video_sources;
+use crate::utils::task_notifier::TASK_STATUS_NOTIFIER;
 use crate::workflow::process_video_source;
-
-pub static DOWNLOADER_TASK_RUNNING: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 /// 启动周期下载视频的任务
 pub async fn video_downloader(connection: Arc<DatabaseConnection>, bili_client: Arc<BiliClient>) {
     let mut anchor = chrono::Local::now().date_naive();
     loop {
         info!("开始执行本轮视频下载任务..");
-        let _lock = DOWNLOADER_TASK_RUNNING.lock().await;
+        let _lock = TASK_STATUS_NOTIFIER.start_running().await;
         let config = VersionedConfig::get().load_full();
         'inner: {
             if let Err(e) = config.check() {
@@ -55,7 +54,7 @@ pub async fn video_downloader(connection: Arc<DatabaseConnection>, bili_client: 
             }
             info!("本轮任务执行完毕，等待下一轮执行");
         }
-        drop(_lock);
+        TASK_STATUS_NOTIFIER.finish_running(_lock);
         time::sleep(time::Duration::from_secs(config.interval)).await;
     }
 }
