@@ -20,6 +20,7 @@ chrono = { workspace = true }
 clap = { workspace = true }
 cookie = { workspace = true }
 cow-utils = { workspace = true }
+dashmap = { workspace = true }
 dirs = { workspace = true }
 enum_dispatch = { workspace = true }
 float-ord = { workspace = true }
@@ -52,7 +53,7 @@ toml = { workspace = true }
 tower = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-url = { workspace = true }
+uuid = { workspace = true }
 validator = { workspace = true }
 
 [dev-dependencies]

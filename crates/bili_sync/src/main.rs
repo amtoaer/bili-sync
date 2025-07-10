@@ -24,7 +24,7 @@ use task::{http_server, video_downloader};
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 
-use crate::api::{MAX_HISTORY_LOGS, MpscWriter};
+use crate::api::{LogHelper, MAX_HISTORY_LOGS};
 use crate::config::{ARGS, VersionedConfig};
 use crate::database::setup_database;
 use crate::utils::init_logger;
@@ -77,10 +77,10 @@ fn spawn_task(
 }
 
 /// 初始化日志系统、打印欢迎信息，初始化数据库连接和全局配置
-async fn init() -> (Arc<DatabaseConnection>, MpscWriter) {
+async fn init() -> (Arc<DatabaseConnection>, LogHelper) {
     let (tx, _rx) = tokio::sync::broadcast::channel(30);
     let log_history = Arc::new(Mutex::new(VecDeque::with_capacity(MAX_HISTORY_LOGS + 1)));
-    let log_writer = MpscWriter::new(tx, log_history.clone());
+    let log_writer = LogHelper::new(tx, log_history.clone());
 
     init_logger(&ARGS.log_level, Some(log_writer.clone()));
     info!("欢迎使用 Bili-Sync，当前程序版本：{}", config::version());

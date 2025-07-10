@@ -11,7 +11,7 @@ use reqwest::StatusCode;
 use rust_embed_for_web::{EmbedableFile, RustEmbed};
 use sea_orm::DatabaseConnection;
 
-use crate::api::{MpscWriter, router};
+use crate::api::{LogHelper, router};
 use crate::bilibili::BiliClient;
 use crate::config::VersionedConfig;
 
@@ -23,7 +23,7 @@ struct Asset;
 pub async fn http_server(
     database_connection: Arc<DatabaseConnection>,
     bili_client: Arc<BiliClient>,
-    log_writer: MpscWriter,
+    log_writer: LogHelper,
 ) -> Result<()> {
     let app = router()
         .fallback_service(get(frontend_files))

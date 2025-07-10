@@ -9,7 +9,6 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Router, middleware};
 use reqwest::{Method, StatusCode, header};
-use url::Url;
 
 use super::request::ImageProxyParams;
 use crate::api::wrapper::ApiResponse;
@@ -19,11 +18,11 @@ use crate::config::VersionedConfig;
 mod config;
 mod dashboard;
 mod me;
-mod sse;
 mod video_sources;
 mod videos;
+mod ws;
 
-pub use sse::{MAX_HISTORY_LOGS, MpscWriter};
+pub use ws::{LogHelper, MAX_HISTORY_LOGS};
 
 pub fn router() -> Router {
     Router::new().route("/image-proxy", get(image_proxy)).nest(
@@ -33,7 +32,7 @@ pub fn router() -> Router {
             .merge(video_sources::router())
             .merge(videos::router())
             .merge(dashboard::router())
-            .merge(sse::router())
+            .merge(ws::router())
             .layer(middleware::from_fn(auth)),
     )
 }
@@ -45,8 +44,6 @@ pub async fn auth(headers: HeaderMap, request: Request, next: Next) -> Result<Re
     if headers
         .get("Authorization")
         .is_some_and(|v| v.to_str().is_ok_and(|s| s == token))
-        || Url::parse(&format!("http://example.com/{}", request.uri()))
-            .is_ok_and(|url| url.query_pairs().any(|(k, v)| k == "token" && v == token))
     {
         return Ok(next.run(request).await);
     }
