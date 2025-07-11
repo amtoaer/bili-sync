@@ -241,10 +241,13 @@ mod test {
         assert!(status.reset_failed());
         assert!(!status.get_completed());
         assert_eq!(<[u32; 3]>::from(status), [3, 0, 7]);
-        // 没有内容需要重置，但 completed 标记位是错误的（模拟新增一个子任务状态的情况），此时 reset_failed 会修正 completed 标记位
+        // 没有内容需要重置，但 completed 标记位是错误的（模拟新增一个子任务状态的情况）
+        // 此时 reset_failed 不会修正 completed 标记位，而 force_reset_failed 会
         status.set_completed(true);
         assert!(status.get_completed());
-        assert!(status.reset_failed());
+        assert!(!status.reset_failed());
+        assert!(status.get_completed());
+        assert!(status.force_reset_failed());
         assert!(!status.get_completed());
         // 重置一个已经成功的任务，没有改变状态，也不会修改标记位
         let mut status = Status::<3>::from([7, 7, 7]);
