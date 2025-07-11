@@ -482,6 +482,7 @@ dependencies = [
  "assert_matches",
  "async-stream",
  "axum",
+ "base64",
  "bili_sync_entity",
  "bili_sync_migration",
  "built",

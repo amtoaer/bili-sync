@@ -168,7 +168,6 @@ pub async fn update_video_source(
                 } else {
                     // 如果没有记录且 id 为 1，插入一个新的稍后再看记录
                     Some(_ActiveModel::WatchLater(watch_later::ActiveModel {
-                        id: Set(1),
                         path: Set(request.path),
                         enabled: Set(request.enabled),
                         ..Default::default()

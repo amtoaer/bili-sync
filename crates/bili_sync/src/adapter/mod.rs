@@ -3,6 +3,7 @@ mod favorite;
 mod submission;
 mod watch_later;
 
+use std::borrow::Cow;
 use std::path::Path;
 use std::pin::Pin;
 
@@ -10,6 +11,7 @@ use anyhow::Result;
 use chrono::Utc;
 use enum_dispatch::enum_dispatch;
 use futures::Stream;
+use sea_orm::ActiveValue::Set;
 use sea_orm::DatabaseConnection;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::SimpleExpr;
@@ -32,6 +34,9 @@ pub enum VideoSourceEnum {
 
 #[enum_dispatch(VideoSourceEnum)]
 pub trait VideoSource {
+    /// 获取视频源的名称
+    fn display_name(&self) -> Cow<'static, str>;
+
     /// 获取特定视频列表的筛选条件
     fn filter_expr(&self) -> SimpleExpr;
 
@@ -63,23 +68,29 @@ pub trait VideoSource {
         video_info.ok()
     }
 
-    /// 开始刷新视频
-    fn log_refresh_video_start(&self);
+    fn log_refresh_video_start(&self) {
+        info!("开始扫描{}..", self.display_name());
+    }
 
-    /// 结束刷新视频
-    fn log_refresh_video_end(&self, count: usize);
+    fn log_refresh_video_end(&self, count: usize) {
+        info!("扫描{}完成，获取到 {} 条新视频", self.display_name(), count);
+    }
 
-    /// 开始填充视频
-    fn log_fetch_video_start(&self);
+    fn log_fetch_video_start(&self) {
+        info!("开始填充{}视频详情..", self.display_name());
+    }
 
-    /// 结束填充视频
-    fn log_fetch_video_end(&self);
+    fn log_fetch_video_end(&self) {
+        info!("填充{}视频详情完成", self.display_name());
+    }
 
-    /// 开始下载视频
-    fn log_download_video_start(&self);
+    fn log_download_video_start(&self) {
+        info!("开始下载{}视频..", self.display_name());
+    }
 
-    /// 结束下载视频
-    fn log_download_video_end(&self);
+    fn log_download_video_end(&self) {
+        info!("下载{}视频完成", self.display_name());
+    }
 
     async fn refresh<'a>(
         self,
@@ -110,8 +121,13 @@ impl _ActiveModel {
             _ActiveModel::Submission(model) => {
                 model.save(connection).await?;
             }
-            _ActiveModel::WatchLater(model) => {
-                model.save(connection).await?;
+            _ActiveModel::WatchLater(mut model) => {
+                if model.id.is_not_set() {
+                    model.id = Set(1);
+                    model.insert(connection).await?;
+                } else {
+                    model.save(connection).await?;
+                }
             }
         }
         Ok(())

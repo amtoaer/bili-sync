@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::path::Path;
 use std::pin::Pin;
 
@@ -14,6 +15,10 @@ use crate::adapter::{_ActiveModel, VideoSource, VideoSourceEnum};
 use crate::bilibili::{BiliClient, Collection, CollectionItem, CollectionType, VideoInfo};
 
 impl VideoSource for collection::Model {
+    fn display_name(&self) -> Cow<'static, str> {
+        format!("{}「{}」", CollectionType::from(self.r#type), self.name).into()
+    }
+
     fn filter_expr(&self) -> SimpleExpr {
         video::Column::CollectionId.eq(self.id)
     }
@@ -56,39 +61,6 @@ impl VideoSource for collection::Model {
             }
         }
         None
-    }
-
-    fn log_refresh_video_start(&self) {
-        info!("开始扫描{}「{}」..", CollectionType::from(self.r#type), self.name);
-    }
-
-    fn log_refresh_video_end(&self, count: usize) {
-        info!(
-            "扫描{}「{}」完成，获取到 {} 条新视频",
-            CollectionType::from(self.r#type),
-            self.name,
-            count,
-        );
-    }
-
-    fn log_fetch_video_start(&self) {
-        info!(
-            "开始填充{}「{}」视频详情..",
-            CollectionType::from(self.r#type),
-            self.name
-        );
-    }
-
-    fn log_fetch_video_end(&self) {
-        info!("填充{}「{}」视频详情完成", CollectionType::from(self.r#type), self.name);
-    }
-
-    fn log_download_video_start(&self) {
-        info!("开始下载{}「{}」视频..", CollectionType::from(self.r#type), self.name);
-    }
-
-    fn log_download_video_end(&self) {
-        info!("下载{}「{}」视频完成", CollectionType::from(self.r#type), self.name);
     }
 
     async fn refresh<'a>(

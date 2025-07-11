@@ -8,6 +8,8 @@ use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Router, middleware};
+use base64::Engine;
+use base64::prelude::BASE64_URL_SAFE_NO_PAD;
 use reqwest::{Method, StatusCode, header};
 
 use super::request::ImageProxyParams;
@@ -43,10 +45,13 @@ pub async fn auth(headers: HeaderMap, request: Request, next: Next) -> Result<Re
     let token = config.auth_token.as_str();
     if headers
         .get("Authorization")
-        .is_some_and(|v| v.to_str().is_ok_and(|s| s == token))
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|s| s == token)
         || headers
             .get("Sec-WebSocket-Protocol")
-            .is_some_and(|v| v.to_str().is_ok_and(|s| s == token))
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| BASE64_URL_SAFE_NO_PAD.decode(s).ok())
+            .is_some_and(|s| s == token.as_bytes())
     {
         return Ok(next.run(request).await);
     }

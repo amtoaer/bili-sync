@@ -22,6 +22,7 @@ async-std = { version = "1.13.1", features = ["attributes", "tokio1"] }
 async-stream = "0.3.6"
 async-trait = "0.1.88"
 axum = { version = "0.8.4", features = ["macros", "ws"] }
+base64 = "0.22.1"
 built = { version = "0.7.7", features = ["git2", "chrono"] }
 chrono = { version = "0.4.41", features = ["serde"] }
 clap = { version = "4.5.41", features = ["env", "string"] }

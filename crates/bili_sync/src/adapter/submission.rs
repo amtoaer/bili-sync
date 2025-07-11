@@ -13,6 +13,10 @@ use crate::adapter::{_ActiveModel, VideoSource, VideoSourceEnum};
 use crate::bilibili::{BiliClient, Submission, VideoInfo};
 
 impl VideoSource for submission::Model {
+    fn display_name(&self) -> std::borrow::Cow<'static, str> {
+        format!("「{}」投稿", self.upper_name).into()
+    }
+
     fn filter_expr(&self) -> SimpleExpr {
         video::Column::SubmissionId.eq(self.id)
     }
@@ -35,30 +39,6 @@ impl VideoSource for submission::Model {
             latest_row_at: Set(datetime),
             ..Default::default()
         })
-    }
-
-    fn log_refresh_video_start(&self) {
-        info!("开始扫描「{}」投稿..", self.upper_name);
-    }
-
-    fn log_refresh_video_end(&self, count: usize) {
-        info!("扫描「{}」投稿完成，获取到 {} 条新视频", self.upper_name, count,);
-    }
-
-    fn log_fetch_video_start(&self) {
-        info!("开始填充「{}」投稿视频详情..", self.upper_name);
-    }
-
-    fn log_fetch_video_end(&self) {
-        info!("填充「{}」投稿视频详情完成", self.upper_name);
-    }
-
-    fn log_download_video_start(&self) {
-        info!("开始下载「{}」投稿视频..", self.upper_name);
-    }
-
-    fn log_download_video_end(&self) {
-        info!("下载「{}」投稿视频完成", self.upper_name);
     }
 
     async fn refresh<'a>(
