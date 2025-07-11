@@ -72,6 +72,7 @@ export class WebSocketManager {
 					this.connecting = false;
 					this.reconnectAttempts = 0;
 					this.connectionPromise = null;
+					this.resubscribeEvents();
 					resolve();
 				};
 
@@ -153,10 +154,12 @@ export class WebSocketManager {
 		this.subscribedEvents.delete(eventType);
 	}
 
-	private resubscribeEvents(): void {
-		for (const eventType of this.subscribedEvents) {
-			this.sendMessage({ subscribe: eventType });
-		}
+	private async resubscribeEvents(): Promise<void> {
+		await Promise.all(
+			Array.from(this.subscribedEvents).map(async (eventType) => {
+				await this.sendMessage({ subscribe: eventType });
+			})
+		);
 	}
 
 	private scheduleReconnect(): void {
