@@ -43,6 +43,7 @@ export class WebSocketManager {
 	private errorSubscribers: Set<ErrorCallback> = new Set();
 
 	private subscribedEvents: Set<EventType> = new Set();
+	private connectionPromise: Promise<void> | null = null;
 
 	private constructor() {}
 
@@ -54,42 +55,53 @@ export class WebSocketManager {
 	}
 
 	// 连接 WebSocket
-	public connect(): void {
-		if (this.connected || this.connecting) return;
+	public connect(): Promise<void> {
+		if (this.connected) return Promise.resolve();
+		if (this.connectionPromise) return this.connectionPromise;
 
-		this.connecting = true;
-		const token = localStorage.getItem('authToken') || '';
+		this.connectionPromise = new Promise((resolve, reject) => {
+			this.connecting = true;
+			const token = localStorage.getItem('authToken') || '';
 
-		try {
-			const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-			this.socket = new WebSocket(`${protocol}${window.location.host}/api/ws`, [token]);
+			try {
+				const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+				this.socket = new WebSocket(`${protocol}${window.location.host}/api/ws`, [token]);
 
-			this.socket.onopen = () => {
-				this.connected = true;
+				this.socket.onopen = () => {
+					this.connected = true;
+					this.connecting = false;
+					this.reconnectAttempts = 0;
+					this.connectionPromise = null;
+					resolve();
+				};
+
+				this.socket.onmessage = this.handleMessage.bind(this);
+
+				this.socket.onclose = () => {
+					this.connected = false;
+					this.connecting = false;
+					this.connectionPromise = null;
+					this.scheduleReconnect();
+				};
+
+				this.socket.onerror = (error) => {
+					console.error('WebSocket error:', error);
+					this.connecting = false;
+					this.connectionPromise = null;
+					reject(error);
+					toast.error('WebSocket 连接发生错误，请检查网络或稍后重试');
+				};
+			} catch (error) {
 				this.connecting = false;
-				this.reconnectAttempts = 0;
-
-				this.resubscribeEvents();
-			};
-
-			this.socket.onmessage = this.handleMessage.bind(this);
-
-			this.socket.onclose = () => {
-				this.connected = false;
-				this.connecting = false;
+				this.connectionPromise = null;
+				reject(error);
+				console.error('Failed to create WebSocket:', error);
+				toast.error('创建 WebSocket 连接失败，请检查网络或稍后重试');
 				this.scheduleReconnect();
-			};
+			}
+		});
 
-			this.socket.onerror = (error) => {
-				console.error('WebSocket error:', error);
-				toast.error('WebSocket 连接发生错误，请检查网络或稍后重试');
-			};
-		} catch (error) {
-			this.connecting = false;
-			console.error('Failed to create WebSocket:', error);
-			toast.error('创建 WebSocket 连接失败，请检查网络或稍后重试');
-			this.scheduleReconnect();
-		}
+		return this.connectionPromise;
 	}
 
 	private handleMessage(event: MessageEvent): void {
@@ -111,14 +123,13 @@ export class WebSocketManager {
 		}
 	}
 
-	private sendMessage(message: ClientEvent): void {
-		if (!this.connected || !this.socket) {
-			console.warn('Cannot send message: WebSocket not connected');
-			return;
+	private async sendMessage(message: ClientEvent): Promise<void> {
+		if (!this.connected) {
+			await this.connect();
 		}
 
 		try {
-			this.socket.send(JSON.stringify(message));
+			this.socket!.send(JSON.stringify(message));
 		} catch (error) {
 			console.error('Failed to send message:', error);
 			toast.error('发送 WebSocket 消息失败', {
@@ -127,18 +138,18 @@ export class WebSocketManager {
 		}
 	}
 
-	private subscribe(eventType: EventType): void {
+	private async subscribe(eventType: EventType): Promise<void> {
 		if (this.subscribedEvents.has(eventType)) return;
 
-		this.sendMessage({ subscribe: eventType });
+		await this.sendMessage({ subscribe: eventType });
 		this.subscribedEvents.add(eventType);
 	}
 
 	// 取消订阅事件
-	private unsubscribe(eventType: EventType): void {
+	private async unsubscribe(eventType: EventType): Promise<void> {
 		if (!this.subscribedEvents.has(eventType)) return;
 
-		this.sendMessage({ unsubscribe: eventType });
+		await this.sendMessage({ unsubscribe: eventType });
 		this.subscribedEvents.delete(eventType);
 	}
 
@@ -168,7 +179,6 @@ export class WebSocketManager {
 	}
 
 	public subscribeToLogs(callback: LogsCallback): () => void {
-		this.connect();
 		this.logsSubscribers.add(callback);
 
 		if (this.logsSubscribers.size === 1) {
@@ -185,7 +195,6 @@ export class WebSocketManager {
 
 	// 订阅任务状态
 	public subscribeToTasks(callback: TasksCallback): () => void {
-		this.connect();
 		this.tasksSubscribers.add(callback);
 
 		if (this.tasksSubscribers.size === 1) {
@@ -201,7 +210,6 @@ export class WebSocketManager {
 	}
 
 	public subscribeToSysInfo(callback: SysInfoCallback): () => void {
-		this.connect();
 		this.sysInfoSubscribers.add(callback);
 
 		if (this.sysInfoSubscribers.size === 1) {
@@ -259,6 +267,7 @@ export class WebSocketManager {
 
 		this.connected = false;
 		this.connecting = false;
+		this.connectionPromise = null;
 		this.subscribedEvents.clear();
 	}
 }
