@@ -20,7 +20,8 @@ import type {
 	Config,
 	DashBoardResponse,
 	SysInfo,
-	TaskStatus
+	TaskStatus,
+	ResetRequest
 } from './types';
 import { wsManager } from './ws';
 
@@ -150,12 +151,12 @@ class ApiClient {
 		return this.get<VideoResponse>(`/videos/${id}`);
 	}
 
-	async resetVideo(id: number): Promise<ApiResponse<ResetVideoResponse>> {
-		return this.post<ResetVideoResponse>(`/videos/${id}/reset`);
+	async resetVideo(id: number, request: ResetRequest): Promise<ApiResponse<ResetVideoResponse>> {
+		return this.post<ResetVideoResponse>(`/videos/${id}/reset`, request);
 	}
 
-	async resetAllVideos(): Promise<ApiResponse<ResetAllVideosResponse>> {
-		return this.post<ResetAllVideosResponse>('/videos/reset-all');
+	async resetAllVideos(request: ResetRequest): Promise<ApiResponse<ResetAllVideosResponse>> {
+		return this.post<ResetAllVideosResponse>('/videos/reset-all', request);
 	}
 
 	async updateVideoStatus(
@@ -245,8 +246,8 @@ const api = {
 	getVideoSources: () => apiClient.getVideoSources(),
 	getVideos: (params?: VideosRequest) => apiClient.getVideos(params),
 	getVideo: (id: number) => apiClient.getVideo(id),
-	resetVideo: (id: number) => apiClient.resetVideo(id),
-	resetAllVideos: () => apiClient.resetAllVideos(),
+	resetVideo: (id: number, request: ResetRequest) => apiClient.resetVideo(id, request),
+	resetAllVideos: (request: ResetRequest) => apiClient.resetAllVideos(request),
 	updateVideoStatus: (id: number, request: UpdateVideoStatusRequest) =>
 		apiClient.updateVideoStatus(id, request),
 	getCreatedFavorites: () => apiClient.getCreatedFavorites(),

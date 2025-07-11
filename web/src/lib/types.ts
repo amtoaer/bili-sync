@@ -104,6 +104,11 @@ export interface UpdateVideoStatusResponse {
 	pages: PageInfo[];
 }
 
+// 重置请求类型
+export interface ResetRequest {
+	force: boolean;
+}
+
 // 收藏夹相关类型
 export interface FavoriteWithSubscriptionStatus {
 	title: string;

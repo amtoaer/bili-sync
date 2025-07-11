@@ -5,6 +5,8 @@
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
 	import api from '$lib/api';
+	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
 	import type { VideosResponse, VideoSourcesResponse, ApiError, VideoSource } from '$lib/types';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
@@ -32,6 +34,8 @@
 
 	let resetAllDialogOpen = false;
 	let resettingAll = false;
+
+	let forceReset = false;
 
 	let videoSources: VideoSourcesResponse | null = null;
 	let filters: Record<string, Filter> | null = null;
@@ -91,9 +95,9 @@
 		loadVideos(query, pageNum, videoSource);
 	}
 
-	async function handleResetVideo(id: number) {
+	async function handleResetVideo(id: number, forceReset: boolean) {
 		try {
-			const result = await api.resetVideo(id);
+			const result = await api.resetVideo(id, { force: forceReset });
 			const data = result.data;
 			if (data.resetted) {
 				toast.success('重置成功', {
@@ -117,7 +121,7 @@
 	async function handleResetAllVideos() {
 		resettingAll = true;
 		try {
-			const result = await api.resetAllVideos();
+			const result = await api.resetAllVideos({ force: forceReset });
 			const data = result.data;
 			if (data.resetted) {
 				toast.success('重置成功', {
@@ -225,7 +229,7 @@
 				disabled={resettingAll || loading}
 			>
 				<RotateCcwIcon class="mr-1.5 h-3 w-3 {resettingAll ? 'animate-spin' : ''}" />
-				重置所有
+				重置全部
 			</Button>
 		</div>
 	</div>
@@ -242,8 +246,8 @@
 		{#each videosData.videos as video (video.id)}
 			<VideoCard
 				{video}
-				onReset={async () => {
-					await handleResetVideo(video.id);
+				onReset={async (forceReset: boolean) => {
+					await handleResetVideo(video.id, forceReset);
 				}}
 			/>
 		{/each}
@@ -264,29 +268,50 @@
 	</div>
 {/if}
 
-<!-- 重置所有视频确认对话框 -->
 <AlertDialog.Root bind:open={resetAllDialogOpen}>
 	<AlertDialog.Content>
 		<AlertDialog.Header>
-			<AlertDialog.Title>重置所有视频</AlertDialog.Title>
+			<AlertDialog.Title>重置全部视频</AlertDialog.Title>
 			<AlertDialog.Description>
-				此操作将重置所有视频和分页的失败状态为未下载状态，使它们在下次下载任务中重新尝试。
-				<br />
-				<strong class="text-destructive">此操作不可撤销，确定要继续吗？</strong>
+				确定要重置<strong>全部视频</strong>的下载状态吗？<br />
+				此操作会将所有的失败状态重置为未开始，<span class="text-destructive font-medium"
+					>无法撤销</span
+				>。
 			</AlertDialog.Description>
 		</AlertDialog.Header>
+
+		<div class="space-y-4 py-4">
+			<div class="rounded-lg border border-orange-200 bg-orange-50 p-3">
+				<div class="mb-2 flex items-center space-x-2">
+					<Checkbox id="force-reset-all" bind:checked={forceReset} />
+					<Label for="force-reset-all" class="text-sm font-medium text-orange-700"
+						>⚠️ 强制重置</Label
+					>
+				</div>
+				<p class="text-xs leading-relaxed text-orange-700">
+					除重置失败状态外还会检查修复任务状态的标识位 <br />
+					版本升级引入新任务时勾选该选项进行重置，可以允许旧视频执行新任务
+				</p>
+			</div>
+		</div>
+
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel disabled={resettingAll}>取消</AlertDialog.Cancel>
+			<AlertDialog.Cancel
+				disabled={resettingAll}
+				onclick={() => {
+					forceReset = false;
+				}}>取消</AlertDialog.Cancel
+			>
 			<AlertDialog.Action
 				onclick={handleResetAllVideos}
 				disabled={resettingAll}
-				class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+				class={forceReset ? 'bg-orange-600 hover:bg-orange-700' : ''}
 			>
 				{#if resettingAll}
 					<RotateCcwIcon class="mr-2 h-4 w-4 animate-spin" />
 					重置中...
 				{:else}
-					确认重置
+					{forceReset ? '确认强制重置' : '确认重置'}
 				{/if}
 			</AlertDialog.Action>
 		</AlertDialog.Footer>
