@@ -19,7 +19,7 @@
 	export let onsubmit: (request: UpdateVideoStatusRequest) => void;
 
 	// 视频任务名称（与后端 VideoStatus 对应）
-	const videoTaskNames = ['视频封面', '视频信息', 'UP主头像', 'UP主信息', '分P下载'];
+	const videoTaskNames = ['视频封面', '视频信息', 'UP主头像', 'UP主信息', '分页下载'];
 
 	// 分页任务名称（与后端 PageStatus 对应）
 	const pageTaskNames = ['视频封面', '视频内容', '视频信息', '视频弹幕', '视频字幕'];
@@ -169,9 +169,9 @@
 		<SheetHeader class="px-6 pb-2">
 			<SheetTitle class="text-lg">编辑状态</SheetTitle>
 			<SheetDescription class="text-muted-foreground space-y-1 text-sm">
-				<div>修改视频和分页的下载状态。可以将任务重置为未开始状态，或者标记为已完成。</div>
-				<div class="font-medium text-rose-600">
-					⚠️ 已完成任务被重置为未开始，任务重新执行时会覆盖现存文件。
+				<div>自行编辑视频和分页的下载状态。可将任意子任务状态修改为“未开始”或“已完成”。</div>
+				<div class="leading-relaxed text-orange-600">
+					⚠️ 仅当分页下载状态不是“已完成”时，程序才会尝试执行分页下载。
 				</div>
 			</SheetDescription>
 		</SheetHeader>

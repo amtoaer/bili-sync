@@ -160,12 +160,12 @@
 				}}
 				mode="detail"
 				showActions={false}
-				taskNames={['视频封面', '视频信息', 'UP主头像', 'UP主信息', '分P下载']}
+				taskNames={['视频封面', '视频信息', 'UP主头像', 'UP主信息', '分页下载']}
 				bind:resetDialogOpen
 				bind:resetting
-				onReset={async () => {
+				onReset={async (forceReset: boolean) => {
 					try {
-						const result = await api.resetVideo(videoData!.video.id);
+						const result = await api.resetVideo(videoData!.video.id, { force: forceReset });
 						const data = result.data;
 						if (data.resetted) {
 							videoData = {

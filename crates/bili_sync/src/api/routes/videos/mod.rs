@@ -2,9 +2,9 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use anyhow::Result;
-use axum::Router;
 use axum::extract::{Extension, Path, Query};
 use axum::routing::{get, post};
+use axum::{Json, Router};
 use bili_sync_entity::*;
 use sea_orm::{
     ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, TransactionTrait,
@@ -12,7 +12,7 @@ use sea_orm::{
 
 use crate::api::error::InnerApiError;
 use crate::api::helper::{update_page_download_status, update_video_download_status};
-use crate::api::request::{UpdateVideoStatusRequest, VideosRequest};
+use crate::api::request::{ResetRequest, UpdateVideoStatusRequest, VideosRequest};
 use crate::api::response::{
     PageInfo, ResetAllVideosResponse, ResetVideoResponse, UpdateVideoStatusResponse, VideoInfo, VideoResponse,
     VideosResponse,
@@ -91,6 +91,7 @@ pub async fn get_video(
 pub async fn reset_video(
     Path(id): Path<i32>,
     Extension(db): Extension<Arc<DatabaseConnection>>,
+    Json(request): Json<ResetRequest>,
 ) -> Result<ApiResponse<ResetVideoResponse>, ApiError> {
     let (video_info, pages_info) = tokio::try_join!(
         video::Entity::find_by_id(id)
@@ -109,7 +110,7 @@ pub async fn reset_video(
         .into_iter()
         .filter_map(|mut page_info| {
             let mut page_status = PageStatus::from(page_info.download_status);
-            if page_status.reset_failed() {
+            if (request.force && page_status.force_reset_failed()) || page_status.reset_failed() {
                 page_info.download_status = page_status.into();
                 Some(page_info)
             } else {
@@ -118,9 +119,9 @@ pub async fn reset_video(
         })
         .collect::<Vec<_>>();
     let mut video_status = VideoStatus::from(video_info.download_status);
-    let mut video_resetted = video_status.reset_failed();
+    let mut video_resetted = (request.force && video_status.force_reset_failed()) || video_status.reset_failed();
     if !resetted_pages_info.is_empty() {
-        video_status.set(4, 0); //  将“分P下载”重置为 0
+        video_status.set(4, 0); //  将“分页下载”重置为 0
         video_resetted = true;
     }
     let resetted_videos_info = if video_resetted {
@@ -150,6 +151,7 @@ pub async fn reset_video(
 
 pub async fn reset_all_videos(
     Extension(db): Extension<Arc<DatabaseConnection>>,
+    Json(request): Json<ResetRequest>,
 ) -> Result<ApiResponse<ResetAllVideosResponse>, ApiError> {
     // 先查询所有视频和页面数据
     let (all_videos, all_pages) = tokio::try_join!(
@@ -160,7 +162,7 @@ pub async fn reset_all_videos(
         .into_iter()
         .filter_map(|mut page_info| {
             let mut page_status = PageStatus::from(page_info.download_status);
-            if page_status.reset_failed() {
+            if (request.force && page_status.force_reset_failed()) || page_status.reset_failed() {
                 page_info.download_status = page_status.into();
                 Some(page_info)
             } else {
@@ -173,9 +175,10 @@ pub async fn reset_all_videos(
         .into_iter()
         .filter_map(|mut video_info| {
             let mut video_status = VideoStatus::from(video_info.download_status);
-            let mut video_resetted = video_status.reset_failed();
+            let mut video_resetted =
+                (request.force && video_status.force_reset_failed()) || video_status.reset_failed();
             if video_ids_with_resetted_pages.contains(&video_info.id) {
-                video_status.set(4, 0); // 将"分P下载"重置为 0
+                video_status.set(4, 0); // 将"分页下载"重置为 0
                 video_resetted = true;
             }
             if video_resetted {

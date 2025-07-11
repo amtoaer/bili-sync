@@ -39,7 +39,15 @@ impl<const N: usize> Status<N> {
                 changed = true;
             }
         }
-        // 理论上 changed 可以直接从上面的循环中得到，因为 completed 标志位的改变是由子任务状态的改变引起的，子任务没有改变则 completed 也不会改变
+        changed
+    }
+
+    /// 重置所有失败的状态，将状态设置为 0b000，返回值表示 status 是否发生了变化
+    /// force 版本在普通版本的基础上，会额外检查是否存在需要运行的任务，如果存在则修正 completed 标记位为“未完成”
+    /// 这个方法的典型用例是在引入新的任务状态后重置历史视频，允许历史视频执行新引入的任务
+    pub fn force_reset_failed(&mut self) -> bool {
+        let mut changed = self.reset_failed();
+        // 理论上上面的 changed 就足够了，因为 completed 标志位的改变是由子任务状态的改变引起的，子任务没有改变则 completed 也不会改变
         // 但考虑特殊情况，新版本引入了一个新的子任务项，此时会出现明明有子任务未执行，但 completed 标记位仍然为 true 的情况
         // 当然可以在新版本迁移文件中全局重置 completed 标记位，但这样影响范围太大感觉不太好
         // 在后面进行这部分额外判断可以兼容这种情况，在由用户手动触发的 reset_failed 调用中修正 completed 标记位
@@ -161,7 +169,7 @@ impl<const N: usize> From<[u32; N]> for Status<N> {
     }
 }
 
-/// 包含五个子任务，从前到后依次是：视频封面、视频信息、Up 主头像、Up 主信息、分 P 下载
+/// 包含五个子任务，从前到后依次是：视频封面、视频信息、Up 主头像、Up 主信息、分页下载
 pub type VideoStatus = Status<5>;
 
 /// 包含五个子任务，从前到后分别是：视频封面、视频内容、视频信息、视频弹幕、视频字幕

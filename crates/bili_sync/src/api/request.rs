@@ -2,6 +2,7 @@ use serde::Deserialize;
 use validator::Validate;
 
 use crate::bilibili::CollectionType;
+
 #[derive(Deserialize)]
 pub struct VideosRequest {
     pub collection: Option<i32>,
@@ -11,6 +12,12 @@ pub struct VideosRequest {
     pub query: Option<String>,
     pub page: Option<u64>,
     pub page_size: Option<u64>,
+}
+
+#[derive(Deserialize)]
+pub struct ResetRequest {
+    #[serde(default)]
+    pub force: bool,
 }
 
 #[derive(Deserialize, Validate)]

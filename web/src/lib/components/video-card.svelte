@@ -4,6 +4,8 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
+	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
 	import type { VideoInfo } from '$lib/types';
 	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
 	import InfoIcon from '@lucide/svelte/icons/info';
@@ -21,9 +23,11 @@
 	export let customSubtitle: string = ''; // 自定义副标题
 	export let taskNames: string[] = []; // 自定义任务名称
 	export let showProgress: boolean = true; // 是否显示进度信息
-	export let onReset: (() => Promise<void>) | null = null; // 自定义重置函数
+	export let onReset: ((forceReset: boolean) => Promise<void>) | null = null; // 自定义重置函数
 	export let resetDialogOpen = false; // 导出对话框状态，让父组件可以控制
 	export let resetting = false;
+
+	let forceReset = false;
 
 	function getStatusText(status: number): string {
 		if (status === 7) {
@@ -66,7 +70,7 @@
 		if (taskNames.length > 0) {
 			return taskNames[index] || `任务${index + 1}`;
 		}
-		const defaultTaskNames = ['视频封面', '视频信息', 'UP主头像', 'UP主信息', '分P下载'];
+		const defaultTaskNames = ['视频封面', '视频信息', 'UP主头像', 'UP主信息', '分页下载'];
 		return defaultTaskNames[index] || `任务${index + 1}`;
 	}
 
@@ -77,10 +81,11 @@
 	async function handleReset() {
 		resetting = true;
 		if (onReset) {
-			await onReset();
+			await onReset(forceReset);
 		}
 		resetting = false;
 		resetDialogOpen = false;
+		forceReset = false;
 	}
 
 	function handleViewDetail() {
@@ -202,16 +207,43 @@
 <AlertDialog.Root bind:open={resetDialogOpen}>
 	<AlertDialog.Content>
 		<AlertDialog.Header>
-			<AlertDialog.Title>确认重置</AlertDialog.Title>
+			<AlertDialog.Title>重置视频</AlertDialog.Title>
 			<AlertDialog.Description>
-				确定要重置视频 "{displayTitle}"
-				的下载状态吗？此操作会将所有失败状态的下载状态重置为未开始，无法撤销。
+				确定要重置视频 <strong>"{displayTitle}"</strong> 的下载状态吗？
+				<br />
+				此操作会将所有的失败状态重置为未开始，<span class="text-destructive font-medium"
+					>无法撤销</span
+				>。
 			</AlertDialog.Description>
 		</AlertDialog.Header>
+
+		<div class="space-y-4 py-4">
+			<div class="rounded-lg border border-orange-200 bg-orange-50 p-3">
+				<div class="mb-2 flex items-center space-x-2">
+					<Checkbox id="force-reset-all" bind:checked={forceReset} />
+					<Label for="force-reset-all" class="text-sm font-medium text-orange-700"
+						>⚠️ 强制重置</Label
+					>
+				</div>
+				<p class="text-xs leading-relaxed text-orange-700">
+					除重置失败状态外还会检查修复任务状态的标识位 <br />
+					版本升级引入新任务时勾选该选项进行重置，可以允许旧视频执行新任务
+				</p>
+			</div>
+		</div>
+
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel>取消</AlertDialog.Cancel>
-			<AlertDialog.Action onclick={handleReset} disabled={resetting}>
-				{resetting ? '重置中...' : '确认重置'}
+			<AlertDialog.Cancel
+				onclick={() => {
+					forceReset = false;
+				}}>取消</AlertDialog.Cancel
+			>
+			<AlertDialog.Action
+				onclick={handleReset}
+				disabled={resetting}
+				class={forceReset ? 'bg-orange-600 hover:bg-orange-700' : ''}
+			>
+				{resetting ? '重置中...' : forceReset ? '确认强制重置' : '确认重置'}
 			</AlertDialog.Action>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>

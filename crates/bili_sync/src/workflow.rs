@@ -256,7 +256,7 @@ pub async fn download_video_pages(
             &video_model,
             base_upper_path.join("person.nfo"),
         ),
-        // 分发并执行分 P 下载的任务
+        // 分发并执行分页下载的任务
         dispatch_download_page(
             separate_status[4],
             bili_client,
@@ -332,10 +332,10 @@ pub async fn dispatch_download_page(
         .take_while(|res| {
             match res {
                 Ok(model) => {
-                    // 该视频的所有分页的下载状态都会在此返回，需要根据这些状态确认视频层“分 P 下载”子任务的状态
+                    // 该视频的所有分页的下载状态都会在此返回，需要根据这些状态确认视频层“分页下载”子任务的状态
                     // 在过去的实现中，此处仅仅根据 page_download_status 的最高标志位来判断，如果最高标志位是 true 则认为完成
-                    // 这样会导致即使分页中有失败到 MAX_RETRY 的情况，视频层的分 P 下载状态也会被认为是 Succeeded，不够准确
-                    // 新版本实现会将此处取值为所有子任务状态的最小值，这样只有所有分页的子任务全部成功时才会认为视频层的分 P 下载状态是 Succeeded
+                    // 这样会导致即使分页中有失败到 MAX_RETRY 的情况，视频层的分页下载状态也会被认为是 Succeeded，不够准确
+                    // 新版本实现会将此处取值为所有子任务状态的最小值，这样只有所有分页的子任务全部成功时才会认为视频层的分页下载状态是 Succeeded
                     let page_download_status = model.download_status.try_as_ref().expect("download_status must be set");
                     let separate_status: [u32; 5] = PageStatus::from(*page_download_status).into();
                     for status in separate_status {
