@@ -100,7 +100,7 @@ JNrRuoEUXpabUzGB8QIDAQAB
         .expect("fail to decode public key");
         let ts = chrono::Local::now().timestamp_millis();
         let data = format!("refresh_{}", ts).into_bytes();
-        let mut rng = rand::rngs::OsRng;
+        let mut rng = rand::rng();
         let encrypted = key
             .encrypt(&mut rng, Oaep::new::<Sha256>(), &data)
             .expect("fail to encrypt");
