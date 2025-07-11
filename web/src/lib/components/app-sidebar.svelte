@@ -11,7 +11,10 @@
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import type { ComponentProps } from 'svelte';
 
+	let sidebar = Sidebar.useSidebar();
+
 	let { ref = $bindable(null), ...restProps }: ComponentProps<typeof Sidebar.Root> = $props();
+
 	const data = {
 		header: {
 			title: 'Bili Sync',
@@ -79,6 +82,12 @@
 			}
 		]
 	};
+
+	const closeMobileSidebar = () => {
+		if (sidebar.isMobile) {
+			sidebar.setOpenMobile(false);
+		}
+	};
 </script>
 
 <Sidebar.Root bind:ref variant="inset" {...restProps}>
@@ -87,7 +96,7 @@
 			<Sidebar.MenuItem>
 				<Sidebar.MenuButton size="lg">
 					{#snippet child({ props })}
-						<a href={data.header.href} {...props}>
+						<a href={data.header.href} {...props} onclick={closeMobileSidebar}>
 							<div
 								class="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg"
 							>
@@ -112,7 +121,7 @@
 						<Sidebar.MenuItem>
 							<Sidebar.MenuButton class="h-8">
 								{#snippet child({ props })}
-									<a href={item.href} {...props}>
+									<a href={item.href} {...props} onclick={closeMobileSidebar}>
 										<item.icon class="size-4" />
 										<span class="text-sm">{item.title}</span>
 									</a>
@@ -131,7 +140,7 @@
 				<Sidebar.MenuItem>
 					<Sidebar.MenuButton class="h-8">
 						{#snippet child({ props })}
-							<a href={item.href} {...props}>
+							<a href={item.href} {...props} onclick={closeMobileSidebar}>
 								<item.icon class="size-4" />
 								<span class="text-sm">{item.title}</span>
 							</a>
