@@ -34,35 +34,25 @@ async fn get_dashboard(
             // 用 SeaORM 太复杂了，直接写个裸 SQL
             "
 SELECT
-	dates.day AS day,
-	COUNT(video.id) AS cnt
+    dates.day AS day,
+    COUNT(video.id) AS cnt
 FROM
-	(
-		SELECT
-			STRFTIME(
-				'%Y-%m-%d',
-			DATE('now', '-' || n || ' days', 'localtime')) AS day
-		FROM
-			(
-				SELECT
-					0 AS n UNION ALL
-				SELECT
-					1 UNION ALL
-				SELECT
-					2 UNION ALL
-				SELECT
-					3 UNION ALL
-				SELECT
-					4 UNION ALL
-				SELECT
-					5 UNION ALL
-				SELECT
-			6)) AS dates
-	LEFT JOIN video ON STRFTIME('%Y-%m-%d', video.created_at, 'localtime') = dates.day
+    (
+        SELECT
+            STRFTIME('%Y-%m-%d', DATE('now', '-' || n || ' days', 'localtime')) AS day,
+            DATETIME(DATE('now', '-' || n || ' days', 'localtime'), 'utc') AS start_utc_datetime,
+            DATETIME(DATE('now', '-' || n || ' days', '+1 day', 'localtime'), 'utc') AS end_utc_datetime
+        FROM
+            (
+                SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6
+            )
+    ) AS dates
+LEFT JOIN
+    video ON video.created_at >= dates.start_utc_datetime AND video.created_at < dates.end_utc_datetime
 GROUP BY
-	dates.day
+    dates.day
 ORDER BY
-	dates.day;
+    dates.day;
     "
         ))
         .all(db.as_ref()),
