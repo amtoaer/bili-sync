@@ -13,6 +13,10 @@ use crate::adapter::{_ActiveModel, VideoSource, VideoSourceEnum};
 use crate::bilibili::{BiliClient, VideoInfo, WatchLater};
 
 impl VideoSource for watch_later::Model {
+    fn display_name(&self) -> std::borrow::Cow<'static, str> {
+        "稍后再看".into()
+    }
+
     fn filter_expr(&self) -> SimpleExpr {
         video::Column::WatchLaterId.eq(self.id)
     }
@@ -35,30 +39,6 @@ impl VideoSource for watch_later::Model {
             latest_row_at: Set(datetime),
             ..Default::default()
         })
-    }
-
-    fn log_refresh_video_start(&self) {
-        info!("开始扫描稍后再看..");
-    }
-
-    fn log_refresh_video_end(&self, count: usize) {
-        info!("扫描稍后再看完成，获取到 {} 条新视频", count);
-    }
-
-    fn log_fetch_video_start(&self) {
-        info!("开始填充稍后再看视频详情..");
-    }
-
-    fn log_fetch_video_end(&self) {
-        info!("填充稍后再看视频详情完成");
-    }
-
-    fn log_download_video_start(&self) {
-        info!("开始下载稍后再看视频..");
-    }
-
-    fn log_download_video_end(&self) {
-        info!("下载稍后再看视频完成");
     }
 
     async fn refresh<'a>(

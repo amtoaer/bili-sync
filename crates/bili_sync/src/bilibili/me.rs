@@ -1,6 +1,4 @@
-#![allow(unused)]
-
-use anyhow::Result;
+use anyhow::{Result, ensure};
 use reqwest::Method;
 
 use crate::bilibili::{BiliClient, Validate};
@@ -19,6 +17,7 @@ impl<'a> Me<'a> {
     }
 
     pub async fn get_created_favorites(&self) -> Result<Option<Vec<FavoriteItem>>> {
+        ensure!(!self.mid.is_empty(), "未获取到用户 ID，请确保填写设置中的 B 站认证信息");
         let mut resp = self
             .client
             .request(Method::GET, "https://api.bilibili.com/x/v3/fav/folder/created/list-all")
@@ -34,6 +33,7 @@ impl<'a> Me<'a> {
     }
 
     pub async fn get_followed_collections(&self, page_num: i32, page_size: i32) -> Result<Collections> {
+        ensure!(!self.mid.is_empty(), "未获取到用户 ID，请确保填写设置中的 B 站认证信息");
         let mut resp = self
             .client
             .request(Method::GET, "https://api.bilibili.com/x/v3/fav/folder/collected/list")
@@ -54,6 +54,7 @@ impl<'a> Me<'a> {
     }
 
     pub async fn get_followed_uppers(&self, page_num: i32, page_size: i32) -> Result<FollowedUppers> {
+        ensure!(!self.mid.is_empty(), "未获取到用户 ID，请确保填写设置中的 B 站认证信息");
         let mut resp = self
             .client
             .request(Method::GET, "https://api.bilibili.com/x/relation/followings")
@@ -82,7 +83,6 @@ pub struct FavoriteItem {
     pub title: String,
     pub media_count: i64,
     pub id: i64,
-    pub fid: i64,
     pub mid: i64,
 }
 

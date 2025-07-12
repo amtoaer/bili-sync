@@ -14,6 +14,7 @@ anyhow = { workspace = true }
 arc-swap = { workspace = true }
 async-stream = { workspace = true }
 axum = { workspace = true }
+base64 = { workspace = true }
 bili_sync_entity = { workspace = true }
 bili_sync_migration = { workspace = true }
 chrono = { workspace = true }

@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::path::Path;
 use std::pin::Pin;
 
@@ -13,6 +14,10 @@ use crate::adapter::{_ActiveModel, VideoSource, VideoSourceEnum};
 use crate::bilibili::{BiliClient, FavoriteList, VideoInfo};
 
 impl VideoSource for favorite::Model {
+    fn display_name(&self) -> Cow<'static, str> {
+        format!("收藏夹「{}」", self.name).into()
+    }
+
     fn filter_expr(&self) -> SimpleExpr {
         video::Column::FavoriteId.eq(self.id)
     }
@@ -35,30 +40,6 @@ impl VideoSource for favorite::Model {
             latest_row_at: Set(datetime),
             ..Default::default()
         })
-    }
-
-    fn log_refresh_video_start(&self) {
-        info!("开始扫描收藏夹「{}」..", self.name);
-    }
-
-    fn log_refresh_video_end(&self, count: usize) {
-        info!("扫描收藏夹「{}」完成，获取到 {} 条新视频", self.name, count);
-    }
-
-    fn log_fetch_video_start(&self) {
-        info!("开始填充收藏夹「{}」视频详情..", self.name);
-    }
-
-    fn log_fetch_video_end(&self) {
-        info!("填充收藏夹「{}」视频详情完成", self.name);
-    }
-
-    fn log_download_video_start(&self) {
-        info!("开始下载收藏夹「{}」视频..", self.name);
-    }
-
-    fn log_download_video_end(&self) {
-        info!("下载收藏夹「{}」视频完成", self.name);
     }
 
     async fn refresh<'a>(

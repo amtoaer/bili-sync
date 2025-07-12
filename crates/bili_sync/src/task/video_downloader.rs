@@ -3,6 +3,7 @@ use std::sync::Arc;
 use sea_orm::DatabaseConnection;
 use tokio::time;
 
+use crate::adapter::VideoSource;
 use crate::bilibili::{self, BiliClient};
 use crate::config::VersionedConfig;
 use crate::utils::model::get_enabled_video_sources;
@@ -48,8 +49,9 @@ pub async fn video_downloader(connection: Arc<DatabaseConnection>, bili_client: 
                 break 'inner;
             }
             for video_source in video_sources {
+                let display_name = video_source.display_name();
                 if let Err(e) = process_video_source(video_source, &bili_client, &connection).await {
-                    error!("处理 {} 时遇到错误：{:#}，等待下一轮执行", "test", e);
+                    error!("处理 {} 时遇到错误：{:#}，等待下一轮执行", display_name, e);
                 }
             }
             info!("本轮任务执行完毕，等待下一轮执行");

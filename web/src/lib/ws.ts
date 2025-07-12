@@ -65,8 +65,11 @@ export class WebSocketManager {
 
 			try {
 				const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-				this.socket = new WebSocket(`${protocol}${window.location.host}/api/ws`, [token]);
-
+				// 使用 base64URL no padding 编码 token 以避免特殊字符问题
+				this.socket = new WebSocket(
+					`${protocol}${window.location.host}/api/ws`,
+					btoa(token).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+				);
 				this.socket.onopen = () => {
 					this.connected = true;
 					this.connecting = false;
