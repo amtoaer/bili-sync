@@ -9,10 +9,12 @@ bili-sync 是一款专为 NAS 用户编写的哔哩哔哩同步工具，由 Rust
 
 ## 效果演示
 
-### 概览
-![概览](./assets/overview.webp)
-### 详情
-![详情](./assets/detail.webp)
+### 管理页
+![管理页](/assets/webui.webp)
+### 媒体库概览
+![媒体库概览](./assets/overview.webp)
+### 媒体库详情
+![媒体库详情](./assets/detail.webp)
 ### 播放（使用 infuse）
 ![播放](./assets/play.webp)
 ### 文件排布
