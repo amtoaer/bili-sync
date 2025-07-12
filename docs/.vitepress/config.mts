@@ -21,7 +21,7 @@ export default defineConfig({
 		nav: [
 			{ text: "主页", link: "/" },
 			{
-				text: "v2.6.0",
+				text: "v2.6.1",
 				items: [
 					{
 						text: "程序更新",
