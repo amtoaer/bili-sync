@@ -87,6 +87,7 @@ publish = false
 pre-release-replacements = [
     { file = "../../docs/.vitepress/config.mts", search = "\"v[0-9\\.]+\"", replace = "\"v{{version}}\"", exactly = 1 },
     { file = "../../docs/introduction.md", search = " v[0-9\\.]+，", replace = " v{{version}}，", exactly = 1 },
+    { file = "../../web/package.json", search = "\"version\": \"[0-9\\.]+\"", replace = "\"version\": \"{{version}}\"", exactly = 1 },
 ]
 
 [profile.dev.package."*"]
