@@ -1,10 +1,20 @@
-# 配置文件
+# 配置说明
 
-默认的配置文件已经在[快速开始](/quick-start)中给出，该文档对配置文件的各个参数依次详细解释。
+## 基本设置
 
-## video_name 与 page_name
+### 绑定地址
 
-`video_name` 与 `page_name` 用于设置下载文件的命名规则，对于所有下载的内容，将会维持如下的目录结构：
+程序 Web Server 监听的地址，程序启动时会监听该地址，成功后可通过 `http://${bind_address}` 访问管理页。
+
+该配置会在程序重启时生效。
+
+### 同步间隔（秒）
+
+表示程序每次执行扫描下载的间隔时间，单位为秒。
+
+### 视频名称模板、分页名称模板
+
+视频名称模板（`video_name`）和分页名称模板（`page_name`）用于设置下载文件的命名规则。对于所有下载的内容，将会维持如下的目录结构：
 
 1. 单页视频：
 
@@ -30,7 +40,7 @@
     │   └── tvshow.nfo
     ```
 
-这两个参数支持使用模板，其中用 <code v-pre>{{  }}</code> 包裹的模板变量在执行时会被动态替换为对应的内容。
+这两个模板参数会在运行时解析，其中用 <code v-pre>{{  }}</code> 包裹的模板变量会被动态替换为对应的内容。
 
 对于 `video_name`，支持设置 bvid（视频编号）、title（视频标题）、upper_name（up 主名称）、upper_mid（up 主 id）、pubtime（视频发布时间）、fav_time（视频收藏时间）。
 
@@ -40,7 +50,7 @@
 
 > [!TIP]
 > 1. 仅收藏夹视频会区分 `fav_time` 和 `pubtime`，其它类型下载两者的取值是完全相同的；
-> 2. `fav_time` 和 `pubtime` 的格式受 `time_format` 参数控制，详情可参考 [time_format 小节](#time-format)。
+> 2. `fav_time` 和 `pubtime` 的格式受[时间格式](#时间格式)控制。
 
 此外，`video_name` 和 `page_name` 还支持使用路径分割符，如 <code v-pre>{{ upper_mid }}/{{ title }}_{{ pubtime }}</code> 表示视频会根据 UP 主 id 将视频分到不同的文件夹中。
 
@@ -49,81 +59,36 @@
 > [!CAUTION]
 > **路径分隔符**在不同平台定义不同，Windows 下为 `\`，MacOS 和 Linux 下为 `/`。
 
-## `auth_token`
-
-表示调用程序管理 API 需要的身份凭据，程序会检查 API 请求 Header 中是否包含正确的 `Authorization` 字段。
-
-内置管理页前端提供了 `auth_token` 的输入框，填写后即可成功调用 API 使用管理页。
-
-## `bind_address`
-
-程序 Web Server 监听的地址，程序启动时会监听该地址，成功后可通过 `http://${bind_address}` 访问管理页。
-
-## `interval`
-
-表示程序每次执行扫描下载的间隔时间，单位为秒。
-
-## `upper_path`
+### UP 主头像保存路径
 
 UP 主头像和信息的保存位置。对于使用 Emby、Jellyfin 媒体服务器的用户，需确保此处路径指向 Emby、Jellyfin 配置中的 `/metadata/people/` 才能够正常在媒体服务器中显示 UP 主的头像。
 
-## `nfo_time_type`
+### 时间格式
 
-表示在视频信息中使用的时间类型，可选值为 `favtime`（收藏时间）和 `pubtime`（发布时间）。
+用于设置 `fav_time` 和 `pubtime` 在视频名称模板、分页名称模板中使用时的显示格式，支持的格式符号可以参考 [chrono strftime 文档](https://docs.rs/chrono/latest/chrono/format/strftime/index.html)。
 
-仅收藏夹视频会区分 `fav_time` 和 `pubtime`，其它类型下载两者取值相同。
+### 后端 API 认证 Token
 
-## `time_format`
+表示调用程序管理 API 需要的身份凭据，程序会对 API 请求进行身份验证，身份验证不通过会拒绝访问。
 
-时间格式，用于设置 `fav_time` 和 `pubtime` 在 `video_name`、 `page_name` 中使用时的显示格式，支持的格式符号可以参考 [chrono strftime 文档](https://docs.rs/chrono/latest/chrono/format/strftime/index.html)。
+在修改该 Token 后需要对应修改前端保存的 Token，才能正常访问管理页面。
 
-## `cdn_sorting`
 
-一般情况下，b 站会为视频、音频流提供一个 baseUrl 与多个 backupUrl，程序默认会按照 baseUrl -> backupUrl 的顺序请求，依次尝试下载。
+### 启动 CDN 排序
 
-如果将 `cdn_sorting` 设置为 `true`，程序不再使用默认顺序，而是将所有 url 放到一起统一排序来决定请求顺序。排序优先级从高到低为：
+表示程序每次执行扫描下载的间隔时间，单位为秒。
 
-1. 服务商 CDN：`upos-sz-mirrorxxxx.bilivideo.com`
+## B 站认证
 
-2. 自建 CDN：`cn-xxxx-dx-v-xxxx.bilivideo.com`
-
-3. MCDN：`xxxx.mcdn.bilivideo.com`
-
-4. PCDN：`xxxx.v1d.szbdyd.com`
-
-这会让程序优先请求质量更高的 CDN，可能会提高下载速度并增加成功率，但效果因地区、网络环境而异。
-
-## `credential`
-
-哔哩哔哩账号的身份凭据，请参考[凭据获取流程](https://nemo2011.github.io/bilibili-api/#/get-credential)获取并对应填写至配置文件中，后续 bili-sync 会在必要时自动刷新身份凭据，不再需要手动管理。
+哔哩哔哩账号的身份凭据，请参考[凭据获取流程](https://nemo2011.github.io/bilibili-api/#/get-credential)获取并对应填写，后续 bili-sync 会在必要时自动刷新身份凭据，不再需要手动管理。
 
 推荐使用匿名窗口获取，避免潜在的冲突。
 
-## `filter_option`
+## 视频质量
 
-过滤选项，用于设置程序的过滤规则，程序会从过滤结果中选择最优的视频、音频流下载。
+该页配置大部分都是显而易见的，仅对视频编码格式偏好进行说明。
 
-这些内容的可选值可前往 [analyzer.rs](https://github.com/amtoaer/bili-sync/blob/24d0da0bf3ea65fd45d07587e4dcdbb24d11a589/crates/bili_sync/src/bilibili/analyzer.rs#L10-L55) 中查看。
-
-注意将过滤范围设置过小可能导致筛选不到符合要求的流导致下载失败，建议谨慎修改。
-
-### `video_max_quality`
-
-视频流允许的最高质量。
-
-### `video_min_quality`
-
-视频流允许的最低质量。
-
-### `audio_max_quality`
-
-音频流允许的最高质量。
-
-### `audio_min_quality`
-
-音频流允许的最低质量。
-
-### `codecs`
+### 视频编码格式偏好
 
 这是 bili-sync 选择视频编码的优先级顺序，优先级按顺序从高到低。此处对编码格式做一个简单说明：
 
@@ -135,130 +100,100 @@ UP 主头像和信息的保存位置。对于使用 Emby、Jellyfin 媒体服务
 
 而如果你的设备不支持，或者单纯懒得查询，那么推荐将 AVC 放在第一位以获得最好的兼容性。
 
-### `no_dolby_video`
-
-是否禁用杜比视频流。
-
-### `no_dolby_audio`
-
-是否禁用杜比音频流。
-
-### `no_hdr`
-
-是否禁用 HDR 视频流。
-
-### `no_hires`
-
-是否禁用 Hi-Res 音频流。
-
-## `danmaku_option`
+## 弹幕渲染
 
 弹幕的设置选项，用于设置下载弹幕的样式，几乎全部取自[上游仓库](https://github.com/gwy15/danmu2ass)。
 
-### `duration`
+### 弹幕持续时间（秒）
 
 弹幕在屏幕上的持续时间，单位为秒。
 
-### `font`
+### 字体
 
-弹幕的字体。
+弹幕使用的字体。
 
-### `font_size`
+### 字体大小
 
 弹幕的字体大小。
 
-### `width_ratio`
+### 宽度比例
 
 计算弹幕宽度的比例，为避免重叠可以调大这个数值。
 
-### `horizontal_gap`
+### 水平间距
 
 两条弹幕之间最小的水平距离。
 
-### `lane_size`
+### 轨道大小
 
 弹幕所占据的高度，即“行高度/行间距”。
 
-### `float_percentage`
+### 滚动弹幕高度百分比
 
 屏幕上滚动弹幕最多高度百分比。
 
-### `bottom_percentage`
+### 底部弹幕高度百分比
 
 屏幕上底部弹幕最多高度百分比。
 
-### `opacity`
+### 透明度（0-255）
 
-透明度，取值范围为 0-255。透明度可以通过 opacity / 255 计算得到。
+透明度，取值范围为 0-255。实际透明度百分比为 `透明度 / 255`。
 
-### `bold`
 
-是否加粗。
+### 描边宽度
 
-### `outline`
+弹幕的描边宽度。
 
-描边宽度。
-
-### `time_offset`
+### 时间偏移（秒）
 
 时间轴偏移，>0 会让弹幕延后，<0 会让弹幕提前，单位为秒。
 
-## `favorite_list`
+### 粗体显示
 
-你想要下载的收藏夹与想要保存的位置。简单示例：
-```toml
-3115878158 = "/home/amtoaer/Downloads/bili-sync/测试收藏夹"
-```
-收藏夹 ID 的获取方式可以参考[这里](/favorite)。
+弹幕是否加粗。
 
-## `collection_list`
+## 高级设置
 
-你想要下载的视频合集/视频列表与想要保存的位置。注意“视频合集”与“视频列表”是两种不同的类型。在配置文件中需要做区分：
-```toml
-"series:387051756:432248" = "/home/amtoaer/Downloads/bili-sync/测试视频列表"
-"season:1728547:101343" = "/home/amtoaer/Downloads/bili-sync/测试合集"
-```
-
-具体说明可以参考[这里](/collection)。
-
-## `submission_list`
-
-你想要下载的 UP 主投稿与想要保存的位置。简单示例：
-```toml
-9183758 = "/home/amtoaer/Downloads/bili-sync/测试投稿"
-```
-UP 主 ID 的获取方式可以参考[这里](/submission)。
-
-## `watch_later`
-
-设置稍后再看的扫描开关与保存位置。
-
-如果你希望下载稍后再看列表中的视频，可以将 `enabled` 设置为 `true`，并填写 `path`。
-
-```toml
-enabled = true
-path = "/home/amtoaer/Downloads/bili-sync/稍后再看"
-```
-
-## `concurrent_limit`
-
-对 bili-sync 的并发下载进行多方面的限制，避免 api 请求过于频繁导致的风控。其中 video 和 page 表示下载任务的并发数，rate_limit 表示 api 请求的流量限制。默认取值为：
-```toml
-[concurrent_limit]
-video = 3
-page = 2
-
-[concurrent_limit.rate_limit]
-limit = 4
-duration = 250
-```
-
-具体来说，程序的处理逻辑是严格从上到下的，即程序会首先并发处理多个 video，每个 video 内再并发处理多个 page，程序的并行度可以简单衡量为 `video * page`（很多 video 都只有单个 page，实际会更接近 `video * 1`），配置项中的 `video` 和 `page` 两个参数就是控制此处的，调节这两个参数可以宏观上控制程序的并行度。
-
-另一方面，每个执行的任务内部都会发起若干 api 请求以获取信息，这些请求的整体频率受到 `rate_limit` 的限制，使用漏桶算法实现。如默认配置表示的是每 250ms 允许 4 个 api 请求，超过这个频率的请求会被暂时阻塞，直到漏桶中有空间为止。调节 `rate_limit` 可以从微观上控制程序的并行度，同时也是最直接、最显著的控制 api 请求频率的方法。
-
-据观察 b 站风控限制大多集中在主站，因此目前 `rate_limit` 仅作用于主站的各类请求，如请求各类视频列表、视频信息、获取流下载地址等，对实际的视频、图片下载过程不做限制。
+该页主要用于调整程序的请求与下载行为。
 
 > [!TIP]
-> 1. 一般来说，`video` 和 `page` 的值不需要过大；
-> 2. `rate_limit` 的值可以根据网络环境和 api 请求频率进行调整，如果经常遇到风控可以优先调小 limit。
+> 1. 一般来说，视频、分页的并发数不需要过大；
+> 2. 请求频率限制可以根据网络环境和 api 请求频率进行调整，如果经常遇到风控可以优先调小该值。
+
+### 视频并发数、分页并发数
+
+视频并发数（video）和分页并发数（page）是控制 bili-sync 视频下载任务并发度的配置项。
+
+程序的处理逻辑是严格从上到下的，即程序会首先并发处理多个 video，每个 video 内再并发处理多个 page，程序的并发度可以简单衡量为 `video * page`（很多 video 都只有单个 page，实际会更接近 `video * 1`），`video` 和 `page` 两个参数就是控制此处的，调节这两个参数可以宏观上控制程序的并发度。
+
+### NFO 时间类型
+
+表示在视频 NFO 文件中使用的时间类型，可选值为收藏时间和发布时间。
+
+仅收藏夹视频会对这两项进行区分，其它类型的视频这两者取值完全相同。
+
+### 请求频率限制
+
+每个执行的任务内部都会发起若干 api 请求以获取信息，这些请求的整体频率受到请求频率的限制，使用漏桶算法实现。超过这个频率的请求会被暂时阻塞，直到漏桶中有空间为止。
+
+时间间隔（毫秒）与限制请求数共同表明的意思时：程序在每个时间间隔内最多允许多少个请求。调节这一项可以从微观上控制程序的并行度，同时也是最直接、最显著的控制 api 请求频率的方法。
+
+据观察 b 站风控限制大多集中在主站，因此目前请求频率限制仅作用于主站的各类请求，如请求各类视频列表、视频信息、获取流下载地址等，对实际的视频、图片下载过程不做限制。
+
+### 单文件分块下载
+
+单文件分块下载是指将单个视频文件分成多个小块进行下载，这可能有助于提高下载速度。
+
+程序会首先为这个文件预分配空间，接着将文件分成若干个大小相同的块，为每个块启动单独的异步任务并行下载。
+
+
+#### 下载分块数
+
+表示单个文件分成多少个小块，默认值为 4。
+
+#### 启动分块下载的文件大小阈值（字节）
+
+表示当单个文件大小超过多少字节时，才会启动分块下载。默认值为 20971520（20 MB）。
+
+如果文件过小，分块成本可能会超过分块下载带来的收益，因此使用该阈值决定下载策略。

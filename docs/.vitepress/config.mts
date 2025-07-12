@@ -45,7 +45,7 @@ export default defineConfig({
 			{
 				text: "细节",
 				items: [
-					{ text: "配置文件", link: "/configuration" },
+					{ text: "配置说明", link: "/configuration" },
 					{ text: "命令行参数", link: "/args" },
 					{ text: "工作原理", link: "/design" },
 				],
@@ -55,10 +55,10 @@ export default defineConfig({
 				items: [
 					{ text: "获取收藏夹信息", link: "/favorite" },
 					{
-						text: "获取视频合集/视频列表信息",
+						text: "获取合集/列表信息",
 						link: "/collection",
 					},
-					{ text: "获取投稿信息", link: "/submission" },
+					{ text: "获取用户投稿信息", link: "/submission" },
 				],
 			},
 			{

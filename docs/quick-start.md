@@ -1,6 +1,6 @@
 # 快速开始
 
-程序使用 Rust 编写，不需要 Runtime 且并为各个平台提供了预编译文件，绝大多数情况下是没有使用障碍的。
+程序使用 Rust 编写，不需要 Runtime 且内嵌 WebUI，并为各个平台提供了预编译的二进制文件，因此部署较为简单。
 
 ## 程序获取
 
@@ -9,7 +9,7 @@
 ### 其一：下载平台二进制文件运行
 
 > [!CAUTION]
-> 如果你使用这种方式运行，请确保 FFmpeg 已被正确安装且位于 PATH 中，可通过执行 `ffmpeg` 命令访问。
+> 如果你使用这种方式运行，请确保 FFmpeg 已被正确安装且位于 PATH 中，可直接通过 `ffmpeg` 命令访问。
 
 在[程序发布页](https://github.com/amtoaer/bili-sync/releases)选择最新版本中对应机器架构的压缩包，解压后会获取一个名为 `bili-sync-rs` 的可执行文件，直接双击执行。
 
@@ -39,9 +39,12 @@ services:
       - 12345:12345
     volumes:
       - ${你希望存储程序配置的目录}:/app/.config/bili-sync
-      # 还需要有一些其它必要的挂载，包括 up 主信息位置、视频下载位置
-      # 这些目录不是固定的，只需要确保此处的挂载与 bili-sync-rs 的配置文件相匹配
-      # ...
+      # metadata/people 正确挂载才能在 Emby 或 Jellyfin 中显示 UP 主头像
+      # 右边的目标目录不固定，只需要确保目标目录与 bili-sync 中填写的“UP 主头像保存路径”保持一致即可
+      - ${Emby 或 Jellyfin 配置下的 metadata/people 目录}:/app/.config/bili-sync/upper_face
+      # 接下来可以挂载一系列用于保存视频的目录，接着在 bili-sync 中配置将视频下载到这些目录即可
+      # 例如：
+      # - /home/amtoaer/HDDs/Videos/Bilibilis/:/home/amtoaer/HDDs/Videos/Bilibilis/
     # 如果你使用的是群晖系统，请移除最后的 logging 配置，否则会导致日志不显示
     logging:
       driver: "local"
@@ -49,11 +52,23 @@ services:
 
 使用该 compose 文件，执行 `docker compose up -d` 即可运行。
 
-## 程序配置
+## 进行必要配置
 
-你是否遇到了程序的 panic？别担心，这是正常情况。
+运行程序，应该可以在日志中看到：
+```
+Jul 12 16:11:10  INFO 欢迎使用 Bili-Sync，当前程序版本：xxxxx
+Jul 12 16:11:10  INFO 项目地址：https://github.com/amtoaer/bili-sync
+Jul 12 16:11:10  INFO 数据库初始化完成
+Jul 12 17:17:50  WARN 生成 auth_token：xxxxxxxx，可使用该 token 登录 web UI，该信息仅在首次运行时打印
+Jul 12 16:11:10  INFO 配置初始化完成
+Jul 12 16:11:10  INFO 开始运行管理页: http://0.0.0.0:12345
+```
 
-程序默认会将配置文件存储于 `${config_dir}/bili-sync/config.toml`，数据库文件存储于 `${config_dir}/bili-sync/data.sqlite`。
+中间应该会穿插一条 CONFIG 的报错，这是因为配置文件内容缺失导致视频下载任务未能运行，在初次启动时是正常现象。
+
+自 2.6.0 版本开始，程序仅会创建一个数据库文件，配置同样在数据库表中进行维护。
+
+数据库文件存储于 `${config_dir}/bili-sync/data.sqlite`。
 
 > [!CAUTION]
 >
@@ -67,154 +82,28 @@ services:
 >
 > 特别的，在 Docker 环境中，`config_dir` 会被展开为 `/app/.config`。
 
-在启动时程序会尝试加载配置文件，如果发现不存在会新建并写入默认配置。
+接着打开 WebUI，切换到设置页，输入日志中打印的 `auth_token`，点击认证。
 
-获得配置内容后，程序会对其做一次简单的校验，因为默认配置中不包含凭据信息与要下载的收藏夹、视频合集/视频列表，因此程序会拒绝运行而发生 panic。我们只需要在程序生成的默认配置上做一些简单修改即可成功运行。
+![设置页](/assets/config.webp)
 
-当前版本的默认示例文件如下：
-```toml
-auth_token = "xxxxxxxx"
-bind_address = "0.0.0.0:12345"
-video_name = "{{title}}"
-page_name = "{{bvid}}"
-interval = 1200
-upper_path = "/Users/amtoaer/Library/Application Support/bili-sync/upper_face"
-nfo_time_type = "favtime"
-time_format = "%Y-%m-%d"
-cdn_sorting = false
+认证后会看到一系列的配置，除绑定地址外的选项**基本都会实时生效**。为避免意料外的情况，建议将配置文件一次修改完毕后再点击保存。
 
-[credential]
-sessdata = ""
-bili_jct = ""
-buvid3 = ""
-dedeuserid = ""
-ac_time_value = ""
+如无特殊需求，一般仅需修改“B站认证”与“视频质量”两个标签下的配置。
 
-[filter_option]
-video_max_quality = "Quality8k"
-video_min_quality = "Quality360p"
-audio_max_quality = "QualityHiRES"
-audio_min_quality = "Quality64k"
-codecs = [
-    "AV1",
-    "HEV",
-    "AVC",
-]
-no_dolby_video = false
-no_dolby_audio = false
-no_hdr = false
-no_hires = false
+其中“B站认证”在一次填写后即可忽略，程序会在**每日第一次运行视频下载任务**时检查认证状态，并在有必要时自动刷新。
 
-[danmaku_option]
-duration = 15.0
-font = "黑体"
-font_size = 25
-width_ratio = 1.2
-horizontal_gap = 20.0
-lane_size = 32
-float_percentage = 0.5
-bottom_percentage = 0.3
-opacity = 76
-bold = true
-outline = 0.8
-time_offset = 0.0
+对于这些设置项的含义，请参考[配置说明](./configuration.md)，可善用右侧导航在不同配置项间跳转。
 
-[favorite_list]
+## 添加视频源订阅
 
-[collection_list]
+配置完毕后，我们便可以随时添加视频源订阅。
 
-[submission_list]
+用户在正确填写“B站认证”后可以在“快捷订阅”部分查看自己创建的收藏夹、关注的合集与 UP 主一键订阅，也可以在“视频源”页手动添加并管理。
 
-[watch_later]
-enabled = false
-path = ""
+对于手动添加的视频源，可参考如下页面获取所需的参数：
 
-[concurrent_limit]
-video = 3
-page = 2
+- [收藏夹](./favorite.md)
+- [合集 / 列表](./collection.md)
+- [用户投稿](./submission.md)
 
-[concurrent_limit.rate_limit]
-limit = 4
-duration = 250
-```
-
-虽然配置文件看起来很长，但绝大部分选项是不需要做修改的。一般来说，我们只需要关注其中的少数几个，以下逐条说明。
-
-### `auth_token`
-
-表示调用程序管理 API 需要的身份凭据，程序会检查 API 请求 Header 中是否包含正确的 `Authorization` 字段。
-
-内置管理页前端提供了 `auth_token` 的输入框，填写后即可成功调用 API 使用管理页。
-
-### `bind_address`
-
-程序 Web Server 监听的地址，程序启动时会监听该地址，成功后可通过 `http://${bind_address}` 访问管理页。
-
-### `interval`
-
-表示程序每次执行扫描下载的间隔时间，单位为秒。
-
-### `upper_path`
-
-UP 主头像和信息的保存位置。对于使用 Emby、Jellyfin 媒体服务器的用户，需确保此处路径指向 Emby、Jellyfin 配置中的 `/metadata/people/` 才能够正常在媒体服务器中显示 UP 主的头像。
-
-### `credential`
-
-哔哩哔哩账号的身份凭据，请参考[凭据获取流程](https://nemo2011.github.io/bilibili-api/#/get-credential)获取并对应填写至配置文件中，后续 bili-sync 会在必要时自动刷新身份凭据，不再需要手动管理。
-
-推荐使用匿名窗口获取，避免潜在的冲突。
-
-### `codecs`
-
-这是 bili-sync 选择视频编码的优先级顺序，优先级按顺序从高到低。此处对编码格式做一个简单说明：
-
-+ AVC 又称 H.264，是目前使用最广泛的视频编码格式，绝大部分设备可以使用硬件解码播放该格式的视频（也因此播放普遍流畅），但是同等画质下视频体积较大。
-
-+ HEV(C) 又称 H.265，与 AV1 都是新一代的视频编码格式。这两种编码相比 AVC 有更好的压缩率，同等画质下视频体积更小，但由于相对较新，硬件解码支持不如 AVC 广泛。如果你的播放设备不支持则只能使用软件解码播放，这种情况下可能导致播放卡顿、机器发热等问题。
-
-建议查阅自己常用播放设备对这三种编码的硬件解码支持情况以选择合适的编码格式，如果硬件支持 HEV 或 AV1，那么可以将其优先级调高。
-
-而如果你的设备不支持，或者单纯懒得查询，那么推荐将 AVC 放在第一位以获得最好的兼容性。
-
-### `favorite_list`
-
-你想要下载的收藏夹与想要保存的位置。简单示例：
-```toml
-3115878158 = "/home/amtoaer/Downloads/bili-sync/测试收藏夹"
-```
-收藏夹 ID 的获取方式可以参考[这里](/favorite)。
-
-### `collection_list`
-
-你想要下载的视频合集/视频列表与想要保存的位置。注意“视频合集”与“视频列表”是两种不同的类型。在配置文件中需要做区分：
-```toml
-"series:387051756:432248" = "/home/amtoaer/Downloads/bili-sync/测试视频列表"
-"season:1728547:101343" = "/home/amtoaer/Downloads/bili-sync/测试合集"
-```
-
-具体说明可以参考[这里](/collection)。
-
-### `submission_list`
-
-你想要下载的 UP 主投稿与想要保存的位置。简单示例：
-```toml
-9183758 = "/home/amtoaer/Downloads/bili-sync/测试投稿"
-```
-UP 主 ID 的获取方式可以参考[这里](/submission)。
-
-### `watch_later`
-
-设置稍后再看的扫描开关与保存位置。
-
-如果你希望下载稍后再看列表中的视频，可以将 `enabled` 设置为 `true`，并填写 `path`。
-
-```toml
-enabled = true
-path = "/home/amtoaer/Downloads/bili-sync/稍后再看"
-```
-
-## 运行
-
-在配置文件填写完毕后，我们可以直接运行程序。如果配置文件无误，程序会自动开始下载收藏夹中的视频。并每隔 `interval` 秒重新扫描一次。
-
-如果你希望了解更详细的配置项说明，可以查询[这里](/configuration)。
+添加完订阅就无需进行任何干预了，视频下载任务会在后台每隔特定时间（由配置中的“同步间隔”决定）自动运行一次，刷新并下载启用的视频源！
