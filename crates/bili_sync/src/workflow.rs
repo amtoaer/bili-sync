@@ -228,6 +228,7 @@ pub async fn download_video_pages(
     let is_single_page = video_model.single_page.context("single_page is null")?;
     // 对于单页视频，page 的下载已经足够
     // 对于多页视频，page 下载仅包含了分集内容，需要额外补上视频的 poster 的 tvshow.nfo
+    // 更改tvshow.nfo为movie.nfo，避免多层Season1嵌套的情况，同时也不用媒体库选择混合内容了
     let (res_1, res_2, res_3, res_4, res_5) = tokio::join!(
         // 下载视频封面
         fetch_video_poster(
@@ -241,7 +242,7 @@ pub async fn download_video_pages(
         generate_video_nfo(
             separate_status[1] && !is_single_page,
             &video_model,
-            base_path.join("tvshow.nfo"),
+            base_path.join("movie.nfo"),
         ),
         // 下载 Up 主头像
         fetch_upper_face(
