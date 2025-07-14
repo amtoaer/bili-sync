@@ -1,7 +1,7 @@
 use bili_sync_entity::*;
 use sea_orm::{DerivePartialModel, FromQueryResult};
 use serde::Serialize;
-
+pub use chrono::NaiveDateTime as DateTime;
 use crate::utils::status::{PageStatus, VideoStatus};
 
 #[derive(Serialize)]
@@ -21,6 +21,12 @@ pub struct VideosResponse {
 #[derive(Serialize)]
 pub struct VideoResponse {
     pub video: VideoInfo,
+    pub pages: Vec<PageInfo>,
+}
+
+#[derive(Serialize)]
+pub struct VideoFullResponse {
+    pub video: VideoFullInfo,
     pub pages: Vec<PageInfo>,
 }
 
@@ -174,4 +180,32 @@ pub struct VideoSourceDetail {
     pub name: String,
     pub path: String,
     pub enabled: bool,
+}
+// 新增：完整视频信息结构体
+#[derive(Serialize, DerivePartialModel, FromQueryResult)]
+#[sea_orm(entity = "video::Entity")]
+pub struct VideoFullInfo {
+    pub id: i32,
+    pub bvid: String,
+    pub upper_id: i64,
+    pub name: String,
+    pub upper_name: String,
+    #[serde(serialize_with = "serde_video_download_status")]
+    pub download_status: u32,
+    pub collection_id: Option<i32>,
+    pub favorite_id: Option<i32>,
+    pub submission_id: Option<i32>,
+    pub watch_later_id: Option<i32>,
+    pub upper_face: String,
+    pub path: String,
+    pub category: i32,
+    pub intro: String,
+    pub cover: String,
+    pub ctime: DateTime,
+    pub pubtime: DateTime,
+    pub favtime: DateTime,
+    pub valid: bool,
+    pub tags: Option<serde_json::Value>,
+    pub single_page: Option<bool>,
+    pub created_at: String,
 }

@@ -14,16 +14,21 @@ use crate::api::error::InnerApiError;
 use crate::api::helper::{update_page_download_status, update_video_download_status};
 use crate::api::request::{ResetRequest, UpdateVideoStatusRequest, VideosRequest};
 use crate::api::response::{
-    PageInfo, ResetAllVideosResponse, ResetVideoResponse, UpdateVideoStatusResponse, VideoInfo, VideoResponse,
-    VideosResponse,
+    PageInfo, ResetAllVideosResponse, ResetVideoResponse, UpdateVideoStatusResponse, VideoFullInfo, VideoFullResponse, VideoInfo, VideoResponse, VideosResponse
 };
 use crate::api::wrapper::{ApiError, ApiResponse, ValidatedJson};
 use crate::utils::status::{PageStatus, VideoStatus};
+
+#[derive(serde::Deserialize)]
+pub struct GetVideoByBvidRequest {
+    pub bvid: String,
+}
 
 pub(super) fn router() -> Router {
     Router::new()
         .route("/videos", get(get_videos))
         .route("/videos/{id}", get(get_video))
+        .route("/videos/bvid", get(get_video_by_bvid)) // 修改路由为无路径参数
         .route("/videos/{id}/reset", post(reset_video))
         .route("/videos/reset-all", post(reset_all_videos))
         .route("/videos/{id}/update-status", post(update_video_status))
@@ -87,6 +92,41 @@ pub async fn get_video(
         pages: pages_info,
     }))
 }
+// #[utoipa::path(
+//     get,
+//     path = "/api/videos/bvid/{bvid}",
+//     responses(
+//         (status = 200, body = ApiResponse<VideoResponse>),
+//     )
+// )]
+
+pub async fn get_video_by_bvid(
+    Query(params): Query<GetVideoByBvidRequest>, // 使用查询参数
+    Extension(db): Extension<Arc<DatabaseConnection>>,
+) -> Result<ApiResponse<VideoFullResponse>, ApiError> {
+    let videofull_info: Option<VideoFullInfo> = video::Entity::find()
+        .filter(video::Column::Bvid.eq(params.bvid.clone()))
+        .into_partial_model::<VideoFullInfo>()
+        .one(db.as_ref())
+        .await?;
+
+    let Some(videofull_info) = videofull_info else {
+        return Err(InnerApiError::BadRequest(format!("Video with bvid '{}' not found", params.bvid)).into());
+    };
+
+    let pages_info = page::Entity::find()
+        .filter(page::Column::VideoId.eq(videofull_info.id))
+        .order_by_asc(page::Column::Cid)
+        .into_partial_model::<PageInfo>()
+        .all(db.as_ref())
+        .await?;
+
+    Ok(ApiResponse::ok(VideoFullResponse {
+        video: videofull_info,
+        pages: pages_info,
+    }))
+}
+
 
 pub async fn reset_video(
     Path(id): Path<i32>,
