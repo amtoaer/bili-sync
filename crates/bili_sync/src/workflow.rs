@@ -379,7 +379,7 @@ pub async fn download_page(
     let _permit = semaphore.acquire().await.context("acquire semaphore failed")?;
     let mut status = PageStatus::from(page_model.download_status);
     let separate_status = status.should_run();
-    let is_single_page = video_model.single_page.context("single_page is null")?;
+    // let is_single_page = video_model.single_page.context("single_page is null")?;
     let base_name = TEMPLATE
         .load()
         .path_safe_render("page", &page_format_args(video_model, &page_model))?;
