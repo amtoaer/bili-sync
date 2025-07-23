@@ -10,11 +10,21 @@ use serde_json::Value;
 use crate::bilibili::credential::encoded_query;
 use crate::bilibili::{BiliClient, MIXIN_KEY, Validate, VideoInfo};
 
-#[derive(PartialEq, Eq, Hash, Clone, Debug, Deserialize, Default, Copy)]
+#[derive(PartialEq, Eq, Hash, Clone, Debug, Default, Copy)]
 pub enum CollectionType {
     Series,
     #[default]
     Season,
+}
+
+impl<'de> serde::Deserialize<'de> for CollectionType {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let v = i32::deserialize(deserializer)?;
+        CollectionType::try_from(v).map_err(serde::de::Error::custom)
+    }
 }
 
 impl From<CollectionType> for i32 {
@@ -26,13 +36,21 @@ impl From<CollectionType> for i32 {
     }
 }
 
-impl From<i32> for CollectionType {
-    fn from(v: i32) -> Self {
+impl TryFrom<i32> for CollectionType {
+    type Error = anyhow::Error;
+
+    fn try_from(v: i32) -> Result<Self, Self::Error> {
         match v {
-            1 => CollectionType::Series,
-            2 => CollectionType::Season,
-            _ => panic!("invalid collection type"),
+            1 => Ok(CollectionType::Series),
+            2 => Ok(CollectionType::Season),
+            v => Err(anyhow!("got invalid collection type {}", v)),
         }
+    }
+}
+
+impl CollectionType {
+    pub fn from_expected(v: i32) -> Self {
+        Self::try_from(v).expect("invalid collection type")
     }
 }
 
