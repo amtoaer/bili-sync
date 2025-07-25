@@ -16,7 +16,7 @@ use crate::bilibili::{BiliClient, Collection, CollectionItem, CollectionType, Vi
 
 impl VideoSource for collection::Model {
     fn display_name(&self) -> Cow<'static, str> {
-        format!("{}「{}」", CollectionType::from(self.r#type), self.name).into()
+        format!("{}「{}」", CollectionType::from_expected(self.r#type), self.name).into()
     }
 
     fn filter_expr(&self) -> SimpleExpr {
@@ -76,14 +76,14 @@ impl VideoSource for collection::Model {
             CollectionItem {
                 sid: self.s_id.to_string(),
                 mid: self.m_id.to_string(),
-                collection_type: CollectionType::from(self.r#type),
+                collection_type: CollectionType::from_expected(self.r#type),
             },
         );
         let collection_info = collection.get_info().await?;
         ensure!(
             collection_info.sid == self.s_id
                 && collection_info.mid == self.m_id
-                && collection_info.collection_type == CollectionType::from(self.r#type),
+                && collection_info.collection_type == CollectionType::from_expected(self.r#type),
             "collection info mismatch: {:?} != {:?}",
             collection_info,
             collection.collection
