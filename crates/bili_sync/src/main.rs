@@ -15,7 +15,6 @@ mod workflow;
 use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::future::Future;
-use std::panic;
 use std::sync::Arc;
 
 use bilibili::BiliClient;
