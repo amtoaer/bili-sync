@@ -87,13 +87,7 @@ async fn init() -> (Arc<DatabaseConnection>, LogHelper) {
     info!("欢迎使用 Bili-Sync，当前程序版本：{}", config::version());
     info!("项目地址：https://github.com/amtoaer/bili-sync");
     
-    let connection = Arc::new(match setup_database().await {
-        Ok(result) => result,
-        Err(error) => {
-            error!("数据库初始化失败：{}", error.to_string());
-            panic!();
-        },
-    });
+    let connection = Arc::new(setup_database().await.expect("数据库初始化失败"));
     info!("数据库初始化完成");
     
     VersionedConfig::init(&connection).await.expect("配置初始化失败");
