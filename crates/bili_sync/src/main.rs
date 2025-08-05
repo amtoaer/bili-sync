@@ -15,6 +15,7 @@ mod workflow;
 use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::future::Future;
+use std::panic;
 use std::sync::Arc;
 
 use bilibili::BiliClient;
@@ -88,7 +89,10 @@ async fn init() -> (Arc<DatabaseConnection>, LogHelper) {
     
     let connection = Arc::new(match setup_database().await {
         Ok(result) => result,
-        Err(error) => error!("数据库初始化失败：{}", error.to_string()),
+        Err(error) => {
+            error!("数据库初始化失败：{}", error.to_string());
+            panic!();
+        },
     });
     info!("数据库初始化完成");
     
