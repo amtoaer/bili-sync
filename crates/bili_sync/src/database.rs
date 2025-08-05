@@ -26,9 +26,19 @@ async fn migrate_database() -> Result<()> {
 
 /// 进行数据库迁移并获取数据库连接，供外部使用
 pub async fn setup_database() -> Result<DatabaseConnection> {
-    tokio::fs::create_dir_all(CONFIG_DIR.as_path())
-        .await
-        .context("Failed to create config directory")?;
-    migrate_database().await.context("Failed to migrate database")?;
-    database_connection().await.context("Failed to connect to database")
+    match tokio::fs::create_dir_all(CONFIG_DIR.as_path())
+        .await {
+            Ok(result) => {},
+            Err(_) => anyhow!("Failed to create config directory. Please check if you have granted necessary permissions to your folder.")
+        };
+        
+    match migrate_database().await {
+        Ok(_) => {},
+        Err(_) => return Err(anyhow!("Failed to migrate database")),
+    }
+
+    match database_connection().await {
+        Ok(connection) => connection,
+        Err(_) => return Err(anyhow!("Failed to connect to database"))
+    }
 }
