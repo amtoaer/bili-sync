@@ -28,7 +28,7 @@ async fn migrate_database() -> Result<()> {
 pub async fn setup_database() -> Result<DatabaseConnection> {
     tokio::fs::create_dir_all(CONFIG_DIR.as_path())
         .await
-        .context("Failed to create config directory")?;
+        .context("Failed to create config directory. Please check if you have granted necessary permissions to your folder.")?;
     migrate_database().await.context("Failed to migrate database")?;
     database_connection().await.context("Failed to connect to database")
 }
