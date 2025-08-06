@@ -102,10 +102,13 @@ pub async fn fetch_video_details(
 ) -> Result<()> {
     video_source.log_fetch_video_start();
     let videos_model = filter_unfilled_videos(video_source.filter_expr(), connection).await?;
+    let semaphore = Semaphore::new(VersionedConfig::get().load().concurrent_limit.video);
+    let semaphore_ref = &semaphore;
     let tasks = videos_model
         .into_iter()
         .map(|video_model| {
             async move {
+                let _permit = semaphore_ref.acquire().await.context("acquire semaphore failed")?;
                 let video = Video::new(bili_client, video_model.bvid.clone());
                 let info: Result<_> = async { Ok((video.get_tags().await?, video.get_view_info().await?)) }.await;
                 match info {
@@ -281,12 +284,12 @@ pub async fn download_video_pages(
             ExecutionStatus::Succeeded => info!("处理视频「{}」{}成功", &video_model.name, task_name),
             ExecutionStatus::Ignored(e) => {
                 error!(
-                    "处理视频「{}」{}出现常见错误，已忽略: {:#}",
+                    "处理视频「{}」{}出现常见错误，已忽略：{:#}",
                     &video_model.name, task_name, e
                 )
             }
             ExecutionStatus::Failed(e) | ExecutionStatus::FixedFailed(_, e) => {
-                error!("处理视频「{}」{}失败: {:#}", &video_model.name, task_name, e)
+                error!("处理视频「{}」{}失败：{:#}", &video_model.name, task_name, e)
             }
         });
     if let ExecutionStatus::Failed(e) = results.into_iter().nth(4).context("page download result not found")? {
@@ -471,12 +474,12 @@ pub async fn download_page(
             ),
             ExecutionStatus::Ignored(e) => {
                 error!(
-                    "处理视频「{}」第 {} 页{}出现常见错误，已忽略: {:#}",
+                    "处理视频「{}」第 {} 页{}出现常见错误，已忽略：{:#}",
                     &video_model.name, page_model.pid, task_name, e
                 )
             }
             ExecutionStatus::Failed(e) | ExecutionStatus::FixedFailed(_, e) => error!(
-                "处理视频「{}」第 {} 页{}失败: {:#}",
+                "处理视频「{}」第 {} 页{}失败：{:#}",
                 &video_model.name, page_model.pid, task_name, e
             ),
         });
