@@ -47,14 +47,14 @@ async fn main() {
     if !cfg!(debug_assertions) {
         spawn_task(
             "定时下载",
-            video_downloader(connection, bili_client),
+            video_downloader(connection.clone(), bili_client),
             &tracker,
             token.clone(),
         );
     }
 
     tracker.close();
-    handle_shutdown(tracker, token).await
+    handle_shutdown(connection, tracker, token).await
 }
 
 fn spawn_task(
@@ -77,7 +77,7 @@ fn spawn_task(
 }
 
 /// 初始化日志系统、打印欢迎信息，初始化数据库连接和全局配置
-async fn init() -> (Arc<DatabaseConnection>, LogHelper) {
+async fn init() -> (DatabaseConnection, LogHelper) {
     let (tx, _rx) = tokio::sync::broadcast::channel(30);
     let log_history = Arc::new(Mutex::new(VecDeque::with_capacity(MAX_HISTORY_LOGS + 1)));
     let log_writer = LogHelper::new(tx, log_history.clone());
@@ -85,7 +85,7 @@ async fn init() -> (Arc<DatabaseConnection>, LogHelper) {
     init_logger(&ARGS.log_level, Some(log_writer.clone()));
     info!("欢迎使用 Bili-Sync，当前程序版本：{}", config::version());
     info!("项目地址：https://github.com/amtoaer/bili-sync");
-    let connection = Arc::new(setup_database().await.expect("数据库初始化失败"));
+    let connection = setup_database().await.expect("数据库初始化失败");
     info!("数据库初始化完成");
     VersionedConfig::init(&connection).await.expect("配置初始化失败");
     info!("配置初始化完成");
@@ -93,16 +93,21 @@ async fn init() -> (Arc<DatabaseConnection>, LogHelper) {
     (connection, log_writer)
 }
 
-async fn handle_shutdown(tracker: TaskTracker, token: CancellationToken) {
+async fn handle_shutdown(connection: DatabaseConnection, tracker: TaskTracker, token: CancellationToken) {
     tokio::select! {
         _ = tracker.wait() => {
-            error!("所有任务均已终止，程序退出")
+            error!("所有任务均已终止..")
         }
         _ = terminate() => {
-            info!("接收到终止信号，正在终止任务..");
+            info!("接收到终止信号，开始终止任务..");
             token.cancel();
             tracker.wait().await;
-            info!("所有任务均已终止，程序退出");
+            info!("所有任务均已终止..");
         }
+    }
+    info!("正在关闭数据库连接..");
+    match connection.close().await {
+        Ok(()) => info!("数据库连接已关闭，程序结束"),
+        Err(e) => error!("关闭数据库连接时遇到错误：{:#}，程序异常结束", e),
     }
 }

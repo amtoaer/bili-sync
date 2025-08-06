@@ -21,7 +21,7 @@ use crate::config::VersionedConfig;
 struct Asset;
 
 pub async fn http_server(
-    database_connection: Arc<DatabaseConnection>,
+    database_connection: DatabaseConnection,
     bili_client: Arc<BiliClient>,
     log_writer: LogHelper,
 ) -> Result<()> {
