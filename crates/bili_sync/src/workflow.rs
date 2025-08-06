@@ -106,42 +106,44 @@ pub async fn fetch_video_details(
     let semaphore_ref = &semaphore;
     let tasks = videos_model
         .into_iter()
-        .map(|video_model| {
-            async move {
-                let _permit = semaphore_ref.acquire().await.context("acquire semaphore failed")?;
-                let video = Video::new(bili_client, video_model.bvid.clone());
-                let info: Result<_> = async { Ok((video.get_tags().await?, video.get_view_info().await?)) }.await;
-                match info {
-                    Err(e) => {
-                        error!(
-                            "获取视频 {} - {} 的详细信息失败，错误为：{:#}",
-                            &video_model.bvid, &video_model.name, e
-                        );
-                        if let Some(BiliError::RequestFailed(-404, _)) = e.downcast_ref::<BiliError>() {
-                            let mut video_active_model: bili_sync_entity::video::ActiveModel = video_model.into();
-                            video_active_model.valid = Set(false);
-                            video_active_model.save(connection).await?;
-                        }
+        .map(|video_model| async move {
+            let _permit = semaphore_ref.acquire().await.context("acquire semaphore failed")?;
+            let video = Video::new(bili_client, video_model.bvid.clone());
+            let info: Result<_> = async { Ok((video.get_tags().await?, video.get_view_info().await?)) }.await;
+            match info {
+                Err(e) => {
+                    error!(
+                        "获取视频 {} - {} 的详细信息失败，错误为：{:#}",
+                        &video_model.bvid, &video_model.name, e
+                    );
+                    if let Some(BiliError::RequestFailed(-404, _)) = e.downcast_ref::<BiliError>() {
+                        let mut video_active_model: bili_sync_entity::video::ActiveModel = video_model.into();
+                        video_active_model.valid = Set(false);
+                        video_active_model.save(connection).await?;
                     }
-                    Ok((tags, mut view_info)) => {
-                        let VideoInfo::Detail { pages, .. } = &mut view_info else {
-                            unreachable!()
-                        };
-                        let pages = std::mem::take(pages);
-                        let pages_len = pages.len();
-                        let txn = connection.begin().await?;
-                        // 将分页信息写入数据库
-                        create_pages(pages, &video_model, &txn).await?;
-                        let mut video_active_model = view_info.into_detail_model(video_model);
-                        video_source.set_relation_id(&mut video_active_model);
-                        video_active_model.single_page = Set(Some(pages_len == 1));
-                        video_active_model.tags = Set(Some(serde_json::to_value(tags)?));
-                        video_active_model.save(&txn).await?;
-                        txn.commit().await?;
-                    }
-                };
-                Ok::<_, anyhow::Error>(())
-            }
+                }
+                Ok((tags, mut view_info)) => {
+                    let VideoInfo::Detail { pages, .. } = &mut view_info else {
+                        unreachable!()
+                    };
+                    // 构造 page model
+                    let pages = std::mem::take(pages);
+                    let pages = pages
+                        .into_iter()
+                        .map(|p| p.into_active_model(video_model.id))
+                        .collect::<Vec<page::ActiveModel>>();
+                    // 更新 video model 的各项有关属性
+                    let mut video_active_model = view_info.into_detail_model(video_model);
+                    video_source.set_relation_id(&mut video_active_model);
+                    video_active_model.single_page = Set(Some(pages.len() == 1));
+                    video_active_model.tags = Set(Some(serde_json::to_value(tags)?));
+                    let txn = connection.begin().await?;
+                    create_pages(pages, &txn).await?;
+                    video_active_model.save(&txn).await?;
+                    txn.commit().await?;
+                }
+            };
+            Ok::<_, anyhow::Error>(())
         })
         .collect::<FuturesUnordered<_>>();
     tasks.try_collect::<Vec<_>>().await?;

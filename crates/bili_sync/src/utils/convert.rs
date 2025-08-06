@@ -152,10 +152,7 @@ impl VideoInfo {
 }
 
 impl PageInfo {
-    pub fn into_active_model(
-        self,
-        video_model: &bili_sync_entity::video::Model,
-    ) -> bili_sync_entity::page::ActiveModel {
+    pub fn into_active_model(self, video_model_id: i32) -> bili_sync_entity::page::ActiveModel {
         let (width, height) = match &self.dimension {
             Some(d) => {
                 if d.rotate == 0 {
@@ -167,7 +164,7 @@ impl PageInfo {
             None => (None, None),
         };
         bili_sync_entity::page::ActiveModel {
-            video_id: Set(video_model.id),
+            video_id: Set(video_model_id),
             cid: Set(self.cid),
             pid: Set(self.page),
             name: Set(self.name),
