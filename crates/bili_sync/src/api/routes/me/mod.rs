@@ -25,7 +25,7 @@ pub(super) fn router() -> Router {
 
 /// 获取当前用户创建的收藏夹
 pub async fn get_created_favorites(
-    Extension(db): Extension<Arc<DatabaseConnection>>,
+    Extension(db): Extension<DatabaseConnection>,
     Extension(bili_client): Extension<Arc<BiliClient>>,
 ) -> Result<ApiResponse<FavoritesResponse>, ApiError> {
     let me = Me::new(bili_client.as_ref());
@@ -40,7 +40,7 @@ pub async fn get_created_favorites(
             .column(favorite::Column::FId)
             .filter(favorite::Column::FId.is_in(bili_fids))
             .into_tuple()
-            .all(db.as_ref())
+            .all(&db)
             .await?;
         let subscribed_set: HashSet<i64> = subscribed_fids.into_iter().collect();
 
@@ -64,7 +64,7 @@ pub async fn get_created_favorites(
 
 /// 获取当前用户收藏的合集
 pub async fn get_followed_collections(
-    Extension(db): Extension<Arc<DatabaseConnection>>,
+    Extension(db): Extension<DatabaseConnection>,
     Extension(bili_client): Extension<Arc<BiliClient>>,
     Query(params): Query<FollowedCollectionsRequest>,
 ) -> Result<ApiResponse<CollectionsResponse>, ApiError> {
@@ -80,7 +80,7 @@ pub async fn get_followed_collections(
             .column(collection::Column::SId)
             .filter(collection::Column::SId.is_in(bili_sids))
             .into_tuple()
-            .all(db.as_ref())
+            .all(&db)
             .await?;
         let subscribed_set: HashSet<i64> = subscribed_ids.into_iter().collect();
 
@@ -106,7 +106,7 @@ pub async fn get_followed_collections(
 
 /// 获取当前用户关注的 UP 主
 pub async fn get_followed_uppers(
-    Extension(db): Extension<Arc<DatabaseConnection>>,
+    Extension(db): Extension<DatabaseConnection>,
     Extension(bili_client): Extension<Arc<BiliClient>>,
     Query(params): Query<FollowedUppersRequest>,
 ) -> Result<ApiResponse<UppersResponse>, ApiError> {
@@ -121,7 +121,7 @@ pub async fn get_followed_uppers(
         .column(submission::Column::UpperId)
         .filter(submission::Column::UpperId.is_in(bili_uid))
         .into_tuple()
-        .all(db.as_ref())
+        .all(&db)
         .await?;
     let subscribed_set: HashSet<i64> = subscribed_ids.into_iter().collect();
 

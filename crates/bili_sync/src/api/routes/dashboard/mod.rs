@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use axum::routing::get;
 use axum::{Extension, Router};
 use bili_sync_entity::*;
@@ -14,21 +12,21 @@ pub(super) fn router() -> Router {
 }
 
 async fn get_dashboard(
-    Extension(db): Extension<Arc<DatabaseConnection>>,
+    Extension(db): Extension<DatabaseConnection>,
 ) -> Result<ApiResponse<DashBoardResponse>, ApiError> {
     let (enabled_favorites, enabled_collections, enabled_submissions, enabled_watch_later, videos_by_day) = tokio::try_join!(
         favorite::Entity::find()
             .filter(favorite::Column::Enabled.eq(true))
-            .count(db.as_ref()),
+            .count(&db),
         collection::Entity::find()
             .filter(collection::Column::Enabled.eq(true))
-            .count(db.as_ref()),
+            .count(&db),
         submission::Entity::find()
             .filter(submission::Column::Enabled.eq(true))
-            .count(db.as_ref()),
+            .count(&db),
         watch_later::Entity::find()
             .filter(watch_later::Column::Enabled.eq(true))
-            .count(db.as_ref()),
+            .count(&db),
         DayCountPair::find_by_statement(Statement::from_string(
             db.get_database_backend(),
             // 用 SeaORM 太复杂了，直接写个裸 SQL
@@ -55,7 +53,7 @@ ORDER BY
     dates.day;
     "
         ))
-        .all(db.as_ref()),
+        .all(&db),
     )?;
     return Ok(ApiResponse::ok(DashBoardResponse {
         enabled_favorites,
