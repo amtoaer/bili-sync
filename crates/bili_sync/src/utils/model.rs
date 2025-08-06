@@ -6,7 +6,7 @@ use sea_orm::sea_query::{OnConflict, SimpleExpr};
 use sea_orm::{DatabaseTransaction, TransactionTrait};
 
 use crate::adapter::{VideoSource, VideoSourceEnum};
-use crate::bilibili::{PageInfo, VideoInfo};
+use crate::bilibili::VideoInfo;
 use crate::config::{Config, LegacyConfig};
 use crate::utils::status::STATUS_COMPLETED;
 
@@ -73,16 +73,8 @@ pub async fn create_videos(
 }
 
 /// 尝试创建 Page Model，如果发生冲突则忽略
-pub async fn create_pages(
-    pages_info: Vec<PageInfo>,
-    video_model: &bili_sync_entity::video::Model,
-    connection: &DatabaseTransaction,
-) -> Result<()> {
-    let page_models = pages_info
-        .into_iter()
-        .map(|p| p.into_active_model(video_model))
-        .collect::<Vec<page::ActiveModel>>();
-    for page_chunk in page_models.chunks(50) {
+pub async fn create_pages(pages_model: Vec<page::ActiveModel>, connection: &DatabaseTransaction) -> Result<()> {
+    for page_chunk in pages_model.chunks(200) {
         page::Entity::insert_many(page_chunk.to_vec())
             .on_conflict(
                 OnConflict::columns([page::Column::VideoId, page::Column::Pid])

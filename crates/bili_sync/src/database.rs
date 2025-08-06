@@ -1,6 +1,10 @@
+use std::time::Duration;
+
 use anyhow::{Context, Result};
 use bili_sync_migration::{Migrator, MigratorTrait};
-use sea_orm::{ConnectOptions, Database, DatabaseConnection};
+use sea_orm::sqlx::sqlite::SqliteConnectOptions;
+use sea_orm::sqlx::{ConnectOptions as SqlxConnectOptions, Sqlite};
+use sea_orm::{ConnectOptions, Database, DatabaseConnection, SqlxSqliteConnector};
 
 use crate::config::CONFIG_DIR;
 
@@ -13,8 +17,19 @@ async fn database_connection() -> Result<DatabaseConnection> {
     option
         .max_connections(100)
         .min_connections(5)
-        .acquire_timeout(std::time::Duration::from_secs(90));
-    Ok(Database::connect(option).await?)
+        .acquire_timeout(Duration::from_secs(90));
+    let connect_option = option
+        .get_url()
+        .parse::<SqliteConnectOptions>()
+        .context("Failed to parse database URL")?
+        .disable_statement_logging()
+        .busy_timeout(Duration::from_secs(90));
+    Ok(SqlxSqliteConnector::from_sqlx_sqlite_pool(
+        option
+            .sqlx_pool_options::<Sqlite>()
+            .connect_with(connect_option)
+            .await?,
+    ))
 }
 
 async fn migrate_database() -> Result<()> {
