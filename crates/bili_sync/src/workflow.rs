@@ -102,10 +102,13 @@ pub async fn fetch_video_details(
 ) -> Result<()> {
     video_source.log_fetch_video_start();
     let videos_model = filter_unfilled_videos(video_source.filter_expr(), connection).await?;
+    let semaphore = Semaphore::new(VersionedConfig::get().load().concurrent_limit.video);
+    let semaphore_ref = &semaphore;
     let tasks = videos_model
         .into_iter()
         .map(|video_model| {
             async move {
+                let _permit = semaphore_ref.acquire().await.context("acquire semaphore failed")?;
                 let video = Video::new(bili_client, video_model.bvid.clone());
                 let info: Result<_> = async { Ok((video.get_tags().await?, video.get_view_info().await?)) }.await;
                 match info {
