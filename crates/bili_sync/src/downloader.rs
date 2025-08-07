@@ -167,7 +167,8 @@ impl Downloader {
                 output_path.to_string_lossy().as_ref(),
             ])
             .output()
-            .await?;
+            .await
+            .context("failed to run ffmpeg")?;
         if !output.status.success() {
             bail!("ffmpeg error: {}", str::from_utf8(&output.stderr).unwrap_or("unknown"));
         }
