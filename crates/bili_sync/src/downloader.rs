@@ -149,7 +149,7 @@ impl Downloader {
                 }
             }
         }
-        res.with_context(|| format!("failed to download from {:?}", urls))
+        res.with_context(|| format!("failed to download file"))
     }
 
     pub async fn merge(&self, video_path: &Path, audio_path: &Path, output_path: &Path) -> Result<()> {
