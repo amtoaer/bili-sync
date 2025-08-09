@@ -1,6 +1,10 @@
+use std::time::Duration;
+
 use anyhow::{Context, Result};
 use bili_sync_migration::{Migrator, MigratorTrait};
-use sea_orm::{ConnectOptions, Database, DatabaseConnection};
+use sea_orm::sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqliteSynchronous};
+use sea_orm::sqlx::{ConnectOptions as SqlxConnectOptions, Sqlite};
+use sea_orm::{ConnectOptions, Database, DatabaseConnection, SqlxSqliteConnector};
 
 use crate::config::CONFIG_DIR;
 
@@ -11,10 +15,24 @@ fn database_url() -> String {
 async fn database_connection() -> Result<DatabaseConnection> {
     let mut option = ConnectOptions::new(database_url());
     option
-        .max_connections(100)
+        .max_connections(50)
         .min_connections(5)
-        .acquire_timeout(std::time::Duration::from_secs(90));
-    Ok(Database::connect(option).await?)
+        .acquire_timeout(Duration::from_secs(90));
+    let connect_option = option
+        .get_url()
+        .parse::<SqliteConnectOptions>()
+        .context("Failed to parse database URL")?
+        .disable_statement_logging()
+        .busy_timeout(Duration::from_secs(90))
+        .journal_mode(SqliteJournalMode::Wal)
+        .synchronous(SqliteSynchronous::Normal)
+        .optimize_on_close(true, None);
+    Ok(SqlxSqliteConnector::from_sqlx_sqlite_pool(
+        option
+            .sqlx_pool_options::<Sqlite>()
+            .connect_with(connect_option)
+            .await?,
+    ))
 }
 
 async fn migrate_database() -> Result<()> {
@@ -26,9 +44,9 @@ async fn migrate_database() -> Result<()> {
 
 /// 进行数据库迁移并获取数据库连接，供外部使用
 pub async fn setup_database() -> Result<DatabaseConnection> {
-    tokio::fs::create_dir_all(CONFIG_DIR.as_path())
-        .await
-        .context("Failed to create config directory")?;
+    tokio::fs::create_dir_all(CONFIG_DIR.as_path()).await.context(
+        "Failed to create config directory. Please check if you have granted necessary permissions to your folder.",
+    )?;
     migrate_database().await.context("Failed to migrate database")?;
     database_connection().await.context("Failed to connect to database")
 }

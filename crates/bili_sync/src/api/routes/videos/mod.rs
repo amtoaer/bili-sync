@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::sync::Arc;
 
 use anyhow::Result;
 use axum::extract::{Extension, Path, Query};
@@ -36,7 +35,7 @@ pub(super) fn router() -> Router {
 
 /// 列出视频的基本信息，支持根据视频来源筛选、名称查找和分页
 pub async fn get_videos(
-    Extension(db): Extension<Arc<DatabaseConnection>>,
+    Extension(db): Extension<DatabaseConnection>,
     Query(params): Query<VideosRequest>,
 ) -> Result<ApiResponse<VideosResponse>, ApiError> {
     let mut query = video::Entity::find();
@@ -53,7 +52,7 @@ pub async fn get_videos(
     if let Some(query_word) = params.query {
         query = query.filter(video::Column::Name.contains(query_word));
     }
-    let total_count = query.clone().count(db.as_ref()).await?;
+    let total_count = query.clone().count(&db).await?;
     let (page, page_size) = if let (Some(page), Some(page_size)) = (params.page, params.page_size) {
         (page, page_size)
     } else {
@@ -63,7 +62,7 @@ pub async fn get_videos(
         videos: query
             .order_by_desc(video::Column::Id)
             .into_partial_model::<VideoInfo>()
-            .paginate(db.as_ref(), page_size)
+            .paginate(&db, page_size)
             .fetch_page(page)
             .await?,
         total_count,
@@ -72,17 +71,15 @@ pub async fn get_videos(
 
 pub async fn get_video(
     Path(id): Path<i32>,
-    Extension(db): Extension<Arc<DatabaseConnection>>,
+    Extension(db): Extension<DatabaseConnection>,
 ) -> Result<ApiResponse<VideoResponse>, ApiError> {
     let (video_info, pages_info) = tokio::try_join!(
-        video::Entity::find_by_id(id)
-            .into_partial_model::<VideoInfo>()
-            .one(db.as_ref()),
+        video::Entity::find_by_id(id).into_partial_model::<VideoInfo>().one(&db),
         page::Entity::find()
             .filter(page::Column::VideoId.eq(id))
             .order_by_asc(page::Column::Cid)
             .into_partial_model::<PageInfo>()
-            .all(db.as_ref())
+            .all(&db)
     )?;
     let Some(video_info) = video_info else {
         return Err(InnerApiError::NotFound(id).into());
@@ -130,18 +127,16 @@ pub async fn get_video_by_bvid(
 
 pub async fn reset_video(
     Path(id): Path<i32>,
-    Extension(db): Extension<Arc<DatabaseConnection>>,
+    Extension(db): Extension<DatabaseConnection>,
     Json(request): Json<ResetRequest>,
 ) -> Result<ApiResponse<ResetVideoResponse>, ApiError> {
     let (video_info, pages_info) = tokio::try_join!(
-        video::Entity::find_by_id(id)
-            .into_partial_model::<VideoInfo>()
-            .one(db.as_ref()),
+        video::Entity::find_by_id(id).into_partial_model::<VideoInfo>().one(&db),
         page::Entity::find()
             .filter(page::Column::VideoId.eq(id))
             .order_by_asc(page::Column::Cid)
             .into_partial_model::<PageInfo>()
-            .all(db.as_ref())
+            .all(&db)
     )?;
     let Some(mut video_info) = video_info else {
         return Err(InnerApiError::NotFound(id).into());
@@ -190,13 +185,13 @@ pub async fn reset_video(
 }
 
 pub async fn reset_all_videos(
-    Extension(db): Extension<Arc<DatabaseConnection>>,
+    Extension(db): Extension<DatabaseConnection>,
     Json(request): Json<ResetRequest>,
 ) -> Result<ApiResponse<ResetAllVideosResponse>, ApiError> {
     // 先查询所有视频和页面数据
     let (all_videos, all_pages) = tokio::try_join!(
-        video::Entity::find().into_partial_model::<VideoInfo>().all(db.as_ref()),
-        page::Entity::find().into_partial_model::<PageInfo>().all(db.as_ref())
+        video::Entity::find().into_partial_model::<VideoInfo>().all(&db),
+        page::Entity::find().into_partial_model::<PageInfo>().all(&db)
     )?;
     let resetted_pages_info = all_pages
         .into_iter()
@@ -250,18 +245,16 @@ pub async fn reset_all_videos(
 
 pub async fn update_video_status(
     Path(id): Path<i32>,
-    Extension(db): Extension<Arc<DatabaseConnection>>,
+    Extension(db): Extension<DatabaseConnection>,
     ValidatedJson(request): ValidatedJson<UpdateVideoStatusRequest>,
 ) -> Result<ApiResponse<UpdateVideoStatusResponse>, ApiError> {
     let (video_info, mut pages_info) = tokio::try_join!(
-        video::Entity::find_by_id(id)
-            .into_partial_model::<VideoInfo>()
-            .one(db.as_ref()),
+        video::Entity::find_by_id(id).into_partial_model::<VideoInfo>().one(&db),
         page::Entity::find()
             .filter(page::Column::VideoId.eq(id))
             .order_by_asc(page::Column::Cid)
             .into_partial_model::<PageInfo>()
-            .all(db.as_ref())
+            .all(&db)
     )?;
     let Some(mut video_info) = video_info else {
         return Err(InnerApiError::NotFound(id).into());

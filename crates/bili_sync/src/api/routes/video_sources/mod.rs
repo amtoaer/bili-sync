@@ -30,31 +30,31 @@ pub(super) fn router() -> Router {
 
 /// 列出所有视频来源
 pub async fn get_video_sources(
-    Extension(db): Extension<Arc<DatabaseConnection>>,
+    Extension(db): Extension<DatabaseConnection>,
 ) -> Result<ApiResponse<VideoSourcesResponse>, ApiError> {
     let (collection, favorite, submission, mut watch_later) = tokio::try_join!(
         collection::Entity::find()
             .select_only()
             .columns([collection::Column::Id, collection::Column::Name])
             .into_model::<VideoSource>()
-            .all(db.as_ref()),
+            .all(&db),
         favorite::Entity::find()
             .select_only()
             .columns([favorite::Column::Id, favorite::Column::Name])
             .into_model::<VideoSource>()
-            .all(db.as_ref()),
+            .all(&db),
         submission::Entity::find()
             .select_only()
             .column(submission::Column::Id)
             .column_as(submission::Column::UpperName, "name")
             .into_model::<VideoSource>()
-            .all(db.as_ref()),
+            .all(&db),
         watch_later::Entity::find()
             .select_only()
             .column(watch_later::Column::Id)
             .column_as(Expr::value("稍后再看"), "name")
             .into_model::<VideoSource>()
-            .all(db.as_ref())
+            .all(&db)
     )?;
     // watch_later 是一个特殊的视频来源，如果不存在则添加一个默认项
     if watch_later.is_empty() {
@@ -73,7 +73,7 @@ pub async fn get_video_sources(
 
 /// 获取视频来源详情
 pub async fn get_video_sources_details(
-    Extension(db): Extension<Arc<DatabaseConnection>>,
+    Extension(db): Extension<DatabaseConnection>,
 ) -> Result<ApiResponse<VideoSourcesDetailsResponse>, ApiError> {
     let (collections, favorites, submissions, mut watch_later) = tokio::try_join!(
         collection::Entity::find()
@@ -85,7 +85,7 @@ pub async fn get_video_sources_details(
                 collection::Column::Enabled
             ])
             .into_model::<VideoSourceDetail>()
-            .all(db.as_ref()),
+            .all(&db),
         favorite::Entity::find()
             .select_only()
             .columns([
@@ -95,21 +95,21 @@ pub async fn get_video_sources_details(
                 favorite::Column::Enabled
             ])
             .into_model::<VideoSourceDetail>()
-            .all(db.as_ref()),
+            .all(&db),
         submission::Entity::find()
             .select_only()
             .column(submission::Column::Id)
             .column_as(submission::Column::UpperName, "name")
             .columns([submission::Column::Path, submission::Column::Enabled])
             .into_model::<VideoSourceDetail>()
-            .all(db.as_ref()),
+            .all(&db),
         watch_later::Entity::find()
             .select_only()
             .column(watch_later::Column::Id)
             .column_as(Expr::value("稍后再看"), "name")
             .columns([watch_later::Column::Path, watch_later::Column::Enabled])
             .into_model::<VideoSourceDetail>()
-            .all(db.as_ref())
+            .all(&db)
     )?;
     if watch_later.is_empty() {
         watch_later.push(VideoSourceDetail {
@@ -130,29 +130,29 @@ pub async fn get_video_sources_details(
 /// 更新视频来源
 pub async fn update_video_source(
     Path((source_type, id)): Path<(String, i32)>,
-    Extension(db): Extension<Arc<DatabaseConnection>>,
+    Extension(db): Extension<DatabaseConnection>,
     ValidatedJson(request): ValidatedJson<UpdateVideoSourceRequest>,
 ) -> Result<ApiResponse<bool>, ApiError> {
     let active_model = match source_type.as_str() {
-        "collections" => collection::Entity::find_by_id(id).one(db.as_ref()).await?.map(|model| {
+        "collections" => collection::Entity::find_by_id(id).one(&db).await?.map(|model| {
             let mut active_model: collection::ActiveModel = model.into();
             active_model.path = Set(request.path);
             active_model.enabled = Set(request.enabled);
             _ActiveModel::Collection(active_model)
         }),
-        "favorites" => favorite::Entity::find_by_id(id).one(db.as_ref()).await?.map(|model| {
+        "favorites" => favorite::Entity::find_by_id(id).one(&db).await?.map(|model| {
             let mut active_model: favorite::ActiveModel = model.into();
             active_model.path = Set(request.path);
             active_model.enabled = Set(request.enabled);
             _ActiveModel::Favorite(active_model)
         }),
-        "submissions" => submission::Entity::find_by_id(id).one(db.as_ref()).await?.map(|model| {
+        "submissions" => submission::Entity::find_by_id(id).one(&db).await?.map(|model| {
             let mut active_model: submission::ActiveModel = model.into();
             active_model.path = Set(request.path);
             active_model.enabled = Set(request.enabled);
             _ActiveModel::Submission(active_model)
         }),
-        "watch_later" => match watch_later::Entity::find_by_id(id).one(db.as_ref()).await? {
+        "watch_later" => match watch_later::Entity::find_by_id(id).one(&db).await? {
             // 稍后再看需要做特殊处理，get 时如果稍后再看不存在返回的是 id 为 1 的假记录
             // 因此此处可能是更新也可能是插入，做个额外的处理
             Some(model) => {
@@ -180,13 +180,13 @@ pub async fn update_video_source(
     let Some(active_model) = active_model else {
         return Err(InnerApiError::NotFound(id).into());
     };
-    active_model.save(db.as_ref()).await?;
+    active_model.save(&db).await?;
     Ok(ApiResponse::ok(true))
 }
 
 /// 新增收藏夹订阅
 pub async fn insert_favorite(
-    Extension(db): Extension<Arc<DatabaseConnection>>,
+    Extension(db): Extension<DatabaseConnection>,
     Extension(bili_client): Extension<Arc<BiliClient>>,
     ValidatedJson(request): ValidatedJson<InsertFavoriteRequest>,
 ) -> Result<ApiResponse<bool>, ApiError> {
@@ -199,14 +199,14 @@ pub async fn insert_favorite(
         enabled: Set(true),
         ..Default::default()
     })
-    .exec(db.as_ref())
+    .exec(&db)
     .await?;
     Ok(ApiResponse::ok(true))
 }
 
 /// 新增合集/列表订阅
 pub async fn insert_collection(
-    Extension(db): Extension<Arc<DatabaseConnection>>,
+    Extension(db): Extension<DatabaseConnection>,
     Extension(bili_client): Extension<Arc<BiliClient>>,
     ValidatedJson(request): ValidatedJson<InsertCollectionRequest>,
 ) -> Result<ApiResponse<bool>, ApiError> {
@@ -228,7 +228,7 @@ pub async fn insert_collection(
         enabled: Set(true),
         ..Default::default()
     })
-    .exec(db.as_ref())
+    .exec(&db)
     .await?;
 
     Ok(ApiResponse::ok(true))
@@ -236,7 +236,7 @@ pub async fn insert_collection(
 
 /// 新增投稿订阅
 pub async fn insert_submission(
-    Extension(db): Extension<Arc<DatabaseConnection>>,
+    Extension(db): Extension<DatabaseConnection>,
     Extension(bili_client): Extension<Arc<BiliClient>>,
     ValidatedJson(request): ValidatedJson<InsertSubmissionRequest>,
 ) -> Result<ApiResponse<bool>, ApiError> {
@@ -249,7 +249,7 @@ pub async fn insert_submission(
         enabled: Set(true),
         ..Default::default()
     })
-    .exec(db.as_ref())
+    .exec(&db)
     .await?;
     Ok(ApiResponse::ok(true))
 }

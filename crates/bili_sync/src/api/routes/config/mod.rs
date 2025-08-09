@@ -22,7 +22,7 @@ pub async fn get_config() -> Result<ApiResponse<Arc<Config>>, ApiError> {
 
 /// 更新全局配置
 pub async fn update_config(
-    Extension(db): Extension<Arc<DatabaseConnection>>,
+    Extension(db): Extension<DatabaseConnection>,
     ValidatedJson(config): ValidatedJson<Config>,
 ) -> Result<ApiResponse<Arc<Config>>, ApiError> {
     let Some(_lock) = TASK_STATUS_NOTIFIER.detect_running() else {
@@ -30,7 +30,7 @@ pub async fn update_config(
         return Err(InnerApiError::BadRequest("下载任务正在运行，无法修改配置".to_string()).into());
     };
     config.check()?;
-    let new_config = VersionedConfig::get().update(config, db.as_ref()).await?;
+    let new_config = VersionedConfig::get().update(config, &db).await?;
     drop(_lock);
     Ok(ApiResponse::ok(new_config))
 }
