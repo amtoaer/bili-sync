@@ -132,6 +132,9 @@
 			extendedSource.type = tabValue;
 			extendedSource.originalIndex = originalIndex;
 			return extendedSource;
+		}).sort((a, b) => {
+			// 按字典顺序排序
+			return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
 		});
 	}
 
