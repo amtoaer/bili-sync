@@ -54,6 +54,7 @@ toml = { workspace = true }
 tower = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+ua_generator = { workspace = true }
 uuid = { workspace = true }
 validator = { workspace = true }
 
