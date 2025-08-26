@@ -24,6 +24,7 @@ cow-utils = { workspace = true }
 dashmap = { workspace = true }
 dirs = { workspace = true }
 enum_dispatch = { workspace = true }
+fake_user_agent.workspace = true
 float-ord = { workspace = true }
 futures = { workspace = true }
 handlebars = { workspace = true }

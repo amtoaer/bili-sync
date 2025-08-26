@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use anyhow::Result;
+use fake_user_agent::get_chrome_rua;
 use leaky_bucket::RateLimiter;
 use reqwest::{Method, header};
 use sea_orm::DatabaseConnection;
@@ -17,12 +18,7 @@ impl Client {
     pub fn new() -> Self {
         // 正常访问 api 所必须的 header，作为默认 header 添加到每个请求中
         let mut headers = header::HeaderMap::new();
-        headers.insert(
-            header::USER_AGENT,
-            header::HeaderValue::from_static(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-            ),
-        );
+        headers.insert(header::USER_AGENT, header::HeaderValue::from_static(get_chrome_rua()));
         headers.insert(
             header::REFERER,
             header::HeaderValue::from_static("https://www.bilibili.com"),
