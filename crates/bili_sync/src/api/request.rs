@@ -81,11 +81,6 @@ pub struct InsertSubmissionRequest {
     pub path: String,
 }
 
-#[derive(Deserialize)]
-pub struct ImageProxyParams {
-    pub url: String,
-}
-
 #[derive(Deserialize, Validate)]
 pub struct UpdateVideoSourceRequest {
     #[validate(custom(function = "crate::utils::validation::validate_path"))]

@@ -11,8 +11,7 @@ export default defineConfig({
 				ws: true,
 				rewriteWsOrigin: true
 			},
-			'/api': 'http://localhost:12345',
-			'/image-proxy': 'http://localhost:12345'
+			'/api': 'http://localhost:12345'
 		},
 		host: true
 	}
