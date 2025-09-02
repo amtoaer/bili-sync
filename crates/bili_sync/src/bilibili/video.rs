@@ -29,6 +29,7 @@ impl serde::Serialize for Tag {
         serializer.serialize_str(&self.tag_name)
     }
 }
+
 #[derive(Debug, serde::Deserialize, Default)]
 pub struct PageInfo {
     pub cid: i64,
