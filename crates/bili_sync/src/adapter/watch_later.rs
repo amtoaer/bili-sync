@@ -2,6 +2,7 @@ use std::path::Path;
 use std::pin::Pin;
 
 use anyhow::Result;
+use bili_sync_entity::rule::Rule;
 use bili_sync_entity::*;
 use futures::Stream;
 use sea_orm::ActiveValue::Set;
@@ -39,6 +40,10 @@ impl VideoSource for watch_later::Model {
             latest_row_at: Set(datetime),
             ..Default::default()
         })
+    }
+
+    fn rule(&self) -> Option<&Rule> {
+        self.rule.as_ref()
     }
 
     async fn refresh<'a>(

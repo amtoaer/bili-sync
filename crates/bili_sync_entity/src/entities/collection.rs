@@ -2,6 +2,8 @@
 
 use sea_orm::entity::prelude::*;
 
+use crate::rule::Rule;
+
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
 #[sea_orm(table_name = "collection")]
 pub struct Model {
@@ -14,6 +16,7 @@ pub struct Model {
     pub path: String,
     pub created_at: String,
     pub latest_row_at: DateTime,
+    pub rule: Option<Rule>,
     pub enabled: bool,
 }
 

@@ -2,6 +2,8 @@
 
 use sea_orm::entity::prelude::*;
 
+use crate::string_vec::StringVec;
+
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Default)]
 #[sea_orm(table_name = "video")]
 pub struct Model {
@@ -25,7 +27,8 @@ pub struct Model {
     pub favtime: DateTime,
     pub download_status: u32,
     pub valid: bool,
-    pub tags: Option<serde_json::Value>,
+    pub should_download: bool,
+    pub tags: Option<StringVec>,
     pub single_page: Option<bool>,
     pub created_at: String,
 }
