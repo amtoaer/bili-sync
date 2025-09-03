@@ -23,7 +23,7 @@ use crate::utils::model::{
     update_videos_model,
 };
 use crate::utils::nfo::NFO;
-use crate::utils::rule::Evaluatable;
+use crate::utils::rule::FieldEvaluatable;
 use crate::utils::status::{PageStatus, STATUS_OK, VideoStatus};
 
 /// 完整地处理某个视频来源
