@@ -15,7 +15,7 @@ use favorite_list::Upper;
 pub use me::Me;
 use once_cell::sync::Lazy;
 pub use submission::Submission;
-pub use video::{Dimension, PageInfo, Tag, Video};
+pub use video::{Dimension, PageInfo, Video};
 pub use watch_later::WatchLater;
 
 mod analyzer;

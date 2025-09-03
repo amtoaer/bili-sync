@@ -8,6 +8,7 @@ mod m20250122_062926_add_latest_row_at;
 mod m20250612_090826_add_enabled;
 mod m20250613_043257_add_config;
 mod m20250712_080013_add_video_created_at_index;
+mod m20250903_094454_add_rule_and_should_download;
 
 pub struct Migrator;
 
@@ -23,6 +24,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20250612_090826_add_enabled::Migration),
             Box::new(m20250613_043257_add_config::Migration),
             Box::new(m20250712_080013_add_video_created_at_index::Migration),
+            Box::new(m20250903_094454_add_rule_and_should_download::Migration),
         ]
     }
 }

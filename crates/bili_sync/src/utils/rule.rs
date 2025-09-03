@@ -1,112 +1,16 @@
-use std::fmt::Display;
-
+use bili_sync_entity::rule::{AndGroup, Condition, Rule, RuleTarget};
 use bili_sync_entity::{page, video};
 use chrono::NaiveDateTime;
-use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::bilibili::Tag;
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", tag = "operator", content = "value")]
-enum Condition<T: Serialize + Display> {
-    Equals(T),
-    Contains(T),
-    #[serde(deserialize_with = "deserialize_regex", serialize_with = "serialize_regex")]
-    MatchesRegex(String, Result<regex::Regex, regex::Error>),
-    Prefix(T),
-    Suffix(T),
-    GreaterThan(T),
-    LessThan(T),
-    Between(T, T),
+pub(crate) trait FieldEvaluatable<T> {
+    fn evaluate(&self, value: T) -> bool;
 }
 
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", tag = "field", content = "rule")]
-enum RuleTarget {
-    Title(Condition<String>),
-    Tags(Condition<String>),
-    FavTime(Condition<NaiveDateTime>),
-    PubTime(Condition<NaiveDateTime>),
-    PageCount(Condition<usize>),
-    Not(Box<RuleTarget>),
+pub(crate) trait Evaluatable {
+    fn evaluate(&self, video: &video::ActiveModel, pages: &[page::ActiveModel]) -> bool;
 }
 
-type AndGroup = Vec<RuleTarget>;
-
-#[derive(Serialize, Deserialize)]
-struct Rule(Vec<AndGroup>);
-
-trait Evaluatable {
-    fn evaluate(&self, video: &video::ActiveModel, pages: &[page::ActiveModel], tags: &[Tag]) -> bool;
-}
-
-impl<T: Serialize + Display> Display for Condition<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Condition::Equals(v) => write!(f, "等于“{}”", v),
-            Condition::Contains(v) => write!(f, "包含“{}”", v),
-            Condition::MatchesRegex(pat, _) => write!(f, "匹配“{}”", pat),
-            Condition::Prefix(v) => write!(f, "以“{}”开头", v),
-            Condition::Suffix(v) => write!(f, "以“{}”结尾", v),
-            Condition::GreaterThan(v) => write!(f, "大于“{}”", v),
-            Condition::LessThan(v) => write!(f, "小于“{}”", v),
-            Condition::Between(start, end) => write!(f, "在“{}”和“{}”之间", start, end),
-        }
-    }
-}
-
-impl Display for RuleTarget {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        fn get_field_name(rt: &RuleTarget, depth: usize) -> &'static str {
-            match rt {
-                RuleTarget::Title(_) => "标题",
-                RuleTarget::Tags(_) => "标签",
-                RuleTarget::FavTime(_) => "收藏时间",
-                RuleTarget::PubTime(_) => "发布时间",
-                RuleTarget::PageCount(_) => "视频分页数量",
-                RuleTarget::Not(inner) => {
-                    if depth == 0 {
-                        get_field_name(inner, depth + 1)
-                    } else {
-                        panic!("Not 条件不允许嵌套")
-                    }
-                }
-            }
-        }
-        let field_name = get_field_name(self, 0);
-        match self {
-            RuleTarget::Not(inner) => match inner.as_ref() {
-                RuleTarget::Title(cond) | RuleTarget::Tags(cond) => write!(f, "{}不{}", field_name, cond),
-                RuleTarget::FavTime(cond) | RuleTarget::PubTime(cond) => {
-                    write!(f, "{}不{}", field_name, cond)
-                }
-                RuleTarget::PageCount(cond) => write!(f, "{}不{}", field_name, cond),
-                RuleTarget::Not(_) => panic!("Not 条件不允许嵌套"),
-            },
-            RuleTarget::Title(cond) | RuleTarget::Tags(cond) => write!(f, "{}{}", field_name, cond),
-            RuleTarget::FavTime(cond) | RuleTarget::PubTime(cond) => {
-                write!(f, "{}{}", field_name, cond)
-            }
-            RuleTarget::PageCount(cond) => write!(f, "{}{}", field_name, cond),
-        }
-    }
-}
-
-impl Display for Rule {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let groups: Vec<String> = self
-            .0
-            .iter()
-            .map(|group| {
-                let conditions: Vec<String> = group.iter().map(|target| format!("({})", target)).collect();
-                format!("「{}」", conditions.join("且"))
-            })
-            .collect();
-        write!(f, "{}", groups.join("或"))
-    }
-}
-
-impl Condition<String> {
+impl FieldEvaluatable<&str> for Condition<String> {
     fn evaluate(&self, value: &str) -> bool {
         match self {
             Condition::Equals(expected) => expected == value,
@@ -119,7 +23,7 @@ impl Condition<String> {
     }
 }
 
-impl Condition<usize> {
+impl FieldEvaluatable<usize> for Condition<usize> {
     fn evaluate(&self, value: usize) -> bool {
         match self {
             Condition::Equals(expected) => *expected == value,
@@ -131,7 +35,7 @@ impl Condition<usize> {
     }
 }
 
-impl Condition<NaiveDateTime> {
+impl FieldEvaluatable<&NaiveDateTime> for Condition<NaiveDateTime> {
     fn evaluate(&self, value: &NaiveDateTime) -> bool {
         match self {
             Condition::Equals(expected) => expected == value,
@@ -144,12 +48,16 @@ impl Condition<NaiveDateTime> {
 }
 
 impl Evaluatable for RuleTarget {
-    fn evaluate(&self, video: &video::ActiveModel, pages: &[page::ActiveModel], tags: &[Tag]) -> bool {
+    fn evaluate(&self, video: &video::ActiveModel, pages: &[page::ActiveModel]) -> bool {
         match self {
             RuleTarget::Title(cond) => video.name.try_as_ref().is_some_and(|title| cond.evaluate(&title)),
             // 目前的所有条件都是分别针对全体标签进行 any 评估的，例如 Prefix("a") && Suffix("b") 意味着 any(tag.Prefix("a")) && any(tag.Suffix("b")) 而非 any(tag.Prefix("a") && tag.Suffix("b"))
             // 这可能不满足用户预期，但应该问题不大，如果真有很多人用复杂标签筛选再单独改
-            RuleTarget::Tags(cond) => tags.iter().any(|tag| cond.evaluate(&tag.tag_name)),
+            RuleTarget::Tags(cond) => video
+                .tags
+                .try_as_ref()
+                .and_then(|t| t.as_ref())
+                .is_some_and(|tags| tags.0.iter().any(|tag| cond.evaluate(&tag))),
             RuleTarget::FavTime(cond) => video
                 .favtime
                 .try_as_ref()
@@ -159,42 +67,21 @@ impl Evaluatable for RuleTarget {
                 .try_as_ref()
                 .is_some_and(|pub_time| cond.evaluate(&pub_time)),
             RuleTarget::PageCount(cond) => cond.evaluate(pages.len()),
-            RuleTarget::Not(inner) => !inner.evaluate(video, pages, tags),
+            RuleTarget::Not(inner) => !inner.evaluate(video, pages),
         }
     }
 }
 
 impl Evaluatable for AndGroup {
-    fn evaluate(&self, video: &video::ActiveModel, pages: &[page::ActiveModel], tags: &[Tag]) -> bool {
-        self.iter().all(|target| target.evaluate(video, pages, tags))
+    fn evaluate(&self, video: &video::ActiveModel, pages: &[page::ActiveModel]) -> bool {
+        self.iter().all(|target| target.evaluate(video, pages))
     }
 }
 
 impl Evaluatable for Rule {
-    fn evaluate(&self, video: &video::ActiveModel, pages: &[page::ActiveModel], tags: &[Tag]) -> bool {
-        self.0.iter().any(|group| group.evaluate(video, pages, tags))
+    fn evaluate(&self, video: &video::ActiveModel, pages: &[page::ActiveModel]) -> bool {
+        self.0.iter().any(|group| group.evaluate(video, pages))
     }
-}
-
-fn deserialize_regex<'de, D>(deserializer: D) -> Result<(String, Result<regex::Regex, regex::Error>), D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let pattern = String::deserialize(deserializer)?;
-    // 反序列化时预编译 regex，优化性能
-    let regex = regex::Regex::new(&pattern);
-    Ok((pattern, regex))
-}
-
-fn serialize_regex<S>(
-    pattern: &String,
-    _regex: &Result<regex::Regex, regex::Error>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    serializer.serialize_str(pattern)
 }
 
 #[cfg(test)]
@@ -280,7 +167,6 @@ mod tests {
                         ..Default::default()
                     },
                     vec![],
-                    vec![],
                 ),
                 Rule(vec![vec![RuleTarget::Title(Condition::Contains("唐氏".to_string()))]]),
                 true,
@@ -289,26 +175,17 @@ mod tests {
                 (
                     video::ActiveModel::default(),
                     vec![page::ActiveModel::default(); 2],
-                    vec![],
                 ),
                 Rule(vec![vec![RuleTarget::PageCount(Condition::Equals(1))]]),
                 false,
             ),
             (
                 (
-                    video::ActiveModel::default(),
+                    video::ActiveModel{
+                        tags: Set(Some(vec!["原神".to_owned(),"永雏塔菲".to_owned(),"虚拟主播".to_owned()].into())),
+                        ..Default::default()
+                    },
                     vec![],
-                    vec![
-                        Tag {
-                            tag_name: "永雏塔菲".to_owned(),
-                        },
-                        Tag {
-                            tag_name: "原神".to_owned(),
-                        },
-                        Tag {
-                            tag_name: "虚拟主播".to_owned(),
-                        },
-                    ],
                 ),
                 Rule (vec![vec![RuleTarget::Not(Box::new(RuleTarget::Tags(Condition::Equals(
                         "原神".to_string(),
@@ -325,7 +202,6 @@ mod tests {
                         ..Default::default()
                     },
                     vec![],
-                    vec![],
                 ),
                 Rule(vec![vec![RuleTarget::Not(Box::new(RuleTarget::Title(Condition::MatchesRegex(
                         r"^\S+字(解析|怒扒|拆解)".to_owned(),
@@ -336,30 +212,8 @@ mod tests {
             ),
         ];
 
-        for ((video, pages, tags), rule, expected) in test_cases {
-            assert_eq!(rule.evaluate(&video, &pages, &tags), expected);
+        for ((video, pages), rule, expected) in test_cases {
+            assert_eq!(rule.evaluate(&video, &pages), expected);
         }
-    }
-
-    #[test]
-    fn test_serde() {
-        let rule = Rule(vec![vec![RuleTarget::Title(Condition::MatchesRegex(
-            r"^\S+字(解析|怒扒|拆解)".to_owned(),
-            Ok(regex::Regex::new(r"^\S+字(解析|怒扒|拆解)").unwrap()),
-        ))]]);
-
-        let json = serde_json::to_string_pretty(&rule).unwrap();
-        // [
-        //   [
-        //     {
-        //       "field": "title",
-        //       "rule": {
-        //         "operator": "matchesRegex",
-        //         "value": "^\\S+字(解析|怒扒|拆解)"
-        //       }
-        //     }
-        //   ]
-        // ]
-        println!("Serialized JSON: {}", json);
     }
 }
