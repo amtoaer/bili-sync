@@ -4,6 +4,7 @@ use anyhow::Result;
 use leaky_bucket::RateLimiter;
 use reqwest::{Method, header};
 use sea_orm::DatabaseConnection;
+use ua_generator::ua;
 
 use crate::bilibili::Credential;
 use crate::bilibili::credential::WbiImg;
@@ -19,9 +20,7 @@ impl Client {
         let mut headers = header::HeaderMap::new();
         headers.insert(
             header::USER_AGENT,
-            header::HeaderValue::from_static(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-            ),
+            header::HeaderValue::from_static(ua::spoof_chrome_mac_ua()),
         );
         headers.insert(
             header::REFERER,

@@ -125,7 +125,7 @@
 	function getAvatarUrl(): string {
 		switch (type) {
 			case 'upper':
-				return `/image-proxy?url=${(item as UpperWithSubscriptionStatus).face}`;
+				return (item as UpperWithSubscriptionStatus).face;
 			default:
 				return '';
 		}

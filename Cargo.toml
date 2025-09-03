@@ -75,6 +75,7 @@ toml = "0.9.1"
 tower = "0.5.2"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["chrono", "json"] }
+ua_generator = "0.5.22"
 uuid = { version = "1.17.0", features = ["v4"] }
 validator = { version = "0.20.0", features = ["derive"] }
 
