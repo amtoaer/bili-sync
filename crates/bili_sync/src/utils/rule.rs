@@ -2,15 +2,15 @@ use bili_sync_entity::rule::{AndGroup, Condition, Rule, RuleTarget};
 use bili_sync_entity::{page, video};
 use chrono::NaiveDateTime;
 
-pub(crate) trait FieldEvaluatable<T> {
+pub(crate) trait Evaluatable<T> {
     fn evaluate(&self, value: T) -> bool;
 }
 
-pub(crate) trait Evaluatable {
+pub(crate) trait FieldEvaluatable {
     fn evaluate(&self, video: &video::ActiveModel, pages: &[page::ActiveModel]) -> bool;
 }
 
-impl FieldEvaluatable<&str> for Condition<String> {
+impl Evaluatable<&str> for Condition<String> {
     fn evaluate(&self, value: &str) -> bool {
         match self {
             Condition::Equals(expected) => expected == value,
@@ -23,7 +23,7 @@ impl FieldEvaluatable<&str> for Condition<String> {
     }
 }
 
-impl FieldEvaluatable<usize> for Condition<usize> {
+impl Evaluatable<usize> for Condition<usize> {
     fn evaluate(&self, value: usize) -> bool {
         match self {
             Condition::Equals(expected) => *expected == value,
@@ -35,7 +35,7 @@ impl FieldEvaluatable<usize> for Condition<usize> {
     }
 }
 
-impl FieldEvaluatable<&NaiveDateTime> for Condition<NaiveDateTime> {
+impl Evaluatable<&NaiveDateTime> for Condition<NaiveDateTime> {
     fn evaluate(&self, value: &NaiveDateTime) -> bool {
         match self {
             Condition::Equals(expected) => expected == value,
@@ -47,7 +47,7 @@ impl FieldEvaluatable<&NaiveDateTime> for Condition<NaiveDateTime> {
     }
 }
 
-impl Evaluatable for RuleTarget {
+impl FieldEvaluatable for RuleTarget {
     fn evaluate(&self, video: &video::ActiveModel, pages: &[page::ActiveModel]) -> bool {
         match self {
             RuleTarget::Title(cond) => video.name.try_as_ref().is_some_and(|title| cond.evaluate(&title)),
@@ -72,13 +72,13 @@ impl Evaluatable for RuleTarget {
     }
 }
 
-impl Evaluatable for AndGroup {
+impl FieldEvaluatable for AndGroup {
     fn evaluate(&self, video: &video::ActiveModel, pages: &[page::ActiveModel]) -> bool {
         self.iter().all(|target| target.evaluate(video, pages))
     }
 }
 
-impl Evaluatable for Rule {
+impl FieldEvaluatable for Rule {
     fn evaluate(&self, video: &video::ActiveModel, pages: &[page::ActiveModel]) -> bool {
         self.0.iter().any(|group| group.evaluate(video, pages))
     }
