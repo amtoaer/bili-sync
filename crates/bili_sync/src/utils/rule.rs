@@ -80,6 +80,9 @@ impl FieldEvaluatable for AndGroup {
 
 impl FieldEvaluatable for Rule {
     fn evaluate(&self, video: &video::ActiveModel, pages: &[page::ActiveModel]) -> bool {
+        if self.0.is_empty() {
+            return true;
+        }
         self.0.iter().any(|group| group.evaluate(video, pages))
     }
 }
