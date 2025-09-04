@@ -82,6 +82,7 @@ pub async fn get_video_sources_details(
                 collection::Column::Id,
                 collection::Column::Name,
                 collection::Column::Path,
+                collection::Column::Rule,
                 collection::Column::Enabled
             ])
             .into_model::<VideoSourceDetail>()
@@ -92,22 +93,31 @@ pub async fn get_video_sources_details(
                 favorite::Column::Id,
                 favorite::Column::Name,
                 favorite::Column::Path,
+                favorite::Column::Rule,
                 favorite::Column::Enabled
             ])
             .into_model::<VideoSourceDetail>()
             .all(&db),
         submission::Entity::find()
             .select_only()
-            .column(submission::Column::Id)
             .column_as(submission::Column::UpperName, "name")
-            .columns([submission::Column::Path, submission::Column::Enabled])
+            .columns([
+                submission::Column::Id,
+                submission::Column::Path,
+                submission::Column::Enabled,
+                submission::Column::Rule
+            ])
             .into_model::<VideoSourceDetail>()
             .all(&db),
         watch_later::Entity::find()
             .select_only()
-            .column(watch_later::Column::Id)
             .column_as(Expr::value("稍后再看"), "name")
-            .columns([watch_later::Column::Path, watch_later::Column::Enabled])
+            .columns([
+                watch_later::Column::Id,
+                watch_later::Column::Path,
+                watch_later::Column::Enabled,
+                watch_later::Column::Rule
+            ])
             .into_model::<VideoSourceDetail>()
             .all(&db)
     )?;
@@ -116,6 +126,7 @@ pub async fn get_video_sources_details(
             id: 1,
             name: "稍后再看".to_string(),
             path: String::new(),
+            rule: None,
             enabled: false,
         })
     }
@@ -138,18 +149,21 @@ pub async fn update_video_source(
             let mut active_model: collection::ActiveModel = model.into();
             active_model.path = Set(request.path);
             active_model.enabled = Set(request.enabled);
+            active_model.rule = Set(request.rule);
             _ActiveModel::Collection(active_model)
         }),
         "favorites" => favorite::Entity::find_by_id(id).one(&db).await?.map(|model| {
             let mut active_model: favorite::ActiveModel = model.into();
             active_model.path = Set(request.path);
             active_model.enabled = Set(request.enabled);
+            active_model.rule = Set(request.rule);
             _ActiveModel::Favorite(active_model)
         }),
         "submissions" => submission::Entity::find_by_id(id).one(&db).await?.map(|model| {
             let mut active_model: submission::ActiveModel = model.into();
             active_model.path = Set(request.path);
             active_model.enabled = Set(request.enabled);
+            active_model.rule = Set(request.rule);
             _ActiveModel::Submission(active_model)
         }),
         "watch_later" => match watch_later::Entity::find_by_id(id).one(&db).await? {
@@ -160,6 +174,7 @@ pub async fn update_video_source(
                 let mut active_model: watch_later::ActiveModel = model.into();
                 active_model.path = Set(request.path);
                 active_model.enabled = Set(request.enabled);
+                active_model.rule = Set(request.rule);
                 Some(_ActiveModel::WatchLater(active_model))
             }
             None => {
@@ -170,6 +185,7 @@ pub async fn update_video_source(
                     Some(_ActiveModel::WatchLater(watch_later::ActiveModel {
                         path: Set(request.path),
                         enabled: Set(request.enabled),
+                        rule: Set(request.rule),
                         ..Default::default()
                     }))
                 }
