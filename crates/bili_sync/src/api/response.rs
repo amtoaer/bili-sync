@@ -1,3 +1,4 @@
+use bili_sync_entity::rule::Rule;
 use bili_sync_entity::*;
 use sea_orm::{DerivePartialModel, FromQueryResult};
 use serde::Serialize;
@@ -173,5 +174,6 @@ pub struct VideoSourceDetail {
     pub id: i32,
     pub name: String,
     pub path: String,
+    pub rule: Option<Rule>,
     pub enabled: bool,
 }

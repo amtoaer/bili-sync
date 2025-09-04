@@ -176,7 +176,7 @@ pub type VideoStatus = Status<5>;
 pub type PageStatus = Status<5>;
 
 #[cfg(test)]
-mod test {
+mod tests {
     use anyhow::anyhow;
 
     use super::*;

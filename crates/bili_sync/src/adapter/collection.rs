@@ -3,6 +3,7 @@ use std::path::Path;
 use std::pin::Pin;
 
 use anyhow::{Context, Result, ensure};
+use bili_sync_entity::rule::Rule;
 use bili_sync_entity::*;
 use chrono::Utc;
 use futures::Stream;
@@ -61,6 +62,10 @@ impl VideoSource for collection::Model {
             }
         }
         None
+    }
+
+    fn rule(&self) -> Option<&Rule> {
+        self.rule.as_ref()
     }
 
     async fn refresh<'a>(

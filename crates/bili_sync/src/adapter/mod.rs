@@ -19,6 +19,7 @@ use sea_orm::sea_query::SimpleExpr;
 #[rustfmt::skip]
 use bili_sync_entity::collection::Model as Collection;
 use bili_sync_entity::favorite::Model as Favorite;
+use bili_sync_entity::rule::Rule;
 use bili_sync_entity::submission::Model as Submission;
 use bili_sync_entity::watch_later::Model as WatchLater;
 
@@ -67,6 +68,8 @@ pub trait VideoSource {
         // 视频按照时间顺序拉取，should_take 已经获取了所有需要处理的视频，should_filter 无需额外处理
         video_info.ok()
     }
+
+    fn rule(&self) -> Option<&Rule>;
 
     fn log_refresh_video_start(&self) {
         info!("开始扫描{}..", self.display_name());

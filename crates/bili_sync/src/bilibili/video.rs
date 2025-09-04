@@ -1,4 +1,4 @@
-use anyhow::{Result, ensure};
+use anyhow::{Context, Result, ensure};
 use futures::TryStreamExt;
 use futures::stream::FuturesUnordered;
 use prost::Message;
@@ -16,19 +16,6 @@ pub struct Video<'a> {
     pub bvid: String,
 }
 
-#[derive(Debug, serde::Deserialize)]
-pub struct Tag {
-    pub tag_name: String,
-}
-
-impl serde::Serialize for Tag {
-    fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(&self.tag_name)
-    }
-}
 #[derive(Debug, serde::Deserialize, Default)]
 pub struct PageInfo {
     pub cid: i64,
@@ -84,8 +71,8 @@ impl<'a> Video<'a> {
         Ok(serde_json::from_value(res["data"].take())?)
     }
 
-    pub async fn get_tags(&self) -> Result<Vec<Tag>> {
-        let mut res = self
+    pub async fn get_tags(&self) -> Result<Vec<String>> {
+        let res = self
             .client
             .request(Method::GET, "https://api.bilibili.com/x/web-interface/view/detail/tag")
             .await
@@ -96,7 +83,12 @@ impl<'a> Video<'a> {
             .json::<serde_json::Value>()
             .await?
             .validate()?;
-        Ok(serde_json::from_value(res["data"].take())?)
+        Ok(res["data"]
+            .as_array()
+            .context("tags is not an array")?
+            .iter()
+            .filter_map(|v| v["tag_name"].as_str().map(String::from))
+            .collect())
     }
 
     pub async fn get_danmaku_writer(&self, page: &'a PageInfo) -> Result<DanmakuWriter> {

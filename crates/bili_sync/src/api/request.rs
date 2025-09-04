@@ -1,3 +1,4 @@
+use bili_sync_entity::rule::Rule;
 use serde::Deserialize;
 use validator::Validate;
 
@@ -86,4 +87,5 @@ pub struct UpdateVideoSourceRequest {
     #[validate(custom(function = "crate::utils::validation::validate_path"))]
     pub path: String,
     pub enabled: bool,
+    pub rule: Option<Rule>,
 }
