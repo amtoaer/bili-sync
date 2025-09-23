@@ -91,7 +91,7 @@ impl<'a> Video<'a> {
             .collect())
     }
 
-    pub async fn get_danmaku_writer(&self, page: &'a PageInfo) -> Result<DanmakuWriter> {
+    pub async fn get_danmaku_writer(&self, page: &'a PageInfo) -> Result<DanmakuWriter<'a>> {
         let tasks = FuturesUnordered::new();
         for i in 1..=page.duration.div_ceil(360) {
             tasks.push(self.get_danmaku_segment(page, i as i64));

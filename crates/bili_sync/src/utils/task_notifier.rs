@@ -42,7 +42,7 @@ impl TaskStatusNotifier {
         }
     }
 
-    pub async fn start_running(&self) -> MutexGuard<()> {
+    pub async fn start_running(&'_ self) -> MutexGuard<'_, ()> {
         let lock = self.mutex.lock().await;
         let _ = self.tx.send(Arc::new(TaskStatus {
             is_running: true,
