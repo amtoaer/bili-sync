@@ -168,11 +168,27 @@ export interface InsertSubmissionRequest {
 	path: string;
 }
 
+// Rule 相关类型
+export interface Condition<T> {
+	operator: string;
+	value: T | T[];
+}
+
+export interface RuleTarget<T> {
+	field: string;
+	rule: Condition<T> | RuleTarget<T>;
+}
+
+export type AndGroup = RuleTarget<string | number | Date>[];
+export type Rule = AndGroup[];
+
 // 视频源详细信息类型
 export interface VideoSourceDetail {
 	id: number;
 	name: string;
 	path: string;
+	rule?: Rule | null;
+	ruleDisplay?: string | null;
 	enabled: boolean;
 }
 
@@ -188,6 +204,7 @@ export interface VideoSourcesDetailsResponse {
 export interface UpdateVideoSourceRequest {
 	path: string;
 	enabled: boolean;
+	rule?: Rule | null;
 }
 
 // 配置相关类型

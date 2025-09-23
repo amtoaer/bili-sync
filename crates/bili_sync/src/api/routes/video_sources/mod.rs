@@ -75,7 +75,7 @@ pub async fn get_video_sources(
 pub async fn get_video_sources_details(
     Extension(db): Extension<DatabaseConnection>,
 ) -> Result<ApiResponse<VideoSourcesDetailsResponse>, ApiError> {
-    let (collections, favorites, submissions, mut watch_later) = tokio::try_join!(
+    let (mut collections, mut favorites, mut submissions, mut watch_later) = tokio::try_join!(
         collection::Entity::find()
             .select_only()
             .columns([
@@ -127,8 +127,16 @@ pub async fn get_video_sources_details(
             name: "稍后再看".to_string(),
             path: String::new(),
             rule: None,
+            rule_display: None,
             enabled: false,
         })
+    }
+    for sources in [&mut collections, &mut favorites, &mut submissions, &mut watch_later] {
+        sources.iter_mut().for_each(|item| {
+            if let Some(rule) = &item.rule {
+                item.rule_display = Some(rule.to_string());
+            }
+        });
     }
     Ok(ApiResponse::ok(VideoSourcesDetailsResponse {
         collections,
