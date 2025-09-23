@@ -12,10 +12,7 @@ pub enum Condition<T: Serialize + Display> {
     Equals(T),
     Contains(T),
     #[serde(deserialize_with = "deserialize_regex", serialize_with = "serialize_regex")]
-    MatchesRegex(
-        String,
-        #[derivative(PartialEq = "ignore")] Result<regex::Regex, regex::Error>,
-    ),
+    MatchesRegex(String, #[derivative(PartialEq = "ignore")] regex::Regex),
     Prefix(T),
     Suffix(T),
     GreaterThan(T),
@@ -105,21 +102,17 @@ impl Display for Rule {
     }
 }
 
-fn deserialize_regex<'de, D>(deserializer: D) -> Result<(String, Result<regex::Regex, regex::Error>), D::Error>
+fn deserialize_regex<'de, D>(deserializer: D) -> Result<(String, regex::Regex), D::Error>
 where
     D: Deserializer<'de>,
 {
     let pattern = String::deserialize(deserializer)?;
     // 反序列化时预编译 regex，优化性能
-    let regex = regex::Regex::new(&pattern);
+    let regex = regex::Regex::new(&pattern).map_err(|e| serde::de::Error::custom(e))?;
     Ok((pattern, regex))
 }
 
-fn serialize_regex<S>(
-    pattern: &String,
-    _regex: &Result<regex::Regex, regex::Error>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
+fn serialize_regex<S>(pattern: &String, _regex: &regex::Regex, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {

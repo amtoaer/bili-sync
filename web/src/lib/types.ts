@@ -312,3 +312,7 @@ export interface TaskStatus {
 	last_finish: Date | null;
 	next_run: Date | null;
 }
+
+export interface UpdateVideoSourceResponse {
+	ruleDisplay?: string;
+}

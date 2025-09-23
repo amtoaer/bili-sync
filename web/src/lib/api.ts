@@ -21,7 +21,8 @@ import type {
 	DashBoardResponse,
 	SysInfo,
 	TaskStatus,
-	ResetRequest
+	ResetRequest,
+	UpdateVideoSourceResponse
 } from './types';
 import { wsManager } from './ws';
 
@@ -212,8 +213,8 @@ class ApiClient {
 		type: string,
 		id: number,
 		request: UpdateVideoSourceRequest
-	): Promise<ApiResponse<boolean>> {
-		return this.put<boolean>(`/video-sources/${type}/${id}`, request);
+	): Promise<ApiResponse<UpdateVideoSourceResponse>> {
+		return this.put<UpdateVideoSourceResponse>(`/video-sources/${type}/${id}`, request);
 	}
 
 	async getConfig(): Promise<ApiResponse<Config>> {

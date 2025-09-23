@@ -2,6 +2,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import PlusIcon from '@lucide/svelte/icons/plus';
@@ -12,9 +13,10 @@
 
 	interface Props {
 		rule: Rule | null;
+		onRuleChange: (rule: Rule | null) => void;
 	}
 
-	let { rule = $bindable(null) }: Props = $props();
+	let { rule, onRuleChange }: Props = $props();
 
 	const FIELD_OPTIONS = [
 		{ value: 'title', label: '标题' },
@@ -76,12 +78,6 @@
 			}));
 		} else {
 			localRule = [];
-		}
-	});
-
-	$effect(() => {
-		if (localRule) {
-			rule = convertLocalToRule();
 		}
 	});
 
@@ -158,12 +154,12 @@
 
 	function addAndGroup() {
 		localRule.push({ conditions: [] });
-		localRule = [...localRule];
+		onRuleChange?.(convertLocalToRule());
 	}
 
 	function removeAndGroup(index: number) {
 		localRule.splice(index, 1);
-		localRule = [...localRule];
+		onRuleChange?.(convertLocalToRule());
 	}
 
 	function addCondition(groupIndex: number) {
@@ -173,12 +169,12 @@
 			value: '',
 			isNot: false
 		});
-		localRule = [...localRule];
+		onRuleChange?.(convertLocalToRule());
 	}
 
 	function removeCondition(groupIndex: number, conditionIndex: number) {
 		localRule[groupIndex].conditions.splice(conditionIndex, 1);
-		localRule = [...localRule];
+		onRuleChange?.(convertLocalToRule());
 	}
 
 	function updateCondition(
@@ -207,11 +203,12 @@
 		} else if (field === 'isNot') {
 			condition.isNot = value === 'true';
 		}
-		localRule = [...localRule];
+		onRuleChange?.(convertLocalToRule());
 	}
 
 	function clearRules() {
 		localRule = [];
+		onRuleChange?.(convertLocalToRule());
 	}
 </script>
 
@@ -241,13 +238,10 @@
 		<div class="space-y-4">
 			{#each localRule as andGroup, groupIndex (groupIndex)}
 				<Card.Root>
-					<Card.Header class="pb-3">
+					<Card.Header>
 						<div class="flex items-center justify-between">
 							<div class="flex items-center gap-2">
 								<Badge variant="secondary">规则组 {groupIndex + 1}</Badge>
-								{#if groupIndex > 0}
-									<span class="text-muted-foreground text-xs">或</span>
-								{/if}
 							</div>
 							<Button
 								size="sm"
@@ -261,166 +255,84 @@
 					</Card.Header>
 					<Card.Content class="space-y-3">
 						{#each andGroup.conditions as condition, conditionIndex (conditionIndex)}
-							<div class="flex items-start gap-3 rounded-lg border p-3">
-								<div class="flex-1 space-y-3">
-									{#if conditionIndex > 0}
-										<div class="flex items-center">
-											<Badge variant="outline" class="text-xs">且</Badge>
-										</div>
-									{/if}
+							<div class="space-y-3 rounded-lg border p-4">
+								<div class="flex items-center justify-between">
+									<Badge variant="secondary">条件 {conditionIndex + 1}</Badge>
+									<Button
+										size="sm"
+										variant="ghost"
+										onclick={() => removeCondition(groupIndex, conditionIndex)}
+										class="h-7 w-7 p-0"
+									>
+										<MinusIcon class="h-3 w-3" />
+									</Button>
+								</div>
 
-									<div class="grid grid-cols-1 gap-3 md:grid-cols-4">
-										<!-- 取反选项 -->
-										<div>
-											<Label class="text-muted-foreground text-xs">取反</Label>
-											<select
-												class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-												value={condition.isNot.toString()}
-												onchange={(e) =>
-													updateCondition(
-														groupIndex,
-														conditionIndex,
-														'isNot',
-														e.currentTarget.value
-													)}
-											>
-												<option value="false">否</option>
-												<option value="true">是</option>
-											</select>
-										</div>
+								<!-- 取反选项 -->
+								<div class="flex items-center space-x-2">
+									<Checkbox
+										id={`not-${groupIndex}-${conditionIndex}`}
+										checked={condition.isNot}
+										onCheckedChange={(checked) =>
+											updateCondition(
+												groupIndex,
+												conditionIndex,
+												'isNot',
+												checked ? 'true' : 'false'
+											)}
+									/>
+									<Label for={`not-${groupIndex}-${conditionIndex}`} class="text-sm">
+										取反（NOT）
+									</Label>
+								</div>
 
-										<!-- 字段选择 -->
-										<div>
-											<Label class="text-muted-foreground text-xs">字段</Label>
-											<select
-												class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-												value={condition.field}
-												onchange={(e) =>
-													updateCondition(
-														groupIndex,
-														conditionIndex,
-														'field',
-														e.currentTarget.value
-													)}
-											>
-												{#each FIELD_OPTIONS as option (option.value)}
-													<option value={option.value}>{option.label}</option>
-												{/each}
-											</select>
-										</div>
+								<!-- 字段和操作符 -->
+								<div class="grid grid-cols-2 gap-3">
+									<!-- 字段选择 -->
+									<div>
+										<Label class="text-muted-foreground text-xs">字段</Label>
+										<select
+											class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+											value={condition.field}
+											onchange={(e) =>
+												updateCondition(groupIndex, conditionIndex, 'field', e.currentTarget.value)}
+										>
+											{#each FIELD_OPTIONS as option (option.value)}
+												<option value={option.value}>{option.label}</option>
+											{/each}
+										</select>
+									</div>
 
-										<!-- 操作符选择 -->
-										<div>
-											<Label class="text-muted-foreground text-xs">操作符</Label>
-											<select
-												class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-												value={condition.operator}
-												onchange={(e) =>
-													updateCondition(
-														groupIndex,
-														conditionIndex,
-														'operator',
-														e.currentTarget.value
-													)}
-											>
-												{#each getOperatorOptions(condition.field) as option (option.value)}
-													<option value={option.value}>{option.label}</option>
-												{/each}
-											</select>
-										</div>
+									<!-- 操作符选择 -->
+									<div>
+										<Label class="text-muted-foreground text-xs">操作符</Label>
+										<select
+											class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+											value={condition.operator}
+											onchange={(e) =>
+												updateCondition(
+													groupIndex,
+													conditionIndex,
+													'operator',
+													e.currentTarget.value
+												)}
+										>
+											{#each getOperatorOptions(condition.field) as option (option.value)}
+												<option value={option.value}>{option.label}</option>
+											{/each}
+										</select>
+									</div>
+								</div>
 
-										<!-- 值输入 -->
-										<div>
-											<Label class="text-muted-foreground text-xs">值</Label>
-											{#if condition.operator === 'between'}
-												<div class="flex gap-1">
-													{#if condition.field === 'pageCount'}
-														<Input
-															type="number"
-															placeholder="最小值"
-															class="h-9"
-															value={condition.value}
-															oninput={(e) =>
-																updateCondition(
-																	groupIndex,
-																	conditionIndex,
-																	'value',
-																	e.currentTarget.value
-																)}
-														/>
-														<Input
-															type="number"
-															placeholder="最大值"
-															class="h-9"
-															value={condition.value2 || ''}
-															oninput={(e) =>
-																updateCondition(
-																	groupIndex,
-																	conditionIndex,
-																	'value2',
-																	e.currentTarget.value
-																)}
-														/>
-													{:else if condition.field === 'favTime' || condition.field === 'pubTime'}
-														<Input
-															type="datetime-local"
-															placeholder="开始时间"
-															class="h-9"
-															value={condition.value}
-															oninput={(e) =>
-																updateCondition(
-																	groupIndex,
-																	conditionIndex,
-																	'value',
-																	e.currentTarget.value
-																)}
-														/>
-														<Input
-															type="datetime-local"
-															placeholder="结束时间"
-															class="h-9"
-															value={condition.value2 || ''}
-															oninput={(e) =>
-																updateCondition(
-																	groupIndex,
-																	conditionIndex,
-																	'value2',
-																	e.currentTarget.value
-																)}
-														/>
-													{:else}
-														<Input
-															type="text"
-															placeholder="起始值"
-															class="h-9"
-															value={condition.value}
-															oninput={(e) =>
-																updateCondition(
-																	groupIndex,
-																	conditionIndex,
-																	'value',
-																	e.currentTarget.value
-																)}
-														/>
-														<Input
-															type="text"
-															placeholder="结束值"
-															class="h-9"
-															value={condition.value2 || ''}
-															oninput={(e) =>
-																updateCondition(
-																	groupIndex,
-																	conditionIndex,
-																	'value2',
-																	e.currentTarget.value
-																)}
-														/>
-													{/if}
-												</div>
-											{:else if condition.field === 'pageCount'}
+								<!-- 值输入 -->
+								<div>
+									<Label class="text-muted-foreground text-xs">值</Label>
+									{#if condition.operator === 'between'}
+										<div class="grid grid-cols-2 gap-2">
+											{#if condition.field === 'pageCount'}
 												<Input
 													type="number"
-													placeholder="输入数值"
+													placeholder="最小值"
 													class="h-9"
 													value={condition.value}
 													oninput={(e) =>
@@ -428,13 +340,26 @@
 															groupIndex,
 															conditionIndex,
 															'value',
+															e.currentTarget.value
+														)}
+												/>
+												<Input
+													type="number"
+													placeholder="最大值"
+													class="h-9"
+													value={condition.value2 || ''}
+													oninput={(e) =>
+														updateCondition(
+															groupIndex,
+															conditionIndex,
+															'value2',
 															e.currentTarget.value
 														)}
 												/>
 											{:else if condition.field === 'favTime' || condition.field === 'pubTime'}
 												<Input
 													type="datetime-local"
-													placeholder="选择时间"
+													placeholder="开始时间"
 													class="h-9"
 													value={condition.value}
 													oninput={(e) =>
@@ -442,13 +367,26 @@
 															groupIndex,
 															conditionIndex,
 															'value',
-															e.currentTarget.value
+															e.currentTarget.value + ':00' // 前端选择器只能精确到分钟，此处附加额外的 :00 以满足后端传参条件
+														)}
+												/>
+												<Input
+													type="datetime-local"
+													placeholder="结束时间"
+													class="h-9"
+													value={condition.value2 || ''}
+													oninput={(e) =>
+														updateCondition(
+															groupIndex,
+															conditionIndex,
+															'value2',
+															e.currentTarget.value + ':00'
 														)}
 												/>
 											{:else}
 												<Input
 													type="text"
-													placeholder="输入文本"
+													placeholder="起始值"
 													class="h-9"
 													value={condition.value}
 													oninput={(e) =>
@@ -459,19 +397,55 @@
 															e.currentTarget.value
 														)}
 												/>
+												<Input
+													type="text"
+													placeholder="结束值"
+													class="h-9"
+													value={condition.value2 || ''}
+													oninput={(e) =>
+														updateCondition(
+															groupIndex,
+															conditionIndex,
+															'value2',
+															e.currentTarget.value
+														)}
+												/>
 											{/if}
 										</div>
-									</div>
+									{:else if condition.field === 'pageCount'}
+										<Input
+											type="number"
+											placeholder="输入数值"
+											class="h-9"
+											value={condition.value}
+											oninput={(e) =>
+												updateCondition(groupIndex, conditionIndex, 'value', e.currentTarget.value)}
+										/>
+									{:else if condition.field === 'favTime' || condition.field === 'pubTime'}
+										<Input
+											type="datetime-local"
+											placeholder="选择时间"
+											class="h-9"
+											value={condition.value}
+											oninput={(e) =>
+												updateCondition(
+													groupIndex,
+													conditionIndex,
+													'value',
+													e.currentTarget.value + ':00'
+												)}
+										/>
+									{:else}
+										<Input
+											type="text"
+											placeholder="输入文本"
+											class="h-9"
+											value={condition.value}
+											oninput={(e) =>
+												updateCondition(groupIndex, conditionIndex, 'value', e.currentTarget.value)}
+										/>
+									{/if}
 								</div>
-
-								<Button
-									size="sm"
-									variant="ghost"
-									onclick={() => removeCondition(groupIndex, conditionIndex)}
-									class="mt-6 h-7 w-7 p-0"
-								>
-									<MinusIcon class="h-3 w-3" />
-								</Button>
 							</div>
 						{/each}
 
@@ -494,9 +468,11 @@
 		<div class="text-muted-foreground bg-muted/50 rounded p-3 text-xs">
 			<p class="mb-1 font-medium">规则说明：</p>
 			<ul class="space-y-1">
-				<li>• 多个规则组之间是"或"的关系（满足任一组即可）</li>
-				<li>• 同一规则组内的条件是"且"的关系（必须全部满足）</li>
-				<li>• 取反选项会对整个条件进行逻辑取反</li>
+				<li>• 多个规则组之间是"或"的关系，同一规则组内的条件是"且"的关系</li>
+				<li>
+					• 规则内配置的时间不包含时区，在处理时会默认应用<strong>服务器时区</strong
+					>，不受浏览器影响
+				</li>
 			</ul>
 		</div>
 	{/if}

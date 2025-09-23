@@ -13,6 +13,7 @@
 	import UserIcon from '@lucide/svelte/icons/user';
 	import ClockIcon from '@lucide/svelte/icons/clock';
 	import PlusIcon from '@lucide/svelte/icons/plus';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { toast } from 'svelte-sonner';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
 	import type { ApiError, VideoSourceDetail, VideoSourcesDetailsResponse, Rule } from '$lib/types';
@@ -32,6 +33,7 @@
 	let showEditDialog = false;
 	let editingSource: VideoSourceDetail | null = null;
 	let editingType = '';
+	let editingIdx: number = 0;
 	let saving = false;
 
 	// 编辑表单数据
@@ -69,9 +71,10 @@
 	}
 
 	// 打开编辑对话框
-	function openEditDialog(type: string, source: VideoSourceDetail) {
+	function openEditDialog(type: string, source: VideoSourceDetail, idx: number) {
 		editingSource = source;
 		editingType = type;
+		editingIdx = idx;
 		editForm = {
 			path: source.path,
 			enabled: source.enabled,
@@ -91,7 +94,7 @@
 
 		saving = true;
 		try {
-			await api.updateVideoSource(editingType, editingSource.id, {
+			let response = await api.updateVideoSource(editingType, editingSource.id, {
 				path: editForm.path,
 				enabled: editForm.enabled,
 				rule: editForm.rule
@@ -102,16 +105,14 @@
 				const sources = videoSourcesData[
 					editingType as keyof VideoSourcesDetailsResponse
 				] as VideoSourceDetail[];
-				const index = sources.findIndex((s) => s.id === editingSource!.id);
-				if (index !== -1) {
-					sources[index] = {
-						...sources[index],
-						path: editForm.path,
-						enabled: editForm.enabled,
-						rule: editForm.rule
-					};
-					videoSourcesData = { ...videoSourcesData };
-				}
+				sources[editingIdx] = {
+					...sources[editingIdx],
+					path: editForm.path,
+					enabled: editForm.enabled,
+					rule: editForm.rule,
+					ruleDisplay: response.data.ruleDisplay
+				};
+				videoSourcesData = { ...videoSourcesData };
 			}
 
 			showEditDialog = false;
@@ -235,8 +236,8 @@
 									<Table.Row>
 										<Table.Head class="w-[25%]">名称</Table.Head>
 										<Table.Head class="w-[35%]">下载路径</Table.Head>
-										<Table.Head class="w-[15%]">状态</Table.Head>
 										<Table.Head class="w-[15%]">规则</Table.Head>
+										<Table.Head class="w-[15%]">状态</Table.Head>
 										<Table.Head class="w-[10%] text-right">操作</Table.Head>
 									</Table.Row>
 								</Table.Header>
@@ -252,6 +253,24 @@
 												</code>
 											</Table.Cell>
 											<Table.Cell>
+												{#if source.rule && source.rule.length > 0}
+													<div class="flex items-center gap-1">
+														<Tooltip.Root>
+															<Tooltip.Trigger>
+																<div class="rounded bg-blue-100 px-2 py-1 text-xs text-blue-800">
+																	{source.rule.length} 条规则
+																</div>
+															</Tooltip.Trigger>
+															<Tooltip.Content>
+																<p class="text-xs">{source.ruleDisplay}</p>
+															</Tooltip.Content>
+														</Tooltip.Root>
+													</div>
+												{:else}
+													<span class="text-muted-foreground text-sm">-</span>
+												{/if}
+											</Table.Cell>
+											<Table.Cell>
 												<div class="flex h-8 items-center gap-2">
 													<Switch checked={source.enabled} disabled />
 													<span class="text-muted-foreground text-sm whitespace-nowrap">
@@ -259,22 +278,11 @@
 													</span>
 												</div>
 											</Table.Cell>
-											<Table.Cell>
-												{#if source.ruleDisplay}
-													<div class="flex items-center gap-1">
-														<div class="rounded bg-blue-100 px-2 py-1 text-xs text-blue-800">
-															{source.ruleDisplay}
-														</div>
-													</div>
-												{:else}
-													<span class="text-muted-foreground text-sm">无规则</span>
-												{/if}
-											</Table.Cell>
 											<Table.Cell class="text-right">
 												<Button
 													size="sm"
 													variant="outline"
-													onclick={() => openEditDialog(key, source)}
+													onclick={() => openEditDialog(key, source, index)}
 													class="h-8 w-8 p-0"
 													title="编辑"
 												>
@@ -322,7 +330,7 @@
 
 	<!-- 编辑对话框 -->
 	<Dialog.Root bind:open={showEditDialog}>
-		<Dialog.Content class="max-h-[85vh] w-5xl overflow-y-auto">
+		<Dialog.Content class="max-h-[85vh] w-4xl !max-w-none overflow-y-auto">
 			<Dialog.Title class="text-lg font-semibold">
 				编辑视频源: {editingSource?.name || ''}
 			</Dialog.Title>
@@ -347,7 +355,7 @@
 
 				<!-- 规则编辑器 -->
 				<div>
-					<RuleEditor bind:rule={editForm.rule} />
+					<RuleEditor rule={editForm.rule} onRuleChange={(rule) => (editForm.rule = rule)} />
 				</div>
 			</div>
 			<div class="mt-8 flex justify-end gap-3">

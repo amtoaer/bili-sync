@@ -1,6 +1,6 @@
 use bili_sync_entity::rule::{AndGroup, Condition, Rule, RuleTarget};
 use bili_sync_entity::{page, video};
-use chrono::NaiveDateTime;
+use chrono::{Local, NaiveDateTime};
 
 pub(crate) trait Evaluatable<T> {
     fn evaluate(&self, value: T) -> bool;
@@ -17,7 +17,7 @@ impl Evaluatable<&str> for Condition<String> {
             Condition::Contains(substring) => value.contains(substring),
             Condition::Prefix(prefix) => value.starts_with(prefix),
             Condition::Suffix(suffix) => value.ends_with(suffix),
-            Condition::MatchesRegex(_, regex) => regex.as_ref().is_ok_and(|re| re.is_match(value)),
+            Condition::MatchesRegex(_, regex) => regex.is_match(value),
             _ => false,
         }
     }
@@ -61,10 +61,12 @@ impl FieldEvaluatable for RuleTarget {
             RuleTarget::FavTime(cond) => video
                 .favtime
                 .try_as_ref()
+                .map(|fav_time| fav_time.and_utc().with_timezone(&Local).naive_local()) // 数据库中保存的一律是 utc 时间，转换为 local 时间再比较
                 .is_some_and(|fav_time| cond.evaluate(&fav_time)),
             RuleTarget::PubTime(cond) => video
                 .pubtime
                 .try_as_ref()
+                .map(|pub_time| pub_time.and_utc().with_timezone(&Local).naive_local())
                 .is_some_and(|pub_time| cond.evaluate(&pub_time)),
             RuleTarget::PageCount(cond) => cond.evaluate(pages.len()),
             RuleTarget::Not(inner) => !inner.evaluate(video, pages),
@@ -148,7 +150,7 @@ mod tests {
                     )),
                     RuleTarget::Tags(Condition::MatchesRegex(
                         "技术|教程".to_string(),
-                        Ok(regex::Regex::new("技术|教程").unwrap()),
+                        regex::Regex::new("技术|教程").unwrap(),
                     )),
                 ]]),
                 "「(收藏时间在“2023-06-01 00:00:00”和“2023-12-31 23:59:59”之间)且(标签匹配“技术|教程”)」",
@@ -208,7 +210,7 @@ mod tests {
                 ),
                 Rule(vec![vec![RuleTarget::Not(Box::new(RuleTarget::Title(Condition::MatchesRegex(
                         r"^\S+字(解析|怒扒|拆解)".to_owned(),
-                        Ok(regex::Regex::new(r"^\S+字(解析|怒扒)").unwrap()),
+                        regex::Regex::new(r"^\S+字(解析|怒扒)").unwrap(),
                     ))))]],
                 ),
                 false,

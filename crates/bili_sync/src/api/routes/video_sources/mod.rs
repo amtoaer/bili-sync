@@ -14,7 +14,9 @@ use crate::api::error::InnerApiError;
 use crate::api::request::{
     InsertCollectionRequest, InsertFavoriteRequest, InsertSubmissionRequest, UpdateVideoSourceRequest,
 };
-use crate::api::response::{VideoSource, VideoSourceDetail, VideoSourcesDetailsResponse, VideoSourcesResponse};
+use crate::api::response::{
+    UpdateVideoSourceResponse, VideoSource, VideoSourceDetail, VideoSourcesDetailsResponse, VideoSourcesResponse,
+};
 use crate::api::wrapper::{ApiError, ApiResponse, ValidatedJson};
 use crate::bilibili::{BiliClient, Collection, CollectionItem, FavoriteList, Submission};
 
@@ -151,7 +153,8 @@ pub async fn update_video_source(
     Path((source_type, id)): Path<(String, i32)>,
     Extension(db): Extension<DatabaseConnection>,
     ValidatedJson(request): ValidatedJson<UpdateVideoSourceRequest>,
-) -> Result<ApiResponse<bool>, ApiError> {
+) -> Result<ApiResponse<UpdateVideoSourceResponse>, ApiError> {
+    let rule_display = request.rule.as_ref().map(|rule| rule.to_string());
     let active_model = match source_type.as_str() {
         "collections" => collection::Entity::find_by_id(id).one(&db).await?.map(|model| {
             let mut active_model: collection::ActiveModel = model.into();
@@ -205,7 +208,7 @@ pub async fn update_video_source(
         return Err(InnerApiError::NotFound(id).into());
     };
     active_model.save(&db).await?;
-    Ok(ApiResponse::ok(true))
+    Ok(ApiResponse::ok(UpdateVideoSourceResponse { rule_display }))
 }
 
 /// 新增收藏夹订阅

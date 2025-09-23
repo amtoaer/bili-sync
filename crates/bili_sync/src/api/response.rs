@@ -180,3 +180,9 @@ pub struct VideoSourceDetail {
     pub rule_display: Option<String>,
     pub enabled: bool,
 }
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateVideoSourceResponse {
+    pub rule_display: Option<String>,
+}
