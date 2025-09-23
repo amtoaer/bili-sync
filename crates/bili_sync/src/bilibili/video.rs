@@ -171,14 +171,18 @@ impl<'a> Video<'a> {
             .await?
             .validate()?;
         // 接口返回的信息，包含了一系列的字幕，每个字幕包含了字幕的语言和 json 下载地址
-        let subtitles_info: SubTitlesInfo = serde_json::from_value(res["data"]["subtitle"].take())?;
-        let tasks = subtitles_info
-            .subtitles
-            .into_iter()
-            .filter(|v| !v.is_ai_sub())
-            .map(|v| self.get_subtitle(v))
-            .collect::<FuturesUnordered<_>>();
-        tasks.try_collect().await
+        match serde_json::from_value::<Option<SubTitlesInfo>>(res["data"]["subtitle"].take())? {
+            Some(subtitles_info) => {
+                let tasks = subtitles_info
+                    .subtitles
+                    .into_iter()
+                    .filter(|v| !v.is_ai_sub())
+                    .map(|v| self.get_subtitle(v))
+                    .collect::<FuturesUnordered<_>>();
+                tasks.try_collect().await
+            }
+            None => Ok(vec![]),
+        }
     }
 
     async fn get_subtitle(&self, info: SubTitleInfo) -> Result<SubTitle> {
