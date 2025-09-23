@@ -64,7 +64,7 @@ impl Display for RuleTarget {
                     if depth == 0 {
                         get_field_name(inner, depth + 1)
                     } else {
-                        panic!("Not 条件不允许嵌套")
+                        "格式化失败"
                     }
                 }
             }
@@ -77,7 +77,7 @@ impl Display for RuleTarget {
                     write!(f, "{}不{}", field_name, cond)
                 }
                 RuleTarget::PageCount(cond) => write!(f, "{}不{}", field_name, cond),
-                RuleTarget::Not(_) => panic!("Not 条件不允许嵌套"),
+                RuleTarget::Not(_) => write!(f, "格式化失败"),
             },
             RuleTarget::Title(cond) | RuleTarget::Tags(cond) => write!(f, "{}{}", field_name, cond),
             RuleTarget::FavTime(cond) | RuleTarget::PubTime(cond) => {

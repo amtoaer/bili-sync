@@ -236,7 +236,7 @@
 									<Table.Row>
 										<Table.Head class="w-[25%]">名称</Table.Head>
 										<Table.Head class="w-[35%]">下载路径</Table.Head>
-										<Table.Head class="w-[15%]">规则</Table.Head>
+										<Table.Head class="w-[15%]">筛选规则</Table.Head>
 										<Table.Head class="w-[15%]">状态</Table.Head>
 										<Table.Head class="w-[10%] text-right">操作</Table.Head>
 									</Table.Row>
@@ -267,7 +267,7 @@
 														</Tooltip.Root>
 													</div>
 												{:else}
-													<span class="text-muted-foreground text-sm">-</span>
+													<span class="text-muted-foreground text-sm"></span>
 												{/if}
 											</Table.Cell>
 											<Table.Cell>
@@ -371,7 +371,7 @@
 
 	<!-- 添加对话框 -->
 	<Dialog.Root bind:open={showAddDialog}>
-		<Dialog.Content class="max-w-3xl">
+		<Dialog.Content>
 			<Dialog.Title class="text-lg font-semibold">
 				{#if addDialogType === 'favorites'}
 					添加收藏夹
