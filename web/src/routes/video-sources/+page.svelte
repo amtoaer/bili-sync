@@ -8,17 +8,17 @@
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import EditIcon from '@lucide/svelte/icons/edit';
-	import SaveIcon from '@lucide/svelte/icons/save';
-	import XIcon from '@lucide/svelte/icons/x';
 	import FolderIcon from '@lucide/svelte/icons/folder';
 	import HeartIcon from '@lucide/svelte/icons/heart';
 	import UserIcon from '@lucide/svelte/icons/user';
 	import ClockIcon from '@lucide/svelte/icons/clock';
 	import PlusIcon from '@lucide/svelte/icons/plus';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { toast } from 'svelte-sonner';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
-	import type { ApiError, VideoSourceDetail, VideoSourcesDetailsResponse } from '$lib/types';
+	import type { ApiError, VideoSourceDetail, VideoSourcesDetailsResponse, Rule } from '$lib/types';
 	import api from '$lib/api';
+	import RuleEditor from '$lib/components/rule-editor.svelte';
 
 	let videoSourcesData: VideoSourcesDetailsResponse | null = null;
 	let loading = false;
@@ -29,18 +29,24 @@
 	let addDialogType: 'favorites' | 'collections' | 'submissions' = 'favorites';
 	let adding = false;
 
+	// 编辑对话框状态
+	let showEditDialog = false;
+	let editingSource: VideoSourceDetail | null = null;
+	let editingType = '';
+	let editingIdx: number = 0;
+	let saving = false;
+
+	// 编辑表单数据
+	let editForm = {
+		path: '',
+		enabled: false,
+		rule: null as Rule | null
+	};
+
 	// 表单数据
 	let favoriteForm = { fid: '', path: '' };
 	let collectionForm = { sid: '', mid: '', collection_type: '2', path: '' }; // 默认为合集
 	let submissionForm = { upper_id: '', path: '' };
-
-	type ExtendedVideoSource = VideoSourceDetail & {
-		type: string;
-		originalIndex: number;
-		editing?: boolean;
-		editingPath?: string;
-		editingEnabled?: boolean;
-	};
 
 	const TAB_CONFIG = {
 		favorites: { label: '收藏夹', icon: HeartIcon },
@@ -64,75 +70,65 @@
 		}
 	}
 
-	function startEdit(type: string, index: number) {
-		if (!videoSourcesData) return;
-		const sources = videoSourcesData[type as keyof VideoSourcesDetailsResponse];
-		if (!sources?.[index]) return;
-
-		const source = sources[index] as ExtendedVideoSource;
-		source.editing = true;
-		source.editingPath = source.path;
-		source.editingEnabled = source.enabled;
-		videoSourcesData = { ...videoSourcesData };
+	// 打开编辑对话框
+	function openEditDialog(type: string, source: VideoSourceDetail, idx: number) {
+		editingSource = source;
+		editingType = type;
+		editingIdx = idx;
+		editForm = {
+			path: source.path,
+			enabled: source.enabled,
+			rule: source.rule || null
+		};
+		showEditDialog = true;
 	}
 
-	function cancelEdit(type: string, index: number) {
-		if (!videoSourcesData) return;
-		const sources = videoSourcesData[type as keyof VideoSourcesDetailsResponse];
-		if (!sources?.[index]) return;
+	// 保存编辑
+	async function saveEdit() {
+		if (!editingSource) return;
 
-		const source = sources[index] as ExtendedVideoSource;
-		source.editing = false;
-		source.editingPath = undefined;
-		source.editingEnabled = undefined;
-		videoSourcesData = { ...videoSourcesData };
-	}
-
-	async function saveEdit(type: string, index: number) {
-		if (!videoSourcesData) return;
-		const sources = videoSourcesData[type as keyof VideoSourcesDetailsResponse];
-		if (!sources?.[index]) return;
-
-		const source = sources[index] as ExtendedVideoSource;
-		if (!source.editingPath?.trim()) {
+		if (!editForm.path?.trim()) {
 			toast.error('路径不能为空');
 			return;
 		}
 
+		saving = true;
 		try {
-			await api.updateVideoSource(type, source.id, {
-				path: source.editingPath,
-				enabled: source.editingEnabled ?? false
+			let response = await api.updateVideoSource(editingType, editingSource.id, {
+				path: editForm.path,
+				enabled: editForm.enabled,
+				rule: editForm.rule
 			});
 
-			source.path = source.editingPath;
-			source.enabled = source.editingEnabled ?? false;
-			source.editing = false;
-			source.editingPath = undefined;
-			source.editingEnabled = undefined;
-			videoSourcesData = { ...videoSourcesData };
+			// 更新本地数据
+			if (videoSourcesData && editingSource) {
+				const sources = videoSourcesData[
+					editingType as keyof VideoSourcesDetailsResponse
+				] as VideoSourceDetail[];
+				sources[editingIdx] = {
+					...sources[editingIdx],
+					path: editForm.path,
+					enabled: editForm.enabled,
+					rule: editForm.rule,
+					ruleDisplay: response.data.ruleDisplay
+				};
+				videoSourcesData = { ...videoSourcesData };
+			}
 
+			showEditDialog = false;
 			toast.success('保存成功');
 		} catch (error) {
 			toast.error('保存失败', {
 				description: (error as ApiError).message
 			});
+		} finally {
+			saving = false;
 		}
 	}
 
-	function getSourcesForTab(tabValue: string): ExtendedVideoSource[] {
+	function getSourcesForTab(tabValue: string): VideoSourceDetail[] {
 		if (!videoSourcesData) return [];
-		const sources = videoSourcesData[
-			tabValue as keyof VideoSourcesDetailsResponse
-		] as VideoSourceDetail[];
-		// 直接返回原始数据的引用，只添加必要的属性
-		return sources.map((source, originalIndex) => {
-			// 使用类型断言来扩展 VideoSourceDetail
-			const extendedSource = source as ExtendedVideoSource;
-			extendedSource.type = tabValue;
-			extendedSource.originalIndex = originalIndex;
-			return extendedSource;
-		});
+		return videoSourcesData[tabValue as keyof VideoSourcesDetailsResponse] as VideoSourceDetail[];
 	}
 
 	// 打开添加对话框
@@ -238,80 +234,60 @@
 							<Table.Root>
 								<Table.Header>
 									<Table.Row>
-										<Table.Head class="w-[30%] md:w-[25%]">名称</Table.Head>
-										<Table.Head class="w-[30%] md:w-[40%]">下载路径</Table.Head>
-										<Table.Head class="w-[25%] md:w-[20%]">状态</Table.Head>
-										<Table.Head class="w-[15%] text-right sm:w-[12%]">操作</Table.Head>
+										<Table.Head class="w-[25%]">名称</Table.Head>
+										<Table.Head class="w-[35%]">下载路径</Table.Head>
+										<Table.Head class="w-[15%]">筛选规则</Table.Head>
+										<Table.Head class="w-[15%]">状态</Table.Head>
+										<Table.Head class="w-[10%] text-right">操作</Table.Head>
 									</Table.Row>
 								</Table.Header>
 								<Table.Body>
 									{#each sources as source, index (index)}
 										<Table.Row>
-											<Table.Cell class="w-[30%] font-medium md:w-[25%]">{source.name}</Table.Cell>
-											<Table.Cell class="w-[30%] md:w-[40%]">
-												{#if source.editing}
-													<input
-														bind:value={source.editingPath}
-														class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-8 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-														placeholder="输入下载路径"
-													/>
+											<Table.Cell class="font-medium">{source.name}</Table.Cell>
+											<Table.Cell>
+												<code
+													class="bg-muted text-muted-foreground inline-flex h-8 items-center rounded px-3 py-1 text-sm"
+												>
+													{source.path || '未设置'}
+												</code>
+											</Table.Cell>
+											<Table.Cell>
+												{#if source.rule && source.rule.length > 0}
+													<div class="flex items-center gap-1">
+														<Tooltip.Root>
+															<Tooltip.Trigger>
+																<div class="rounded bg-blue-100 px-2 py-1 text-xs text-blue-800">
+																	{source.rule.length} 条规则
+																</div>
+															</Tooltip.Trigger>
+															<Tooltip.Content>
+																<p class="text-xs">{source.ruleDisplay}</p>
+															</Tooltip.Content>
+														</Tooltip.Root>
+													</div>
 												{:else}
-													<code
-														class="bg-muted text-muted-foreground inline-flex h-8 items-center rounded px-3 py-1 text-sm"
-													>
-														{source.path || '未设置'}
-													</code>
+													<span class="text-muted-foreground text-sm"></span>
 												{/if}
 											</Table.Cell>
-											<Table.Cell class="w-[25%] md:w-[20%]">
-												{#if source.editing}
-													<div class="flex h-8 items-center">
-														<Switch bind:checked={source.editingEnabled} />
-													</div>
-												{:else}
-													<div class="flex h-8 items-center gap-2">
-														<Switch checked={source.enabled} disabled />
-														<span class="text-muted-foreground text-sm whitespace-nowrap">
-															{source.enabled ? '已启用' : '已禁用'}
-														</span>
-													</div>
-												{/if}
+											<Table.Cell>
+												<div class="flex h-8 items-center gap-2">
+													<Switch checked={source.enabled} disabled />
+													<span class="text-muted-foreground text-sm whitespace-nowrap">
+														{source.enabled ? '已启用' : '已禁用'}
+													</span>
+												</div>
 											</Table.Cell>
-											<Table.Cell class="w-[15%] text-right sm:w-[12%]">
-												{#if source.editing}
-													<div
-														class="flex flex-col items-end justify-end gap-1 sm:flex-row sm:items-center"
-													>
-														<Button
-															size="sm"
-															variant="outline"
-															onclick={() => saveEdit(key, source.originalIndex)}
-															class="h-7 w-7 p-0 sm:h-8 sm:w-8"
-															title="保存"
-														>
-															<SaveIcon class="h-3 w-3" />
-														</Button>
-														<Button
-															size="sm"
-															variant="outline"
-															onclick={() => cancelEdit(key, source.originalIndex)}
-															class="h-7 w-7 p-0 sm:h-8 sm:w-8"
-															title="取消"
-														>
-															<XIcon class="h-3 w-3" />
-														</Button>
-													</div>
-												{:else}
-													<Button
-														size="sm"
-														variant="outline"
-														onclick={() => startEdit(key, source.originalIndex)}
-														class="h-7 w-7 p-0 sm:h-8 sm:w-8"
-														title="编辑"
-													>
-														<EditIcon class="h-3 w-3" />
-													</Button>
-												{/if}
+											<Table.Cell class="text-right">
+												<Button
+													size="sm"
+													variant="outline"
+													onclick={() => openEditDialog(key, source, index)}
+													class="h-8 w-8 p-0"
+													title="编辑"
+												>
+													<EditIcon class="h-3 w-3" />
+												</Button>
 											</Table.Cell>
 										</Table.Row>
 									{/each}
@@ -352,11 +328,50 @@
 		</div>
 	{/if}
 
+	<!-- 编辑对话框 -->
+	<Dialog.Root bind:open={showEditDialog}>
+		<Dialog.Content class="max-h-[85vh] w-4xl !max-w-none overflow-y-auto">
+			<Dialog.Title class="text-lg font-semibold">
+				编辑视频源: {editingSource?.name || ''}
+			</Dialog.Title>
+			<div class="mt-6 space-y-6">
+				<!-- 下载路径 -->
+				<div>
+					<Label for="edit-path" class="text-sm font-medium">下载路径</Label>
+					<Input
+						id="edit-path"
+						type="text"
+						bind:value={editForm.path}
+						placeholder="请输入下载路径，例如：/path/to/download"
+						class="mt-2"
+					/>
+				</div>
+
+				<!-- 启用状态 -->
+				<div class="flex items-center space-x-2">
+					<Switch bind:checked={editForm.enabled} />
+					<Label class="text-sm font-medium">启用此视频源</Label>
+				</div>
+
+				<!-- 规则编辑器 -->
+				<div>
+					<RuleEditor rule={editForm.rule} onRuleChange={(rule) => (editForm.rule = rule)} />
+				</div>
+			</div>
+			<div class="mt-8 flex justify-end gap-3">
+				<Button variant="outline" onclick={() => (showEditDialog = false)} disabled={saving}>
+					取消
+				</Button>
+				<Button onclick={saveEdit} disabled={saving}>
+					{saving ? '保存中...' : '保存'}
+				</Button>
+			</div>
+		</Dialog.Content>
+	</Dialog.Root>
+
+	<!-- 添加对话框 -->
 	<Dialog.Root bind:open={showAddDialog}>
-		<Dialog.Overlay class="data-[state=open]:animate-overlay-show fixed inset-0 bg-black/30" />
-		<Dialog.Content
-			class="data-[state=open]:animate-content-show bg-background fixed top-1/2 left-1/2 z-50 max-h-[85vh] w-full max-w-3xl -translate-x-1/2 -translate-y-1/2 rounded-lg border p-6 shadow-md outline-none"
-		>
+		<Dialog.Content>
 			<Dialog.Title class="text-lg font-semibold">
 				{#if addDialogType === 'favorites'}
 					添加收藏夹

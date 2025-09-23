@@ -1,3 +1,4 @@
+use bili_sync_entity::rule::Rule;
 use bili_sync_entity::*;
 use sea_orm::{DerivePartialModel, FromQueryResult};
 use serde::Serialize;
@@ -169,9 +170,19 @@ pub struct SysInfo {
 }
 
 #[derive(Serialize, FromQueryResult)]
+#[serde(rename_all = "camelCase")]
 pub struct VideoSourceDetail {
     pub id: i32,
     pub name: String,
     pub path: String,
+    pub rule: Option<Rule>,
+    #[serde(default)]
+    pub rule_display: Option<String>,
     pub enabled: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateVideoSourceResponse {
+    pub rule_display: Option<String>,
 }

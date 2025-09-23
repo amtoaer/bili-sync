@@ -261,7 +261,7 @@ mod tests {
                 chrono::NaiveTime::from_hms_opt(3, 3, 3).unwrap(),
             ),
             bvid: "BV1nWcSeeEkV".to_string(),
-            tags: Some(serde_json::json!(["tag1", "tag2"])),
+            tags: Some(vec!["tag1".to_owned(), "tag2".to_owned()].into()),
             ..Default::default()
         };
         assert_eq!(
@@ -343,10 +343,7 @@ impl<'a> From<&'a video::Model> for Movie<'a> {
                 NFOTimeType::FavTime => video.favtime,
                 NFOTimeType::PubTime => video.pubtime,
             },
-            tags: video
-                .tags
-                .as_ref()
-                .and_then(|tags| serde_json::from_value(tags.clone()).ok()),
+            tags: video.tags.as_ref().map(|tags| tags.clone().into()),
         }
     }
 }
@@ -363,10 +360,7 @@ impl<'a> From<&'a video::Model> for TVShow<'a> {
                 NFOTimeType::FavTime => video.favtime,
                 NFOTimeType::PubTime => video.pubtime,
             },
-            tags: video
-                .tags
-                .as_ref()
-                .and_then(|tags| serde_json::from_value(tags.clone()).ok()),
+            tags: video.tags.as_ref().map(|tags| tags.clone().into()),
         }
     }
 }

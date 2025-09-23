@@ -23,6 +23,7 @@ use crate::utils::model::{
     update_videos_model,
 };
 use crate::utils::nfo::NFO;
+use crate::utils::rule::FieldEvaluatable;
 use crate::utils::status::{PageStatus, STATUS_OK, VideoStatus};
 
 /// 完整地处理某个视频来源
@@ -136,7 +137,10 @@ pub async fn fetch_video_details(
                     let mut video_active_model = view_info.into_detail_model(video_model);
                     video_source.set_relation_id(&mut video_active_model);
                     video_active_model.single_page = Set(Some(pages.len() == 1));
-                    video_active_model.tags = Set(Some(serde_json::to_value(tags)?));
+                    video_active_model.tags = Set(Some(tags.into()));
+                    video_active_model.should_download = Set(video_source
+                        .rule()
+                        .is_none_or(|r| r.evaluate(&video_active_model, &pages)));
                     let txn = connection.begin().await?;
                     create_pages(pages, &txn).await?;
                     video_active_model.save(&txn).await?;

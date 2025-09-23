@@ -41,6 +41,7 @@ pub async fn filter_unhandled_video_pages(
                 .and(video::Column::DownloadStatus.lt(STATUS_COMPLETED))
                 .and(video::Column::Category.eq(2))
                 .and(video::Column::SinglePage.is_not_null())
+                .and(video::Column::ShouldDownload.eq(true))
                 .and(additional_expr),
         )
         .find_with_related(page::Entity)

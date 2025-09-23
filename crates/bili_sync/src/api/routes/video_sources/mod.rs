@@ -14,7 +14,9 @@ use crate::api::error::InnerApiError;
 use crate::api::request::{
     InsertCollectionRequest, InsertFavoriteRequest, InsertSubmissionRequest, UpdateVideoSourceRequest,
 };
-use crate::api::response::{VideoSource, VideoSourceDetail, VideoSourcesDetailsResponse, VideoSourcesResponse};
+use crate::api::response::{
+    UpdateVideoSourceResponse, VideoSource, VideoSourceDetail, VideoSourcesDetailsResponse, VideoSourcesResponse,
+};
 use crate::api::wrapper::{ApiError, ApiResponse, ValidatedJson};
 use crate::bilibili::{BiliClient, Collection, CollectionItem, FavoriteList, Submission};
 
@@ -75,13 +77,14 @@ pub async fn get_video_sources(
 pub async fn get_video_sources_details(
     Extension(db): Extension<DatabaseConnection>,
 ) -> Result<ApiResponse<VideoSourcesDetailsResponse>, ApiError> {
-    let (collections, favorites, submissions, mut watch_later) = tokio::try_join!(
+    let (mut collections, mut favorites, mut submissions, mut watch_later) = tokio::try_join!(
         collection::Entity::find()
             .select_only()
             .columns([
                 collection::Column::Id,
                 collection::Column::Name,
                 collection::Column::Path,
+                collection::Column::Rule,
                 collection::Column::Enabled
             ])
             .into_model::<VideoSourceDetail>()
@@ -92,22 +95,31 @@ pub async fn get_video_sources_details(
                 favorite::Column::Id,
                 favorite::Column::Name,
                 favorite::Column::Path,
+                favorite::Column::Rule,
                 favorite::Column::Enabled
             ])
             .into_model::<VideoSourceDetail>()
             .all(&db),
         submission::Entity::find()
             .select_only()
-            .column(submission::Column::Id)
             .column_as(submission::Column::UpperName, "name")
-            .columns([submission::Column::Path, submission::Column::Enabled])
+            .columns([
+                submission::Column::Id,
+                submission::Column::Path,
+                submission::Column::Enabled,
+                submission::Column::Rule
+            ])
             .into_model::<VideoSourceDetail>()
             .all(&db),
         watch_later::Entity::find()
             .select_only()
-            .column(watch_later::Column::Id)
             .column_as(Expr::value("稍后再看"), "name")
-            .columns([watch_later::Column::Path, watch_later::Column::Enabled])
+            .columns([
+                watch_later::Column::Id,
+                watch_later::Column::Path,
+                watch_later::Column::Enabled,
+                watch_later::Column::Rule
+            ])
             .into_model::<VideoSourceDetail>()
             .all(&db)
     )?;
@@ -116,8 +128,17 @@ pub async fn get_video_sources_details(
             id: 1,
             name: "稍后再看".to_string(),
             path: String::new(),
+            rule: None,
+            rule_display: None,
             enabled: false,
         })
+    }
+    for sources in [&mut collections, &mut favorites, &mut submissions, &mut watch_later] {
+        sources.iter_mut().for_each(|item| {
+            if let Some(rule) = &item.rule {
+                item.rule_display = Some(rule.to_string());
+            }
+        });
     }
     Ok(ApiResponse::ok(VideoSourcesDetailsResponse {
         collections,
@@ -132,24 +153,28 @@ pub async fn update_video_source(
     Path((source_type, id)): Path<(String, i32)>,
     Extension(db): Extension<DatabaseConnection>,
     ValidatedJson(request): ValidatedJson<UpdateVideoSourceRequest>,
-) -> Result<ApiResponse<bool>, ApiError> {
+) -> Result<ApiResponse<UpdateVideoSourceResponse>, ApiError> {
+    let rule_display = request.rule.as_ref().map(|rule| rule.to_string());
     let active_model = match source_type.as_str() {
         "collections" => collection::Entity::find_by_id(id).one(&db).await?.map(|model| {
             let mut active_model: collection::ActiveModel = model.into();
             active_model.path = Set(request.path);
             active_model.enabled = Set(request.enabled);
+            active_model.rule = Set(request.rule);
             _ActiveModel::Collection(active_model)
         }),
         "favorites" => favorite::Entity::find_by_id(id).one(&db).await?.map(|model| {
             let mut active_model: favorite::ActiveModel = model.into();
             active_model.path = Set(request.path);
             active_model.enabled = Set(request.enabled);
+            active_model.rule = Set(request.rule);
             _ActiveModel::Favorite(active_model)
         }),
         "submissions" => submission::Entity::find_by_id(id).one(&db).await?.map(|model| {
             let mut active_model: submission::ActiveModel = model.into();
             active_model.path = Set(request.path);
             active_model.enabled = Set(request.enabled);
+            active_model.rule = Set(request.rule);
             _ActiveModel::Submission(active_model)
         }),
         "watch_later" => match watch_later::Entity::find_by_id(id).one(&db).await? {
@@ -160,6 +185,7 @@ pub async fn update_video_source(
                 let mut active_model: watch_later::ActiveModel = model.into();
                 active_model.path = Set(request.path);
                 active_model.enabled = Set(request.enabled);
+                active_model.rule = Set(request.rule);
                 Some(_ActiveModel::WatchLater(active_model))
             }
             None => {
@@ -170,6 +196,7 @@ pub async fn update_video_source(
                     Some(_ActiveModel::WatchLater(watch_later::ActiveModel {
                         path: Set(request.path),
                         enabled: Set(request.enabled),
+                        rule: Set(request.rule),
                         ..Default::default()
                     }))
                 }
@@ -181,7 +208,7 @@ pub async fn update_video_source(
         return Err(InnerApiError::NotFound(id).into());
     };
     active_model.save(&db).await?;
-    Ok(ApiResponse::ok(true))
+    Ok(ApiResponse::ok(UpdateVideoSourceResponse { rule_display }))
 }
 
 /// 新增收藏夹订阅
@@ -196,7 +223,7 @@ pub async fn insert_favorite(
         f_id: Set(favorite_info.id),
         name: Set(favorite_info.title.clone()),
         path: Set(request.path),
-        enabled: Set(true),
+        enabled: Set(false),
         ..Default::default()
     })
     .exec(&db)
@@ -225,7 +252,7 @@ pub async fn insert_collection(
         r#type: Set(collection_info.collection_type.into()),
         name: Set(collection_info.name.clone()),
         path: Set(request.path),
-        enabled: Set(true),
+        enabled: Set(false),
         ..Default::default()
     })
     .exec(&db)
@@ -246,7 +273,7 @@ pub async fn insert_submission(
         upper_id: Set(upper.mid.parse()?),
         upper_name: Set(upper.name),
         path: Set(request.path),
-        enabled: Set(true),
+        enabled: Set(false),
         ..Default::default()
     })
     .exec(&db)
