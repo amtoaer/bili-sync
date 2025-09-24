@@ -75,7 +75,7 @@
 			const result = await api.getVideos(params);
 			videosData = result.data;
 		} catch (error) {
-			console.error('加载视频失败:', error);
+			console.error('加载视频失败：', error);
 			toast.error('加载视频失败', {
 				description: (error as ApiError).message
 			});
@@ -111,7 +111,7 @@
 				});
 			}
 		} catch (error) {
-			console.error('重置失败:', error);
+			console.error('重置失败：', error);
 			toast.error('重置失败', {
 				description: (error as ApiError).message
 			});
@@ -133,7 +133,7 @@
 				toast.info('没有需要重置的视频');
 			}
 		} catch (error) {
-			console.error('重置失败:', error);
+			console.error('重置失败：', error);
 			toast.error('重置失败', {
 				description: (error as ApiError).message
 			});

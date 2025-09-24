@@ -34,7 +34,7 @@ pub async fn http_server(
     let listener = tokio::net::TcpListener::bind(&config.bind_address)
         .await
         .context("bind address failed")?;
-    info!("开始运行管理页: http://{}", config.bind_address);
+    info!("开始运行管理页：http://{}", config.bind_address);
     Ok(axum::serve(listener, ServiceExt::<Request>::into_make_service(app)).await?)
 }
 

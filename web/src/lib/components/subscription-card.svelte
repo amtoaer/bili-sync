@@ -45,7 +45,7 @@
 			case 'collection':
 				return '合集';
 			case 'upper':
-				return 'UP主';
+				return 'UP 主';
 			default:
 				return '';
 		}

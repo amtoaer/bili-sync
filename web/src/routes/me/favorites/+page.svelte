@@ -17,7 +17,7 @@
 			const response = await api.getCreatedFavorites();
 			favorites = response.data.favorites;
 		} catch (error) {
-			console.error('加载收藏夹失败:', error);
+			console.error('加载收藏夹失败：', error);
 			toast.error('加载收藏夹失败', {
 				description: (error as ApiError).message
 			});
@@ -73,7 +73,7 @@
 		<div class="flex items-center justify-center py-12">
 			<div class="space-y-2 text-center">
 				<p class="text-muted-foreground">暂无收藏夹数据</p>
-				<p class="text-muted-foreground text-sm">请先在B站创建收藏夹，或检查账号配置</p>
+				<p class="text-muted-foreground text-sm">请先在 B 站创建收藏夹，或检查账号配置</p>
 			</div>
 		</div>
 	{/if}

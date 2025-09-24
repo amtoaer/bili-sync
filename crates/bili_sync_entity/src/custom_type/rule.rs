@@ -94,7 +94,7 @@ impl Display for Rule {
             .0
             .iter()
             .map(|group| {
-                let conditions: Vec<String> = group.iter().map(|target| format!("({})", target)).collect();
+                let conditions: Vec<String> = group.iter().map(|target| format!("（{}）", target)).collect();
                 format!("「{}」", conditions.join("且"))
             })
             .collect();

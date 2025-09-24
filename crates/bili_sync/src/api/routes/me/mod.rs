@@ -32,7 +32,7 @@ pub async fn get_created_favorites(
     let bili_favorites = me.get_created_favorites().await?;
 
     let favorites = if let Some(bili_favorites) = bili_favorites {
-        // b 站收藏夹相关接口使用的所谓 “fid” 其实是该处的 id，即 fid + mid 后两位
+        // b 站收藏夹相关接口使用的所谓“fid”其实是该处的 id，即 fid + mid 后两位
         let bili_fids: Vec<_> = bili_favorites.iter().map(|fav| fav.id).collect();
 
         let subscribed_fids: Vec<i64> = favorite::Entity::find()

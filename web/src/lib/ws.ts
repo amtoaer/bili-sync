@@ -122,7 +122,7 @@ export class WebSocketManager {
 		} catch (error) {
 			console.error('Failed to parse WebSocket message:', error, event.data);
 			toast.error('解析 WebSocket 消息失败', {
-				description: `消息内容: ${event.data}\n错误信息: ${error instanceof Error ? error.message : String(error)}`
+				description: `消息内容：${event.data}\n错误信息：${error instanceof Error ? error.message : String(error)}`
 			});
 		}
 	}
@@ -137,7 +137,7 @@ export class WebSocketManager {
 		} catch (error) {
 			console.error('Failed to send message:', error);
 			toast.error('发送 WebSocket 消息失败', {
-				description: `消息内容: ${JSON.stringify(message)}\n错误信息: ${error instanceof Error ? error.message : String(error)}`
+				description: `消息内容：${JSON.stringify(message)}\n错误信息：${error instanceof Error ? error.message : String(error)}`
 			});
 		}
 	}

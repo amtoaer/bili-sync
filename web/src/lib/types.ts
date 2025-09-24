@@ -137,7 +137,7 @@ export interface CollectionsResponse {
 	total: number;
 }
 
-// UP主相关类型
+// UP 主相关类型
 export interface UpperWithSubscriptionStatus {
 	mid: number;
 	uname: string;

@@ -143,14 +143,14 @@ mod tests {
         let test_cases = vec![
             (
                 Rule(vec![vec![RuleTarget::Title(Condition::Contains("唐氏".to_string()))]]),
-                "「(标题包含“唐氏”)」",
+                "「（标题包含“唐氏”）」",
             ),
             (
                 Rule(vec![vec![
                     RuleTarget::Title(Condition::Prefix("街霸".to_string())),
                     RuleTarget::Tags(Condition::Contains("套路".to_string())),
                 ]]),
-                "「(标题以“街霸”开头)且(标签包含“套路”)」",
+                "「（标题以“街霸”开头）且（标签包含“套路”）」",
             ),
             (
                 Rule(vec![
@@ -168,14 +168,14 @@ mod tests {
                         )),
                     ],
                 ]),
-                "「(标题包含“Rust”)且(视频分页数量大于“5”)」或「(标签以“入门”结尾)且(发布时间大于“2023-01-01 00:00:00”)」",
+                "「（标题包含“Rust”）且（视频分页数量大于“5”）」或「（标签以“入门”结尾）且（发布时间大于“2023-01-01 00:00:00”）」",
             ),
             (
                 Rule(vec![vec![
                     RuleTarget::Not(Box::new(RuleTarget::Title(Condition::Contains("广告".to_string())))),
                     RuleTarget::PageCount(Condition::LessThan(10)),
                 ]]),
-                "「(标题不包含“广告”)且(视频分页数量小于“10”)」",
+                "「（标题不包含“广告”）且（视频分页数量小于“10”）」",
             ),
             (
                 Rule(vec![vec![
@@ -189,12 +189,14 @@ mod tests {
                             .and_hms_opt(23, 59, 59)
                             .unwrap(),
                     )),
+                    // autocorrect-disable
                     RuleTarget::Tags(Condition::MatchesRegex(
                         "技术|教程".to_string(),
                         regex::Regex::new("技术|教程").unwrap(),
                     )),
                 ]]),
-                "「(收藏时间在“2023-06-01 00:00:00”和“2023-12-31 23:59:59”之间)且(标签匹配“技术|教程”)」",
+                "「（收藏时间在“2023-06-01 00:00:00”和“2023-12-31 23:59:59”之间）且（标签匹配“技术|教程”）」",
+                // autocorrect-enable
             ),
         ];
 
@@ -243,7 +245,7 @@ mod tests {
                 (
                     video::ActiveModel {
                         name: Set(
-                            "万字怒扒网易《归唐》底裤！中国首款大厂买断制单机，靠谱吗？——全网最全！官方非独家幕后！关于《归唐》PV的所有秘密~都在这里了~".to_owned(),
+                            "万字怒扒网易《归唐》底裤！中国首款大厂买断制单机，靠谱吗？——全网最全！官方非独家幕后！关于《归唐》PV 的所有秘密~都在这里了~".to_owned(),
                         ),
                         ..Default::default()
                     },
