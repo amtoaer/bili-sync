@@ -225,40 +225,40 @@ pub async fn evaluate_video_source(
             collection::Entity::find_by_id(id)
                 .select_only()
                 .column(collection::Column::Rule)
-                .into_tuple::<(Option<Rule>,)>()
+                .into_tuple::<Option<Rule>>()
                 .one(&db)
                 .await?
-                .and_then(|r| r.0),
+                .and_then(|r| r),
             video::Column::CollectionId.eq(id),
         ),
         "favorites" => (
             favorite::Entity::find_by_id(id)
                 .select_only()
                 .column(favorite::Column::Rule)
-                .into_tuple::<(Option<Rule>,)>()
+                .into_tuple::<Option<Rule>>()
                 .one(&db)
                 .await?
-                .and_then(|r| r.0),
+                .and_then(|r| r),
             video::Column::FavoriteId.eq(id),
         ),
         "submissions" => (
             submission::Entity::find_by_id(id)
                 .select_only()
                 .column(submission::Column::Rule)
-                .into_tuple::<(Option<Rule>,)>()
+                .into_tuple::<Option<Rule>>()
                 .one(&db)
                 .await?
-                .and_then(|r| r.0),
+                .and_then(|r| r),
             video::Column::SubmissionId.eq(id),
         ),
         "watch_later" => (
             watch_later::Entity::find_by_id(id)
                 .select_only()
                 .column(watch_later::Column::Rule)
-                .into_tuple::<(Option<Rule>,)>()
+                .into_tuple::<Option<Rule>>()
                 .one(&db)
                 .await?
-                .and_then(|r| r.0),
+                .and_then(|r| r),
             video::Column::WatchLaterId.eq(id),
         ),
         _ => return Err(InnerApiError::BadRequest("Invalid video source type".to_string()).into()),
