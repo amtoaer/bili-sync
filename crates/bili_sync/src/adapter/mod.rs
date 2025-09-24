@@ -69,7 +69,7 @@ pub trait VideoSource {
         video_info.ok()
     }
 
-    fn rule(&self) -> Option<&Rule>;
+    fn rule(&self) -> &Option<Rule>;
 
     fn log_refresh_video_start(&self) {
         info!("开始扫描{}..", self.display_name());

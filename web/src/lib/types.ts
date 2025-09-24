@@ -36,6 +36,7 @@ export interface VideoInfo {
 	bvid: string;
 	name: string;
 	upper_name: string;
+	should_download: boolean;
 	download_status: [number, number, number, number, number];
 }
 

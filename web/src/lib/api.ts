@@ -217,6 +217,10 @@ class ApiClient {
 		return this.put<UpdateVideoSourceResponse>(`/video-sources/${type}/${id}`, request);
 	}
 
+	async evaluateVideoSourceRules(type: string, id: number): Promise<ApiResponse<boolean>> {
+		return this.post<boolean>(`/video-sources/${type}/${id}/evaluate`, null);
+	}
+
 	async getConfig(): Promise<ApiResponse<Config>> {
 		return this.get<Config>('/config');
 	}
@@ -262,6 +266,8 @@ const api = {
 	getVideoSourcesDetails: () => apiClient.getVideoSourcesDetails(),
 	updateVideoSource: (type: string, id: number, request: UpdateVideoSourceRequest) =>
 		apiClient.updateVideoSource(type, id, request),
+	evaluateVideoSourceRules: (type: string, id: number) =>
+		apiClient.evaluateVideoSourceRules(type, id),
 	getConfig: () => apiClient.getConfig(),
 	updateConfig: (config: Config) => apiClient.updateConfig(config),
 	getDashboard: () => apiClient.getDashboard(),

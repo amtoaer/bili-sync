@@ -156,7 +156,8 @@
 					bvid: videoData.video.bvid,
 					name: videoData.video.name,
 					upper_name: videoData.video.upper_name,
-					download_status: videoData.video.download_status
+					download_status: videoData.video.download_status,
+					should_download: videoData.video.should_download
 				}}
 				mode="detail"
 				showActions={false}
@@ -209,7 +210,8 @@
 								id: pageInfo.id,
 								name: `P${pageInfo.pid}: ${pageInfo.name}`,
 								upper_name: '',
-								download_status: pageInfo.download_status
+								download_status: pageInfo.download_status,
+								should_download: videoData.video.should_download
 							}}
 							mode="page"
 							showActions={false}

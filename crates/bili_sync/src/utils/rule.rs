@@ -8,6 +8,7 @@ pub(crate) trait Evaluatable<T> {
 
 pub(crate) trait FieldEvaluatable {
     fn evaluate(&self, video: &video::ActiveModel, pages: &[page::ActiveModel]) -> bool;
+    fn evaluate_model(&self, video: &video::Model, pages: &[page::Model]) -> bool;
 }
 
 impl Evaluatable<&str> for Condition<String> {
@@ -48,6 +49,7 @@ impl Evaluatable<&NaiveDateTime> for Condition<NaiveDateTime> {
 }
 
 impl FieldEvaluatable for RuleTarget {
+    /// 修改模型后进行评估，此时能访问的是未保存的 activeModel，就地使用 activeModel 评估
     fn evaluate(&self, video: &video::ActiveModel, pages: &[page::ActiveModel]) -> bool {
         match self {
             RuleTarget::Title(cond) => video.name.try_as_ref().is_some_and(|title| cond.evaluate(&title)),
@@ -72,11 +74,32 @@ impl FieldEvaluatable for RuleTarget {
             RuleTarget::Not(inner) => !inner.evaluate(video, pages),
         }
     }
+
+    /// 手动触发对历史视频的评估，拿到的是原始 Model，直接使用
+    fn evaluate_model(&self, video: &video::Model, pages: &[page::Model]) -> bool {
+        match self {
+            RuleTarget::Title(cond) => cond.evaluate(&video.name),
+            // 目前的所有条件都是分别针对全体标签进行 any 评估的，例如 Prefix("a") && Suffix("b") 意味着 any(tag.Prefix("a")) && any(tag.Suffix("b")) 而非 any(tag.Prefix("a") && tag.Suffix("b"))
+            // 这可能不满足用户预期，但应该问题不大，如果真有很多人用复杂标签筛选再单独改
+            RuleTarget::Tags(cond) => video
+                .tags
+                .as_ref()
+                .is_some_and(|tags| tags.0.iter().any(|tag| cond.evaluate(&tag))),
+            RuleTarget::FavTime(cond) => cond.evaluate(&video.favtime.and_utc().with_timezone(&Local).naive_local()),
+            RuleTarget::PubTime(cond) => cond.evaluate(&video.pubtime.and_utc().with_timezone(&Local).naive_local()),
+            RuleTarget::PageCount(cond) => cond.evaluate(pages.len()),
+            RuleTarget::Not(inner) => !inner.evaluate_model(video, pages),
+        }
+    }
 }
 
 impl FieldEvaluatable for AndGroup {
     fn evaluate(&self, video: &video::ActiveModel, pages: &[page::ActiveModel]) -> bool {
         self.iter().all(|target| target.evaluate(video, pages))
+    }
+
+    fn evaluate_model(&self, video: &video::Model, pages: &[page::Model]) -> bool {
+        self.iter().all(|target| target.evaluate_model(video, pages))
     }
 }
 
@@ -86,6 +109,24 @@ impl FieldEvaluatable for Rule {
             return true;
         }
         self.0.iter().any(|group| group.evaluate(video, pages))
+    }
+
+    fn evaluate_model(&self, video: &video::Model, pages: &[page::Model]) -> bool {
+        if self.0.is_empty() {
+            return true;
+        }
+        self.0.iter().any(|group| group.evaluate_model(video, pages))
+    }
+}
+
+/// 对于 Option<Rule> 如果 rule 不存在应该被认为是通过评估
+impl FieldEvaluatable for Option<Rule> {
+    fn evaluate(&self, video: &video::ActiveModel, pages: &[page::ActiveModel]) -> bool {
+        self.as_ref().is_none_or(|rule| rule.evaluate(video, pages))
+    }
+
+    fn evaluate_model(&self, video: &video::Model, pages: &[page::Model]) -> bool {
+        self.as_ref().is_none_or(|rule| rule.evaluate_model(video, pages))
     }
 }
 

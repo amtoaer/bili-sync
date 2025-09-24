@@ -43,8 +43,8 @@ impl VideoSource for favorite::Model {
         })
     }
 
-    fn rule(&self) -> Option<&Rule> {
-        self.rule.as_ref()
+    fn rule(&self) -> &Option<Rule> {
+        &self.rule
     }
 
     async fn refresh<'a>(
