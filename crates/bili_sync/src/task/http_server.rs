@@ -53,13 +53,13 @@ async fn frontend_files(request: Request) -> impl IntoResponse {
         (header::CACHE_CONTROL, "no-cache"),
         (header::ETAG, &content.hash()),
     ];
-    if let Some(if_none_match) = request.headers().get(header::IF_NONE_MATCH) {
-        if let Ok(client_etag) = if_none_match.to_str() {
-            if client_etag == content.hash() {
-                return (StatusCode::NOT_MODIFIED, default_headers).into_response();
-            }
-        }
+    if let Some(if_none_match) = request.headers().get(header::IF_NONE_MATCH)
+        && let Ok(client_etag) = if_none_match.to_str()
+        && client_etag == content.hash()
+    {
+        return (StatusCode::NOT_MODIFIED, default_headers).into_response();
     }
+
     if request.method() == axum::http::Method::HEAD {
         return (StatusCode::OK, default_headers).into_response();
     }
@@ -74,20 +74,20 @@ async fn frontend_files(request: Request) -> impl IntoResponse {
         .map(|s| s.split(',').map(str::trim).collect::<HashSet<_>>())
         .unwrap_or_default();
     for (encoding, data) in [("br", content.data_br()), ("gzip", content.data_gzip())] {
-        if accepted_encodings.contains(encoding) {
-            if let Some(data) = data {
-                return (
-                    StatusCode::OK,
-                    [
-                        (header::CONTENT_TYPE, content_type),
-                        (header::CACHE_CONTROL, "no-cache"),
-                        (header::ETAG, &content.hash()),
-                        (header::CONTENT_ENCODING, encoding),
-                    ],
-                    data,
-                )
-                    .into_response();
-            }
+        if accepted_encodings.contains(encoding)
+            && let Some(data) = data
+        {
+            return (
+                StatusCode::OK,
+                [
+                    (header::CONTENT_TYPE, content_type),
+                    (header::CACHE_CONTROL, "no-cache"),
+                    (header::ETAG, &content.hash()),
+                    (header::CONTENT_ENCODING, encoding),
+                ],
+                data,
+            )
+                .into_response();
         }
     }
     (

@@ -7,7 +7,7 @@ use crate::config::VersionedConfig;
 
 pub static TASK_STATUS_NOTIFIER: LazyLock<TaskStatusNotifier> = LazyLock::new(TaskStatusNotifier::new);
 
-#[derive(Serialize)]
+#[derive(Serialize, Default)]
 pub struct TaskStatus {
     is_running: bool,
     last_run: Option<chrono::DateTime<chrono::Local>>,
@@ -19,17 +19,6 @@ pub struct TaskStatusNotifier {
     mutex: tokio::sync::Mutex<()>,
     tx: tokio::sync::watch::Sender<Arc<TaskStatus>>,
     rx: tokio::sync::watch::Receiver<Arc<TaskStatus>>,
-}
-
-impl Default for TaskStatus {
-    fn default() -> Self {
-        Self {
-            is_running: false,
-            last_run: None,
-            last_finish: None,
-            next_run: None,
-        }
-    }
 }
 
 impl TaskStatusNotifier {
@@ -55,7 +44,7 @@ impl TaskStatusNotifier {
 
     pub fn finish_running(&self, _lock: MutexGuard<()>) {
         let last_status = self.tx.borrow();
-        let last_run = last_status.last_run.clone();
+        let last_run = last_status.last_run;
         drop(last_status);
         let config = VersionedConfig::get().load();
         let now = chrono::Local::now();

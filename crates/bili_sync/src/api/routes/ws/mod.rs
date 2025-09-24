@@ -118,7 +118,7 @@ impl WebSocketHandler {
                                     let rx = log_writer_clone.sender.subscribe();
                                     let log_stream = futures::stream::iter(history_logs.into_iter())
                                         .chain(BroadcastStream::new(rx).filter_map(async |msg| msg.ok()))
-                                        .map(|msg| ServerEvent::Logs(msg));
+                                        .map(ServerEvent::Logs);
                                     pin!(log_stream);
                                     while let Some(event) = log_stream.next().await {
                                         if let Err(e) = tx_clone.send(event).await {
@@ -133,8 +133,8 @@ impl WebSocketHandler {
                             if task_handle.as_ref().is_none_or(|h: &JoinHandle<()>| h.is_finished()) {
                                 let tx_clone = tx.clone();
                                 task_handle = Some(tokio::spawn(async move {
-                                    let mut stream = WatchStream::new(TASK_STATUS_NOTIFIER.subscribe())
-                                        .map(|status| ServerEvent::Tasks(status));
+                                    let mut stream =
+                                        WatchStream::new(TASK_STATUS_NOTIFIER.subscribe()).map(ServerEvent::Tasks);
                                     while let Some(event) = stream.next().await {
                                         if let Err(e) = tx_clone.send(event).await {
                                             error!("Failed to send task status: {:?}", e);
@@ -179,7 +179,7 @@ impl WebSocketHandler {
     // 添加订阅者
     async fn add_sysinfo_subscriber(&self, uuid: Uuid, sender: tokio::sync::mpsc::Sender<ServerEvent>) {
         self.sysinfo_subscribers.insert(uuid, sender);
-        if self.sysinfo_subscribers.len() > 0
+        if !self.sysinfo_subscribers.is_empty()
             && self
                 .sysinfo_handles
                 .read()
@@ -235,10 +235,10 @@ impl WebSocketHandler {
 
     async fn remove_sysinfo_subscriber(&self, uuid: Uuid) {
         self.sysinfo_subscribers.remove(&uuid);
-        if self.sysinfo_subscribers.is_empty() {
-            if let Some(handle) = self.sysinfo_handles.write().take() {
-                handle.abort();
-            }
+        if self.sysinfo_subscribers.is_empty()
+            && let Some(handle) = self.sysinfo_handles.write().take()
+        {
+            handle.abort();
         }
     }
 }

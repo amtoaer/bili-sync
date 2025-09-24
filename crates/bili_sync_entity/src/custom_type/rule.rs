@@ -108,11 +108,11 @@ where
 {
     let pattern = String::deserialize(deserializer)?;
     // 反序列化时预编译 regex，优化性能
-    let regex = regex::Regex::new(&pattern).map_err(|e| serde::de::Error::custom(e))?;
+    let regex = regex::Regex::new(&pattern).map_err(serde::de::Error::custom)?;
     Ok((pattern, regex))
 }
 
-fn serialize_regex<S>(pattern: &String, _regex: &regex::Regex, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_regex<S>(pattern: &str, _regex: &regex::Regex, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
