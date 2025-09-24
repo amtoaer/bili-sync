@@ -265,9 +265,9 @@
 							<Table.Root>
 								<Table.Header>
 									<Table.Row>
-										<Table.Head class="w-[25%]">名称</Table.Head>
-										<Table.Head class="w-[35%]">下载路径</Table.Head>
-										<Table.Head class="w-[15%]">筛选规则</Table.Head>
+										<Table.Head class="w-[20%]">名称</Table.Head>
+										<Table.Head class="w-[40%]">下载路径</Table.Head>
+										<Table.Head class="w-[15%]">过滤规则</Table.Head>
 										<Table.Head class="w-[15%]">状态</Table.Head>
 										<Table.Head class="w-[10%] text-right">操作</Table.Head>
 									</Table.Row>
@@ -288,9 +288,9 @@
 													<div class="flex items-center gap-1">
 														<Tooltip.Root>
 															<Tooltip.Trigger>
-																<div class="rounded bg-blue-100 px-2 py-1 text-xs text-blue-800">
-																	{source.rule.length} 条规则
-																</div>
+																<span class="text-muted-foreground text-sm"
+																	>{source.rule.length} 条规则</span
+																>
 															</Tooltip.Trigger>
 															<Tooltip.Content>
 																<p class="text-xs">{source.ruleDisplay}</p>
@@ -298,7 +298,7 @@
 														</Tooltip.Root>
 													</div>
 												{:else}
-													<span class="text-muted-foreground text-sm"></span>
+													<span class="text-muted-foreground text-sm">-</span>
 												{/if}
 											</Table.Cell>
 											<Table.Cell>
@@ -416,7 +416,7 @@
 			<AlertDialog.Header>
 				<AlertDialog.Title>重新评估规则</AlertDialog.Title>
 				<AlertDialog.Description>
-					确定要重新评估视频源 <strong>"{evaluateSource?.name}"</strong> 的筛选规则吗？<br />
+					确定要重新评估视频源 <strong>"{evaluateSource?.name}"</strong> 的过滤规则吗？<br />
 					规则修改后默认仅对新视频生效，该操作可使用当前规则对数据库中已存在的历史视频进行重新评估，<span
 						class="text-destructive font-medium">无法撤销</span
 					>。<br />
