@@ -296,10 +296,10 @@ pub async fn download_video_pages(
                 error!("处理视频「{}」{}失败: {:#}", &video_model.name, task_name, e)
             }
         });
-    if let ExecutionStatus::Failed(e) = results.into_iter().nth(4).context("page download result not found")? {
-        if e.downcast_ref::<DownloadAbortError>().is_some() {
-            return Err(e);
-        }
+    if let ExecutionStatus::Failed(e) = results.into_iter().nth(4).context("page download result not found")?
+        && e.downcast_ref::<DownloadAbortError>().is_some()
+    {
+        return Err(e);
     }
     let mut video_active_model: video::ActiveModel = video_model.into();
     video_active_model.download_status = Set(status.into());
@@ -488,10 +488,10 @@ pub async fn download_page(
             ),
         });
     // 如果下载视频时触发风控，直接返回 DownloadAbortError
-    if let ExecutionStatus::Failed(e) = results.into_iter().nth(1).context("video download result not found")? {
-        if let Ok(BiliError::RiskControlOccurred) = e.downcast::<BiliError>() {
-            bail!(DownloadAbortError());
-        }
+    if let ExecutionStatus::Failed(e) = results.into_iter().nth(1).context("video download result not found")?
+        && let Ok(BiliError::RiskControlOccurred) = e.downcast::<BiliError>()
+    {
+        bail!(DownloadAbortError());
     }
     let mut page_active_model: page::ActiveModel = page_model.into();
     page_active_model.download_status = Set(status.into());

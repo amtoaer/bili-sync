@@ -42,10 +42,10 @@ impl From<Result<ExecutionStatus>> for ExecutionStatus {
                         }
                     }
                     // 未包裹的 reqwest::Error
-                    if let Some(error) = cause.downcast_ref::<reqwest::Error>() {
-                        if is_ignored_reqwest_error(error) {
-                            return ExecutionStatus::Ignored(err);
-                        }
+                    if let Some(error) = cause.downcast_ref::<reqwest::Error>()
+                        && is_ignored_reqwest_error(error)
+                    {
+                        return ExecutionStatus::Ignored(err);
                     }
                 }
                 ExecutionStatus::Failed(err)

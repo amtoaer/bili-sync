@@ -55,11 +55,11 @@ ORDER BY
         ))
         .all(&db),
     )?;
-    return Ok(ApiResponse::ok(DashBoardResponse {
+    Ok(ApiResponse::ok(DashBoardResponse {
         enabled_favorites,
         enabled_collections,
         enabled_submissions,
         enable_watch_later: enabled_watch_later > 0,
         videos_by_day,
-    }));
+    }))
 }

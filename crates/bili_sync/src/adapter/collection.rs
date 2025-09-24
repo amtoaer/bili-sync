@@ -56,11 +56,12 @@ impl VideoSource for collection::Model {
         latest_row_at: &chrono::DateTime<Utc>,
     ) -> Option<VideoInfo> {
         // 由于 collection 的视频无固定时间顺序，should_take 无法提前中断拉取，因此 should_filter 环节需要进行额外过滤
-        if let Ok(video_info) = video_info {
-            if video_info.release_datetime() > latest_row_at {
-                return Some(video_info);
-            }
+        if let Ok(video_info) = video_info
+            && video_info.release_datetime() > latest_row_at
+        {
+            return Some(video_info);
         }
+
         None
     }
 

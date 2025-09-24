@@ -52,14 +52,14 @@ impl FieldEvaluatable for RuleTarget {
     /// 修改模型后进行评估，此时能访问的是未保存的 activeModel，就地使用 activeModel 评估
     fn evaluate(&self, video: &video::ActiveModel, pages: &[page::ActiveModel]) -> bool {
         match self {
-            RuleTarget::Title(cond) => video.name.try_as_ref().is_some_and(|title| cond.evaluate(&title)),
+            RuleTarget::Title(cond) => video.name.try_as_ref().is_some_and(|title| cond.evaluate(title)),
             // 目前的所有条件都是分别针对全体标签进行 any 评估的，例如 Prefix("a") && Suffix("b") 意味着 any(tag.Prefix("a")) && any(tag.Suffix("b")) 而非 any(tag.Prefix("a") && tag.Suffix("b"))
             // 这可能不满足用户预期，但应该问题不大，如果真有很多人用复杂标签筛选再单独改
             RuleTarget::Tags(cond) => video
                 .tags
                 .try_as_ref()
                 .and_then(|t| t.as_ref())
-                .is_some_and(|tags| tags.0.iter().any(|tag| cond.evaluate(&tag))),
+                .is_some_and(|tags| tags.0.iter().any(|tag| cond.evaluate(tag))),
             RuleTarget::FavTime(cond) => video
                 .favtime
                 .try_as_ref()
@@ -84,7 +84,7 @@ impl FieldEvaluatable for RuleTarget {
             RuleTarget::Tags(cond) => video
                 .tags
                 .as_ref()
-                .is_some_and(|tags| tags.0.iter().any(|tag| cond.evaluate(&tag))),
+                .is_some_and(|tags| tags.0.iter().any(|tag| cond.evaluate(tag))),
             RuleTarget::FavTime(cond) => cond.evaluate(&video.favtime.and_utc().with_timezone(&Local).naive_local()),
             RuleTarget::PubTime(cond) => cond.evaluate(&video.pubtime.and_utc().with_timezone(&Local).naive_local()),
             RuleTarget::PageCount(cond) => cond.evaluate(pages.len()),
