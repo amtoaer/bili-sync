@@ -57,7 +57,7 @@
 		style: string;
 	} {
 		if (!shouldDownload) {
-			// 被筛选规则排除，显示为“跳过”
+			// 被过滤规则排除，显示为“跳过”
 			return { text: '跳过', style: 'bg-gray-100 text-gray-700' };
 		}
 		const completed = downloadStatus.filter((status) => status === 7).length;

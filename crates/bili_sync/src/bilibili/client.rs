@@ -20,7 +20,7 @@ impl Client {
         let mut headers = header::HeaderMap::new();
         headers.insert(
             header::USER_AGENT,
-            header::HeaderValue::from_static(ua::spoof_chrome_mac_ua()),
+            header::HeaderValue::from_static(ua::spoof_chrome_ua()),
         );
         headers.insert(
             header::REFERER,
