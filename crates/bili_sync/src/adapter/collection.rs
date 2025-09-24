@@ -64,8 +64,8 @@ impl VideoSource for collection::Model {
         None
     }
 
-    fn rule(&self) -> Option<&Rule> {
-        self.rule.as_ref()
+    fn rule(&self) -> &Option<Rule> {
+        &self.rule
     }
 
     async fn refresh<'a>(

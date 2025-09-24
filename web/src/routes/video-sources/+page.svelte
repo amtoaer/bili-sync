@@ -19,6 +19,8 @@
 	import type { ApiError, VideoSourceDetail, VideoSourcesDetailsResponse, Rule } from '$lib/types';
 	import api from '$lib/api';
 	import RuleEditor from '$lib/components/rule-editor.svelte';
+	import ListRestartIcon from '@lucide/svelte/icons/list-restart';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 
 	let videoSourcesData: VideoSourcesDetailsResponse | null = null;
 	let loading = false;
@@ -35,6 +37,12 @@
 	let editingType = '';
 	let editingIdx: number = 0;
 	let saving = false;
+
+	// 规则评估对话框状态
+	let showEvaluateDialog = false;
+	let evaluateSource: VideoSourceDetail | null = null;
+	let evaluateType = '';
+	let evaluating = false;
 
 	// 编辑表单数据
 	let editForm = {
@@ -83,6 +91,12 @@
 		showEditDialog = true;
 	}
 
+	function openEvaluateRules(type: string, source: VideoSourceDetail) {
+		evaluateSource = source;
+		evaluateType = type;
+		showEvaluateDialog = true;
+	}
+
 	// 保存编辑
 	async function saveEdit() {
 		if (!editingSource) return;
@@ -91,7 +105,6 @@
 			toast.error('路径不能为空');
 			return;
 		}
-
 		saving = true;
 		try {
 			let response = await api.updateVideoSource(editingType, editingSource.id, {
@@ -99,7 +112,6 @@
 				enabled: editForm.enabled,
 				rule: editForm.rule
 			});
-
 			// 更新本地数据
 			if (videoSourcesData && editingSource) {
 				const sources = videoSourcesData[
@@ -114,7 +126,6 @@
 				};
 				videoSourcesData = { ...videoSourcesData };
 			}
-
 			showEditDialog = false;
 			toast.success('保存成功');
 		} catch (error) {
@@ -123,6 +134,26 @@
 			});
 		} finally {
 			saving = false;
+		}
+	}
+
+	async function evaluateRules() {
+		if (!evaluateSource) return;
+		evaluating = true;
+		try {
+			let response = await api.evaluateVideoSourceRules(evaluateType, evaluateSource.id);
+			if (response && response.data) {
+				showEvaluateDialog = false;
+				toast.success('重新评估规则成功');
+			} else {
+				toast.error('重新评估规则失败');
+			}
+		} catch (error) {
+			toast.error('重新评估规则失败', {
+				description: (error as ApiError).message
+			});
+		} finally {
+			evaluating = false;
 		}
 	}
 
@@ -288,6 +319,15 @@
 												>
 													<EditIcon class="h-3 w-3" />
 												</Button>
+												<Button
+													size="sm"
+													variant="outline"
+													onclick={() => openEvaluateRules(key, source)}
+													class="h-8 w-8 p-0"
+													title="重新评估规则"
+												>
+													<ListRestartIcon class="h-3 w-3" />
+												</Button>
 											</Table.Cell>
 										</Table.Row>
 									{/each}
@@ -330,7 +370,9 @@
 
 	<!-- 编辑对话框 -->
 	<Dialog.Root bind:open={showEditDialog}>
-		<Dialog.Content class="max-h-[85vh] w-4xl !max-w-none overflow-y-auto">
+		<Dialog.Content
+			class="no-scrollbar max-h-[85vh] !max-w-[90vw] overflow-y-auto lg:!max-w-[70vw]"
+		>
 			<Dialog.Title class="text-lg font-semibold">
 				编辑视频源: {editingSource?.name || ''}
 			</Dialog.Title>
@@ -368,6 +410,31 @@
 			</div>
 		</Dialog.Content>
 	</Dialog.Root>
+
+	<AlertDialog.Root bind:open={showEvaluateDialog}>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>重新评估规则</AlertDialog.Title>
+				<AlertDialog.Description>
+					确定要重新评估视频源 <strong>"{evaluateSource?.name}"</strong> 的筛选规则吗？<br />
+					规则修改后默认仅对新视频生效，该操作可使用当前规则对数据库中已存在的历史视频进行重新评估，<span
+						class="text-destructive font-medium">无法撤销</span
+					>。<br />
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel
+					disabled={evaluating}
+					onclick={() => {
+						showEvaluateDialog = false;
+					}}>取消</AlertDialog.Cancel
+				>
+				<AlertDialog.Action onclick={evaluateRules} disabled={evaluating}>
+					{evaluating ? '重新评估中' : '确认重新评估'}
+				</AlertDialog.Action>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
 
 	<!-- 添加对话框 -->
 	<Dialog.Root bind:open={showAddDialog}>

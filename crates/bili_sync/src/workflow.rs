@@ -138,9 +138,7 @@ pub async fn fetch_video_details(
                     video_source.set_relation_id(&mut video_active_model);
                     video_active_model.single_page = Set(Some(pages.len() == 1));
                     video_active_model.tags = Set(Some(tags.into()));
-                    video_active_model.should_download = Set(video_source
-                        .rule()
-                        .is_none_or(|r| r.evaluate(&video_active_model, &pages)));
+                    video_active_model.should_download = Set(video_source.rule().evaluate(&video_active_model, &pages));
                     let txn = connection.begin().await?;
                     create_pages(pages, &txn).await?;
                     video_active_model.save(&txn).await?;

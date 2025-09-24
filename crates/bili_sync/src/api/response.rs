@@ -59,6 +59,7 @@ pub struct VideoInfo {
     pub bvid: String,
     pub name: String,
     pub upper_name: String,
+    pub should_download: bool,
     #[serde(serialize_with = "serde_video_download_status")]
     pub download_status: u32,
 }

@@ -4,10 +4,12 @@ use anyhow::Result;
 use axum::Router;
 use axum::extract::{Extension, Path};
 use axum::routing::{get, post, put};
+use bili_sync_entity::rule::Rule;
 use bili_sync_entity::*;
 use bili_sync_migration::Expr;
 use sea_orm::ActiveValue::Set;
-use sea_orm::{DatabaseConnection, EntityTrait, QuerySelect};
+use sea_orm::entity::prelude::*;
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QuerySelect, TransactionTrait};
 
 use crate::adapter::_ActiveModel;
 use crate::api::error::InnerApiError;
@@ -19,12 +21,14 @@ use crate::api::response::{
 };
 use crate::api::wrapper::{ApiError, ApiResponse, ValidatedJson};
 use crate::bilibili::{BiliClient, Collection, CollectionItem, FavoriteList, Submission};
+use crate::utils::rule::FieldEvaluatable;
 
 pub(super) fn router() -> Router {
     Router::new()
         .route("/video-sources", get(get_video_sources))
         .route("/video-sources/details", get(get_video_sources_details))
         .route("/video-sources/{type}/{id}", put(update_video_source))
+        .route("/video-sources/{type}/{id}/evaluate", post(evaluate_video_source))
         .route("/video-sources/favorites", post(insert_favorite))
         .route("/video-sources/collections", post(insert_collection))
         .route("/video-sources/submissions", post(insert_submission))
@@ -209,6 +213,83 @@ pub async fn update_video_source(
     };
     active_model.save(&db).await?;
     Ok(ApiResponse::ok(UpdateVideoSourceResponse { rule_display }))
+}
+
+pub async fn evaluate_video_source(
+    Path((source_type, id)): Path<(String, i32)>,
+    Extension(db): Extension<DatabaseConnection>,
+) -> Result<ApiResponse<bool>, ApiError> {
+    // 找出对应 source 的规则与 video 筛选条件
+    let (rule, filter_condition) = match source_type.as_str() {
+        "collections" => (
+            collection::Entity::find_by_id(id)
+                .select_only()
+                .column(collection::Column::Rule)
+                .into_tuple::<Option<Rule>>()
+                .one(&db)
+                .await?
+                .and_then(|r| r),
+            video::Column::CollectionId.eq(id),
+        ),
+        "favorites" => (
+            favorite::Entity::find_by_id(id)
+                .select_only()
+                .column(favorite::Column::Rule)
+                .into_tuple::<Option<Rule>>()
+                .one(&db)
+                .await?
+                .and_then(|r| r),
+            video::Column::FavoriteId.eq(id),
+        ),
+        "submissions" => (
+            submission::Entity::find_by_id(id)
+                .select_only()
+                .column(submission::Column::Rule)
+                .into_tuple::<Option<Rule>>()
+                .one(&db)
+                .await?
+                .and_then(|r| r),
+            video::Column::SubmissionId.eq(id),
+        ),
+        "watch_later" => (
+            watch_later::Entity::find_by_id(id)
+                .select_only()
+                .column(watch_later::Column::Rule)
+                .into_tuple::<Option<Rule>>()
+                .one(&db)
+                .await?
+                .and_then(|r| r),
+            video::Column::WatchLaterId.eq(id),
+        ),
+        _ => return Err(InnerApiError::BadRequest("Invalid video source type".to_string()).into()),
+    };
+    let videos: Vec<(video::Model, Vec<page::Model>)> = video::Entity::find()
+        .filter(filter_condition)
+        .find_with_related(page::Entity)
+        .all(&db)
+        .await?;
+    let video_should_download_pairs = videos
+        .into_iter()
+        .map(|(video, pages)| (video.id, rule.evaluate_model(&video, &pages)))
+        .collect::<Vec<(i32, bool)>>();
+    let txn = db.begin().await?;
+    for chunk in video_should_download_pairs.chunks(500) {
+        let sql = format!(
+            "WITH tempdata(id, should_download) AS (VALUES {}) \
+            UPDATE video \
+            SET should_download = tempdata.should_download \
+            FROM tempdata \
+            WHERE video.id = tempdata.id",
+            chunk
+                .iter()
+                .map(|item| format!("({}, {})", item.0, item.1))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        txn.execute_unprepared(&sql).await?;
+    }
+    txn.commit().await?;
+    Ok(ApiResponse::ok(true))
 }
 
 /// 新增收藏夹订阅
