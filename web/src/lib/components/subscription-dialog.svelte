@@ -34,7 +34,7 @@
 	let customPath = '';
 	let loading = false;
 
-	// 根据类型和item生成默认路径
+	// 根据类型和 item 生成默认路径
 	function generateDefaultPath(): string {
 		if (!item) return '';
 
@@ -49,7 +49,7 @@
 			}
 			case 'upper': {
 				const upper = item as UpperWithSubscriptionStatus;
-				return `UP主/${upper.uname}`;
+				return `UP 主/${upper.uname}`;
 			}
 			default:
 				return '';
@@ -63,7 +63,7 @@
 			case 'collection':
 				return '合集';
 			case 'upper':
-				return 'UP主';
+				return 'UP 主';
 			default:
 				return '';
 		}
@@ -145,7 +145,7 @@
 		open = false;
 	}
 
-	// 当对话框打开时重置path
+	// 当对话框打开时重置 path
 	$: if (open && item) {
 		customPath = generateDefaultPath();
 	}

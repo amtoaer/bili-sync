@@ -60,7 +60,7 @@ class ApiClient {
 	clearAuthToken() {
 		delete this.defaultHeaders['Authorization'];
 		localStorage.removeItem('authToken');
-		// 断开WebSocket连接，因为token已经无效
+		// 断开 WebSocket 连接，因为 token 已经无效
 		wsManager.disconnect();
 	}
 

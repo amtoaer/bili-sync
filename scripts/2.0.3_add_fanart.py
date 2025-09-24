@@ -15,7 +15,7 @@ from pathlib import Path
 
 def main():
     if len(sys.argv) <= 1:
-        print("用法： python 2.0.3_add_fanart.py <path1> <path2> ...")
+        print("用法：python 2.0.3_add_fanart.py <path1> <path2> ...")
         exit(1)
     paths = [Path(path) for path in sys.argv[1:]]
     for path in paths:

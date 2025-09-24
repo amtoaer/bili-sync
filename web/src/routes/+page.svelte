@@ -50,7 +50,7 @@
 			const response = await api.getDashboard();
 			dashboardData = response.data;
 		} catch (error) {
-			console.error('加载仪表盘数据失败:', error);
+			console.error('加载仪表盘数据失败：', error);
 			toast.error('加载仪表盘数据失败', {
 				description: (error as ApiError).message
 			});

@@ -29,7 +29,7 @@ pub struct SubTitleItem {
 impl SubTitleInfo {
     pub fn is_ai_sub(&self) -> bool {
         // ai： aisubtitle.hdslb.com/bfs/ai_subtitle/xxxx
-        // 非 ai： aisubtitle.hdslb.com/bfs/subtitle/xxxx
+        // 非 ai：aisubtitle.hdslb.com/bfs/subtitle/xxxx
         self.subtitle_url.contains("ai_subtitle")
     }
 }
