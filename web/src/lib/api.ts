@@ -21,7 +21,8 @@ import type {
 	DashBoardResponse,
 	SysInfo,
 	TaskStatus,
-	ResetRequest
+	ResetRequest,
+	UpdateVideoSourceResponse
 } from './types';
 import { wsManager } from './ws';
 
@@ -59,7 +60,7 @@ class ApiClient {
 	clearAuthToken() {
 		delete this.defaultHeaders['Authorization'];
 		localStorage.removeItem('authToken');
-		// 断开WebSocket连接，因为token已经无效
+		// 断开 WebSocket 连接，因为 token 已经无效
 		wsManager.disconnect();
 	}
 
@@ -212,8 +213,12 @@ class ApiClient {
 		type: string,
 		id: number,
 		request: UpdateVideoSourceRequest
-	): Promise<ApiResponse<boolean>> {
-		return this.put<boolean>(`/video-sources/${type}/${id}`, request);
+	): Promise<ApiResponse<UpdateVideoSourceResponse>> {
+		return this.put<UpdateVideoSourceResponse>(`/video-sources/${type}/${id}`, request);
+	}
+
+	async evaluateVideoSourceRules(type: string, id: number): Promise<ApiResponse<boolean>> {
+		return this.post<boolean>(`/video-sources/${type}/${id}/evaluate`, null);
 	}
 
 	async getConfig(): Promise<ApiResponse<Config>> {
@@ -261,6 +266,8 @@ const api = {
 	getVideoSourcesDetails: () => apiClient.getVideoSourcesDetails(),
 	updateVideoSource: (type: string, id: number, request: UpdateVideoSourceRequest) =>
 		apiClient.updateVideoSource(type, id, request),
+	evaluateVideoSourceRules: (type: string, id: number) =>
+		apiClient.evaluateVideoSourceRules(type, id),
 	getConfig: () => apiClient.getConfig(),
 	updateConfig: (config: Config) => apiClient.updateConfig(config),
 	getDashboard: () => apiClient.getDashboard(),

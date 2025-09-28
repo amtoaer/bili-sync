@@ -7,7 +7,7 @@ use crate::config::VersionedConfig;
 
 pub static TASK_STATUS_NOTIFIER: LazyLock<TaskStatusNotifier> = LazyLock::new(TaskStatusNotifier::new);
 
-#[derive(Serialize)]
+#[derive(Serialize, Default)]
 pub struct TaskStatus {
     is_running: bool,
     last_run: Option<chrono::DateTime<chrono::Local>>,
@@ -21,17 +21,6 @@ pub struct TaskStatusNotifier {
     rx: tokio::sync::watch::Receiver<Arc<TaskStatus>>,
 }
 
-impl Default for TaskStatus {
-    fn default() -> Self {
-        Self {
-            is_running: false,
-            last_run: None,
-            last_finish: None,
-            next_run: None,
-        }
-    }
-}
-
 impl TaskStatusNotifier {
     pub fn new() -> Self {
         let (tx, rx) = tokio::sync::watch::channel(Arc::new(TaskStatus::default()));
@@ -42,7 +31,7 @@ impl TaskStatusNotifier {
         }
     }
 
-    pub async fn start_running(&self) -> MutexGuard<()> {
+    pub async fn start_running(&'_ self) -> MutexGuard<'_, ()> {
         let lock = self.mutex.lock().await;
         let _ = self.tx.send(Arc::new(TaskStatus {
             is_running: true,
@@ -55,7 +44,7 @@ impl TaskStatusNotifier {
 
     pub fn finish_running(&self, _lock: MutexGuard<()>) {
         let last_status = self.tx.borrow();
-        let last_run = last_status.last_run.clone();
+        let last_run = last_status.last_run;
         drop(last_status);
         let config = VersionedConfig::get().load();
         let now = chrono::Local::now();

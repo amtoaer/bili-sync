@@ -25,8 +25,8 @@
 	async function loadVideoDetail() {
 		const videoId = parseInt($page.params.id);
 		if (isNaN(videoId)) {
-			error = '无效的视频ID';
-			toast.error('无效的视频ID');
+			error = '无效的视频 ID';
+			toast.error('无效的视频 ID');
 			return;
 		}
 		loading = true;
@@ -35,7 +35,7 @@
 			const result = await api.getVideo(videoId);
 			videoData = result.data;
 		} catch (error) {
-			console.error('加载视频详情失败:', error);
+			console.error('加载视频详情失败：', error);
 			toast.error('加载视频详情失败', {
 				description: (error as ApiError).message
 			});
@@ -79,7 +79,7 @@
 				toast.error('状态更新失败');
 			}
 		} catch (error) {
-			console.error('状态更新失败:', error);
+			console.error('状态更新失败：', error);
 			toast.error('状态更新失败', {
 				description: (error as ApiError).message
 			});
@@ -156,11 +156,12 @@
 					bvid: videoData.video.bvid,
 					name: videoData.video.name,
 					upper_name: videoData.video.upper_name,
-					download_status: videoData.video.download_status
+					download_status: videoData.video.download_status,
+					should_download: videoData.video.should_download
 				}}
 				mode="detail"
 				showActions={false}
-				taskNames={['视频封面', '视频信息', 'UP主头像', 'UP主信息', '分页下载']}
+				taskNames={['视频封面', '视频信息', 'UP 主头像', 'UP 主信息', '分页下载']}
 				bind:resetDialogOpen
 				bind:resetting
 				onReset={async (forceReset: boolean) => {
@@ -209,7 +210,8 @@
 								id: pageInfo.id,
 								name: `P${pageInfo.pid}: ${pageInfo.name}`,
 								upper_name: '',
-								download_status: pageInfo.download_status
+								download_status: pageInfo.download_status,
+								should_download: videoData.video.should_download
 							}}
 							mode="page"
 							showActions={false}
@@ -223,8 +225,8 @@
 		{:else}
 			<div class="py-12 text-center">
 				<div class="space-y-2">
-					<p class="text-muted-foreground">暂无分P数据</p>
-					<p class="text-muted-foreground text-sm">该视频可能为单P视频</p>
+					<p class="text-muted-foreground">暂无分 P 数据</p>
+					<p class="text-muted-foreground text-sm">该视频可能为单 P 视频</p>
 				</div>
 			</div>
 		{/if}

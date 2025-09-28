@@ -1,3 +1,4 @@
+use bili_sync_entity::rule::Rule;
 use bili_sync_entity::*;
 use sea_orm::{DerivePartialModel, FromQueryResult};
 use serde::Serialize;
@@ -64,6 +65,7 @@ pub struct VideoInfo {
     pub bvid: String,
     pub name: String,
     pub upper_name: String,
+    pub should_download: bool,
     #[serde(serialize_with = "serde_video_download_status")]
     pub download_status: u32,
 }
@@ -175,11 +177,20 @@ pub struct SysInfo {
 }
 
 #[derive(Serialize, FromQueryResult)]
+#[serde(rename_all = "camelCase")]
 pub struct VideoSourceDetail {
     pub id: i32,
     pub name: String,
     pub path: String,
+    pub rule: Option<Rule>,
+    #[serde(default)]
+    pub rule_display: Option<String>,
     pub enabled: bool,
+}
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateVideoSourceResponse {
+    pub rule_display: Option<String>,
 }
 // 新增：完整视频信息结构体
 #[derive(Serialize, DerivePartialModel, FromQueryResult)]

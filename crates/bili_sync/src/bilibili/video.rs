@@ -1,4 +1,4 @@
-use anyhow::{Result, ensure};
+use anyhow::{Context, Result, ensure};
 use futures::TryStreamExt;
 use futures::stream::FuturesUnordered;
 use prost::Message;
@@ -16,19 +16,6 @@ pub struct Video<'a> {
     pub bvid: String,
 }
 
-#[derive(Debug, serde::Deserialize)]
-pub struct Tag {
-    pub tag_name: String,
-}
-
-impl serde::Serialize for Tag {
-    fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(&self.tag_name)
-    }
-}
 #[derive(Debug, serde::Deserialize, Default)]
 pub struct PageInfo {
     pub cid: i64,
@@ -84,8 +71,8 @@ impl<'a> Video<'a> {
         Ok(serde_json::from_value(res["data"].take())?)
     }
 
-    pub async fn get_tags(&self) -> Result<Vec<Tag>> {
-        let mut res = self
+    pub async fn get_tags(&self) -> Result<Vec<String>> {
+        let res = self
             .client
             .request(Method::GET, "https://api.bilibili.com/x/web-interface/view/detail/tag")
             .await
@@ -96,10 +83,15 @@ impl<'a> Video<'a> {
             .json::<serde_json::Value>()
             .await?
             .validate()?;
-        Ok(serde_json::from_value(res["data"].take())?)
+        Ok(res["data"]
+            .as_array()
+            .context("tags is not an array")?
+            .iter()
+            .filter_map(|v| v["tag_name"].as_str().map(String::from))
+            .collect())
     }
 
-    pub async fn get_danmaku_writer(&self, page: &'a PageInfo) -> Result<DanmakuWriter> {
+    pub async fn get_danmaku_writer(&self, page: &'a PageInfo) -> Result<DanmakuWriter<'a>> {
         let tasks = FuturesUnordered::new();
         for i in 1..=page.duration.div_ceil(360) {
             tasks.push(self.get_danmaku_segment(page, i as i64));
@@ -171,14 +163,18 @@ impl<'a> Video<'a> {
             .await?
             .validate()?;
         // 接口返回的信息，包含了一系列的字幕，每个字幕包含了字幕的语言和 json 下载地址
-        let subtitles_info: SubTitlesInfo = serde_json::from_value(res["data"]["subtitle"].take())?;
-        let tasks = subtitles_info
-            .subtitles
-            .into_iter()
-            .filter(|v| !v.is_ai_sub())
-            .map(|v| self.get_subtitle(v))
-            .collect::<FuturesUnordered<_>>();
-        tasks.try_collect().await
+        match serde_json::from_value::<Option<SubTitlesInfo>>(res["data"]["subtitle"].take())? {
+            Some(subtitles_info) => {
+                let tasks = subtitles_info
+                    .subtitles
+                    .into_iter()
+                    .filter(|v| !v.is_ai_sub())
+                    .map(|v| self.get_subtitle(v))
+                    .collect::<FuturesUnordered<_>>();
+                tasks.try_collect().await
+            }
+            None => Ok(vec![]),
+        }
     }
 
     async fn get_subtitle(&self, info: SubTitleInfo) -> Result<SubTitle> {

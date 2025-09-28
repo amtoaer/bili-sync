@@ -36,6 +36,7 @@ export interface VideoInfo {
 	bvid: string;
 	name: string;
 	upper_name: string;
+	should_download: boolean;
 	download_status: [number, number, number, number, number];
 }
 
@@ -136,7 +137,7 @@ export interface CollectionsResponse {
 	total: number;
 }
 
-// UP主相关类型
+// UP 主相关类型
 export interface UpperWithSubscriptionStatus {
 	mid: number;
 	uname: string;
@@ -168,11 +169,27 @@ export interface InsertSubmissionRequest {
 	path: string;
 }
 
+// Rule 相关类型
+export interface Condition<T> {
+	operator: string;
+	value: T | T[];
+}
+
+export interface RuleTarget<T> {
+	field: string;
+	rule: Condition<T> | RuleTarget<T>;
+}
+
+export type AndGroup = RuleTarget<string | number | Date>[];
+export type Rule = AndGroup[];
+
 // 视频源详细信息类型
 export interface VideoSourceDetail {
 	id: number;
 	name: string;
 	path: string;
+	rule?: Rule | null;
+	ruleDisplay?: string | null;
 	enabled: boolean;
 }
 
@@ -188,6 +205,7 @@ export interface VideoSourcesDetailsResponse {
 export interface UpdateVideoSourceRequest {
 	path: string;
 	enabled: boolean;
+	rule?: Rule | null;
 }
 
 // 配置相关类型
@@ -294,4 +312,8 @@ export interface TaskStatus {
 	last_run: Date | null;
 	last_finish: Date | null;
 	next_run: Date | null;
+}
+
+export interface UpdateVideoSourceResponse {
+	ruleDisplay?: string;
 }

@@ -23,6 +23,7 @@ use crate::utils::model::{
     update_videos_model,
 };
 use crate::utils::nfo::NFO;
+use crate::utils::rule::FieldEvaluatable;
 use crate::utils::status::{PageStatus, STATUS_OK, VideoStatus};
 
 /// 完整地处理某个视频来源
@@ -136,7 +137,8 @@ pub async fn fetch_video_details(
                     let mut video_active_model = view_info.into_detail_model(video_model);
                     video_source.set_relation_id(&mut video_active_model);
                     video_active_model.single_page = Set(Some(pages.len() == 1));
-                    video_active_model.tags = Set(Some(serde_json::to_value(tags)?));
+                    video_active_model.tags = Set(Some(tags.into()));
+                    video_active_model.should_download = Set(video_source.rule().evaluate(&video_active_model, &pages));
                     let txn = connection.begin().await?;
                     create_pages(pages, &txn).await?;
                     video_active_model.save(&txn).await?;
@@ -287,18 +289,18 @@ pub async fn download_video_pages(
             ExecutionStatus::Succeeded => info!("处理视频「{}」{}成功", &video_model.name, task_name),
             ExecutionStatus::Ignored(e) => {
                 error!(
-                    "处理视频「{}」{}出现常见错误，已忽略: {:#}",
+                    "处理视频「{}」{}出现常见错误，已忽略：{:#}",
                     &video_model.name, task_name, e
                 )
             }
             ExecutionStatus::Failed(e) | ExecutionStatus::FixedFailed(_, e) => {
-                error!("处理视频「{}」{}失败: {:#}", &video_model.name, task_name, e)
+                error!("处理视频「{}」{}失败：{:#}", &video_model.name, task_name, e)
             }
         });
-    if let ExecutionStatus::Failed(e) = results.into_iter().nth(4).context("page download result not found")? {
-        if e.downcast_ref::<DownloadAbortError>().is_some() {
-            return Err(e);
-        }
+    if let ExecutionStatus::Failed(e) = results.into_iter().nth(4).context("page download result not found")?
+        && e.downcast_ref::<DownloadAbortError>().is_some()
+    {
+        return Err(e);
     }
     let mut video_active_model: video::ActiveModel = video_model.into();
     video_active_model.download_status = Set(status.into());
@@ -480,20 +482,20 @@ pub async fn download_page(
             ),
             ExecutionStatus::Ignored(e) => {
                 error!(
-                    "处理视频「{}」第 {} 页{}出现常见错误，已忽略: {:#}",
+                    "处理视频「{}」第 {} 页{}出现常见错误，已忽略：{:#}",
                     &video_model.name, page_model.pid, task_name, e
                 )
             }
             ExecutionStatus::Failed(e) | ExecutionStatus::FixedFailed(_, e) => error!(
-                "处理视频「{}」第 {} 页{}失败: {:#}",
+                "处理视频「{}」第 {} 页{}失败：{:#}",
                 &video_model.name, page_model.pid, task_name, e
             ),
         });
     // 如果下载视频时触发风控，直接返回 DownloadAbortError
-    if let ExecutionStatus::Failed(e) = results.into_iter().nth(1).context("video download result not found")? {
-        if let Ok(BiliError::RiskControlOccurred) = e.downcast::<BiliError>() {
-            bail!(DownloadAbortError());
-        }
+    if let ExecutionStatus::Failed(e) = results.into_iter().nth(1).context("video download result not found")?
+        && let Ok(BiliError::RiskControlOccurred) = e.downcast::<BiliError>()
+    {
+        bail!(DownloadAbortError());
     }
     let mut page_active_model: page::ActiveModel = page_model.into();
     page_active_model.download_status = Set(status.into());

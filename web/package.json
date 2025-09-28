@@ -1,11 +1,11 @@
 {
 	"name": "bili-sync-web",
-	"version": "2.6.3",
+	"version": "2.7.0",
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
 		"@eslint/js": "^9.18.0",
 		"@internationalized/date": "^3.8.1",
-		"@lucide/svelte": "^0.525.0",
+		"@lucide/svelte": "^0.544.0",
 		"@sveltejs/adapter-static": "^3.0.8",
 		"@sveltejs/kit": "2.22.2",
 		"@sveltejs/vite-plugin-svelte": "^6.0.0",
@@ -14,7 +14,7 @@
 		"@tailwindcss/vite": "^4.0.0",
 		"@types/d3-scale": "^4.0.9",
 		"@types/d3-shape": "^3.1.7",
-		"bits-ui": "^2.8.6",
+		"bits-ui": "^2.11.0",
 		"clsx": "^2.1.1",
 		"eslint": "^9.18.0",
 		"eslint-config-prettier": "^10.0.1",

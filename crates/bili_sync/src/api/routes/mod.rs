@@ -43,17 +43,16 @@ pub async fn auth(mut headers: HeaderMap, request: Request, next: Next) -> Resul
     {
         return Ok(next.run(request).await);
     }
-    if let Some(protocol) = headers.remove("Sec-WebSocket-Protocol") {
-        if protocol
+    if let Some(protocol) = headers.remove("Sec-WebSocket-Protocol")
+        && protocol
             .to_str()
             .ok()
             .and_then(|s| BASE64_URL_SAFE_NO_PAD.decode(s).ok())
             .is_some_and(|s| s == token.as_bytes())
-        {
-            let mut resp = next.run(request).await;
-            resp.headers_mut().insert("Sec-WebSocket-Protocol", protocol);
-            return Ok(resp);
-        }
+    {
+        let mut resp = next.run(request).await;
+        resp.headers_mut().insert("Sec-WebSocket-Protocol", protocol);
+        return Ok(resp);
     }
     Ok(ApiResponse::<()>::unauthorized("auth token does not match").into_response())
 }

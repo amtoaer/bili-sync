@@ -3,6 +3,7 @@ use std::path::Path;
 use std::pin::Pin;
 
 use anyhow::{Context, Result, ensure};
+use bili_sync_entity::rule::Rule;
 use bili_sync_entity::*;
 use chrono::Utc;
 use futures::Stream;
@@ -55,12 +56,17 @@ impl VideoSource for collection::Model {
         latest_row_at: &chrono::DateTime<Utc>,
     ) -> Option<VideoInfo> {
         // 由于 collection 的视频无固定时间顺序，should_take 无法提前中断拉取，因此 should_filter 环节需要进行额外过滤
-        if let Ok(video_info) = video_info {
-            if video_info.release_datetime() > latest_row_at {
-                return Some(video_info);
-            }
+        if let Ok(video_info) = video_info
+            && video_info.release_datetime() > latest_row_at
+        {
+            return Some(video_info);
         }
+
         None
+    }
+
+    fn rule(&self) -> &Option<Rule> {
+        &self.rule
     }
 
     async fn refresh<'a>(

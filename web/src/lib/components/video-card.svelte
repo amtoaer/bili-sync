@@ -49,20 +49,30 @@
 		}
 	}
 
-	function getOverallStatus(downloadStatus: number[]): {
+	function getOverallStatus(
+		downloadStatus: number[],
+		shouldDownload: boolean
+	): {
 		text: string;
-		color: 'default' | 'secondary' | 'destructive' | 'outline';
+		style: string;
 	} {
+		if (!shouldDownload) {
+			// 被过滤规则排除，显示为“跳过”
+			return { text: '跳过', style: 'bg-gray-100 text-gray-700' };
+		}
 		const completed = downloadStatus.filter((status) => status === 7).length;
 		const total = downloadStatus.length;
 		const failed = downloadStatus.filter((status) => status !== 7 && status !== 0).length;
 
 		if (completed === total) {
-			return { text: '完成', color: 'outline' };
+			// 全部完成，显示为“完成”
+			return { text: '完成', style: 'bg-emerald-700 text-emerald-100' };
 		} else if (failed > 0) {
-			return { text: '失败', color: 'destructive' };
+			// 出现了失败，显示为“失败”
+			return { text: '失败', style: 'bg-rose-700 text-rose-100' };
 		} else {
-			return { text: '进行中', color: 'secondary' };
+			// 还未开始，显示为“等待”
+			return { text: '等待', style: 'bg-yellow-700 text-yellow-100' };
 		}
 	}
 
@@ -74,7 +84,7 @@
 		return defaultTaskNames[index] || `任务${index + 1}`;
 	}
 
-	$: overallStatus = getOverallStatus(video.download_status);
+	$: overallStatus = getOverallStatus(video.download_status, video.should_download);
 	$: completed = video.download_status.filter((status) => status === 7).length;
 	$: total = video.download_status.length;
 
@@ -112,7 +122,10 @@
 			>
 				{displayTitle}
 			</CardTitle>
-			<Badge variant={overallStatus.color} class="shrink-0 px-2 py-1 text-xs font-medium">
+			<Badge
+				variant="secondary"
+				class="shrink-0 px-2 py-1 text-xs font-medium {overallStatus.style} "
+			>
 				{overallStatus.text}
 			</Badge>
 		</div>

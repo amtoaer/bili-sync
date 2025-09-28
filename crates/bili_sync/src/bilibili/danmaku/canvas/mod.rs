@@ -26,7 +26,7 @@ pub struct DanmakuOption {
     pub bottom_percentage: f64,
     /// 透明度（0-255）
     pub opacity: u8,
-    /// 是否加粗，1代表是，0代表否
+    /// 是否加粗，1 代表是，0 代表否
     pub bold: bool,
     /// 描边
     pub outline: f64,

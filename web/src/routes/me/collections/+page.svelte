@@ -17,11 +17,11 @@
 	async function loadCollections(page: number = 0) {
 		loading = true;
 		try {
-			const response = await api.getFollowedCollections(page + 1, pageSize); // API使用1基索引
+			const response = await api.getFollowedCollections(page + 1, pageSize); // API 使用 1 基索引
 			collections = response.data.collections;
 			totalCount = response.data.total;
 		} catch (error) {
-			console.error('加载合集失败:', error);
+			console.error('加载合集失败：', error);
 			toast.error('加载合集失败', {
 				description: (error as ApiError).message
 			});
@@ -92,7 +92,7 @@
 		<div class="flex items-center justify-center py-12">
 			<div class="space-y-2 text-center">
 				<p class="text-muted-foreground">暂无合集数据</p>
-				<p class="text-muted-foreground text-sm">请先在B站关注一些合集，或检查账号配置</p>
+				<p class="text-muted-foreground text-sm">请先在 B 站关注一些合集，或检查账号配置</p>
 			</div>
 		</div>
 	{/if}

@@ -19,7 +19,7 @@
 	export let onsubmit: (request: UpdateVideoStatusRequest) => void;
 
 	// 视频任务名称（与后端 VideoStatus 对应）
-	const videoTaskNames = ['视频封面', '视频信息', 'UP主头像', 'UP主信息', '分页下载'];
+	const videoTaskNames = ['视频封面', '视频信息', 'UP 主头像', 'UP 主信息', '分页下载'];
 
 	// 分页任务名称（与后端 PageStatus 对应）
 	const pageTaskNames = ['视频封面', '视频内容', '视频信息', '视频弹幕', '视频字幕'];

@@ -124,7 +124,7 @@ impl VideoInfo {
                 ctime: Set(ctime.naive_utc()),
                 pubtime: Set(pubtime.naive_utc()),
                 favtime: if base_model.favtime != NaiveDateTime::default() {
-                    NotSet // 之前设置了 favtime，不覆盖
+                    Set(base_model.favtime) // 之前设置了 favtime，使用之前的值（等价于 unset，但设置上以支持后续的规则匹配）
                 } else {
                     Set(pubtime.naive_utc()) // 未设置过 favtime，使用 pubtime 填充
                 },
