@@ -99,12 +99,12 @@ pub async fn get_video(
 
 pub async fn get_video_by_bvid(
     Query(params): Query<GetVideoByBvidRequest>, // 使用查询参数
-    Extension(db): Extension<Arc<DatabaseConnection>>,
+    Extension(db): Extension<DatabaseConnection>,
 ) -> Result<ApiResponse<VideoFullResponse>, ApiError> {
     let videofull_info: Option<VideoFullInfo> = video::Entity::find()
         .filter(video::Column::Bvid.eq(params.bvid.clone()))
         .into_partial_model::<VideoFullInfo>()
-        .one(db.as_ref())
+        .one(&db)
         .await?;
 
     let Some(videofull_info) = videofull_info else {
@@ -115,7 +115,7 @@ pub async fn get_video_by_bvid(
         .filter(page::Column::VideoId.eq(videofull_info.id))
         .order_by_asc(page::Column::Cid)
         .into_partial_model::<PageInfo>()
-        .all(db.as_ref())
+        .all(&db)
         .await?;
 
     Ok(ApiResponse::ok(VideoFullResponse {
