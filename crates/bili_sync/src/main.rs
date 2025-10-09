@@ -30,6 +30,10 @@ use crate::database::setup_database;
 use crate::utils::init_logger;
 use crate::utils::signal::terminate;
 
+#[cfg(all(target_env = "musl", target_pointer_width = "64"))]
+#[global_allocator]
+static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 #[tokio::main]
 async fn main() {
     let (connection, log_writer) = init().await;
