@@ -11,7 +11,7 @@ use sea_orm::sea_query::SimpleExpr;
 use sea_orm::{DatabaseConnection, Unchanged};
 
 use crate::adapter::{_ActiveModel, VideoSource, VideoSourceEnum};
-use crate::bilibili::{BiliClient, Submission, VideoInfo};
+use crate::bilibili::{BiliClient, Dynamic, Submission, VideoInfo};
 
 impl VideoSource for submission::Model {
     fn display_name(&self) -> std::borrow::Cow<'static, str> {
@@ -69,6 +69,12 @@ impl VideoSource for submission::Model {
         }
         .update(connection)
         .await?;
-        Ok((updated_model.into(), Box::pin(submission.into_video_stream())))
+        let video_stream = if self.use_dynamic_api {
+            // 必须显式写出 dyn，否则 rust 会自动推导到 impl 从而认为 if else 返回类型不一致
+            Box::pin(Dynamic::from(submission).into_video_stream()) as Pin<Box<dyn Stream<Item = _> + Send + 'a>>
+        } else {
+            Box::pin(submission.into_video_stream())
+        };
+        Ok((updated_model.into(), video_stream))
     }
 }

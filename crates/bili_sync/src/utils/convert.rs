@@ -97,7 +97,23 @@ impl VideoInfo {
                 valid: Set(true),
                 ..default
             },
-            _ => unreachable!(),
+            VideoInfo::Dynamic {
+                title,
+                bvid,
+                desc,
+                cover,
+                pubtime,
+            } => bili_sync_entity::video::ActiveModel {
+                bvid: Set(bvid),
+                name: Set(title),
+                intro: Set(desc),
+                cover: Set(cover),
+                pubtime: Set(pubtime.naive_utc()),
+                category: Set(2), // 动态里的视频内容类型肯定是视频
+                valid: Set(true),
+                ..default
+            },
+            VideoInfo::Detail { .. } => unreachable!(),
         }
     }
 
@@ -145,8 +161,9 @@ impl VideoInfo {
             VideoInfo::Collection { pubtime: time, .. }
             | VideoInfo::Favorite { fav_time: time, .. }
             | VideoInfo::WatchLater { fav_time: time, .. }
-            | VideoInfo::Submission { ctime: time, .. } => time,
-            _ => unreachable!(),
+            | VideoInfo::Submission { ctime: time, .. }
+            | VideoInfo::Dynamic { pubtime: time, .. } => time,
+            VideoInfo::Detail { .. } => unreachable!(),
         }
     }
 }

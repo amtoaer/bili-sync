@@ -6,10 +6,16 @@ use serde_json::Value;
 
 use crate::bilibili::credential::encoded_query;
 use crate::bilibili::favorite_list::Upper;
-use crate::bilibili::{BiliClient, MIXIN_KEY, Validate, VideoInfo};
+use crate::bilibili::{BiliClient, Dynamic, MIXIN_KEY, Validate, VideoInfo};
 pub struct Submission<'a> {
     client: &'a BiliClient,
     pub upper_id: String,
+}
+
+impl<'a> From<Submission<'a>> for Dynamic<'a> {
+    fn from(submission: Submission<'a>) -> Self {
+        Dynamic::new(submission.client, submission.upper_id)
+    }
 }
 
 impl<'a> Submission<'a> {

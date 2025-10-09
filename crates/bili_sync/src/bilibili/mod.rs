@@ -9,6 +9,7 @@ pub use client::{BiliClient, Client};
 pub use collection::{Collection, CollectionItem, CollectionType};
 pub use credential::Credential;
 pub use danmaku::DanmakuOption;
+pub use dynamic::Dynamic;
 pub use error::BiliError;
 pub use favorite_list::FavoriteList;
 use favorite_list::Upper;
@@ -23,6 +24,7 @@ mod client;
 mod collection;
 mod credential;
 mod danmaku;
+mod dynamic;
 mod error;
 mod favorite_list;
 mod me;
@@ -134,6 +136,15 @@ pub enum VideoInfo {
         cover: String,
         #[serde(rename = "created", with = "ts_seconds")]
         ctime: DateTime<Utc>,
+    },
+    // 从动态获取的视频信息（此处 pubtime 未在结构中，因此使用 default + 手动赋值）
+    Dynamic {
+        title: String,
+        bvid: String,
+        desc: String,
+        cover: String,
+        #[serde(default)]
+        pubtime: DateTime<Utc>,
     },
 }
 
