@@ -58,7 +58,8 @@ pub async fn refresh_video_source<'a>(
     let mut max_datetime = latest_row_at;
     let mut error = Ok(());
     let mut video_streams = video_streams
-        .take_while(|res| {
+        .enumerate()
+        .take_while(|(idx, res)| {
             match res {
                 Err(e) => {
                     error = Err(anyhow!(e.to_string()));
@@ -72,11 +73,11 @@ pub async fn refresh_video_source<'a>(
                     if release_datetime > &max_datetime {
                         max_datetime = *release_datetime;
                     }
-                    futures::future::ready(video_source.should_take(release_datetime, &latest_row_at))
+                    futures::future::ready(video_source.should_take(*idx, release_datetime, &latest_row_at))
                 }
             }
         })
-        .filter_map(|res| futures::future::ready(video_source.should_filter(res, &latest_row_at)))
+        .filter_map(|(idx, res)| futures::future::ready(video_source.should_filter(idx, res, &latest_row_at)))
         .chunks(10);
     let mut count = 0;
     while let Some(videos_info) = video_streams.next().await {
