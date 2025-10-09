@@ -4,7 +4,6 @@ use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
 use futures::Stream;
 use reqwest::Method;
-use serde;
 use serde_json::Value;
 
 use crate::bilibili::credential::encoded_query;
