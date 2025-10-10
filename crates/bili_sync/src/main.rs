@@ -25,7 +25,7 @@ use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 
 use crate::api::{LogHelper, MAX_HISTORY_LOGS};
-use crate::config::{ARGS, VersionedConfig};
+use crate::config::{ARGS, CONFIG_DIR, VersionedConfig};
 use crate::database::setup_database;
 use crate::utils::init_logger;
 use crate::utils::signal::terminate;
@@ -85,7 +85,9 @@ async fn init() -> (DatabaseConnection, LogHelper) {
     init_logger(&ARGS.log_level, Some(log_writer.clone()));
     info!("欢迎使用 Bili-Sync，当前程序版本：{}", config::version());
     info!("项目地址：https://github.com/amtoaer/bili-sync");
-    let connection = setup_database().await.expect("数据库初始化失败");
+    let connection = setup_database(&CONFIG_DIR.join("data.sqlite"))
+        .await
+        .expect("数据库初始化失败");
     info!("数据库初始化完成");
     VersionedConfig::init(&connection).await.expect("配置初始化失败");
     info!("配置初始化完成");

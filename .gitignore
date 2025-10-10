@@ -1,6 +1,6 @@
 **/target
 auth_data
-*.sqlite
+*.sqlite*
 debug*
 node_modules
 docs/.vitepress/cache
