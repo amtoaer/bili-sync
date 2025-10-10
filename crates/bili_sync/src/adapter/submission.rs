@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::pin::Pin;
 
-use anyhow::{Context, Result, ensure};
+use anyhow::{Result, ensure};
 use bili_sync_entity::rule::Rule;
 use bili_sync_entity::*;
 use futures::Stream;
@@ -62,21 +62,13 @@ impl VideoSource for submission::Model {
             upper.mid,
             submission.upper_id
         );
-        submission::ActiveModel {
+        let updated_model = submission::ActiveModel {
             id: Unchanged(self.id),
             upper_name: Set(upper.name),
             ..Default::default()
         }
-        .save(connection)
+        .update(connection)
         .await?;
-        Ok((
-            submission::Entity::find()
-                .filter(submission::Column::Id.eq(self.id))
-                .one(connection)
-                .await?
-                .context("submission not found")?
-                .into(),
-            Box::pin(submission.into_video_stream()),
-        ))
+        Ok((updated_model.into(), Box::pin(submission.into_video_stream())))
     }
 }

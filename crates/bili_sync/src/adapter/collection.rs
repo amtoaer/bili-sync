@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::path::Path;
 use std::pin::Pin;
 
-use anyhow::{Context, Result, ensure};
+use anyhow::{Result, ensure};
 use bili_sync_entity::rule::Rule;
 use bili_sync_entity::*;
 use chrono::Utc;
@@ -94,21 +94,13 @@ impl VideoSource for collection::Model {
             collection_info,
             collection.collection
         );
-        collection::ActiveModel {
+        let updated_model = collection::ActiveModel {
             id: Unchanged(self.id),
-            name: Set(collection_info.name.clone()),
+            name: Set(collection_info.name),
             ..Default::default()
         }
-        .save(connection)
+        .update(connection)
         .await?;
-        Ok((
-            collection::Entity::find()
-                .filter(collection::Column::Id.eq(self.id))
-                .one(connection)
-                .await?
-                .context("collection not found")?
-                .into(),
-            Box::pin(collection.into_video_stream()),
-        ))
+        Ok((updated_model.into(), Box::pin(collection.into_video_stream())))
     }
 }
