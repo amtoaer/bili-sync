@@ -68,7 +68,6 @@ serde_urlencoded = "0.7.1"
 strum = { version = "0.27.2", features = ["derive"] }
 sysinfo = "0.37.2"
 thiserror = "2.0.17"
-tikv-jemallocator = "0.6.0"
 tokio = { version = "1.47.1", features = ["full"] }
 tokio-stream = { version = "0.1.17", features = ["sync"] }
 tokio-util = { version = "0.7.16", features = ["io", "rt"] }
