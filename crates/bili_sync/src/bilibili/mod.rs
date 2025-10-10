@@ -9,6 +9,7 @@ pub use client::{BiliClient, Client};
 pub use collection::{Collection, CollectionItem, CollectionType};
 pub use credential::Credential;
 pub use danmaku::DanmakuOption;
+pub use dynamic::Dynamic;
 pub use error::BiliError;
 pub use favorite_list::FavoriteList;
 use favorite_list::Upper;
@@ -23,6 +24,7 @@ mod client;
 mod collection;
 mod credential;
 mod danmaku;
+mod dynamic;
 mod error;
 mod favorite_list;
 mod me;
@@ -135,18 +137,32 @@ pub enum VideoInfo {
         #[serde(rename = "created", with = "ts_seconds")]
         ctime: DateTime<Utc>,
     },
+    // 从动态获取的视频信息（此处 pubtime 未在结构中，因此使用 default + 手动赋值）
+    Dynamic {
+        title: String,
+        bvid: String,
+        desc: String,
+        cover: String,
+        #[serde(default)]
+        pubtime: DateTime<Utc>,
+    },
 }
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use futures::StreamExt;
 
     use super::*;
+    use crate::config::VersionedConfig;
+    use crate::database::setup_database;
     use crate::utils::init_logger;
 
     #[ignore = "only for manual test"]
     #[tokio::test]
-    async fn test_video_info_type() {
+    async fn test_video_info_type() -> Result<()> {
+        VersionedConfig::init_for_test(&setup_database(Path::new("./test.sqlite")).await?).await?;
         init_logger("None,bili_sync=debug", None);
         let bili_client = BiliClient::new();
         // 请求 UP 主视频必须要获取 mixin key，使用 key 计算请求参数的签名，否则直接提示权限不足返回空
@@ -200,6 +216,17 @@ mod tests {
             .await;
         assert!(videos.iter().all(|v| matches!(v, VideoInfo::Submission { .. })));
         assert!(videos.iter().rev().is_sorted_by_key(|v| v.release_datetime()));
+        // 测试动态
+        let dynamic = Dynamic::new(&bili_client, "659898".to_string());
+        let videos = dynamic
+            .into_video_stream()
+            .take(20)
+            .filter_map(|v| futures::future::ready(v.ok()))
+            .collect::<Vec<_>>()
+            .await;
+        assert!(videos.iter().all(|v| matches!(v, VideoInfo::Dynamic { .. })));
+        assert!(videos.iter().skip(1).rev().is_sorted_by_key(|v| v.release_datetime()));
+        Ok(())
     }
 
     #[ignore = "only for manual test"]

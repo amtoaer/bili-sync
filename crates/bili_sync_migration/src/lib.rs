@@ -9,6 +9,7 @@ mod m20250612_090826_add_enabled;
 mod m20250613_043257_add_config;
 mod m20250712_080013_add_video_created_at_index;
 mod m20250903_094454_add_rule_and_should_download;
+mod m20251009_123713_add_use_dynamic_api;
 
 pub struct Migrator;
 
@@ -25,6 +26,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20250613_043257_add_config::Migration),
             Box::new(m20250712_080013_add_video_created_at_index::Migration),
             Box::new(m20250903_094454_add_rule_and_should_download::Migration),
+            Box::new(m20251009_123713_add_use_dynamic_api::Migration),
         ]
     }
 }

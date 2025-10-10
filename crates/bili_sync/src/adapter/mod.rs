@@ -56,12 +56,18 @@ pub trait VideoSource {
     fn update_latest_row_at(&self, datetime: DateTime) -> _ActiveModel;
 
     // 判断是否应该继续拉取视频
-    fn should_take(&self, release_datetime: &chrono::DateTime<Utc>, latest_row_at: &chrono::DateTime<Utc>) -> bool {
+    fn should_take(
+        &self,
+        _idx: usize,
+        release_datetime: &chrono::DateTime<Utc>,
+        latest_row_at: &chrono::DateTime<Utc>,
+    ) -> bool {
         release_datetime > latest_row_at
     }
 
     fn should_filter(
         &self,
+        _idx: usize,
         video_info: Result<VideoInfo, anyhow::Error>,
         _latest_row_at: &chrono::DateTime<Utc>,
     ) -> Option<VideoInfo> {

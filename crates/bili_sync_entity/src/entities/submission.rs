@@ -13,6 +13,7 @@ pub struct Model {
     pub upper_name: String,
     pub path: String,
     pub created_at: String,
+    pub use_dynamic_api: bool,
     pub latest_row_at: DateTime,
     pub rule: Option<Rule>,
     pub enabled: bool,

@@ -179,6 +179,8 @@ pub struct VideoSourceDetail {
     pub rule: Option<Rule>,
     #[serde(default)]
     pub rule_display: Option<String>,
+    #[serde(default)]
+    pub use_dynamic_api: Option<bool>,
     pub enabled: bool,
 }
 
