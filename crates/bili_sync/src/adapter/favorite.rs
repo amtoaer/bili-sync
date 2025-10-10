@@ -63,21 +63,13 @@ impl VideoSource for favorite::Model {
             favorite_info.id,
             self.f_id
         );
-        favorite::ActiveModel {
+        let updated_model = favorite::ActiveModel {
             id: Unchanged(self.id),
-            name: Set(favorite_info.title.clone()),
+            name: Set(favorite_info.title),
             ..Default::default()
         }
-        .save(connection)
+        .update(connection)
         .await?;
-        Ok((
-            favorite::Entity::find()
-                .filter(favorite::Column::Id.eq(self.id))
-                .one(connection)
-                .await?
-                .context("favorite not found")?
-                .into(),
-            Box::pin(favorite.into_video_stream()),
-        ))
+        Ok((updated_model.into(), Box::pin(favorite.into_video_stream())))
     }
 }
