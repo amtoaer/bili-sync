@@ -188,8 +188,9 @@ export interface VideoSourceDetail {
 	id: number;
 	name: string;
 	path: string;
-	rule?: Rule | null;
-	ruleDisplay?: string | null;
+	rule: Rule | null;
+	ruleDisplay: string | null;
+	useDynamicApi: boolean | null;
 	enabled: boolean;
 }
 
@@ -206,6 +207,7 @@ export interface UpdateVideoSourceRequest {
 	path: string;
 	enabled: boolean;
 	rule?: Rule | null;
+	useDynamicApi?: boolean | null;
 }
 
 // 配置相关类型
@@ -315,5 +317,5 @@ export interface TaskStatus {
 }
 
 export interface UpdateVideoSourceResponse {
-	ruleDisplay?: string;
+	ruleDisplay: string;
 }

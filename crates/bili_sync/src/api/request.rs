@@ -83,9 +83,11 @@ pub struct InsertSubmissionRequest {
 }
 
 #[derive(Deserialize, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateVideoSourceRequest {
     #[validate(custom(function = "crate::utils::validation::validate_path"))]
     pub path: String,
     pub enabled: bool,
     pub rule: Option<Rule>,
+    pub use_dynamic_api: Option<bool>,
 }
