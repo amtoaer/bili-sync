@@ -145,7 +145,7 @@
 				<Tabs.List class="grid w-full grid-cols-5">
 					<Tabs.Trigger value="basic">基本设置</Tabs.Trigger>
 					<Tabs.Trigger value="auth">B站认证</Tabs.Trigger>
-					<Tabs.Trigger value="filter">视频质量</Tabs.Trigger>
+					<Tabs.Trigger value="filter">视频处理</Tabs.Trigger>
 					<Tabs.Trigger value="danmaku">弹幕渲染</Tabs.Trigger>
 					<Tabs.Trigger value="advanced">高级设置</Tabs.Trigger>
 				</Tabs.List>
@@ -431,6 +431,8 @@
 					<Separator />
 
 					<div class="space-y-4">
+						<Label>特殊流排除选项</Label>
+						<p class="text-muted-foreground text-sm">排除某些类型的特殊流</p>
 						<div class="flex items-center space-x-2">
 							<Switch id="no-dolby-video" bind:checked={formData.filter_option.no_dolby_video} />
 							<Label for="no-dolby-video">排除杜比视界视频</Label>
@@ -446,6 +448,33 @@
 						<div class="flex items-center space-x-2">
 							<Switch id="no-hires" bind:checked={formData.filter_option.no_hires} />
 							<Label for="no-hires">排除Hi-RES音频</Label>
+						</div>
+					</div>
+
+					<Separator />
+
+					<div class="space-y-4">
+						<Label>处理跳过选项</Label>
+						<p class="text-muted-foreground text-sm">在视频处理部分跳过某些执行环节</p>
+						<div class="flex items-center space-x-2">
+							<Switch id="no-dolby-video" bind:checked={formData.skip_option.no_poster} />
+							<Label for="no-dolby-video">跳过视频封面</Label>
+						</div>
+						<div class="flex items-center space-x-2">
+							<Switch id="no-dolby-audio" bind:checked={formData.skip_option.no_video_nfo} />
+							<Label for="no-dolby-audio">跳过视频 NFO</Label>
+						</div>
+						<div class="flex items-center space-x-2">
+							<Switch id="no-hdr" bind:checked={formData.skip_option.no_upper} />
+							<Label for="no-hdr">跳过 Up 主头像、信息</Label>
+						</div>
+						<div class="flex items-center space-x-2">
+							<Switch id="no-hires" bind:checked={formData.skip_option.no_danmaku} />
+							<Label for="no-hires">跳过弹幕</Label>
+						</div>
+						<div class="flex items-center space-x-2">
+							<Switch id="no-hires" bind:checked={formData.skip_option.no_subtitle} />
+							<Label for="no-hires">跳过字幕</Label>
 						</div>
 					</div>
 				</Tabs.Content>
