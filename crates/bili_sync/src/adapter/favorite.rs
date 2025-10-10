@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::path::Path;
 use std::pin::Pin;
 
-use anyhow::{Context, Result, ensure};
+use anyhow::{Result, ensure};
 use bili_sync_entity::rule::Rule;
 use bili_sync_entity::*;
 use futures::Stream;
