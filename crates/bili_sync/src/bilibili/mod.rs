@@ -78,6 +78,9 @@ pub enum VideoInfo {
         ctime: DateTime<Utc>,
         #[serde(rename = "pubdate", with = "ts_seconds")]
         pubtime: DateTime<Utc>,
+        is_upower_exclusive: bool,
+        is_upower_play: bool,
+        redirect_url: Option<String>,
         pages: Vec<PageInfo>,
         state: i32,
     },
@@ -247,6 +250,60 @@ mod tests {
                 subtitle.lan,
                 subtitle.body.to_string().chars().take(200).collect::<String>()
             );
+        }
+        Ok(())
+    }
+
+    #[ignore = "only for manual test"]
+    #[tokio::test]
+    async fn test_upower_parse() -> Result<()> {
+        VersionedConfig::init_for_test(&setup_database(Path::new("./test.sqlite")).await?).await?;
+        let bili_client = BiliClient::new();
+        let Ok(Some(mixin_key)) = bili_client.wbi_img().await.map(|wbi_img| wbi_img.into()) else {
+            panic!("获取 mixin key 失败");
+        };
+        set_global_mixin_key(mixin_key);
+        for (bvid, (upower_exclusive, upower_play)) in [
+            ("BV1HxXwYEEqt", (true, false)),  // 充电专享且无权观看
+            ("BV16w41187fx", (true, true)),   // 充电专享但有权观看
+            ("BV1n34jzPEYq", (false, false)), // 普通视频
+        ] {
+            let video = Video::new(&bili_client, bvid.to_string());
+            let info = video.get_view_info().await?;
+            let VideoInfo::Detail {
+                is_upower_exclusive,
+                is_upower_play,
+                ..
+            } = info
+            else {
+                unreachable!();
+            };
+            assert_eq!(is_upower_exclusive, upower_exclusive, "bvid: {}", bvid);
+            assert_eq!(is_upower_play, upower_play, "bvid: {}", bvid);
+        }
+        Ok(())
+    }
+
+    #[ignore = "only for manual test"]
+    #[tokio::test]
+    async fn test_ep_parse() -> Result<()> {
+        VersionedConfig::init_for_test(&setup_database(Path::new("./test.sqlite")).await?).await?;
+        let bili_client = BiliClient::new();
+        let Ok(Some(mixin_key)) = bili_client.wbi_img().await.map(|wbi_img| wbi_img.into()) else {
+            panic!("获取 mixin key 失败");
+        };
+        set_global_mixin_key(mixin_key);
+        for (bvid, redirect_is_none) in [
+            ("BV1SF411g796", false), // EP
+            ("BV13xtnzPEye", false), // 番剧
+            ("BV1kT4NzTEZj", true),  // 普通视频
+        ] {
+            let video = Video::new(&bili_client, bvid.to_string());
+            let info = video.get_view_info().await?;
+            let VideoInfo::Detail { redirect_url, .. } = info else {
+                bail!("视频信息类型错误");
+            };
+            assert_eq!(redirect_url.is_none(), redirect_is_none, "bvid: {}", bvid);
         }
         Ok(())
     }
