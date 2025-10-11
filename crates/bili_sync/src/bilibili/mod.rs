@@ -301,7 +301,7 @@ mod tests {
             let video = Video::new(&bili_client, bvid.to_string());
             let info = video.get_view_info().await?;
             let VideoInfo::Detail { redirect_url, .. } = info else {
-                bail!("视频信息类型错误");
+                unreachable!();
             };
             assert_eq!(redirect_url.is_none(), redirect_is_none, "bvid: {}", bvid);
         }
