@@ -9,7 +9,7 @@ use validator::Validate;
 use crate::bilibili::{Credential, DanmakuOption, FilterOption};
 use crate::config::LegacyConfig;
 use crate::config::default::{default_auth_token, default_bind_address, default_time_format};
-use crate::config::item::{ConcurrentLimit, NFOTimeType};
+use crate::config::item::{ConcurrentLimit, NFOTimeType, SkipOption};
 use crate::utils::model::{load_db_config, save_db_config};
 
 pub static CONFIG_DIR: LazyLock<PathBuf> =
@@ -22,6 +22,8 @@ pub struct Config {
     pub credential: Credential,
     pub filter_option: FilterOption,
     pub danmaku_option: DanmakuOption,
+    #[serde(default)]
+    pub skip_option: SkipOption,
     pub video_name: String,
     pub page_name: String,
     pub interval: u64,
@@ -94,6 +96,7 @@ impl Default for Config {
             credential: Credential::default(),
             filter_option: FilterOption::default(),
             danmaku_option: DanmakuOption::default(),
+            skip_option: SkipOption::default(),
             video_name: "{{title}}".to_owned(),
             page_name: "{{bvid}}".to_owned(),
             interval: 1200,
@@ -115,6 +118,7 @@ impl From<LegacyConfig> for Config {
             credential: legacy.credential,
             filter_option: legacy.filter_option,
             danmaku_option: legacy.danmaku_option,
+            skip_option: SkipOption::default(),
             video_name: legacy.video_name,
             page_name: legacy.page_name,
             interval: legacy.interval,

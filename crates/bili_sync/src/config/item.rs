@@ -69,6 +69,15 @@ impl Default for ConcurrentLimit {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub struct SkipOption {
+    pub no_poster: bool,
+    pub no_video_nfo: bool,
+    pub no_upper: bool,
+    pub no_danmaku: bool,
+    pub no_subtitle: bool,
+}
+
 pub trait PathSafeTemplate {
     fn path_safe_register(&mut self, name: &'static str, template: impl Into<String>) -> Result<()>;
     fn path_safe_render(&self, name: &'static str, data: &serde_json::Value) -> Result<String>;
