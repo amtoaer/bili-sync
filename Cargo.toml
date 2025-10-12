@@ -19,6 +19,7 @@ anyhow = { version = "1.0.100", features = ["backtrace"] }
 arc-swap = { version = "1.7.1", features = ["serde"] }
 assert_matches = "1.5.0"
 async-stream = "0.3.6"
+async-tempfile = {version = "0.7.0", features = ["uuid"]}
 async-trait = "0.1.89"
 axum = { version = "0.8.6", features = ["macros", "ws"] }
 base64 = "0.22.1"
