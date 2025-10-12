@@ -193,6 +193,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8a57b75c36e16f4d015e60e6a177552976a99b6947724403c551bcfa7cb1207"
 dependencies = [
  "tokio",
+ "uuid",
 ]
 
 [[package]]
