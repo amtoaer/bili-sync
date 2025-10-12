@@ -29,6 +29,7 @@ impl Downloader {
 
     pub async fn fetch(&self, url: &str, path: &Path) -> Result<()> {
         let mut temp_file = TempFile::new().await?;
+        error!("temp dir: {}", temp_file.file_path().display());
         self.fetch_internal(url, &mut temp_file).await?;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).await?;
