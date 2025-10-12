@@ -574,32 +574,18 @@ pub async fn fetch_page_video(
         .await?
         .best_stream(&VersionedConfig::get().load().filter_option)?;
     match streams {
-        BestStream::Mixed(mix_stream) => downloader.fetch_with_fallback(&mix_stream.urls(), page_path).await?,
+        BestStream::Mixed(mix_stream) => downloader.multi_fetch(&mix_stream.urls(), page_path).await?,
         BestStream::VideoAudio {
             video: video_stream,
             audio: None,
-        } => downloader.fetch_with_fallback(&video_stream.urls(), page_path).await?,
+        } => downloader.multi_fetch(&video_stream.urls(), page_path).await?,
         BestStream::VideoAudio {
             video: video_stream,
             audio: Some(audio_stream),
         } => {
-            let (tmp_video_path, tmp_audio_path) = (
-                page_path.with_extension("tmp_video"),
-                page_path.with_extension("tmp_audio"),
-            );
-            let res = async {
-                downloader
-                    .fetch_with_fallback(&video_stream.urls(), &tmp_video_path)
-                    .await?;
-                downloader
-                    .fetch_with_fallback(&audio_stream.urls(), &tmp_audio_path)
-                    .await?;
-                downloader.merge(&tmp_video_path, &tmp_audio_path, page_path).await
-            }
-            .await;
-            let _ = fs::remove_file(tmp_video_path).await;
-            let _ = fs::remove_file(tmp_audio_path).await;
-            res?
+            downloader
+                .multi_fetch_and_merge(&video_stream.urls(), &audio_stream.urls(), page_path)
+                .await?
         }
     }
     Ok(ExecutionStatus::Succeeded)
