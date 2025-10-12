@@ -111,7 +111,8 @@ pub async fn get_video_sources_details(
                 submission::Column::Id,
                 submission::Column::Path,
                 submission::Column::Enabled,
-                submission::Column::Rule
+                submission::Column::Rule,
+                submission::Column::UseDynamicApi
             ])
             .into_model::<VideoSourceDetail>()
             .all(&db),
@@ -134,6 +135,7 @@ pub async fn get_video_sources_details(
             path: String::new(),
             rule: None,
             rule_display: None,
+            use_dynamic_api: None,
             enabled: false,
         })
     }
@@ -179,6 +181,9 @@ pub async fn update_video_source(
             active_model.path = Set(request.path);
             active_model.enabled = Set(request.enabled);
             active_model.rule = Set(request.rule);
+            if let Some(use_dynamic_api) = request.use_dynamic_api {
+                active_model.use_dynamic_api = Set(use_dynamic_api);
+            }
             _ActiveModel::Submission(active_model)
         }),
         "watch_later" => match watch_later::Entity::find_by_id(id).one(&db).await? {

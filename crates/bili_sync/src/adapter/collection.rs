@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::path::Path;
 use std::pin::Pin;
 
-use anyhow::{Context, Result, ensure};
+use anyhow::{Result, ensure};
 use bili_sync_entity::rule::Rule;
 use bili_sync_entity::*;
 use chrono::Utc;
@@ -44,7 +44,12 @@ impl VideoSource for collection::Model {
         })
     }
 
-    fn should_take(&self, _release_datetime: &chrono::DateTime<Utc>, _latest_row_at: &chrono::DateTime<Utc>) -> bool {
+    fn should_take(
+        &self,
+        _idx: usize,
+        _release_datetime: &chrono::DateTime<Utc>,
+        _latest_row_at: &chrono::DateTime<Utc>,
+    ) -> bool {
         // collection（视频合集/视频列表）返回的内容似乎并非严格按照时间排序，并且不同 collection 的排序方式也不同
         // 为了保证程序正确性，collection 不根据时间提前 break，而是每次都全量拉取
         true
@@ -52,6 +57,7 @@ impl VideoSource for collection::Model {
 
     fn should_filter(
         &self,
+        _idx: usize,
         video_info: Result<VideoInfo, anyhow::Error>,
         latest_row_at: &chrono::DateTime<Utc>,
     ) -> Option<VideoInfo> {
@@ -61,7 +67,6 @@ impl VideoSource for collection::Model {
         {
             return Some(video_info);
         }
-
         None
     }
 
@@ -94,21 +99,13 @@ impl VideoSource for collection::Model {
             collection_info,
             collection.collection
         );
-        collection::ActiveModel {
+        let updated_model = collection::ActiveModel {
             id: Unchanged(self.id),
-            name: Set(collection_info.name.clone()),
+            name: Set(collection_info.name),
             ..Default::default()
         }
-        .save(connection)
+        .update(connection)
         .await?;
-        Ok((
-            collection::Entity::find()
-                .filter(collection::Column::Id.eq(self.id))
-                .one(connection)
-                .await?
-                .context("collection not found")?
-                .into(),
-            Box::pin(collection.into_video_stream()),
-        ))
+        Ok((updated_model.into(), Box::pin(collection.into_video_stream())))
     }
 }

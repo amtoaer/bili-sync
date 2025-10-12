@@ -188,8 +188,9 @@ export interface VideoSourceDetail {
 	id: number;
 	name: string;
 	path: string;
-	rule?: Rule | null;
-	ruleDisplay?: string | null;
+	rule: Rule | null;
+	ruleDisplay: string | null;
+	useDynamicApi: boolean | null;
 	enabled: boolean;
 }
 
@@ -206,6 +207,7 @@ export interface UpdateVideoSourceRequest {
 	path: string;
 	enabled: boolean;
 	rule?: Rule | null;
+	useDynamicApi?: boolean | null;
 }
 
 // 配置相关类型
@@ -244,6 +246,14 @@ export interface DanmakuOption {
 	time_offset: number;
 }
 
+export interface SkipOption {
+	no_poster: boolean;
+	no_video_nfo: boolean;
+	no_upper: boolean;
+	no_danmaku: boolean;
+	no_subtitle: boolean;
+}
+
 export interface RateLimit {
 	limit: number;
 	duration: number;
@@ -268,6 +278,7 @@ export interface Config {
 	credential: Credential;
 	filter_option: FilterOption;
 	danmaku_option: DanmakuOption;
+	skip_option: SkipOption;
 	video_name: string;
 	page_name: string;
 	interval: number;
@@ -315,5 +326,5 @@ export interface TaskStatus {
 }
 
 export interface UpdateVideoSourceResponse {
-	ruleDisplay?: string;
+	ruleDisplay: string;
 }

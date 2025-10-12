@@ -53,17 +53,32 @@ impl VersionedConfig {
     }
 
     #[cfg(test)]
-    /// 单元测试直接使用测试专用的配置即可
-    pub fn get() -> &'static VersionedConfig {
-        use std::sync::LazyLock;
-        static TEST_CONFIG: LazyLock<VersionedConfig> = LazyLock::new(|| VersionedConfig::new(Config::test_default()));
-        return &TEST_CONFIG;
+    /// 仅在测试环境使用，该方法会尝试从测试数据库中加载配置并写入到全局的 VERSIONED_CONFIG
+    pub async fn init_for_test(connection: &DatabaseConnection) -> Result<()> {
+        let Some(Ok(config)) = Config::load_from_database(&connection).await? else {
+            bail!("no config found in test database");
+        };
+        let versioned_config = VersionedConfig::new(config);
+        VERSIONED_CONFIG
+            .set(versioned_config)
+            .map_err(|e| anyhow!("VERSIONED_CONFIG has already been initialized: {}", e))?;
+        Ok(())
     }
 
     #[cfg(not(test))]
     /// 获取全局的 `VersionedConfig`，如果未初始化则会 panic
     pub fn get() -> &'static VersionedConfig {
         VERSIONED_CONFIG.get().expect("VERSIONED_CONFIG is not initialized")
+    }
+
+    #[cfg(test)]
+    /// 尝试获取全局的 `VersionedConfig`，如果未初始化则退回测试环境的默认配置
+    pub fn get() -> &'static VersionedConfig {
+        use std::sync::LazyLock;
+        static FALLBACK_CONFIG: LazyLock<VersionedConfig> =
+            LazyLock::new(|| VersionedConfig::new(Config::test_default()));
+        // 优先从全局变量获取，未初始化则返回测试环境的默认配置
+        return VERSIONED_CONFIG.get().unwrap_or_else(|| &FALLBACK_CONFIG);
     }
 
     pub fn new(config: Config) -> Self {

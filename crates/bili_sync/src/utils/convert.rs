@@ -97,7 +97,23 @@ impl VideoInfo {
                 valid: Set(true),
                 ..default
             },
-            _ => unreachable!(),
+            VideoInfo::Dynamic {
+                title,
+                bvid,
+                desc,
+                cover,
+                pubtime,
+            } => bili_sync_entity::video::ActiveModel {
+                bvid: Set(bvid),
+                name: Set(title),
+                intro: Set(desc),
+                cover: Set(cover),
+                pubtime: Set(pubtime.naive_utc()),
+                category: Set(2), // 动态里的视频内容类型肯定是视频
+                valid: Set(true),
+                ..default
+            },
+            VideoInfo::Detail { .. } => unreachable!(),
         }
     }
 
@@ -114,11 +130,13 @@ impl VideoInfo {
                 ctime,
                 pubtime,
                 state,
+                is_upower_exclusive,
+                is_upower_play,
+                redirect_url,
                 ..
             } => bili_sync_entity::video::ActiveModel {
                 bvid: Set(bvid),
                 name: Set(title),
-                category: Set(2),
                 intro: Set(intro),
                 cover: Set(cover),
                 ctime: Set(ctime.naive_utc()),
@@ -129,7 +147,13 @@ impl VideoInfo {
                     Set(pubtime.naive_utc()) // 未设置过 favtime，使用 pubtime 填充
                 },
                 download_status: Set(0),
-                valid: Set(state == 0),
+                // state == 0 表示开放浏览
+                // is_upower_exclusive 和 is_upower_play 相等有两种情况：
+                //  1. 都为 true，表示视频是充电专享但是已经充过电，有权观看
+                //  2. 都为 false，表示视频是非充电视频
+                // redirect_url 仅在视频为番剧、影视、纪录片等特殊视频时才会有值，如果为空说明是普通视频
+                // 仅在三种条件都满足时，才认为视频是可下载的
+                valid: Set(state == 0 && (is_upower_exclusive == is_upower_play) && redirect_url.is_none()),
                 upper_id: Set(upper.mid),
                 upper_name: Set(upper.name),
                 upper_face: Set(upper.face),
@@ -145,8 +169,9 @@ impl VideoInfo {
             VideoInfo::Collection { pubtime: time, .. }
             | VideoInfo::Favorite { fav_time: time, .. }
             | VideoInfo::WatchLater { fav_time: time, .. }
-            | VideoInfo::Submission { ctime: time, .. } => time,
-            _ => unreachable!(),
+            | VideoInfo::Submission { ctime: time, .. }
+            | VideoInfo::Dynamic { pubtime: time, .. } => time,
+            VideoInfo::Detail { .. } => unreachable!(),
         }
     }
 }

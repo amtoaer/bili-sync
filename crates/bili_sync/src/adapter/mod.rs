@@ -7,7 +7,7 @@ use std::borrow::Cow;
 use std::path::Path;
 use std::pin::Pin;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use chrono::Utc;
 use enum_dispatch::enum_dispatch;
 use futures::Stream;
@@ -56,12 +56,18 @@ pub trait VideoSource {
     fn update_latest_row_at(&self, datetime: DateTime) -> _ActiveModel;
 
     // 判断是否应该继续拉取视频
-    fn should_take(&self, release_datetime: &chrono::DateTime<Utc>, latest_row_at: &chrono::DateTime<Utc>) -> bool {
+    fn should_take(
+        &self,
+        _idx: usize,
+        release_datetime: &chrono::DateTime<Utc>,
+        latest_row_at: &chrono::DateTime<Utc>,
+    ) -> bool {
         release_datetime > latest_row_at
     }
 
     fn should_filter(
         &self,
+        _idx: usize,
         video_info: Result<VideoInfo, anyhow::Error>,
         _latest_row_at: &chrono::DateTime<Utc>,
     ) -> Option<VideoInfo> {
@@ -103,6 +109,17 @@ pub trait VideoSource {
         VideoSourceEnum,
         Pin<Box<dyn Stream<Item = Result<VideoInfo>> + Send + 'a>>,
     )>;
+
+    async fn create_dir_all(&self) -> Result<()> {
+        let video_source_path = self.path();
+        tokio::fs::create_dir_all(video_source_path).await.with_context(|| {
+            format!(
+                "failed to create video source directory {}",
+                video_source_path.display()
+            )
+        })?;
+        Ok(())
+    }
 }
 
 pub enum _ActiveModel {

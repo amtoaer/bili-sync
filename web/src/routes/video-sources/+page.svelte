@@ -13,6 +13,7 @@
 	import UserIcon from '@lucide/svelte/icons/user';
 	import ClockIcon from '@lucide/svelte/icons/clock';
 	import PlusIcon from '@lucide/svelte/icons/plus';
+	import InfoIcon from '@lucide/svelte/icons/info';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { toast } from 'svelte-sonner';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
@@ -48,7 +49,8 @@
 	let editForm = {
 		path: '',
 		enabled: false,
-		rule: null as Rule | null
+		rule: null as Rule | null,
+		useDynamicApi: null as boolean | null
 	};
 
 	// 表单数据
@@ -86,7 +88,8 @@
 		editForm = {
 			path: source.path,
 			enabled: source.enabled,
-			rule: source.rule || null
+			useDynamicApi: source.useDynamicApi,
+			rule: source.rule
 		};
 		showEditDialog = true;
 	}
@@ -110,7 +113,8 @@
 			let response = await api.updateVideoSource(editingType, editingSource.id, {
 				path: editForm.path,
 				enabled: editForm.enabled,
-				rule: editForm.rule
+				rule: editForm.rule,
+				useDynamicApi: editForm.useDynamicApi
 			});
 			// 更新本地数据
 			if (videoSourcesData && editingSource) {
@@ -122,6 +126,7 @@
 					path: editForm.path,
 					enabled: editForm.enabled,
 					rule: editForm.rule,
+					useDynamicApi: editForm.useDynamicApi,
 					ruleDisplay: response.data.ruleDisplay
 				};
 				videoSourcesData = { ...videoSourcesData };
@@ -266,9 +271,12 @@
 								<Table.Header>
 									<Table.Row>
 										<Table.Head class="w-[20%]">名称</Table.Head>
-										<Table.Head class="w-[40%]">下载路径</Table.Head>
+										<Table.Head class="w-[30%]">下载路径</Table.Head>
 										<Table.Head class="w-[15%]">过滤规则</Table.Head>
-										<Table.Head class="w-[15%]">状态</Table.Head>
+										<Table.Head class="w-[10%]">启用状态</Table.Head>
+										{#if key === 'submissions'}
+											<Table.Head class="w-[10%]">使用动态 API</Table.Head>
+										{/if}
 										<Table.Head class="w-[10%] text-right">操作</Table.Head>
 									</Table.Row>
 								</Table.Header>
@@ -304,11 +312,17 @@
 											<Table.Cell>
 												<div class="flex h-8 items-center gap-2">
 													<Switch checked={source.enabled} disabled />
-													<span class="text-muted-foreground text-sm whitespace-nowrap">
-														{source.enabled ? '已启用' : '已禁用'}
-													</span>
 												</div>
 											</Table.Cell>
+											{#if key === 'submissions'}
+												<Table.Cell>
+													<div class="flex h-8 items-center gap-2">
+														{#if source.useDynamicApi !== null}
+															<Switch checked={source.useDynamicApi} disabled />
+														{/if}
+													</div>
+												</Table.Cell>
+											{/if}
 											<Table.Cell class="text-right">
 												<Button
 													size="sm"
@@ -394,6 +408,28 @@
 					<Switch bind:checked={editForm.enabled} />
 					<Label class="text-sm font-medium">启用此视频源</Label>
 				</div>
+
+				{#if editingType === 'submissions' && editForm.useDynamicApi !== null}
+					<div class="flex items-center space-x-2">
+						<Switch bind:checked={editForm.useDynamicApi} />
+						<div class="flex items-center gap-1">
+							<Label class="text-sm font-medium">使用动态 API 获取视频</Label>
+							<Tooltip.Root>
+								<Tooltip.Trigger>
+									<InfoIcon class="text-muted-foreground h-3.5 w-3.5" />
+								</Tooltip.Trigger>
+								<Tooltip.Content>
+									<p class="text-xs">
+										只有使用动态 API
+										才能拉取到动态视频，但该接口不提供筛选参数，需要拉取全部类型的动态后在本地筛选出视频。<br
+										/>这在扫描时会获取到较多无效数据并增加请求次数，可根据实际情况酌情选择，推荐仅在
+										UP 主有较多动态视频时开启。
+									</p>
+								</Tooltip.Content>
+							</Tooltip.Root>
+						</div>
+					</div>
+				{/if}
 
 				<!-- 规则编辑器 -->
 				<div>

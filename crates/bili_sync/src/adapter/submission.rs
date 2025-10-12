@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::pin::Pin;
 
-use anyhow::{Context, Result, ensure};
+use anyhow::{Result, ensure};
 use bili_sync_entity::rule::Rule;
 use bili_sync_entity::*;
 use futures::Stream;
@@ -11,7 +11,7 @@ use sea_orm::sea_query::SimpleExpr;
 use sea_orm::{DatabaseConnection, Unchanged};
 
 use crate::adapter::{_ActiveModel, VideoSource, VideoSourceEnum};
-use crate::bilibili::{BiliClient, Submission, VideoInfo};
+use crate::bilibili::{BiliClient, Dynamic, Submission, VideoInfo};
 
 impl VideoSource for submission::Model {
     fn display_name(&self) -> std::borrow::Cow<'static, str> {
@@ -42,6 +42,42 @@ impl VideoSource for submission::Model {
         })
     }
 
+    fn should_take(
+        &self,
+        idx: usize,
+        release_datetime: &chrono::DateTime<chrono::Utc>,
+        latest_row_at: &chrono::DateTime<chrono::Utc>,
+    ) -> bool {
+        // 如果使用动态 API，那么可能出现用户置顶了一个很久以前的视频在动态顶部的情况
+        // 这种情况应该继续拉取下去，不能因为第一条不满足条件就停止
+        // 后续的非置顶内容是正常由新到旧排序的，可以继续使用常规方式处理
+        if idx == 0 && self.use_dynamic_api {
+            return true;
+        }
+        release_datetime > latest_row_at
+    }
+
+    fn should_filter(
+        &self,
+        idx: usize,
+        video_info: Result<VideoInfo, anyhow::Error>,
+        latest_row_at: &chrono::DateTime<chrono::Utc>,
+    ) -> Option<VideoInfo> {
+        if idx == 0 && self.use_dynamic_api {
+            // 同理，动态 API 的第一条内容可能是置顶的老视频，单独做个过滤
+            // 其实不过滤也不影响逻辑正确性，因为后续 insert 发生冲突仍然会忽略掉
+            // 此处主要是出于性能考虑，减少不必要的数据库操作
+            if let Ok(video_info) = video_info
+                && video_info.release_datetime() > latest_row_at
+            {
+                return Some(video_info);
+            }
+            None
+        } else {
+            video_info.ok()
+        }
+    }
+
     fn rule(&self) -> &Option<Rule> {
         &self.rule
     }
@@ -62,21 +98,19 @@ impl VideoSource for submission::Model {
             upper.mid,
             submission.upper_id
         );
-        submission::ActiveModel {
+        let updated_model = submission::ActiveModel {
             id: Unchanged(self.id),
             upper_name: Set(upper.name),
             ..Default::default()
         }
-        .save(connection)
+        .update(connection)
         .await?;
-        Ok((
-            submission::Entity::find()
-                .filter(submission::Column::Id.eq(self.id))
-                .one(connection)
-                .await?
-                .context("submission not found")?
-                .into(),
-            Box::pin(submission.into_video_stream()),
-        ))
+        let video_stream = if self.use_dynamic_api {
+            // 必须显式写出 dyn，否则 rust 会自动推导到 impl 从而认为 if else 返回类型不一致
+            Box::pin(Dynamic::from(submission).into_video_stream()) as Pin<Box<dyn Stream<Item = _> + Send + 'a>>
+        } else {
+            Box::pin(submission.into_video_stream())
+        };
+        Ok((updated_model.into(), video_stream))
     }
 }
