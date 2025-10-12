@@ -32,6 +32,8 @@ pub async fn process_video_source(
     bili_client: &BiliClient,
     connection: &DatabaseConnection,
 ) -> Result<()> {
+    // 预创建视频源目录，提前检测目录是否可写
+    video_source.create_dir_all().await?;
     // 从参数中获取视频列表的 Model 与视频流
     let (video_source, video_streams) = video_source.refresh(bili_client, connection).await?;
     // 从视频流中获取新视频的简要信息，写入数据库
