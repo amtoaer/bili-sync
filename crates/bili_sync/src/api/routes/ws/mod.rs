@@ -19,6 +19,7 @@ use sysinfo::{
     get_current_pid,
 };
 use tokio::sync::mpsc;
+use tokio::time::MissedTickBehavior;
 use tokio::{pin, select};
 use tokio_stream::wrappers::{BroadcastStream, WatchStream};
 use tokio_util::future::FutureExt;
@@ -265,6 +266,7 @@ impl WebSocketHandler {
             // 异步部分负责获取由阻塞线程发送过来的系统信息，并推送给所有订阅者
             // 收到取消信号时，设置标志位，确保阻塞线程正常退出
             let mut interval = tokio::time::interval(Duration::from_secs(2));
+            interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
             loop {
                 select! {
                     _ = cancel_token_clone.cancelled() => {
