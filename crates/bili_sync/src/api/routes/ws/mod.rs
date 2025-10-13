@@ -1,6 +1,5 @@
 mod log_helper;
 
-use std::sync::atomic::{self, AtomicBool};
 use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 
@@ -242,7 +241,7 @@ impl WebSocketHandler {
                 // system 需要初始进行一次刷新并等待一小会儿，因为有些数据是根据 diff 计算的
                 system.refresh_needed(self_pid);
                 std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
-                while let Some(_) = tick_rx.blocking_recv() {
+                while tick_rx.blocking_recv().is_some() {
                     system.refresh_needed(self_pid);
                     disks.refresh_needed(self_pid);
                     let process = match system.process(self_pid) {
