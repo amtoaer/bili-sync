@@ -159,7 +159,7 @@ pub struct DashBoardResponse {
     pub videos_by_day: Vec<DayCountPair>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Copy)]
 pub struct SysInfo {
     pub total_memory: u64,
     pub used_memory: u64,
