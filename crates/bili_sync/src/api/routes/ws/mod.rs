@@ -232,8 +232,7 @@ impl WebSocketHandler {
         let cancel_token_clone = cancel_token.clone();
         tokio::spawn(async move {
             let (tx, mut rx) = mpsc::channel(10);
-            let task_terminated = Arc::new(AtomicBool::new(false));
-            let task_terminated_clone = task_terminated.clone();
+            let (tick_tx, mut tick_rx) = mpsc::channel(3);
             // 在阻塞线程中轮询系统信息，防止阻塞异步运行时
             tokio::task::spawn_blocking(move || {
                 // 对于 linux/mac/windows 平台，该方法永远返回 Some(pid)，expect 基本是安全的
@@ -243,7 +242,7 @@ impl WebSocketHandler {
                 // system 需要初始进行一次刷新并等待一小会儿，因为有些数据是根据 diff 计算的
                 system.refresh_needed(self_pid);
                 std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
-                while !task_terminated_clone.load(atomic::Ordering::Relaxed) {
+                while let Some(_) = tick_rx.blocking_recv() {
                     system.refresh_needed(self_pid);
                     disks.refresh_needed(self_pid);
                     let process = match system.process(self_pid) {
@@ -262,16 +261,19 @@ impl WebSocketHandler {
                     if tx.blocking_send(sys_info).is_err() {
                         break;
                     }
-                    std::thread::sleep(Duration::from_secs(3));
                 }
             });
             // 异步部分负责获取由阻塞线程发送过来的系统信息，并推送给所有订阅者
             // 收到取消信号时，设置标志位，确保阻塞线程正常退出
+            let mut interval = tokio::time::interval(Duration::from_secs(2));
             loop {
                 select! {
                     _ = cancel_token_clone.cancelled() => {
-                        task_terminated.store(true, atomic::Ordering::Relaxed);
+                        drop(tick_tx);
                         break;
+                    }
+                    _ = interval.tick() => {
+                        let _ = tick_tx.send(()).await;
                     }
                     Some(sys_info) = rx.recv() => {
                         future::join_all(sysinfo_subscribers.iter().map(async |subscriber| {
