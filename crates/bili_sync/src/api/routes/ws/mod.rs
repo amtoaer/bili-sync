@@ -239,9 +239,6 @@ impl WebSocketHandler {
                 let self_pid = get_current_pid().expect("Unsupported platform");
                 let mut system = System::new();
                 let mut disks = Disks::new();
-                // system 需要初始进行一次刷新并等待一小会儿，因为有些数据是根据 diff 计算的
-                system.refresh_needed(self_pid);
-                std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
                 while tick_rx.blocking_recv().is_some() {
                     system.refresh_needed(self_pid);
                     disks.refresh_needed(self_pid);
