@@ -7,8 +7,7 @@ use reqwest::Method;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::bilibili::credential::encoded_query;
-use crate::bilibili::{BiliClient, MIXIN_KEY, Validate, VideoInfo};
+use crate::bilibili::{BiliClient, Validate, VideoInfo};
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug, Default, Copy)]
 pub enum CollectionType {
@@ -139,46 +138,35 @@ impl<'a> Collection<'a> {
     }
 
     async fn get_videos(&self, page: i32) -> Result<Value> {
-        let page = page.to_string();
-        let (url, query) = match self.collection.collection_type {
-            CollectionType::Series => (
-                "https://api.bilibili.com/x/series/archives",
-                encoded_query(
-                    vec![
-                        ("mid", self.collection.mid.as_str()),
-                        ("series_id", self.collection.sid.as_str()),
-                        ("only_normal", "true"),
-                        ("sort", "desc"),
-                        ("pn", page.as_str()),
-                        ("ps", "30"),
-                    ],
-                    MIXIN_KEY.load().as_deref(),
-                ),
-            ),
-            CollectionType::Season => (
-                "https://api.bilibili.com/x/polymer/web-space/seasons_archives_list",
-                encoded_query(
-                    vec![
-                        ("mid", self.collection.mid.as_str()),
-                        ("season_id", self.collection.sid.as_str()),
-                        ("sort_reverse", "true"),
-                        ("page_num", page.as_str()),
-                        ("page_size", "30"),
-                    ],
-                    MIXIN_KEY.load().as_deref(),
-                ),
-            ),
+        let req = match self.collection.collection_type {
+            CollectionType::Series => self
+                .client
+                .request(Method::GET, "https://api.bilibili.com/x/series/archives")
+                .await
+                .query(&[("pn", page)])
+                .query(&[
+                    ("mid", self.collection.mid.as_str()),
+                    ("series_id", self.collection.sid.as_str()),
+                    ("only_normal", "true"),
+                    ("sort", "desc"),
+                    ("ps", "30"),
+                ]),
+            CollectionType::Season => self
+                .client
+                .request(
+                    Method::GET,
+                    "https://api.bilibili.com/x/polymer/web-space/seasons_archives_list",
+                )
+                .await
+                .query(&[("page_num", page)])
+                .query(&[
+                    ("mid", self.collection.mid.as_str()),
+                    ("season_id", self.collection.sid.as_str()),
+                    ("sort_reverse", "true"),
+                    ("page_size", "30"),
+                ]),
         };
-        self.client
-            .request(Method::GET, url)
-            .await
-            .query(&query)
-            .send()
-            .await?
-            .error_for_status()?
-            .json::<Value>()
-            .await?
-            .validate()
+        req.send().await?.error_for_status()?.json::<Value>().await?.validate()
     }
 
     pub fn into_video_stream(self) -> impl Stream<Item = Result<VideoInfo>> + 'a {

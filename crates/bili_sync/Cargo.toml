@@ -21,7 +21,6 @@ bili_sync_migration = { workspace = true }
 chrono = { workspace = true }
 clap = { workspace = true }
 cookie = { workspace = true }
-cow-utils = { workspace = true }
 dashmap = { workspace = true }
 dirs = { workspace = true }
 enum_dispatch = { workspace = true }
@@ -58,9 +57,6 @@ tracing-subscriber = { workspace = true }
 ua_generator = { workspace = true }
 uuid = { workspace = true }
 validator = { workspace = true }
-
-[dev-dependencies]
-assert_matches = { workspace = true }
 
 [build-dependencies]
 built = { workspace = true }

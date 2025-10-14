@@ -4,7 +4,7 @@ use sea_orm::DatabaseConnection;
 use tokio::time;
 
 use crate::adapter::VideoSource;
-use crate::bilibili::{self, BiliClient};
+use crate::bilibili::{self, BiliClient, WbiImg};
 use crate::config::VersionedConfig;
 use crate::utils::model::get_enabled_video_sources;
 use crate::utils::task_notifier::TASK_STATUS_NOTIFIER;
@@ -22,7 +22,7 @@ pub async fn video_downloader(connection: DatabaseConnection, bili_client: Arc<B
                 error!("配置检查失败，跳过本轮执行：\n{:#}", e);
                 break 'inner;
             }
-            match bili_client.wbi_img().await.map(|wbi_img| wbi_img.into()) {
+            match bili_client.wbi_img().await.map(WbiImg::into_mixin_key) {
                 Ok(Some(mixin_key)) => bilibili::set_global_mixin_key(mixin_key),
                 Ok(_) => {
                     error!("解析 mixin key 失败，等待下一轮执行");

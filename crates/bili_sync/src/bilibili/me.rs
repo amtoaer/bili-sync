@@ -38,12 +38,8 @@ impl<'a> Me<'a> {
             .client
             .request(Method::GET, "https://api.bilibili.com/x/v3/fav/folder/collected/list")
             .await
-            .query(&[
-                ("up_mid", self.mid.as_str()),
-                ("pn", page_num.to_string().as_str()),
-                ("ps", page_size.to_string().as_str()),
-                ("platform", "web"),
-            ])
+            .query(&[("up_mid", self.mid.as_str()), ("platform", "web")])
+            .query(&[("pn", page_num), ("ps", page_size)])
             .send()
             .await?
             .error_for_status()?
@@ -59,11 +55,8 @@ impl<'a> Me<'a> {
             .client
             .request(Method::GET, "https://api.bilibili.com/x/relation/followings")
             .await
-            .query(&[
-                ("vmid", self.mid.as_str()),
-                ("pn", page_num.to_string().as_str()),
-                ("ps", page_size.to_string().as_str()),
-            ])
+            .query(&[("vmid", self.mid.as_str())])
+            .query(&[("pn", page_num), ("ps", page_size)])
             .send()
             .await?
             .error_for_status()?
