@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use crate::bilibili::{Credential, DanmakuOption, FilterOption};
-use crate::config::LegacyConfig;
 use crate::config::default::{default_auth_token, default_bind_address, default_time_format};
 use crate::config::item::{ConcurrentLimit, NFOTimeType, SkipOption};
 use crate::utils::model::{load_db_config, save_db_config};
@@ -105,28 +104,6 @@ impl Default for Config {
             concurrent_limit: ConcurrentLimit::default(),
             time_format: default_time_format(),
             cdn_sorting: false,
-            version: 0,
-        }
-    }
-}
-
-impl From<LegacyConfig> for Config {
-    fn from(legacy: LegacyConfig) -> Self {
-        Self {
-            auth_token: legacy.auth_token,
-            bind_address: legacy.bind_address,
-            credential: legacy.credential,
-            filter_option: legacy.filter_option,
-            danmaku_option: legacy.danmaku_option,
-            skip_option: SkipOption::default(),
-            video_name: legacy.video_name,
-            page_name: legacy.page_name,
-            interval: legacy.interval,
-            upper_path: legacy.upper_path,
-            nfo_time_type: legacy.nfo_time_type,
-            concurrent_limit: legacy.concurrent_limit,
-            time_format: legacy.time_format,
-            cdn_sorting: legacy.cdn_sorting,
             version: 0,
         }
     }
