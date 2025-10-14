@@ -4,9 +4,8 @@ use futures::Stream;
 use reqwest::Method;
 use serde_json::Value;
 
-use crate::bilibili::credential::encoded_query;
 use crate::bilibili::favorite_list::Upper;
-use crate::bilibili::{BiliClient, Dynamic, MIXIN_KEY, Validate, VideoInfo};
+use crate::bilibili::{BiliClient, Dynamic, MIXIN_KEY, Validate, VideoInfo, WbiSign};
 pub struct Submission<'a> {
     client: &'a BiliClient,
     pub upper_id: String,
@@ -42,18 +41,16 @@ impl<'a> Submission<'a> {
         self.client
             .request(Method::GET, "https://api.bilibili.com/x/space/wbi/arc/search")
             .await
-            .query(&encoded_query(
-                vec![
-                    ("mid", self.upper_id.as_str()),
-                    ("order", "pubdate"),
-                    ("order_avoided", "true"),
-                    ("platform", "web"),
-                    ("web_location", "1550101"),
-                    ("pn", page.to_string().as_str()),
-                    ("ps", "30"),
-                ],
-                MIXIN_KEY.load().as_deref(),
-            ))
+            .query(&[
+                ("mid", self.upper_id.as_str()),
+                ("order", "pubdate"),
+                ("order_avoided", "true"),
+                ("platform", "web"),
+                ("web_location", "1550101"),
+                ("ps", "30"),
+            ])
+            .query(&[("pn", page)])
+            .wbi_sign(MIXIN_KEY.load().as_deref())?
             .send()
             .await?
             .error_for_status()?

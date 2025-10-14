@@ -6,8 +6,7 @@ use futures::Stream;
 use reqwest::Method;
 use serde_json::Value;
 
-use crate::bilibili::credential::encoded_query;
-use crate::bilibili::{BiliClient, MIXIN_KEY, Validate, VideoInfo};
+use crate::bilibili::{BiliClient, MIXIN_KEY, Validate, VideoInfo, WbiSign};
 
 pub struct Dynamic<'a> {
     client: &'a BiliClient,
@@ -29,16 +28,15 @@ impl<'a> Dynamic<'a> {
         self.client
             .request(
                 Method::GET,
-                "https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/all",
+                "https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/space",
             )
             .await
-            .query(&encoded_query(
-                vec![
-                    ("host_mid", self.upper_id.as_str()),
-                    ("offset", offset.as_deref().unwrap_or("")),
-                ],
-                MIXIN_KEY.load().as_deref(),
-            ))
+            .query(&[
+                ("host_mid", self.upper_id.as_str()),
+                ("offset", offset.as_deref().unwrap_or("")),
+                ("type", "video"),
+            ])
+            .wbi_sign(MIXIN_KEY.load().as_deref())?
             .send()
             .await?
             .error_for_status()?

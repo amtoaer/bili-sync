@@ -6,10 +6,9 @@ use reqwest::Method;
 
 use crate::bilibili::analyzer::PageAnalyzer;
 use crate::bilibili::client::BiliClient;
-use crate::bilibili::credential::encoded_query;
 use crate::bilibili::danmaku::{DanmakuElem, DanmakuWriter, DmSegMobileReply};
 use crate::bilibili::subtitle::{SubTitle, SubTitleBody, SubTitleInfo, SubTitlesInfo};
-use crate::bilibili::{MIXIN_KEY, Validate, VideoInfo};
+use crate::bilibili::{MIXIN_KEY, Validate, VideoInfo, WbiSign};
 
 pub struct Video<'a> {
     client: &'a BiliClient,
@@ -43,9 +42,10 @@ impl<'a> Video<'a> {
     pub async fn get_view_info(&self) -> Result<VideoInfo> {
         let mut res = self
             .client
-            .request(Method::GET, "https://api.bilibili.com/x/web-interface/view")
+            .request(Method::GET, "https://api.bilibili.com/x/web-interface/wbi/view")
             .await
             .query(&[("bvid", &self.bvid)])
+            .wbi_sign(MIXIN_KEY.load().as_deref())?
             .send()
             .await?
             .error_for_status()?
@@ -55,7 +55,7 @@ impl<'a> Video<'a> {
         Ok(serde_json::from_value(res["data"].take())?)
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub async fn get_pages(&self) -> Result<Vec<PageInfo>> {
         let mut res = self
             .client
@@ -105,9 +105,10 @@ impl<'a> Video<'a> {
     async fn get_danmaku_segment(&self, page: &PageInfo, segment_idx: i64) -> Result<Vec<DanmakuElem>> {
         let mut res = self
             .client
-            .request(Method::GET, "http://api.bilibili.com/x/v2/dm/web/seg.so")
+            .request(Method::GET, "https://api.bilibili.com/x/v2/dm/wbi/web/seg.so")
             .await
             .query(&[("type", 1), ("oid", page.cid), ("segment_index", segment_idx)])
+            .wbi_sign(MIXIN_KEY.load().as_deref())?
             .send()
             .await?
             .error_for_status()?;
@@ -127,17 +128,15 @@ impl<'a> Video<'a> {
             .client
             .request(Method::GET, "https://api.bilibili.com/x/player/wbi/playurl")
             .await
-            .query(&encoded_query(
-                vec![
-                    ("bvid", self.bvid.as_str()),
-                    ("cid", page.cid.to_string().as_str()),
-                    ("qn", "127"),
-                    ("otype", "json"),
-                    ("fnval", "4048"),
-                    ("fourk", "1"),
-                ],
-                MIXIN_KEY.load().as_deref(),
-            ))
+            .query(&[
+                ("bvid", self.bvid.as_str()),
+                ("qn", "127"),
+                ("otype", "json"),
+                ("fnval", "4048"),
+                ("fourk", "1"),
+            ])
+            .query(&[("cid", page.cid)])
+            .wbi_sign(MIXIN_KEY.load().as_deref())?
             .send()
             .await?
             .error_for_status()?
@@ -152,10 +151,9 @@ impl<'a> Video<'a> {
             .client
             .request(Method::GET, "https://api.bilibili.com/x/player/wbi/v2")
             .await
-            .query(&encoded_query(
-                vec![("cid", &page.cid.to_string()), ("bvid", &self.bvid)],
-                MIXIN_KEY.load().as_deref(),
-            ))
+            .query(&[("bvid", self.bvid.as_str())])
+            .query(&[("cid", page.cid)])
+            .wbi_sign(MIXIN_KEY.load().as_deref())?
             .send()
             .await?
             .error_for_status()?

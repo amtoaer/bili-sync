@@ -420,9 +420,8 @@
 								</Tooltip.Trigger>
 								<Tooltip.Content>
 									<p class="text-xs">
-										只有使用动态 API
-										才能拉取到动态视频，但该接口不提供筛选参数，需要拉取全部类型的动态后在本地筛选出视频。<br
-										/>这在扫描时会获取到较多无效数据并增加请求次数，可根据实际情况酌情选择，推荐仅在
+										只有使用动态 API 才能拉取到动态视频，但该接口不提供分页参数，每次请求只能拉取 12
+										条视频。<br />这会一定程度上增加请求次数，用户可根据实际情况酌情选择，推荐仅在
 										UP 主有较多动态视频时开启。
 									</p>
 								</Tooltip.Content>
@@ -505,7 +504,7 @@
 							<select
 								id="collection-type"
 								bind:value={collectionForm.collection_type}
-								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring mt-1 flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring mt-1 flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								<option value="1">列表 (Series)</option>
 								<option value="2">合集 (Season)</option>
