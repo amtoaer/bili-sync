@@ -185,7 +185,7 @@
 			<div class="min-w-0 flex-1 space-y-2">
 				<div class="flex items-start justify-between gap-2">
 					<CardTitle
-						class="line-clamp-2 text-sm font-medium leading-relaxed {disabled
+						class="line-clamp-2 text-sm leading-relaxed font-medium {disabled
 							? 'text-muted-foreground line-through'
 							: ''}"
 						{title}
@@ -229,7 +229,7 @@
 	</CardHeader>
 
 	<!-- 底部按钮区域 -->
-	<CardContent class="flex min-w-0 flex-1 flex-col justify-end pb-4 pt-0">
+	<CardContent class="flex min-w-0 flex-1 flex-col justify-end pt-0 pb-4">
 		<div class="flex justify-end">
 			{#if disabled}
 				<Button

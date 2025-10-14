@@ -22,23 +22,31 @@
 		ApiError
 	} from '$lib/types';
 
-	export let open = false;
-	export let item:
-		| FavoriteWithSubscriptionStatus
-		| CollectionWithSubscriptionStatus
-		| UpperWithSubscriptionStatus
-		| null = null;
-	export let type: 'favorites' | 'collections' | 'submissions' = 'favorites';
-	export let onSuccess: (() => void) | null = null;
+	interface Props {
+		open: boolean;
+		item:
+			| FavoriteWithSubscriptionStatus
+			| CollectionWithSubscriptionStatus
+			| UpperWithSubscriptionStatus
+			| null;
+		type: 'favorites' | 'collections' | 'submissions';
+		onSuccess: (() => void) | null;
+	}
 
-	let customPath = '';
-	let loading = false;
+	let {
+		open = $bindable(false),
+		item = null,
+		type = 'favorites',
+		onSuccess = null
+	}: Props = $props();
+
+	let customPath = $state('');
+	let loading = $state(false);
 
 	// 根据类型和 item 生成默认路径
 	async function generateDefaultPath(): Promise<string> {
-		let title = getItemTitle();
-		if (!title) return '';
-		return (await api.getDefaultPath(type, title)).data;
+		if (!itemTitle) return '';
+		return (await api.getDefaultPath(type, itemTitle)).data;
 	}
 
 	function getTypeLabel(): string {
@@ -130,19 +138,20 @@
 		open = false;
 	}
 
-	// 当对话框打开时重置 path
-	$: if (open && item) {
-		generateDefaultPath()
-			.then((path) => {
-				customPath = path;
-			})
-			.catch((e) => {
-				toast.error('获取默认路径失败', {
-					description: (e as ApiError).message
+	$effect(() => {
+		if (open && item) {
+			generateDefaultPath()
+				.then((path) => {
+					customPath = path;
+				})
+				.catch((error) => {
+					toast.error('获取默认路径失败', {
+						description: (error as ApiError).message
+					});
+					customPath = '';
 				});
-				customPath = '';
-			});
-	}
+		}
+	});
 
 	const typeLabel = getTypeLabel();
 	const itemTitle = getItemTitle();
