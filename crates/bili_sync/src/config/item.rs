@@ -1,16 +1,7 @@
-use std::path::PathBuf;
-
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::utils::filenamify::filenamify;
-
-/// 稍后再看的配置
-#[derive(Serialize, Deserialize, Default)]
-pub struct WatchLaterConfig {
-    pub enabled: bool,
-    pub path: PathBuf,
-}
 
 /// NFO 文件使用的时间类型
 #[derive(Serialize, Deserialize, Default, Clone)]
