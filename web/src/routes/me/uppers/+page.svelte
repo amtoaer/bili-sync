@@ -78,7 +78,7 @@
 				<div style="max-width: 450px; width: 100%;">
 					<SubscriptionCard
 						item={upper}
-						type="upper"
+						type="submissions"
 						onSubscriptionSuccess={handleSubscriptionSuccess}
 					/>
 				</div>

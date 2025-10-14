@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use axum::Router;
-use axum::extract::{Extension, Path};
+use axum::extract::{Extension, Path, Query};
 use axum::routing::{get, post, put};
 use bili_sync_entity::rule::Rule;
 use bili_sync_entity::*;
@@ -14,19 +14,25 @@ use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QuerySelect, Transac
 use crate::adapter::_ActiveModel;
 use crate::api::error::InnerApiError;
 use crate::api::request::{
-    InsertCollectionRequest, InsertFavoriteRequest, InsertSubmissionRequest, UpdateVideoSourceRequest,
+    DefaultPathRequest, InsertCollectionRequest, InsertFavoriteRequest, InsertSubmissionRequest,
+    UpdateVideoSourceRequest,
 };
 use crate::api::response::{
     UpdateVideoSourceResponse, VideoSource, VideoSourceDetail, VideoSourcesDetailsResponse, VideoSourcesResponse,
 };
 use crate::api::wrapper::{ApiError, ApiResponse, ValidatedJson};
 use crate::bilibili::{BiliClient, Collection, CollectionItem, FavoriteList, Submission};
+use crate::config::{PathSafeTemplate, TEMPLATE};
 use crate::utils::rule::FieldEvaluatable;
 
 pub(super) fn router() -> Router {
     Router::new()
         .route("/video-sources", get(get_video_sources))
         .route("/video-sources/details", get(get_video_sources_details))
+        .route(
+            "/video-sources/{type}/default-path",
+            get(get_video_sources_default_path),
+        ) // 仅用于前端获取默认路径
         .route("/video-sources/{type}/{id}", put(update_video_source))
         .route("/video-sources/{type}/{id}/evaluate", post(evaluate_video_source))
         .route("/video-sources/favorites", post(insert_favorite))
@@ -152,6 +158,20 @@ pub async fn get_video_sources_details(
         submissions,
         watch_later,
     }))
+}
+
+pub async fn get_video_sources_default_path(
+    Path(source_type): Path<String>,
+    Query(params): Query<DefaultPathRequest>,
+) -> Result<ApiResponse<String>, ApiError> {
+    let template_name = match source_type.as_str() {
+        "favorites" => "favorite_default_path",
+        "collections" => "collection_default_path",
+        "submissions" => "submission_default_path",
+        _ => return Err(InnerApiError::BadRequest("Invalid video source type".to_string()).into()),
+    };
+    let (template, params) = (TEMPLATE.load(), serde_json::to_value(params)?);
+    Ok(ApiResponse::ok(template.path_safe_render(template_name, &params)?))
 }
 
 /// 更新视频来源

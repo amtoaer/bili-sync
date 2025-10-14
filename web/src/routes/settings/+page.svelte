@@ -191,8 +191,6 @@
 						</div>
 					</div>
 
-					<Separator />
-
 					<div class="space-y-4">
 						<div class="space-y-2">
 							<Label for="backend-auth-token">后端 API 认证Token</Label>
@@ -204,6 +202,23 @@
 							<p class="text-muted-foreground text-xs">
 								修改此Token后，前端需要使用新Token重新认证才能访问API
 							</p>
+						</div>
+					</div>
+
+					<Separator />
+
+					<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+						<div class="space-y-2">
+							<Label for="favorite-default-path">收藏夹快捷订阅路径模板</Label>
+							<Input id="favorite-default-path" bind:value={formData.favorite_default_path} />
+						</div>
+						<div class="space-y-2">
+							<Label for="collection-default-path">合集快捷订阅路径模板</Label>
+							<Input id="collection-default-path" bind:value={formData.collection_default_path} />
+						</div>
+						<div class="space-y-2">
+							<Label for="submission-default-path">UP 主投稿快捷订阅路径模板</Label>
+							<Input id="submission-default-path" bind:value={formData.submission_default_path} />
 						</div>
 					</div>
 

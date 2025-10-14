@@ -63,7 +63,7 @@
 				<div style="max-width: 450px; width: 100%;">
 					<SubscriptionCard
 						item={favorite}
-						type="favorite"
+						type="favorites"
 						onSubscriptionSuccess={handleSubscriptionSuccess}
 					/>
 				</div>

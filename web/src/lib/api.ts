@@ -221,6 +221,10 @@ class ApiClient {
 		return this.post<boolean>(`/video-sources/${type}/${id}/evaluate`, null);
 	}
 
+	async getDefaultPath(type: string, name: string): Promise<ApiResponse<string>> {
+		return this.get<string>(`/video-sources/${type}/default-path`, { name });
+	}
+
 	async getConfig(): Promise<ApiResponse<Config>> {
 		return this.get<Config>('/config');
 	}
@@ -268,6 +272,7 @@ const api = {
 		apiClient.updateVideoSource(type, id, request),
 	evaluateVideoSourceRules: (type: string, id: number) =>
 		apiClient.evaluateVideoSourceRules(type, id),
+	getDefaultPath: (type: string, name: string) => apiClient.getDefaultPath(type, name),
 	getConfig: () => apiClient.getConfig(),
 	updateConfig: (config: Config) => apiClient.updateConfig(config),
 	getDashboard: () => apiClient.getDashboard(),

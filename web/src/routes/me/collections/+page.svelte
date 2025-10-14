@@ -77,7 +77,7 @@
 				<div style="max-width: 450px; width: 100%;">
 					<SubscriptionCard
 						item={collection}
-						type="collection"
+						type="collections"
 						onSubscriptionSuccess={handleSubscriptionSuccess}
 					/>
 				</div>
