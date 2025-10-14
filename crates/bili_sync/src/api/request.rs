@@ -1,5 +1,5 @@
 use bili_sync_entity::rule::Rule;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use crate::bilibili::CollectionType;
@@ -90,4 +90,9 @@ pub struct UpdateVideoSourceRequest {
     pub enabled: bool,
     pub rule: Option<Rule>,
     pub use_dynamic_api: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct DefaultPathRequest {
+    pub name: String,
 }

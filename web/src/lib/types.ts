@@ -281,6 +281,9 @@ export interface Config {
 	skip_option: SkipOption;
 	video_name: string;
 	page_name: string;
+	favorite_default_path: string;
+	collection_default_path: string;
+	submission_default_path: string;
 	interval: number;
 	upper_path: string;
 	nfo_time_type: string;

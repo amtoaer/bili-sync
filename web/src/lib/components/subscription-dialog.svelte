@@ -2,6 +2,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import { toast } from 'svelte-sonner';
 	import {
 		Sheet,
 		SheetContent,
@@ -10,7 +11,6 @@
 		SheetHeader,
 		SheetTitle
 	} from '$lib/components/ui/sheet/index.js';
-	import { toast } from 'svelte-sonner';
 	import api from '$lib/api';
 	import type {
 		FavoriteWithSubscriptionStatus,
@@ -28,41 +28,26 @@
 		| CollectionWithSubscriptionStatus
 		| UpperWithSubscriptionStatus
 		| null = null;
-	export let type: 'favorite' | 'collection' | 'upper' = 'favorite';
+	export let type: 'favorites' | 'collections' | 'submissions' = 'favorites';
 	export let onSuccess: (() => void) | null = null;
 
 	let customPath = '';
 	let loading = false;
 
 	// 根据类型和 item 生成默认路径
-	function generateDefaultPath(): string {
-		if (!item) return '';
-
-		switch (type) {
-			case 'favorite': {
-				const favorite = item as FavoriteWithSubscriptionStatus;
-				return `收藏夹/${favorite.title}`;
-			}
-			case 'collection': {
-				const collection = item as CollectionWithSubscriptionStatus;
-				return `合集/${collection.title}`;
-			}
-			case 'upper': {
-				const upper = item as UpperWithSubscriptionStatus;
-				return `UP 主/${upper.uname}`;
-			}
-			default:
-				return '';
-		}
+	async function generateDefaultPath(): Promise<string> {
+		let title = getItemTitle();
+		if (!title) return '';
+		return (await api.getDefaultPath(type, title)).data;
 	}
 
 	function getTypeLabel(): string {
 		switch (type) {
-			case 'favorite':
+			case 'favorites':
 				return '收藏夹';
-			case 'collection':
+			case 'collections':
 				return '合集';
-			case 'upper':
+			case 'submissions':
 				return 'UP 主';
 			default:
 				return '';
@@ -73,11 +58,11 @@
 		if (!item) return '';
 
 		switch (type) {
-			case 'favorite':
+			case 'favorites':
 				return (item as FavoriteWithSubscriptionStatus).title;
-			case 'collection':
+			case 'collections':
 				return (item as CollectionWithSubscriptionStatus).title;
-			case 'upper':
+			case 'submissions':
 				return (item as UpperWithSubscriptionStatus).uname;
 			default:
 				return '';
@@ -92,7 +77,7 @@
 			let response;
 
 			switch (type) {
-				case 'favorite': {
+				case 'favorites': {
 					const favorite = item as FavoriteWithSubscriptionStatus;
 					const request: InsertFavoriteRequest = {
 						fid: favorite.fid,
@@ -101,7 +86,7 @@
 					response = await api.insertFavorite(request);
 					break;
 				}
-				case 'collection': {
+				case 'collections': {
 					const collection = item as CollectionWithSubscriptionStatus;
 					const request: InsertCollectionRequest = {
 						sid: collection.sid,
@@ -111,7 +96,7 @@
 					response = await api.insertCollection(request);
 					break;
 				}
-				case 'upper': {
+				case 'submissions': {
 					const upper = item as UpperWithSubscriptionStatus;
 					const request: InsertSubmissionRequest = {
 						upper_id: upper.mid,
@@ -147,7 +132,16 @@
 
 	// 当对话框打开时重置 path
 	$: if (open && item) {
-		customPath = generateDefaultPath();
+		generateDefaultPath()
+			.then((path) => {
+				customPath = path;
+			})
+			.catch((e) => {
+				toast.error('获取默认路径失败', {
+					description: (e as ApiError).message
+				});
+				customPath = '';
+			});
 	}
 
 	const typeLabel = getTypeLabel();
@@ -173,14 +167,14 @@
 							<span class="text-muted-foreground text-sm font-medium">{typeLabel}名称：</span>
 							<span class="text-sm">{itemTitle}</span>
 						</div>
-						{#if type === 'favorite'}
+						{#if type === 'favorites'}
 							{@const favorite = item as FavoriteWithSubscriptionStatus}
 							<div class="flex items-center gap-2">
 								<span class="text-muted-foreground text-sm font-medium">视频数量：</span>
 								<span class="text-sm">{favorite.media_count} 个</span>
 							</div>
 						{/if}
-						{#if type === 'upper'}
+						{#if type === 'submissions'}
 							{@const upper = item as UpperWithSubscriptionStatus}
 							{#if upper.sign}
 								<div class="flex items-start gap-2">

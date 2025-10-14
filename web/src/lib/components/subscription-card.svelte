@@ -20,18 +20,18 @@
 		| FavoriteWithSubscriptionStatus
 		| CollectionWithSubscriptionStatus
 		| UpperWithSubscriptionStatus;
-	export let type: 'favorite' | 'collection' | 'upper' = 'favorite';
+	export let type: 'favorites' | 'collections' | 'submissions' = 'favorites';
 	export let onSubscriptionSuccess: (() => void) | null = null;
 
 	let dialogOpen = false;
 
 	function getIcon() {
 		switch (type) {
-			case 'favorite':
+			case 'favorites':
 				return HeartIcon;
-			case 'collection':
+			case 'collections':
 				return FolderIcon;
-			case 'upper':
+			case 'submissions':
 				return UserIcon;
 			default:
 				return VideoIcon;
@@ -40,11 +40,11 @@
 
 	function getTypeLabel() {
 		switch (type) {
-			case 'favorite':
+			case 'favorites':
 				return '收藏夹';
-			case 'collection':
+			case 'collections':
 				return '合集';
-			case 'upper':
+			case 'submissions':
 				return 'UP 主';
 			default:
 				return '';
@@ -53,11 +53,11 @@
 
 	function getTitle(): string {
 		switch (type) {
-			case 'favorite':
+			case 'favorites':
 				return (item as FavoriteWithSubscriptionStatus).title;
-			case 'collection':
+			case 'collections':
 				return (item as CollectionWithSubscriptionStatus).title;
-			case 'upper':
+			case 'submissions':
 				return (item as UpperWithSubscriptionStatus).uname;
 			default:
 				return '';
@@ -66,12 +66,10 @@
 
 	function getSubtitle(): string {
 		switch (type) {
-			case 'favorite':
+			case 'favorites':
 				return `uid: ${(item as FavoriteWithSubscriptionStatus).mid}`;
-			case 'collection':
+			case 'collections':
 				return `uid: ${(item as CollectionWithSubscriptionStatus).mid}`;
-			case 'upper':
-				return '';
 			default:
 				return '';
 		}
@@ -79,7 +77,7 @@
 
 	function getDescription(): string {
 		switch (type) {
-			case 'upper':
+			case 'submissions':
 				return (item as UpperWithSubscriptionStatus).sign || '';
 			default:
 				return '';
@@ -88,9 +86,9 @@
 
 	function isDisabled(): boolean {
 		switch (type) {
-			case 'collection':
+			case 'collections':
 				return (item as CollectionWithSubscriptionStatus).invalid;
-			case 'upper': {
+			case 'submissions': {
 				return (item as UpperWithSubscriptionStatus).invalid;
 			}
 			default:
@@ -100,9 +98,9 @@
 
 	function getDisabledReason(): string {
 		switch (type) {
-			case 'collection':
+			case 'collections':
 				return '已失效';
-			case 'upper':
+			case 'submissions':
 				return '账号已注销';
 			default:
 				return '';
@@ -111,7 +109,7 @@
 
 	function getCount(): number | null {
 		switch (type) {
-			case 'favorite':
+			case 'favorites':
 				return (item as FavoriteWithSubscriptionStatus).media_count;
 			default:
 				return null;
@@ -124,7 +122,7 @@
 
 	function getAvatarUrl(): string {
 		switch (type) {
-			case 'upper':
+			case 'submissions':
 				return (item as UpperWithSubscriptionStatus).face;
 			default:
 				return '';
@@ -171,7 +169,7 @@
 					? 'opacity-50'
 					: ''}"
 			>
-				{#if avatarUrl && type === 'upper'}
+				{#if avatarUrl && type === 'submissions'}
 					<img
 						src={avatarUrl}
 						alt={title}
@@ -187,7 +185,7 @@
 			<div class="min-w-0 flex-1 space-y-2">
 				<div class="flex items-start justify-between gap-2">
 					<CardTitle
-						class="line-clamp-2 text-sm leading-relaxed font-medium {disabled
+						class="line-clamp-2 text-sm font-medium leading-relaxed {disabled
 							? 'text-muted-foreground line-through'
 							: ''}"
 						{title}
@@ -231,7 +229,7 @@
 	</CardHeader>
 
 	<!-- 底部按钮区域 -->
-	<CardContent class="flex min-w-0 flex-1 flex-col justify-end pt-0 pb-4">
+	<CardContent class="flex min-w-0 flex-1 flex-col justify-end pb-4 pt-0">
 		<div class="flex justify-end">
 			{#if disabled}
 				<Button
@@ -263,7 +261,5 @@
 	</CardContent>
 </Card>
 
-<!-- 订阅对话框 -->
-<SubscriptionDialog bind:open={dialogOpen} {item} {type} onSuccess={handleSubscriptionSuccess} />
 <!-- 订阅对话框 -->
 <SubscriptionDialog bind:open={dialogOpen} {item} {type} onSuccess={handleSubscriptionSuccess} />
