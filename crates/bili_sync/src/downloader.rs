@@ -15,6 +15,7 @@ use tokio_util::io::StreamReader;
 
 use crate::bilibili::Client;
 use crate::config::VersionedConfig;
+
 pub struct Downloader {
     client: Client,
 }

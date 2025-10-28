@@ -1,4 +1,5 @@
 pub mod convert;
+pub mod download_context;
 pub mod filenamify;
 pub mod format_arg;
 pub mod model;

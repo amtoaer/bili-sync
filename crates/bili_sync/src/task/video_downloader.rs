@@ -50,7 +50,7 @@ pub async fn video_downloader(connection: DatabaseConnection, bili_client: Arc<B
             }
             for video_source in video_sources {
                 let display_name = video_source.display_name();
-                if let Err(e) = process_video_source(video_source, &bili_client, &connection).await {
+                if let Err(e) = process_video_source(video_source, &bili_client, &connection, &config).await {
                     error!("处理 {} 时遇到错误：{:#}，等待下一轮执行", display_name, e);
                 }
             }

@@ -85,14 +85,6 @@ impl Config {
         }
         Ok(())
     }
-
-    #[cfg(test)]
-    pub(super) fn test_default() -> Self {
-        Self {
-            cdn_sorting: true,
-            ..Default::default()
-        }
-    }
 }
 
 impl Default for Config {

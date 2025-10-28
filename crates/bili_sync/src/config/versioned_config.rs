@@ -68,12 +68,11 @@ impl VersionedConfig {
     }
 
     #[cfg(test)]
-    /// 尝试获取全局的 `VersionedConfig`，如果未初始化则退回测试环境的默认配置
+    /// 尝试获取全局的 `VersionedConfig`，如果未初始化则退回默认配置
     pub fn get() -> &'static VersionedConfig {
         use std::sync::LazyLock;
-        static FALLBACK_CONFIG: LazyLock<VersionedConfig> =
-            LazyLock::new(|| VersionedConfig::new(Config::test_default()));
-        // 优先从全局变量获取，未初始化则返回测试环境的默认配置
+        static FALLBACK_CONFIG: LazyLock<VersionedConfig> = LazyLock::new(|| VersionedConfig::new(Config::default()));
+        // 优先从全局变量获取，未初始化则退回默认配置
         return VERSIONED_CONFIG.get().unwrap_or_else(|| &FALLBACK_CONFIG);
     }
 

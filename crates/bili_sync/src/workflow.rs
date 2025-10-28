@@ -14,9 +14,10 @@ use tokio::sync::Semaphore;
 
 use crate::adapter::{VideoSource, VideoSourceEnum};
 use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, PageInfo, Video, VideoInfo};
-use crate::config::{ARGS, PathSafeTemplate, SkipOption, TEMPLATE, VersionedConfig};
+use crate::config::{ARGS, Config, PathSafeTemplate, TEMPLATE};
 use crate::downloader::Downloader;
 use crate::error::{DownloadAbortError, ExecutionStatus, ProcessPageError};
+use crate::utils::download_context::DownloadContext;
 use crate::utils::format_arg::{page_format_args, video_format_args};
 use crate::utils::model::{
     create_pages, create_videos, filter_unfilled_videos, filter_unhandled_video_pages, update_pages_model,
@@ -31,6 +32,7 @@ pub async fn process_video_source(
     video_source: VideoSourceEnum,
     bili_client: &BiliClient,
     connection: &DatabaseConnection,
+    config: &Config,
 ) -> Result<()> {
     // 预创建视频源目录，提前检测目录是否可写
     video_source.create_dir_all().await?;
@@ -39,12 +41,12 @@ pub async fn process_video_source(
     // 从视频流中获取新视频的简要信息，写入数据库
     refresh_video_source(&video_source, video_streams, connection).await?;
     // 单独请求视频详情接口，获取视频的详情信息与所有的分页，写入数据库
-    fetch_video_details(bili_client, &video_source, connection).await?;
+    fetch_video_details(bili_client, &video_source, connection, config).await?;
     if ARGS.scan_only {
         warn!("已开启仅扫描模式，跳过视频下载..");
     } else {
         // 从数据库中查找所有未下载的视频与分页，下载并处理
-        download_unprocessed_videos(bili_client, &video_source, connection).await?;
+        download_unprocessed_videos(bili_client, &video_source, connection, config).await?;
     }
     Ok(())
 }
@@ -103,10 +105,11 @@ pub async fn fetch_video_details(
     bili_client: &BiliClient,
     video_source: &VideoSourceEnum,
     connection: &DatabaseConnection,
+    config: &Config,
 ) -> Result<()> {
     video_source.log_fetch_video_start();
     let videos_model = filter_unfilled_videos(video_source.filter_expr(), connection).await?;
-    let semaphore = Semaphore::new(VersionedConfig::get().load().concurrent_limit.video);
+    let semaphore = Semaphore::new(config.concurrent_limit.video);
     let semaphore_ref = &semaphore;
     let tasks = videos_model
         .into_iter()
@@ -161,12 +164,12 @@ pub async fn download_unprocessed_videos(
     bili_client: &BiliClient,
     video_source: &VideoSourceEnum,
     connection: &DatabaseConnection,
+    config: &Config,
 ) -> Result<()> {
     video_source.log_download_video_start();
-    let semaphore = Semaphore::new(VersionedConfig::get().load().concurrent_limit.video);
+    let semaphore = Semaphore::new(config.concurrent_limit.video);
     let downloader = Downloader::new(bili_client.client.clone());
-    // 提前获取 skip_option，保证单个视频源在整个下载过程中配置不变
-    let skip_option = &VersionedConfig::get().load().skip_option;
+    let context = DownloadContext::new(bili_client, video_source, connection, &downloader, config);
     let unhandled_videos_pages = filter_unhandled_video_pages(video_source.filter_expr(), connection).await?;
     let mut assigned_upper = HashSet::new();
     let tasks = unhandled_videos_pages
@@ -174,17 +177,7 @@ pub async fn download_unprocessed_videos(
         .map(|(video_model, pages_model)| {
             let should_download_upper = !assigned_upper.contains(&video_model.upper_id);
             assigned_upper.insert(video_model.upper_id);
-            download_video_pages(
-                bili_client,
-                video_source,
-                video_model,
-                pages_model,
-                connection,
-                &semaphore,
-                &downloader,
-                should_download_upper,
-                skip_option,
-            )
+            download_video_pages(video_model, pages_model, &semaphore, should_download_upper, context)
         })
         .collect::<FuturesUnordered<_>>();
     let mut download_aborted = false;
@@ -213,29 +206,24 @@ pub async fn download_unprocessed_videos(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
 pub async fn download_video_pages(
-    bili_client: &BiliClient,
-    video_source: &VideoSourceEnum,
     video_model: video::Model,
-    pages: Vec<page::Model>,
-    connection: &DatabaseConnection,
+    page_models: Vec<page::Model>,
     semaphore: &Semaphore,
-    downloader: &Downloader,
     should_download_upper: bool,
-    skip_option: &SkipOption,
+    context: DownloadContext<'_>,
 ) -> Result<video::ActiveModel> {
     let _permit = semaphore.acquire().await.context("acquire semaphore failed")?;
     let mut status = VideoStatus::from(video_model.download_status);
     let separate_status = status.should_run();
-    let base_path = video_source.path().join(
+    let base_path = context.video_source.path().join(
         TEMPLATE
             .load()
             .path_safe_render("video", &video_format_args(&video_model))?,
     );
     let upper_id = video_model.upper_id.to_string();
-    let base_upper_path = VersionedConfig::get()
-        .load()
+    let base_upper_path = context
+        .config
         .upper_path
         .join(upper_id.chars().next().context("upper_id is empty")?.to_string())
         .join(upper_id);
@@ -245,42 +233,33 @@ pub async fn download_video_pages(
     let (res_1, res_2, res_3, res_4, res_5) = tokio::join!(
         // 下载视频封面
         fetch_video_poster(
-            separate_status[0] && !is_single_page && !skip_option.no_poster,
+            separate_status[0] && !is_single_page && !context.config.skip_option.no_poster,
             &video_model,
-            downloader,
+            context.downloader,
             base_path.join("poster.jpg"),
             base_path.join("fanart.jpg"),
         ),
         // 生成视频信息的 nfo
         generate_video_nfo(
-            separate_status[1] && !is_single_page && !skip_option.no_video_nfo,
+            separate_status[1] && !is_single_page && !context.config.skip_option.no_video_nfo,
             &video_model,
             base_path.join("tvshow.nfo"),
         ),
         // 下载 Up 主头像
         fetch_upper_face(
-            separate_status[2] && should_download_upper && !skip_option.no_upper,
+            separate_status[2] && should_download_upper && !context.config.skip_option.no_upper,
             &video_model,
-            downloader,
+            context.downloader,
             base_upper_path.join("folder.jpg"),
         ),
         // 生成 Up 主信息的 nfo
         generate_upper_nfo(
-            separate_status[3] && should_download_upper && !skip_option.no_upper,
+            separate_status[3] && should_download_upper && !context.config.skip_option.no_upper,
             &video_model,
             base_upper_path.join("person.nfo"),
         ),
         // 分发并执行分页下载的任务
-        dispatch_download_page(
-            separate_status[4],
-            bili_client,
-            &video_model,
-            pages,
-            connection,
-            downloader,
-            &base_path,
-            skip_option,
-        )
+        dispatch_download_page(separate_status[4], &video_model, page_models, &base_path, context,)
     );
     let results = [res_1, res_2, res_3, res_4, res_5]
         .into_iter()
@@ -316,34 +295,20 @@ pub async fn download_video_pages(
 }
 
 /// 分发并执行分页下载任务，当且仅当所有分页成功下载或达到最大重试次数时返回 Ok，否则根据失败原因返回对应的错误
-#[allow(clippy::too_many_arguments)]
 pub async fn dispatch_download_page(
     should_run: bool,
-    bili_client: &BiliClient,
     video_model: &video::Model,
-    pages: Vec<page::Model>,
-    connection: &DatabaseConnection,
-    downloader: &Downloader,
+    page_models: Vec<page::Model>,
     base_path: &Path,
-    skip_option: &SkipOption,
+    context: DownloadContext<'_>,
 ) -> Result<ExecutionStatus> {
     if !should_run {
         return Ok(ExecutionStatus::Skipped);
     }
-    let child_semaphore = Semaphore::new(VersionedConfig::get().load().concurrent_limit.page);
-    let tasks = pages
+    let child_semaphore = Semaphore::new(context.config.concurrent_limit.page);
+    let tasks = page_models
         .into_iter()
-        .map(|page_model| {
-            download_page(
-                bili_client,
-                video_model,
-                page_model,
-                &child_semaphore,
-                downloader,
-                base_path,
-                skip_option,
-            )
-        })
+        .map(|page_model| download_page(video_model, page_model, &child_semaphore, base_path, context))
         .collect::<FuturesUnordered<_>>();
     let (mut download_aborted, mut target_status) = (false, STATUS_OK);
     let mut stream = tasks
@@ -372,7 +337,7 @@ pub async fn dispatch_download_page(
         .filter_map(|res| futures::future::ready(res.ok()))
         .chunks(10);
     while let Some(models) = stream.next().await {
-        update_pages_model(models, connection).await?;
+        update_pages_model(models, context.connection).await?;
     }
     if download_aborted {
         error!("下载视频「{}」的分页时触发风控，将异常向上传递..", &video_model.name);
@@ -386,13 +351,11 @@ pub async fn dispatch_download_page(
 
 /// 下载某个分页，未发生风控且正常运行时返回 Ok(Page::ActiveModel)，其中 status 字段存储了新的下载状态，发生风控时返回 DownloadAbortError
 pub async fn download_page(
-    bili_client: &BiliClient,
     video_model: &video::Model,
     page_model: page::Model,
     semaphore: &Semaphore,
-    downloader: &Downloader,
     base_path: &Path,
-    skip_option: &SkipOption,
+    context: DownloadContext<'_>,
 ) -> Result<page::ActiveModel> {
     let _permit = semaphore.acquire().await.context("acquire semaphore failed")?;
     let mut status = PageStatus::from(page_model.download_status);
@@ -448,41 +411,34 @@ pub async fn download_page(
     let (res_1, res_2, res_3, res_4, res_5) = tokio::join!(
         // 下载分页封面
         fetch_page_poster(
-            separate_status[0] && !skip_option.no_poster,
+            separate_status[0] && !context.config.skip_option.no_poster,
             video_model,
             &page_model,
-            downloader,
+            context.downloader,
             poster_path,
             fanart_path
         ),
         // 下载分页视频
-        fetch_page_video(
-            separate_status[1],
-            bili_client,
-            video_model,
-            downloader,
-            &page_info,
-            &video_path
-        ),
+        fetch_page_video(separate_status[1], video_model, &page_info, &video_path, context),
         // 生成分页视频信息的 nfo
         generate_page_nfo(
-            separate_status[2] && !skip_option.no_video_nfo,
+            separate_status[2] && !context.config.skip_option.no_video_nfo,
             video_model,
             &page_model,
             nfo_path
         ),
         // 下载分页弹幕
         fetch_page_danmaku(
-            separate_status[3] && !skip_option.no_danmaku,
-            bili_client,
+            separate_status[3] && !context.config.skip_option.no_danmaku,
+            context.bili_client,
             video_model,
             &page_info,
             danmaku_path
         ),
         // 下载分页字幕
         fetch_page_subtitle(
-            separate_status[4] && !skip_option.no_subtitle,
-            bili_client,
+            separate_status[4] && !context.config.skip_option.no_subtitle,
+            context.bili_client,
             video_model,
             &page_info,
             &subtitle_path
@@ -559,32 +515,46 @@ pub async fn fetch_page_poster(
 
 pub async fn fetch_page_video(
     should_run: bool,
-    bili_client: &BiliClient,
     video_model: &video::Model,
-    downloader: &Downloader,
     page_info: &PageInfo,
     page_path: &Path,
+    context: DownloadContext<'_>,
 ) -> Result<ExecutionStatus> {
     if !should_run {
         return Ok(ExecutionStatus::Skipped);
     }
-    let bili_video = Video::new(bili_client, video_model.bvid.clone());
+    let bili_video = Video::new(context.bili_client, video_model.bvid.clone());
     let streams = bili_video
         .get_page_analyzer(page_info)
         .await?
-        .best_stream(&VersionedConfig::get().load().filter_option)?;
+        .best_stream(&context.config.filter_option)?;
     match streams {
-        BestStream::Mixed(mix_stream) => downloader.multi_fetch(&mix_stream.urls(), page_path).await?,
+        BestStream::Mixed(mix_stream) => {
+            context
+                .downloader
+                .multi_fetch(&mix_stream.urls(context.config.cdn_sorting), page_path)
+                .await?
+        }
         BestStream::VideoAudio {
             video: video_stream,
             audio: None,
-        } => downloader.multi_fetch(&video_stream.urls(), page_path).await?,
+        } => {
+            context
+                .downloader
+                .multi_fetch(&video_stream.urls(context.config.cdn_sorting), page_path)
+                .await?
+        }
         BestStream::VideoAudio {
             video: video_stream,
             audio: Some(audio_stream),
         } => {
-            downloader
-                .multi_fetch_and_merge(&video_stream.urls(), &audio_stream.urls(), page_path)
+            context
+                .downloader
+                .multi_fetch_and_merge(
+                    &video_stream.urls(context.config.cdn_sorting),
+                    &audio_stream.urls(context.config.cdn_sorting),
+                    page_path,
+                )
                 .await?
         }
     }

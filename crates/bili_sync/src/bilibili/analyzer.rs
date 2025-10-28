@@ -2,7 +2,6 @@ use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 
 use crate::bilibili::error::BiliError;
-use crate::config::VersionedConfig;
 
 pub struct PageAnalyzer {
     info: serde_json::Value,
@@ -131,14 +130,14 @@ pub enum Stream {
 
 // 通用的获取流链接的方法，交由 Downloader 使用
 impl Stream {
-    pub fn urls(&self) -> Vec<&str> {
+    pub fn urls(&self, enable_cdn_sorting: bool) -> Vec<&str> {
         match self {
             Self::Flv(url) | Self::Html5Mp4(url) | Self::EpisodeTryMp4(url) => vec![url],
             Self::DashVideo { url, backup_url, .. } | Self::DashAudio { url, backup_url, .. } => {
                 let mut urls = std::iter::once(url.as_str())
                     .chain(backup_url.iter().map(|s| s.as_str()))
                     .collect::<Vec<_>>();
-                if VersionedConfig::get().load().cdn_sorting {
+                if enable_cdn_sorting {
                     urls.sort_by_key(|u| {
                         if u.contains("upos-") {
                             0 // 服务商 cdn
@@ -469,7 +468,7 @@ mod tests {
             codecs: VideoCodecs::AVC,
         };
         assert_eq!(
-            stream.urls(),
+            stream.urls(true),
             vec![
                 "https://upos-sz-mirrorcos.bilivideo.com",
                 "https://cn-tj-cu-01-11.bilivideo.com",
