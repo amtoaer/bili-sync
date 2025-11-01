@@ -62,26 +62,29 @@ impl Default for Client {
 
 pub struct BiliClient {
     pub client: Client,
-    limiter: VersionedCache<Option<RateLimiter>>,
+    pub limiter: VersionedCache<Option<RateLimiter>>,
 }
 
 impl BiliClient {
     pub fn new() -> Self {
         let client = Client::new();
-        let limiter = VersionedCache::new(|config| {
-            Ok(config
-                .concurrent_limit
-                .rate_limit
-                .as_ref()
-                .map(|RateLimit { limit, duration }| {
-                    RateLimiter::builder()
-                        .initial(*limit)
-                        .refill(*limit)
-                        .max(*limit)
-                        .interval(Duration::from_millis(*duration))
-                        .build()
-                }))
-        })
+        let limiter = VersionedCache::new(
+            |config| {
+                Ok(config
+                    .concurrent_limit
+                    .rate_limit
+                    .as_ref()
+                    .map(|RateLimit { limit, duration }| {
+                        RateLimiter::builder()
+                            .initial(*limit)
+                            .refill(*limit)
+                            .max(*limit)
+                            .interval(Duration::from_millis(*duration))
+                            .build()
+                    }))
+            },
+            &VersionedConfig::get().load(),
+        )
         .expect("failed to create rate limiter");
         Self { client, limiter }
     }

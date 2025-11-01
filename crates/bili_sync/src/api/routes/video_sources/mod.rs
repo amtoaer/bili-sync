@@ -22,7 +22,7 @@ use crate::api::response::{
 };
 use crate::api::wrapper::{ApiError, ApiResponse, ValidatedJson};
 use crate::bilibili::{BiliClient, Collection, CollectionItem, FavoriteList, Submission};
-use crate::config::{PathSafeTemplate, TEMPLATE};
+use crate::config::{PathSafeTemplate, TEMPLATE, VersionedConfig};
 use crate::utils::rule::FieldEvaluatable;
 
 pub(super) fn router() -> Router {
@@ -170,8 +170,10 @@ pub async fn get_video_sources_default_path(
         "submissions" => "submission_default_path",
         _ => return Err(InnerApiError::BadRequest("Invalid video source type".to_string()).into()),
     };
-    let (template, params) = (TEMPLATE.load(), serde_json::to_value(params)?);
-    Ok(ApiResponse::ok(template.path_safe_render(template_name, &params)?))
+    let template = TEMPLATE.load_full_with_update(&VersionedConfig::get().load())?;
+    Ok(ApiResponse::ok(
+        template.path_safe_render(template_name, &serde_json::to_value(params)?)?,
+    ))
 }
 
 /// 更新视频来源

@@ -4,10 +4,11 @@ use anyhow::Result;
 use handlebars::handlebars_helper;
 
 use crate::config::versioned_cache::VersionedCache;
-use crate::config::{Config, PathSafeTemplate};
+use crate::config::{Config, PathSafeTemplate, VersionedConfig};
 
-pub static TEMPLATE: LazyLock<VersionedCache<handlebars::Handlebars<'static>>> =
-    LazyLock::new(|| VersionedCache::new(create_template).expect("Failed to create handlebars template"));
+pub static TEMPLATE: LazyLock<VersionedCache<handlebars::Handlebars<'static>>> = LazyLock::new(|| {
+    VersionedCache::new(create_template, &VersionedConfig::get().load()).expect("Failed to create handlebars template")
+});
 
 fn create_template(config: &Config) -> Result<handlebars::Handlebars<'static>> {
     let mut handlebars = handlebars::Handlebars::new();

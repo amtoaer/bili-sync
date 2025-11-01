@@ -92,21 +92,13 @@ impl VersionedConfig {
     }
 
     pub async fn update_credential(&self, new_credential: Credential, connection: &DatabaseConnection) -> Result<()> {
-        // 确保更新内容与写入数据库的操作是原子性的
         let _lock = self.update_lock.lock().await;
-        loop {
-            let old_config = self.inner.load();
-            let mut new_config = old_config.as_ref().clone();
-            new_config.credential = new_credential.clone();
-            new_config.version += 1;
-            if Arc::ptr_eq(
-                &old_config,
-                &self.inner.compare_and_swap(&old_config, Arc::new(new_config)),
-            ) {
-                break;
-            }
-        }
-        self.inner.load().save_to_database(connection).await
+        let mut new_config = self.inner.load().as_ref().clone();
+        new_config.credential = new_credential;
+        new_config.version += 1;
+        new_config.save_to_database(connection).await?;
+        self.inner.store(Arc::new(new_config));
+        Ok(())
     }
 
     /// 外部 API 会调用这个方法，如果更新失败直接返回错误
@@ -118,13 +110,8 @@ impl VersionedConfig {
         }
         new_config.version += 1;
         let new_config = Arc::new(new_config);
-        if !Arc::ptr_eq(
-            &old_config,
-            &self.inner.compare_and_swap(&old_config, new_config.clone()),
-        ) {
-            bail!("配置版本不匹配，请刷新页面修改后重新提交");
-        }
         new_config.save_to_database(connection).await?;
+        self.inner.store(new_config.clone());
         Ok(new_config)
     }
 }
