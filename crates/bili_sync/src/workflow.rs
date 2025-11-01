@@ -64,7 +64,7 @@ pub async fn refresh_video_source<'a>(
         .take_while(|(idx, res)| {
             match res {
                 Err(e) => {
-                    error = Err(anyhow!(e.to_string()));
+                    error = Err(anyhow!("{:#}", e));
                     futures::future::ready(false)
                 }
                 Ok(v) => {
