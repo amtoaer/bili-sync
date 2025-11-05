@@ -38,10 +38,10 @@ async fn download_all_video_sources(
     config.check().context("配置检查失败")?;
     bili_client
         .limiter
-        .load_full_with_update(&config)
+        .load_full_with_update(config)
         .context("使用新配置重载限流器失败")?;
     let template = TEMPLATE
-        .load_full_with_update(&config)
+        .load_full_with_update(config)
         .context("使用新配置重载模板失败")?;
     let mixin_key = bili_client
         .wbi_img()
@@ -52,12 +52,12 @@ async fn download_all_video_sources(
     bilibili::set_global_mixin_key(mixin_key);
     if *anchor != chrono::Local::now().date_naive() {
         bili_client
-            .check_refresh(&connection)
+            .check_refresh(connection)
             .await
             .context("检查刷新 Credential 失败")?;
         *anchor = chrono::Local::now().date_naive();
     }
-    let video_sources = get_enabled_video_sources(&connection)
+    let video_sources = get_enabled_video_sources(connection)
         .await
         .context("获取视频源列表失败")?;
     if video_sources.is_empty() {
@@ -65,7 +65,7 @@ async fn download_all_video_sources(
     }
     for video_source in video_sources {
         let display_name = video_source.display_name();
-        if let Err(e) = process_video_source(video_source, &bili_client, &connection, &template, &config).await {
+        if let Err(e) = process_video_source(video_source, bili_client, connection, &template, config).await {
             error!("处理 {} 时遇到错误：{:#}，跳过该视频源", display_name, e);
         }
     }

@@ -38,7 +38,9 @@ pub async fn process_video_source(
     // 预创建视频源目录，提前检测目录是否可写
     video_source.create_dir_all().await?;
     // 从参数中获取视频列表的 Model 与视频流
-    let (video_source, video_streams) = video_source.refresh(bili_client, connection).await?;
+    let (video_source, video_streams) = video_source
+        .refresh(bili_client, &config.credential, connection)
+        .await?;
     // 从视频流中获取新视频的简要信息，写入数据库
     refresh_video_source(&video_source, video_streams, connection).await?;
     // 单独请求视频详情接口，获取视频的详情信息与所有的分页，写入数据库
@@ -116,7 +118,7 @@ pub async fn fetch_video_details(
         .into_iter()
         .map(|video_model| async move {
             let _permit = semaphore_ref.acquire().await.context("acquire semaphore failed")?;
-            let video = Video::new(bili_client, video_model.bvid.clone());
+            let video = Video::new(bili_client, video_model.bvid.clone(), &config.credential);
             let info: Result<_> = async { Ok((video.get_tags().await?, video.get_view_info().await?)) }.await;
             match info {
                 Err(e) => {
@@ -241,9 +243,9 @@ pub async fn download_video_pages(
         fetch_video_poster(
             separate_status[0] && !is_single_page && !cx.config.skip_option.no_poster,
             &video_model,
-            cx.downloader,
             base_path.join("poster.jpg"),
             base_path.join("fanart.jpg"),
+            cx
         ),
         // 生成视频信息的 nfo
         generate_video_nfo(
@@ -255,8 +257,8 @@ pub async fn download_video_pages(
         fetch_upper_face(
             separate_status[2] && should_download_upper && !cx.config.skip_option.no_upper,
             &video_model,
-            cx.downloader,
             base_upper_path.join("folder.jpg"),
+            cx
         ),
         // 生成 Up 主信息的 nfo
         generate_upper_nfo(
@@ -450,9 +452,9 @@ pub async fn download_page(
             separate_status[0] && !cx.config.skip_option.no_poster,
             video_model,
             &page_model,
-            cx.downloader,
             poster_path,
-            fanart_path
+            fanart_path,
+            cx
         ),
         // 下载分页视频
         fetch_page_video(separate_status[1], video_model, &page_info, &video_path, cx),
@@ -474,10 +476,10 @@ pub async fn download_page(
         // 下载分页字幕
         fetch_page_subtitle(
             separate_status[4] && !cx.config.skip_option.no_subtitle,
-            cx.bili_client,
             video_model,
             &page_info,
-            &subtitle_path
+            &subtitle_path,
+            cx
         )
     );
     let results = [res_1.into(), res_2.into(), res_3.into(), res_4.into(), res_5.into()];
@@ -521,9 +523,9 @@ pub async fn fetch_page_poster(
     should_run: bool,
     video_model: &video::Model,
     page_model: &page::Model,
-    downloader: &Downloader,
     poster_path: PathBuf,
     fanart_path: Option<PathBuf>,
+    cx: DownloadContext<'_>,
 ) -> Result<ExecutionStatus> {
     if !should_run {
         return Ok(ExecutionStatus::Skipped);
@@ -539,7 +541,9 @@ pub async fn fetch_page_poster(
             None => video_model.cover.as_str(),
         }
     };
-    downloader.fetch(url, &poster_path).await?;
+    cx.downloader
+        .fetch(url, &poster_path, &cx.config.concurrent_limit.download)
+        .await?;
     if let Some(fanart_path) = fanart_path {
         fs::copy(&poster_path, &fanart_path).await?;
     }
@@ -556,7 +560,7 @@ pub async fn fetch_page_video(
     if !should_run {
         return Ok(ExecutionStatus::Skipped);
     }
-    let bili_video = Video::new(cx.bili_client, video_model.bvid.clone());
+    let bili_video = Video::new(cx.bili_client, video_model.bvid.clone(), &cx.config.credential);
     let streams = bili_video
         .get_page_analyzer(page_info)
         .await?
@@ -564,7 +568,11 @@ pub async fn fetch_page_video(
     match streams {
         BestStream::Mixed(mix_stream) => {
             cx.downloader
-                .multi_fetch(&mix_stream.urls(cx.config.cdn_sorting), page_path)
+                .multi_fetch(
+                    &mix_stream.urls(cx.config.cdn_sorting),
+                    page_path,
+                    &cx.config.concurrent_limit.download,
+                )
                 .await?
         }
         BestStream::VideoAudio {
@@ -572,7 +580,11 @@ pub async fn fetch_page_video(
             audio: None,
         } => {
             cx.downloader
-                .multi_fetch(&video_stream.urls(cx.config.cdn_sorting), page_path)
+                .multi_fetch(
+                    &video_stream.urls(cx.config.cdn_sorting),
+                    page_path,
+                    &cx.config.concurrent_limit.download,
+                )
                 .await?
         }
         BestStream::VideoAudio {
@@ -584,6 +596,7 @@ pub async fn fetch_page_video(
                     &video_stream.urls(cx.config.cdn_sorting),
                     &audio_stream.urls(cx.config.cdn_sorting),
                     page_path,
+                    &cx.config.concurrent_limit.download,
                 )
                 .await?
         }
@@ -601,7 +614,7 @@ pub async fn fetch_page_danmaku(
     if !should_run {
         return Ok(ExecutionStatus::Skipped);
     }
-    let bili_video = Video::new(cx.bili_client, video_model.bvid.clone());
+    let bili_video = Video::new(cx.bili_client, video_model.bvid.clone(), &cx.config.credential);
     bili_video
         .get_danmaku_writer(page_info)
         .await?
@@ -612,15 +625,15 @@ pub async fn fetch_page_danmaku(
 
 pub async fn fetch_page_subtitle(
     should_run: bool,
-    bili_client: &BiliClient,
     video_model: &video::Model,
     page_info: &PageInfo,
     subtitle_path: &Path,
+    cx: DownloadContext<'_>,
 ) -> Result<ExecutionStatus> {
     if !should_run {
         return Ok(ExecutionStatus::Skipped);
     }
-    let bili_video = Video::new(bili_client, video_model.bvid.clone());
+    let bili_video = Video::new(cx.bili_client, video_model.bvid.clone(), &cx.config.credential);
     let subtitles = bili_video.get_subtitles(page_info).await?;
     let tasks = subtitles
         .into_iter()
@@ -655,14 +668,16 @@ pub async fn generate_page_nfo(
 pub async fn fetch_video_poster(
     should_run: bool,
     video_model: &video::Model,
-    downloader: &Downloader,
     poster_path: PathBuf,
     fanart_path: PathBuf,
+    cx: DownloadContext<'_>,
 ) -> Result<ExecutionStatus> {
     if !should_run {
         return Ok(ExecutionStatus::Skipped);
     }
-    downloader.fetch(&video_model.cover, &poster_path).await?;
+    cx.downloader
+        .fetch(&video_model.cover, &poster_path, &cx.config.concurrent_limit.download)
+        .await?;
     fs::copy(&poster_path, &fanart_path).await?;
     Ok(ExecutionStatus::Succeeded)
 }
@@ -670,13 +685,19 @@ pub async fn fetch_video_poster(
 pub async fn fetch_upper_face(
     should_run: bool,
     video_model: &video::Model,
-    downloader: &Downloader,
     upper_face_path: PathBuf,
+    cx: DownloadContext<'_>,
 ) -> Result<ExecutionStatus> {
     if !should_run {
         return Ok(ExecutionStatus::Skipped);
     }
-    downloader.fetch(&video_model.upper_face, &upper_face_path).await?;
+    cx.downloader
+        .fetch(
+            &video_model.upper_face,
+            &upper_face_path,
+            &cx.config.concurrent_limit.download,
+        )
+        .await?;
     Ok(ExecutionStatus::Succeeded)
 }
 

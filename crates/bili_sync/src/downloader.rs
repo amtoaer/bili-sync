@@ -14,7 +14,7 @@ use tokio::task::JoinSet;
 use tokio_util::io::StreamReader;
 
 use crate::bilibili::Client;
-use crate::config::VersionedConfig;
+use crate::config::ConcurrentDownloadLimit;
 
 pub struct Downloader {
     client: Client,
@@ -28,9 +28,9 @@ impl Downloader {
         Self { client }
     }
 
-    pub async fn fetch(&self, url: &str, path: &Path) -> Result<()> {
+    pub async fn fetch(&self, url: &str, path: &Path, concurrent_download: &ConcurrentDownloadLimit) -> Result<()> {
         let mut temp_file = TempFile::new().await?;
-        self.fetch_internal(url, &mut temp_file).await?;
+        self.fetch_internal(url, &mut temp_file, concurrent_download).await?;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).await?;
         }
@@ -42,8 +42,13 @@ impl Downloader {
         Ok(())
     }
 
-    pub async fn multi_fetch(&self, urls: &[&str], path: &Path) -> Result<()> {
-        let temp_file = self.multi_fetch_internal(urls).await?;
+    pub async fn multi_fetch(
+        &self,
+        urls: &[&str],
+        path: &Path,
+        concurrent_download: &ConcurrentDownloadLimit,
+    ) -> Result<()> {
+        let temp_file = self.multi_fetch_internal(urls, concurrent_download).await?;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).await?;
         }
@@ -52,10 +57,16 @@ impl Downloader {
         Ok(())
     }
 
-    pub async fn multi_fetch_and_merge(&self, video_urls: &[&str], audio_urls: &[&str], path: &Path) -> Result<()> {
+    pub async fn multi_fetch_and_merge(
+        &self,
+        video_urls: &[&str],
+        audio_urls: &[&str],
+        path: &Path,
+        concurrent_download: &ConcurrentDownloadLimit,
+    ) -> Result<()> {
         let (video_temp_file, audio_temp_file) = tokio::try_join!(
-            self.multi_fetch_internal(video_urls),
-            self.multi_fetch_internal(audio_urls)
+            self.multi_fetch_internal(video_urls, concurrent_download),
+            self.multi_fetch_internal(audio_urls, concurrent_download)
         )?;
         let final_temp_file = TempFile::new().await?;
         let output = Command::new("ffmpeg")
@@ -91,13 +102,17 @@ impl Downloader {
         Ok(())
     }
 
-    async fn multi_fetch_internal(&self, urls: &[&str]) -> Result<TempFile> {
+    async fn multi_fetch_internal(
+        &self,
+        urls: &[&str],
+        concurrent_download: &ConcurrentDownloadLimit,
+    ) -> Result<TempFile> {
         if urls.is_empty() {
             bail!("no urls provided");
         }
         let mut temp_file = TempFile::new().await?;
         for (idx, url) in urls.iter().enumerate() {
-            match self.fetch_internal(url, &mut temp_file).await {
+            match self.fetch_internal(url, &mut temp_file, concurrent_download).await {
                 Ok(_) => return Ok(temp_file),
                 Err(e) => {
                     if idx == urls.len() - 1 {
@@ -112,9 +127,14 @@ impl Downloader {
         unreachable!()
     }
 
-    async fn fetch_internal(&self, url: &str, file: &mut TempFile) -> Result<()> {
-        if VersionedConfig::get().load().concurrent_limit.download.enable {
-            self.fetch_parallel(url, file).await
+    async fn fetch_internal(
+        &self,
+        url: &str,
+        file: &mut TempFile,
+        concurrent_download: &ConcurrentDownloadLimit,
+    ) -> Result<()> {
+        if concurrent_download.enable {
+            self.fetch_parallel(url, file, concurrent_download).await
         } else {
             self.fetch_serial(url, file).await
         }
@@ -142,14 +162,13 @@ impl Downloader {
         Ok(())
     }
 
-    async fn fetch_parallel(&self, url: &str, file: &mut TempFile) -> Result<()> {
-        let (concurrency, threshold) = {
-            let config = VersionedConfig::get().load();
-            (
-                config.concurrent_limit.download.concurrency,
-                config.concurrent_limit.download.threshold,
-            )
-        };
+    async fn fetch_parallel(
+        &self,
+        url: &str,
+        file: &mut TempFile,
+        concurrent_download: &ConcurrentDownloadLimit,
+    ) -> Result<()> {
+        let (concurrency, threshold) = (concurrent_download.concurrency, concurrent_download.threshold);
         let resp = self
             .client
             .request(Method::HEAD, url, None)

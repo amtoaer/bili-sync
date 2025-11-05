@@ -11,7 +11,7 @@ use sea_orm::sea_query::SimpleExpr;
 use sea_orm::{DatabaseConnection, Unchanged};
 
 use crate::adapter::{_ActiveModel, VideoSource, VideoSourceEnum};
-use crate::bilibili::{BiliClient, VideoInfo, WatchLater};
+use crate::bilibili::{BiliClient, Credential, VideoInfo, WatchLater};
 
 impl VideoSource for watch_later::Model {
     fn display_name(&self) -> std::borrow::Cow<'static, str> {
@@ -49,12 +49,13 @@ impl VideoSource for watch_later::Model {
     async fn refresh<'a>(
         self,
         bili_client: &'a BiliClient,
+        credential: &'a Credential,
         _connection: &'a DatabaseConnection,
     ) -> Result<(
         VideoSourceEnum,
         Pin<Box<dyn Stream<Item = Result<VideoInfo>> + Send + 'a>>,
     )> {
-        let watch_later = WatchLater::new(bili_client);
+        let watch_later = WatchLater::new(bili_client, credential);
         Ok((self.into(), Box::pin(watch_later.into_video_stream())))
     }
 }

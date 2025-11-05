@@ -208,6 +208,7 @@ mod tests {
     #[tokio::test]
     async fn test_video_info_type() -> Result<()> {
         VersionedConfig::init_for_test(&setup_database(Path::new("./test.sqlite")).await?).await?;
+        let credential = &VersionedConfig::get().load().credential;
         init_logger("None,bili_sync=debug", None);
         let bili_client = BiliClient::new();
         // 请求 UP 主视频必须要获取 mixin key，使用 key 计算请求参数的签名，否则直接提示权限不足返回空
@@ -220,6 +221,7 @@ mod tests {
                 sid: "4523".to_string(),
                 collection_type: CollectionType::Season,
             },
+            &credential,
         );
         let videos = collection
             .into_video_stream()
@@ -230,7 +232,7 @@ mod tests {
         assert!(videos.iter().all(|v| matches!(v, VideoInfo::Collection { .. })));
         assert!(videos.iter().rev().is_sorted_by_key(|v| v.release_datetime()));
         // 测试收藏夹
-        let favorite = FavoriteList::new(&bili_client, "3144336058".to_string());
+        let favorite = FavoriteList::new(&bili_client, "3144336058".to_string(), &credential);
         let videos = favorite
             .into_video_stream()
             .take(20)
@@ -240,7 +242,7 @@ mod tests {
         assert!(videos.iter().all(|v| matches!(v, VideoInfo::Favorite { .. })));
         assert!(videos.iter().rev().is_sorted_by_key(|v| v.release_datetime()));
         // 测试稍后再看
-        let watch_later = WatchLater::new(&bili_client);
+        let watch_later = WatchLater::new(&bili_client, &credential);
         let videos = watch_later
             .into_video_stream()
             .take(20)
@@ -250,7 +252,7 @@ mod tests {
         assert!(videos.iter().all(|v| matches!(v, VideoInfo::WatchLater { .. })));
         assert!(videos.iter().rev().is_sorted_by_key(|v| v.release_datetime()));
         // 测试投稿
-        let submission = Submission::new(&bili_client, "956761".to_string());
+        let submission = Submission::new(&bili_client, "956761".to_string(), &credential);
         let videos = submission
             .into_video_stream()
             .take(20)
@@ -260,7 +262,7 @@ mod tests {
         assert!(videos.iter().all(|v| matches!(v, VideoInfo::Submission { .. })));
         assert!(videos.iter().rev().is_sorted_by_key(|v| v.release_datetime()));
         // 测试动态
-        let dynamic = Dynamic::new(&bili_client, "659898".to_string());
+        let dynamic = Dynamic::new(&bili_client, "659898".to_string(), &credential);
         let videos = dynamic
             .into_video_stream()
             .take(20)
@@ -275,10 +277,12 @@ mod tests {
     #[ignore = "only for manual test"]
     #[tokio::test]
     async fn test_subtitle_parse() -> Result<()> {
+        VersionedConfig::init_for_test(&setup_database(Path::new("./test.sqlite")).await?).await?;
+        let credential = &VersionedConfig::get().load().credential;
         let bili_client = BiliClient::new();
         let mixin_key = bili_client.wbi_img().await?.into_mixin_key().context("no mixin key")?;
         set_global_mixin_key(mixin_key);
-        let video = Video::new(&bili_client, "BV1gLfnY8E6D".to_string());
+        let video = Video::new(&bili_client, "BV1gLfnY8E6D".to_string(), &credential);
         let pages = video.get_pages().await?;
         println!("pages: {:?}", pages);
         let subtitles = video.get_subtitles(&pages[0]).await?;
@@ -296,6 +300,7 @@ mod tests {
     #[tokio::test]
     async fn test_upower_parse() -> Result<()> {
         VersionedConfig::init_for_test(&setup_database(Path::new("./test.sqlite")).await?).await?;
+        let credential = &VersionedConfig::get().load().credential;
         let bili_client = BiliClient::new();
         let mixin_key = bili_client.wbi_img().await?.into_mixin_key().context("no mixin key")?;
         set_global_mixin_key(mixin_key);
@@ -304,7 +309,7 @@ mod tests {
             ("BV16w41187fx", (true, true)),   // 充电专享但有权观看
             ("BV1n34jzPEYq", (false, false)), // 普通视频
         ] {
-            let video = Video::new(&bili_client, bvid.to_string());
+            let video = Video::new(&bili_client, bvid.to_string(), credential);
             let info = video.get_view_info().await?;
             let VideoInfo::Detail {
                 is_upower_exclusive,
@@ -324,6 +329,7 @@ mod tests {
     #[tokio::test]
     async fn test_ep_parse() -> Result<()> {
         VersionedConfig::init_for_test(&setup_database(Path::new("./test.sqlite")).await?).await?;
+        let credential = &VersionedConfig::get().load().credential;
         let bili_client = BiliClient::new();
         let mixin_key = bili_client.wbi_img().await?.into_mixin_key().context("no mixin key")?;
         set_global_mixin_key(mixin_key);
@@ -332,7 +338,7 @@ mod tests {
             ("BV13xtnzPEye", false), // 番剧
             ("BV1kT4NzTEZj", true),  // 普通视频
         ] {
-            let video = Video::new(&bili_client, bvid.to_string());
+            let video = Video::new(&bili_client, bvid.to_string(), credential);
             let info = video.get_view_info().await?;
             let VideoInfo::Detail { redirect_url, .. } = info else {
                 unreachable!();

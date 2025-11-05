@@ -66,6 +66,7 @@ pub struct BiliClient {
 }
 
 impl BiliClient {
+    /// 构建一个新的 BiliClient，选择性传入限流器
     pub fn new() -> Self {
         let client = Client::new();
         let limiter = VersionedCache::new(
@@ -90,11 +91,10 @@ impl BiliClient {
     }
 
     /// 获取一个预构建的请求，通过该方法获取请求时会检查并等待速率限制
-    pub async fn request(&self, method: Method, url: &str) -> reqwest::RequestBuilder {
+    pub async fn request(&self, method: Method, url: &str, credential: &Credential) -> reqwest::RequestBuilder {
         if let Some(limiter) = self.limiter.load().as_ref() {
             limiter.acquire_one().await;
         }
-        let credential = &VersionedConfig::get().load().credential;
         self.client.request(method, url, Some(credential))
     }
 

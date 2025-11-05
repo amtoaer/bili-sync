@@ -6,11 +6,12 @@ use futures::Stream;
 use reqwest::Method;
 use serde_json::Value;
 
-use crate::bilibili::{BiliClient, MIXIN_KEY, Validate, VideoInfo, WbiSign};
+use crate::bilibili::{BiliClient, Credential, MIXIN_KEY, Validate, VideoInfo, WbiSign};
 
 pub struct Dynamic<'a> {
     client: &'a BiliClient,
     pub upper_id: String,
+    credential: &'a Credential,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -20,8 +21,12 @@ pub struct DynamicItemPublished {
 }
 
 impl<'a> Dynamic<'a> {
-    pub fn new(client: &'a BiliClient, upper_id: String) -> Self {
-        Self { client, upper_id }
+    pub fn new(client: &'a BiliClient, upper_id: String, credential: &'a Credential) -> Self {
+        Self {
+            client,
+            upper_id,
+            credential,
+        }
     }
 
     pub async fn get_dynamics(&self, offset: Option<String>) -> Result<Value> {
@@ -29,6 +34,7 @@ impl<'a> Dynamic<'a> {
             .request(
                 Method::GET,
                 "https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/space",
+                self.credential,
             )
             .await
             .query(&[

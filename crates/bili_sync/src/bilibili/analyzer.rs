@@ -423,16 +423,17 @@ mod tests {
                 Some(AudioQuality::Quality192k),
             ),
         ];
+        let config = VersionedConfig::get().load();
         for (bvid, video_quality, video_codec, audio_quality) in testcases.into_iter() {
-            let client = BiliClient::new();
-            let video = Video::new(&client, bvid.to_owned());
+            let client = BiliClient::new(None);
+            let video = Video::new(&client, bvid.to_owned(), &config.credential);
             let pages = video.get_pages().await.expect("failed to get pages");
             let first_page = pages.into_iter().next().expect("no page found");
             let best_stream = video
                 .get_page_analyzer(&first_page)
                 .await
                 .expect("failed to get page analyzer")
-                .best_stream(&VersionedConfig::get().load().filter_option)
+                .best_stream(&config.filter_option)
                 .expect("failed to get best stream");
             dbg!(bvid, &best_stream);
             match best_stream {

@@ -7,7 +7,7 @@ use reqwest::Method;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::bilibili::{BiliClient, Validate, VideoInfo};
+use crate::bilibili::{BiliClient, Credential, Validate, VideoInfo};
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug, Default, Copy)]
 pub enum CollectionType {
@@ -73,6 +73,7 @@ pub struct CollectionItem {
 pub struct Collection<'a> {
     client: &'a BiliClient,
     pub collection: CollectionItem,
+    credential: &'a Credential,
 }
 
 #[derive(Debug, PartialEq)]
@@ -111,8 +112,12 @@ impl<'de> Deserialize<'de> for CollectionInfo {
 }
 
 impl<'a> Collection<'a> {
-    pub fn new(client: &'a BiliClient, collection: CollectionItem) -> Self {
-        Self { client, collection }
+    pub fn new(client: &'a BiliClient, collection: CollectionItem, credential: &'a Credential) -> Self {
+        Self {
+            client,
+            collection,
+            credential,
+        }
     }
 
     pub async fn get_info(&self) -> Result<CollectionInfo> {
@@ -126,7 +131,7 @@ impl<'a> Collection<'a> {
 
     async fn get_series_info(&self) -> Result<Value> {
         self.client
-            .request(Method::GET, "https://api.bilibili.com/x/series/series")
+            .request(Method::GET, "https://api.bilibili.com/x/series/series", self.credential)
             .await
             .query(&[("series_id", self.collection.sid.as_str())])
             .send()
@@ -141,7 +146,11 @@ impl<'a> Collection<'a> {
         let req = match self.collection.collection_type {
             CollectionType::Series => self
                 .client
-                .request(Method::GET, "https://api.bilibili.com/x/series/archives")
+                .request(
+                    Method::GET,
+                    "https://api.bilibili.com/x/series/archives",
+                    self.credential,
+                )
                 .await
                 .query(&[("pn", page)])
                 .query(&[
@@ -156,6 +165,7 @@ impl<'a> Collection<'a> {
                 .request(
                     Method::GET,
                     "https://api.bilibili.com/x/polymer/web-space/seasons_archives_list",
+                    self.credential,
                 )
                 .await
                 .query(&[("page_num", page)])

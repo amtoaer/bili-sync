@@ -16,7 +16,7 @@ pub struct VersionedCache<T> {
 impl<T> VersionedCache<T> {
     pub fn new(builder: fn(&Config) -> Result<T>, initial_config: &Config) -> Result<Self> {
         let initial_version = initial_config.version;
-        let initial_value = builder(&initial_config)?;
+        let initial_value = builder(initial_config)?;
         Ok(Self {
             inner: ArcSwap::from_pointee(initial_value),
             version: AtomicU64::new(initial_version),
@@ -25,21 +25,19 @@ impl<T> VersionedCache<T> {
         })
     }
 
+    /// 获取当前的值，不检查版本
     pub fn load(&self) -> Guard<Arc<T>> {
         self.inner.load()
     }
 
-    pub fn load_full(&self) -> Arc<T> {
-        self.inner.load_full()
-    }
-
+    /// 获取当前的值，确保版本不低于指定配置的版本
     pub fn load_full_with_update(&self, new_config: &Config) -> Result<Arc<T>> {
         if self.version.load(Ordering::Relaxed) >= new_config.version {
-            return Ok(self.load_full());
+            return Ok(self.inner.load_full());
         }
         let _lock = self.mutex.lock();
         if self.version.load(Ordering::Relaxed) >= new_config.version {
-            return Ok(self.load_full());
+            return Ok(self.inner.load_full());
         }
         let new_value = (self.builder)(new_config).context("Failed to reload versioned cache")?;
         let new_value = Arc::new(new_value);

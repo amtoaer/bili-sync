@@ -3,19 +3,24 @@ use async_stream::try_stream;
 use futures::Stream;
 use serde_json::Value;
 
-use crate::bilibili::{BiliClient, Validate, VideoInfo};
+use crate::bilibili::{BiliClient, Credential, Validate, VideoInfo};
 pub struct WatchLater<'a> {
     client: &'a BiliClient,
+    credential: &'a Credential,
 }
 
 impl<'a> WatchLater<'a> {
-    pub fn new(client: &'a BiliClient) -> Self {
-        Self { client }
+    pub fn new(client: &'a BiliClient, credential: &'a Credential) -> Self {
+        Self { client, credential }
     }
 
     async fn get_videos(&self) -> Result<Value> {
         self.client
-            .request(reqwest::Method::GET, "https://api.bilibili.com/x/v2/history/toview")
+            .request(
+                reqwest::Method::GET,
+                "https://api.bilibili.com/x/v2/history/toview",
+                self.credential,
+            )
             .await
             .send()
             .await?
