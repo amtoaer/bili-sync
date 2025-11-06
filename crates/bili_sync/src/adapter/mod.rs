@@ -121,6 +121,8 @@ pub trait VideoSource {
         })?;
         Ok(())
     }
+
+    async fn delete_from_db(self, conn: &impl ConnectionTrait) -> Result<()>;
 }
 
 pub enum _ActiveModel {

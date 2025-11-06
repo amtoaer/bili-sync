@@ -58,4 +58,9 @@ impl VideoSource for watch_later::Model {
         let watch_later = WatchLater::new(bili_client, credential);
         Ok((self.into(), Box::pin(watch_later.into_video_stream())))
     }
+
+    async fn delete_from_db(self, conn: &impl ConnectionTrait) -> Result<()> {
+        self.delete(conn).await?;
+        Ok(())
+    }
 }

@@ -73,4 +73,9 @@ impl VideoSource for favorite::Model {
         .await?;
         Ok((updated_model.into(), Box::pin(favorite.into_video_stream())))
     }
+
+    async fn delete_from_db(self, conn: &impl ConnectionTrait) -> Result<()> {
+        self.delete(conn).await?;
+        Ok(())
+    }
 }

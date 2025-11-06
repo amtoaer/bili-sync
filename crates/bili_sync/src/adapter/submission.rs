@@ -114,4 +114,9 @@ impl VideoSource for submission::Model {
         };
         Ok((updated_model.into(), video_stream))
     }
+
+    async fn delete_from_db(self, conn: &impl ConnectionTrait) -> Result<()> {
+        self.delete(conn).await?;
+        Ok(())
+    }
 }

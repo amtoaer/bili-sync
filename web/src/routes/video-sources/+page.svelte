@@ -14,6 +14,7 @@
 	import ClockIcon from '@lucide/svelte/icons/clock';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import InfoIcon from '@lucide/svelte/icons/info';
+	import TrashIcon2 from '@lucide/svelte/icons/trash-2';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { toast } from 'svelte-sonner';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
@@ -44,6 +45,13 @@
 	let evaluateSource: VideoSourceDetail | null = null;
 	let evaluateType = '';
 	let evaluating = false;
+
+	// 删除对话框状态
+	let showRemoveDialog = false;
+	let removeSource: VideoSourceDetail | null = null;
+	let removeType = '';
+	let removeIdx: number = 0;
+	let removing = false;
 
 	// 编辑表单数据
 	let editForm = {
@@ -98,6 +106,13 @@
 		evaluateSource = source;
 		evaluateType = type;
 		showEvaluateDialog = true;
+	}
+
+	function openRemoveDialog(type: string, source: VideoSourceDetail, idx: number) {
+		removeSource = source;
+		removeType = type;
+		removeIdx = idx;
+		showRemoveDialog = true;
 	}
 
 	// 保存编辑
@@ -159,6 +174,33 @@
 			});
 		} finally {
 			evaluating = false;
+		}
+	}
+
+	async function removeVideoSource() {
+		if (!removeSource) return;
+		removing = true;
+		try {
+			let response = await api.removeVideoSource(removeType, removeSource.id);
+			if (response && response.data) {
+				if (videoSourcesData) {
+					const sources = videoSourcesData[
+						removeType as keyof VideoSourcesDetailsResponse
+					] as VideoSourceDetail[];
+					sources.splice(removeIdx, 1);
+					videoSourcesData = { ...videoSourcesData };
+				}
+				showRemoveDialog = false;
+				toast.success('删除视频源成功');
+			} else {
+				toast.error('删除视频源失败');
+			}
+		} catch (error) {
+			toast.error('删除视频源失败', {
+				description: (error as ApiError).message
+			});
+		} finally {
+			removing = false;
 		}
 	}
 
@@ -342,6 +384,17 @@
 												>
 													<ListRestartIcon class="h-3 w-3" />
 												</Button>
+												{#if activeTab !== 'watch_later'}
+													<Button
+														size="sm"
+														variant="outline"
+														onclick={() => openRemoveDialog(key, source, index)}
+														class="h-8 w-8 p-0"
+														title="删除"
+													>
+														<TrashIcon2 class="h-3 w-3" />
+													</Button>
+												{/if}
 											</Table.Cell>
 										</Table.Row>
 									{/each}
@@ -466,6 +519,31 @@
 				>
 				<AlertDialog.Action onclick={evaluateRules} disabled={evaluating}>
 					{evaluating ? '重新评估中' : '确认重新评估'}
+				</AlertDialog.Action>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
+
+	<AlertDialog.Root bind:open={showRemoveDialog}>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>删除视频源</AlertDialog.Title>
+				<AlertDialog.Description>
+					确定要删除视频源 <strong>"{removeSource?.name}"</strong> 吗？<br />
+					删除后该视频源相关的所有条目将从数据库中移除（不影响磁盘文件），该操作<span
+						class="text-destructive font-medium">无法撤销</span
+					>。<br />
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel
+					disabled={removing}
+					onclick={() => {
+						showRemoveDialog = false;
+					}}>取消</AlertDialog.Cancel
+				>
+				<AlertDialog.Action onclick={removeVideoSource} disabled={removing}>
+					{removing ? '删除中' : '删除'}
 				</AlertDialog.Action>
 			</AlertDialog.Footer>
 		</AlertDialog.Content>

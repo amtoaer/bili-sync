@@ -9,9 +9,9 @@ use bili_sync_entity::*;
 use bili_sync_migration::Expr;
 use sea_orm::ActiveValue::Set;
 use sea_orm::entity::prelude::*;
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QuerySelect, TransactionTrait};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QuerySelect, QueryTrait, TransactionTrait};
 
-use crate::adapter::_ActiveModel;
+use crate::adapter::{_ActiveModel, VideoSource as _, VideoSourceEnum};
 use crate::api::error::InnerApiError;
 use crate::api::request::{
     DefaultPathRequest, InsertCollectionRequest, InsertFavoriteRequest, InsertSubmissionRequest,
@@ -33,7 +33,10 @@ pub(super) fn router() -> Router {
             "/video-sources/{type}/default-path",
             get(get_video_sources_default_path),
         ) // 仅用于前端获取默认路径
-        .route("/video-sources/{type}/{id}", put(update_video_source))
+        .route(
+            "/video-sources/{type}/{id}",
+            put(update_video_source).delete(remove_video_source),
+        )
         .route("/video-sources/{type}/{id}/evaluate", post(evaluate_video_source))
         .route("/video-sources/favorites", post(insert_favorite))
         .route("/video-sources/collections", post(insert_collection))
@@ -240,6 +243,43 @@ pub async fn update_video_source(
     };
     active_model.save(&db).await?;
     Ok(ApiResponse::ok(UpdateVideoSourceResponse { rule_display }))
+}
+
+pub async fn remove_video_source(
+    Path((source_type, id)): Path<(String, i32)>,
+    Extension(db): Extension<DatabaseConnection>,
+) -> Result<ApiResponse<bool>, ApiError> {
+    // 不允许删除稍后再看
+    let video_source: Option<VideoSourceEnum> = match source_type.as_str() {
+        "collections" => collection::Entity::find_by_id(id).one(&db).await?.map(Into::into),
+        "favorites" => favorite::Entity::find_by_id(id).one(&db).await?.map(Into::into),
+        "submissions" => submission::Entity::find_by_id(id).one(&db).await?.map(Into::into),
+        _ => return Err(InnerApiError::BadRequest("Invalid video source type".to_string()).into()),
+    };
+    let Some(video_source) = video_source else {
+        return Err(InnerApiError::NotFound(id).into());
+    };
+    let txn = db.begin().await?;
+    page::Entity::delete_many()
+        .filter(
+            page::Column::VideoId.in_subquery(
+                video::Entity::find()
+                    .filter(video_source.filter_expr())
+                    .select_only()
+                    .column(video::Column::Id)
+                    .as_query()
+                    .to_owned(),
+            ),
+        )
+        .exec(&txn)
+        .await?;
+    video::Entity::delete_many()
+        .filter(video_source.filter_expr())
+        .exec(&txn)
+        .await?;
+    video_source.delete_from_db(&txn).await?;
+    txn.commit().await?;
+    Ok(ApiResponse::ok(true))
 }
 
 pub async fn evaluate_video_source(
