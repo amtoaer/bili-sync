@@ -17,14 +17,14 @@ pub async fn video_downloader(connection: DatabaseConnection, bili_client: Arc<B
     let mut anchor = chrono::Local::now().date_naive();
     loop {
         let _lock = TASK_STATUS_NOTIFIER.start_running().await;
-        let config = VersionedConfig::get().load_full();
+        let mut config = VersionedConfig::get().snapshot();
         info!("开始执行本轮视频下载任务..");
-        if let Err(e) = download_all_video_sources(&connection, &bili_client, &config, &mut anchor).await {
+        if let Err(e) = download_all_video_sources(&connection, &bili_client, &mut config, &mut anchor).await {
             error!("本轮视频下载任务执行遇到错误：{:#}，跳过本轮执行", e);
         } else {
             info!("本轮视频下载任务执行完毕");
         }
-        TASK_STATUS_NOTIFIER.finish_running(_lock);
+        TASK_STATUS_NOTIFIER.finish_running(_lock, config.interval as i64);
         time::sleep(time::Duration::from_secs(config.interval)).await;
     }
 }
@@ -32,31 +32,32 @@ pub async fn video_downloader(connection: DatabaseConnection, bili_client: Arc<B
 async fn download_all_video_sources(
     connection: &DatabaseConnection,
     bili_client: &BiliClient,
-    config: &Config,
+    config: &mut Arc<Config>,
     anchor: &mut NaiveDate,
 ) -> Result<()> {
     config.check().context("配置检查失败")?;
-    bili_client
-        .limiter
-        .load_full_with_update(config)
-        .context("使用新配置重载限流器失败")?;
-    let template = TEMPLATE
-        .load_full_with_update(config)
-        .context("使用新配置重载模板失败")?;
     let mixin_key = bili_client
-        .wbi_img()
+        .wbi_img(&config.credential)
         .await
         .context("获取 wbi_img 失败")?
         .into_mixin_key()
         .context("解析 mixin key 失败")?;
     bilibili::set_global_mixin_key(mixin_key);
     if *anchor != chrono::Local::now().date_naive() {
-        bili_client
-            .check_refresh(connection)
+        if let Some(new_credential) = bili_client
+            .check_refresh(&config.credential)
             .await
-            .context("检查刷新 Credential 失败")?;
+            .context("检查刷新 Credential 失败")?
+        {
+            *config = VersionedConfig::get()
+                .update_credential(new_credential, connection)
+                .await
+                .context("更新 Credential 失败")?;
+        }
         *anchor = chrono::Local::now().date_naive();
     }
+    let template = TEMPLATE.snapshot();
+    let bili_client = bili_client.snapshot()?;
     let video_sources = get_enabled_video_sources(connection)
         .await
         .context("获取视频源列表失败")?;
@@ -65,7 +66,7 @@ async fn download_all_video_sources(
     }
     for video_source in video_sources {
         let display_name = video_source.display_name();
-        if let Err(e) = process_video_source(video_source, bili_client, connection, &template, config).await {
+        if let Err(e) = process_video_source(video_source, &bili_client, connection, &template, config).await {
             error!("处理 {} 时遇到错误：{:#}，跳过该视频源", display_name, e);
         }
     }

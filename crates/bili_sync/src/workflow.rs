@@ -23,7 +23,7 @@ use crate::utils::model::{
     create_pages, create_videos, filter_unfilled_videos, filter_unhandled_video_pages, update_pages_model,
     update_videos_model,
 };
-use crate::utils::nfo::NFO;
+use crate::utils::nfo::{NFO, ToNFO};
 use crate::utils::rule::FieldEvaluatable;
 use crate::utils::status::{PageStatus, STATUS_OK, VideoStatus};
 
@@ -226,7 +226,7 @@ pub async fn download_video_pages(
     } else {
         cx.video_source.path().join(
             cx.template
-                .path_safe_render("video", &video_format_args(&video_model))?,
+                .path_safe_render("video", &video_format_args(&video_model, &cx.config.time_format))?,
         )
     };
     let upper_id = video_model.upper_id.to_string();
@@ -252,6 +252,7 @@ pub async fn download_video_pages(
             separate_status[1] && !is_single_page && !cx.config.skip_option.no_video_nfo,
             &video_model,
             base_path.join("tvshow.nfo"),
+            cx
         ),
         // 下载 Up 主头像
         fetch_upper_face(
@@ -265,6 +266,7 @@ pub async fn download_video_pages(
             separate_status[3] && should_download_upper && !cx.config.skip_option.no_upper,
             &video_model,
             base_upper_path.join("person.nfo"),
+            cx,
         ),
         // 分发并执行分页下载的任务
         dispatch_download_page(separate_status[4], &video_model, page_models, &base_path, cx)
@@ -398,8 +400,10 @@ pub async fn download_page(
     } else {
         (
             base_path,
-            cx.template
-                .path_safe_render("page", &page_format_args(video_model, &page_model))?,
+            cx.template.path_safe_render(
+                "page",
+                &page_format_args(video_model, &page_model, &cx.config.time_format),
+            )?,
         )
     };
     let (poster_path, video_path, nfo_path, danmaku_path, fanart_path, subtitle_path) = if is_single_page {
@@ -463,7 +467,8 @@ pub async fn download_page(
             separate_status[2] && !cx.config.skip_option.no_video_nfo,
             video_model,
             &page_model,
-            nfo_path
+            nfo_path,
+            cx,
         ),
         // 下载分页弹幕
         fetch_page_danmaku(
@@ -651,15 +656,16 @@ pub async fn generate_page_nfo(
     video_model: &video::Model,
     page_model: &page::Model,
     nfo_path: PathBuf,
+    cx: DownloadContext<'_>,
 ) -> Result<ExecutionStatus> {
     if !should_run {
         return Ok(ExecutionStatus::Skipped);
     }
     let single_page = video_model.single_page.context("single_page is null")?;
     let nfo = if single_page {
-        NFO::Movie(video_model.into())
+        NFO::Movie(video_model.to_nfo(cx.config.nfo_time_type))
     } else {
-        NFO::Episode(page_model.into())
+        NFO::Episode(page_model.to_nfo(cx.config.nfo_time_type))
     };
     generate_nfo(nfo, nfo_path).await?;
     Ok(ExecutionStatus::Succeeded)
@@ -705,11 +711,12 @@ pub async fn generate_upper_nfo(
     should_run: bool,
     video_model: &video::Model,
     nfo_path: PathBuf,
+    cx: DownloadContext<'_>,
 ) -> Result<ExecutionStatus> {
     if !should_run {
         return Ok(ExecutionStatus::Skipped);
     }
-    generate_nfo(NFO::Upper(video_model.into()), nfo_path).await?;
+    generate_nfo(NFO::Upper(video_model.to_nfo(cx.config.nfo_time_type)), nfo_path).await?;
     Ok(ExecutionStatus::Succeeded)
 }
 
@@ -717,11 +724,12 @@ pub async fn generate_video_nfo(
     should_run: bool,
     video_model: &video::Model,
     nfo_path: PathBuf,
+    cx: DownloadContext<'_>,
 ) -> Result<ExecutionStatus> {
     if !should_run {
         return Ok(ExecutionStatus::Skipped);
     }
-    generate_nfo(NFO::TVShow(video_model.into()), nfo_path).await?;
+    generate_nfo(NFO::TVShow(video_model.to_nfo(cx.config.nfo_time_type)), nfo_path).await?;
     Ok(ExecutionStatus::Succeeded)
 }
 

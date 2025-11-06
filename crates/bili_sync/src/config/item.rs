@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::utils::filenamify::filenamify;
 
 /// NFO 文件使用的时间类型
-#[derive(Serialize, Deserialize, Default, Clone)]
+#[derive(Serialize, Deserialize, Default, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
 pub enum NFOTimeType {
     #[default]

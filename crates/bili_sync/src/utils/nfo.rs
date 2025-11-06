@@ -6,7 +6,7 @@ use quick_xml::events::{BytesCData, BytesText};
 use quick_xml::writer::Writer;
 use tokio::io::{AsyncWriteExt, BufWriter};
 
-use crate::config::{NFOTimeType, VersionedConfig};
+use crate::config::NFOTimeType;
 
 #[allow(clippy::upper_case_acronyms)]
 pub enum NFO<'a> {
@@ -265,7 +265,10 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(
-            NFO::Movie((&video).into()).generate_nfo().await.unwrap(),
+            NFO::Movie((&video).to_nfo(NFOTimeType::FavTime))
+                .generate_nfo()
+                .await
+                .unwrap(),
             r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <movie>
     <plot><![CDATA[原始视频：<a href="https://www.bilibili.com/video/BV1nWcSeeEkV/">BV1nWcSeeEkV</a><br/><br/>intro]]></plot>
@@ -283,7 +286,10 @@ mod tests {
 </movie>"#,
         );
         assert_eq!(
-            NFO::TVShow((&video).into()).generate_nfo().await.unwrap(),
+            NFO::TVShow((&video).to_nfo(NFOTimeType::FavTime))
+                .generate_nfo()
+                .await
+                .unwrap(),
             r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <tvshow>
     <plot><![CDATA[原始视频：<a href="https://www.bilibili.com/video/BV1nWcSeeEkV/">BV1nWcSeeEkV</a><br/><br/>intro]]></plot>
@@ -301,7 +307,10 @@ mod tests {
 </tvshow>"#,
         );
         assert_eq!(
-            NFO::Upper((&video).into()).generate_nfo().await.unwrap(),
+            NFO::Upper((&video).to_nfo(NFOTimeType::FavTime))
+                .generate_nfo()
+                .await
+                .unwrap(),
             r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <person>
     <plot/>
@@ -318,7 +327,10 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(
-            NFO::Episode((&page).into()).generate_nfo().await.unwrap(),
+            NFO::Episode((&page).to_nfo(NFOTimeType::FavTime))
+                .generate_nfo()
+                .await
+                .unwrap(),
             r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <episodedetails>
     <plot/>
@@ -331,54 +343,58 @@ mod tests {
     }
 }
 
-impl<'a> From<&'a video::Model> for Movie<'a> {
-    fn from(video: &'a video::Model) -> Self {
-        Self {
-            name: &video.name,
-            intro: &video.intro,
-            bvid: &video.bvid,
-            upper_id: video.upper_id,
-            upper_name: &video.upper_name,
-            aired: match VersionedConfig::get().load().nfo_time_type {
-                NFOTimeType::FavTime => video.favtime,
-                NFOTimeType::PubTime => video.pubtime,
+pub trait ToNFO<'a, T> {
+    fn to_nfo(&'a self, nfo_time_type: NFOTimeType) -> T;
+}
+
+impl<'a> ToNFO<'a, Movie<'a>> for &'a video::Model {
+    fn to_nfo(&'a self, nfo_time_type: NFOTimeType) -> Movie<'a> {
+        Movie {
+            name: &self.name,
+            intro: &self.intro,
+            bvid: &self.bvid,
+            upper_id: self.upper_id,
+            upper_name: &self.upper_name,
+            aired: match nfo_time_type {
+                NFOTimeType::FavTime => self.favtime,
+                NFOTimeType::PubTime => self.pubtime,
             },
-            tags: video.tags.as_ref().map(|tags| tags.clone().into()),
+            tags: self.tags.as_ref().map(|tags| tags.clone().into()),
         }
     }
 }
 
-impl<'a> From<&'a video::Model> for TVShow<'a> {
-    fn from(video: &'a video::Model) -> Self {
-        Self {
-            name: &video.name,
-            intro: &video.intro,
-            bvid: &video.bvid,
-            upper_id: video.upper_id,
-            upper_name: &video.upper_name,
-            aired: match VersionedConfig::get().load().nfo_time_type {
-                NFOTimeType::FavTime => video.favtime,
-                NFOTimeType::PubTime => video.pubtime,
+impl<'a> ToNFO<'a, TVShow<'a>> for &'a video::Model {
+    fn to_nfo(&'a self, nfo_time_type: NFOTimeType) -> TVShow<'a> {
+        TVShow {
+            name: &self.name,
+            intro: &self.intro,
+            bvid: &self.bvid,
+            upper_id: self.upper_id,
+            upper_name: &self.upper_name,
+            aired: match nfo_time_type {
+                NFOTimeType::FavTime => self.favtime,
+                NFOTimeType::PubTime => self.pubtime,
             },
-            tags: video.tags.as_ref().map(|tags| tags.clone().into()),
+            tags: self.tags.as_ref().map(|tags| tags.clone().into()),
         }
     }
 }
 
-impl<'a> From<&'a video::Model> for Upper {
-    fn from(video: &'a video::Model) -> Self {
-        Self {
-            upper_id: video.upper_id.to_string(),
-            pubtime: video.pubtime,
+impl<'a> ToNFO<'a, Upper> for &'a video::Model {
+    fn to_nfo(&'a self, _nfo_time_type: NFOTimeType) -> Upper {
+        Upper {
+            upper_id: self.upper_id.to_string(),
+            pubtime: self.pubtime,
         }
     }
 }
 
-impl<'a> From<&'a page::Model> for Episode<'a> {
-    fn from(page: &'a page::Model) -> Self {
-        Self {
-            name: &page.name,
-            pid: page.pid.to_string(),
+impl<'a> ToNFO<'a, Episode<'a>> for &'a page::Model {
+    fn to_nfo(&'a self, _nfo_time_type: NFOTimeType) -> Episode<'a> {
+        Episode {
+            name: &self.name,
+            pid: self.pid.to_string(),
         }
     }
 }

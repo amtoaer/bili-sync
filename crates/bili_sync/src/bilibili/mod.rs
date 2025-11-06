@@ -208,11 +208,15 @@ mod tests {
     #[tokio::test]
     async fn test_video_info_type() -> Result<()> {
         VersionedConfig::init_for_test(&setup_database(Path::new("./test.sqlite")).await?).await?;
-        let credential = &VersionedConfig::get().load().credential;
+        let credential = &VersionedConfig::get().read().credential;
         init_logger("None,bili_sync=debug", None);
         let bili_client = BiliClient::new();
         // 请求 UP 主视频必须要获取 mixin key，使用 key 计算请求参数的签名，否则直接提示权限不足返回空
-        let mixin_key = bili_client.wbi_img().await?.into_mixin_key().context("no mixin key")?;
+        let mixin_key = bili_client
+            .wbi_img(credential)
+            .await?
+            .into_mixin_key()
+            .context("no mixin key")?;
         set_global_mixin_key(mixin_key);
         let collection = Collection::new(
             &bili_client,
@@ -278,9 +282,13 @@ mod tests {
     #[tokio::test]
     async fn test_subtitle_parse() -> Result<()> {
         VersionedConfig::init_for_test(&setup_database(Path::new("./test.sqlite")).await?).await?;
-        let credential = &VersionedConfig::get().load().credential;
+        let credential = &VersionedConfig::get().read().credential;
         let bili_client = BiliClient::new();
-        let mixin_key = bili_client.wbi_img().await?.into_mixin_key().context("no mixin key")?;
+        let mixin_key = bili_client
+            .wbi_img(credential)
+            .await?
+            .into_mixin_key()
+            .context("no mixin key")?;
         set_global_mixin_key(mixin_key);
         let video = Video::new(&bili_client, "BV1gLfnY8E6D".to_string(), &credential);
         let pages = video.get_pages().await?;
@@ -300,9 +308,13 @@ mod tests {
     #[tokio::test]
     async fn test_upower_parse() -> Result<()> {
         VersionedConfig::init_for_test(&setup_database(Path::new("./test.sqlite")).await?).await?;
-        let credential = &VersionedConfig::get().load().credential;
+        let credential = &VersionedConfig::get().read().credential;
         let bili_client = BiliClient::new();
-        let mixin_key = bili_client.wbi_img().await?.into_mixin_key().context("no mixin key")?;
+        let mixin_key = bili_client
+            .wbi_img(credential)
+            .await?
+            .into_mixin_key()
+            .context("no mixin key")?;
         set_global_mixin_key(mixin_key);
         for (bvid, (upower_exclusive, upower_play)) in [
             ("BV1HxXwYEEqt", (true, false)),  // 充电专享且无权观看
@@ -329,9 +341,13 @@ mod tests {
     #[tokio::test]
     async fn test_ep_parse() -> Result<()> {
         VersionedConfig::init_for_test(&setup_database(Path::new("./test.sqlite")).await?).await?;
-        let credential = &VersionedConfig::get().load().credential;
+        let credential = &VersionedConfig::get().read().credential;
         let bili_client = BiliClient::new();
-        let mixin_key = bili_client.wbi_img().await?.into_mixin_key().context("no mixin key")?;
+        let mixin_key = bili_client
+            .wbi_img(credential)
+            .await?
+            .into_mixin_key()
+            .context("no mixin key")?;
         set_global_mixin_key(mixin_key);
         for (bvid, redirect_is_none) in [
             ("BV1SF411g796", false), // EP

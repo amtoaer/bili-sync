@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow, bail};
 use arc_swap::{ArcSwap, Guard};
 use sea_orm::DatabaseConnection;
-use tokio::sync::OnceCell;
+use tokio::sync::{OnceCell, watch};
 
 use crate::bilibili::Credential;
 use crate::config::{CONFIG_DIR, Config};
@@ -13,6 +13,8 @@ pub static VERSIONED_CONFIG: OnceCell<VersionedConfig> = OnceCell::const_new();
 pub struct VersionedConfig {
     inner: ArcSwap<Config>,
     update_lock: tokio::sync::Mutex<()>,
+    tx: watch::Sender<Arc<Config>>,
+    rx: watch::Receiver<Arc<Config>>,
 }
 
 impl VersionedConfig {
@@ -76,29 +78,43 @@ impl VersionedConfig {
         return VERSIONED_CONFIG.get().unwrap_or_else(|| &FALLBACK_CONFIG);
     }
 
-    pub fn new(config: Config) -> Self {
+    fn new(config: Config) -> Self {
+        let inner = ArcSwap::from_pointee(config);
+        let (tx, rx) = watch::channel(inner.load_full());
         Self {
-            inner: ArcSwap::from_pointee(config),
+            inner,
             update_lock: tokio::sync::Mutex::new(()),
+            tx,
+            rx,
         }
     }
 
-    pub fn load(&self) -> Guard<Arc<Config>> {
+    pub fn read(&self) -> Guard<Arc<Config>> {
         self.inner.load()
     }
 
-    pub fn load_full(&self) -> Arc<Config> {
+    pub fn snapshot(&self) -> Arc<Config> {
         self.inner.load_full()
     }
 
-    pub async fn update_credential(&self, new_credential: Credential, connection: &DatabaseConnection) -> Result<()> {
+    pub fn subscribe(&self) -> watch::Receiver<Arc<Config>> {
+        self.rx.clone()
+    }
+
+    pub async fn update_credential(
+        &self,
+        new_credential: Credential,
+        connection: &DatabaseConnection,
+    ) -> Result<Arc<Config>> {
         let _lock = self.update_lock.lock().await;
         let mut new_config = self.inner.load().as_ref().clone();
         new_config.credential = new_credential;
         new_config.version += 1;
         new_config.save_to_database(connection).await?;
-        self.inner.store(Arc::new(new_config));
-        Ok(())
+        let new_config = Arc::new(new_config);
+        self.inner.store(new_config.clone());
+        self.tx.send(new_config.clone())?;
+        Ok(new_config)
     }
 
     /// 外部 API 会调用这个方法，如果更新失败直接返回错误
@@ -109,9 +125,10 @@ impl VersionedConfig {
             bail!("配置版本不匹配，请刷新页面修改后重新提交");
         }
         new_config.version += 1;
-        let new_config = Arc::new(new_config);
         new_config.save_to_database(connection).await?;
+        let new_config = Arc::new(new_config);
         self.inner.store(new_config.clone());
+        self.tx.send(new_config.clone())?;
         Ok(new_config)
     }
 }

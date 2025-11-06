@@ -170,7 +170,7 @@ pub async fn get_video_sources_default_path(
         "submissions" => "submission_default_path",
         _ => return Err(InnerApiError::BadRequest("Invalid video source type".to_string()).into()),
     };
-    let template = TEMPLATE.load_full_with_update(&VersionedConfig::get().load())?;
+    let template = TEMPLATE.read();
     Ok(ApiResponse::ok(
         template.path_safe_render(template_name, &serde_json::to_value(params)?)?,
     ))
@@ -325,7 +325,7 @@ pub async fn insert_favorite(
     Extension(bili_client): Extension<Arc<BiliClient>>,
     ValidatedJson(request): ValidatedJson<InsertFavoriteRequest>,
 ) -> Result<ApiResponse<bool>, ApiError> {
-    let config = VersionedConfig::get().load();
+    let config = VersionedConfig::get().read();
     let favorite = FavoriteList::new(bili_client.as_ref(), request.fid.to_string(), &config.credential);
     let favorite_info = favorite.get_info().await?;
     favorite::Entity::insert(favorite::ActiveModel {
@@ -346,7 +346,7 @@ pub async fn insert_collection(
     Extension(bili_client): Extension<Arc<BiliClient>>,
     ValidatedJson(request): ValidatedJson<InsertCollectionRequest>,
 ) -> Result<ApiResponse<bool>, ApiError> {
-    let config = VersionedConfig::get().load();
+    let config = VersionedConfig::get().read();
     let collection = Collection::new(
         bili_client.as_ref(),
         CollectionItem {
@@ -378,7 +378,7 @@ pub async fn insert_submission(
     Extension(bili_client): Extension<Arc<BiliClient>>,
     ValidatedJson(request): ValidatedJson<InsertSubmissionRequest>,
 ) -> Result<ApiResponse<bool>, ApiError> {
-    let config = VersionedConfig::get().load();
+    let config = VersionedConfig::get().read();
     let submission = Submission::new(bili_client.as_ref(), request.upper_id.to_string(), &config.credential);
     let upper = submission.get_info().await?;
     submission::Entity::insert(submission::ActiveModel {

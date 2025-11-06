@@ -1,48 +1,55 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use arc_swap::{ArcSwap, Guard};
+use tokio_util::{future::FutureExt, sync::CancellationToken};
 
-use crate::config::Config;
+use crate::config::{Config, VersionedConfig};
 
 pub struct VersionedCache<T> {
-    inner: ArcSwap<T>,
-    version: AtomicU64,
-    builder: fn(&Config) -> Result<T>,
-    mutex: parking_lot::Mutex<()>,
+    inner: Arc<ArcSwap<T>>,
+    cancel_token: CancellationToken,
 }
 
-impl<T> VersionedCache<T> {
-    pub fn new(builder: fn(&Config) -> Result<T>, initial_config: &Config) -> Result<Self> {
-        let initial_version = initial_config.version;
-        let initial_value = builder(initial_config)?;
-        Ok(Self {
-            inner: ArcSwap::from_pointee(initial_value),
-            version: AtomicU64::new(initial_version),
-            builder,
-            mutex: parking_lot::Mutex::new(()),
-        })
+/// 一个跟随全局配置变化自动更新的缓存
+impl<T: Send + Sync + 'static> VersionedCache<T> {
+    pub fn new(builder: fn(&Config) -> Result<T>) -> Result<Self> {
+        let mut rx = VersionedConfig::get().subscribe();
+        let initial_value = builder(&rx.borrow_and_update())?;
+        let cancel_token = CancellationToken::new();
+        let inner = Arc::new(ArcSwap::from_pointee(initial_value));
+        let inner_clone = inner.clone();
+        tokio::spawn(
+            async move {
+                while rx.changed().await.is_ok() {
+                    match builder(&rx.borrow()) {
+                        Ok(new_value) => {
+                            inner_clone.store(Arc::new(new_value));
+                        }
+                        Err(e) => {
+                            error!("Failed to update versioned cache: {:?}", e);
+                        }
+                    }
+                }
+            }
+            .with_cancellation_token_owned(cancel_token.clone()),
+        );
+        Ok(Self { inner, cancel_token })
     }
 
-    /// 获取当前的值，不检查版本
-    pub fn load(&self) -> Guard<Arc<T>> {
+    /// 获取一个临时的只读引用
+    pub fn read(&self) -> Guard<Arc<T>> {
         self.inner.load()
     }
 
-    /// 获取当前的值，确保版本不低于指定配置的版本
-    pub fn load_full_with_update(&self, new_config: &Config) -> Result<Arc<T>> {
-        if self.version.load(Ordering::Relaxed) >= new_config.version {
-            return Ok(self.inner.load_full());
-        }
-        let _lock = self.mutex.lock();
-        if self.version.load(Ordering::Relaxed) >= new_config.version {
-            return Ok(self.inner.load_full());
-        }
-        let new_value = (self.builder)(new_config).context("Failed to reload versioned cache")?;
-        let new_value = Arc::new(new_value);
-        self.inner.store(new_value.clone());
-        self.version.store(new_config.version, Ordering::Relaxed);
-        Ok(new_value)
+    /// 获取当前缓存的完整快照
+    pub fn snapshot(&self) -> Arc<T> {
+        self.inner.load_full()
+    }
+}
+
+impl<T> Drop for VersionedCache<T> {
+    fn drop(&mut self) {
+        self.cancel_token.cancel();
     }
 }
