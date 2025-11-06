@@ -29,8 +29,8 @@ pub async fn get_created_favorites(
     Extension(db): Extension<DatabaseConnection>,
     Extension(bili_client): Extension<Arc<BiliClient>>,
 ) -> Result<ApiResponse<FavoritesResponse>, ApiError> {
-    let config = VersionedConfig::get().read();
-    let me = Me::new(bili_client.as_ref(), &config.credential);
+    let credential = &VersionedConfig::get().read().credential;
+    let me = Me::new(bili_client.as_ref(), &credential);
     let bili_favorites = me.get_created_favorites().await?;
 
     let favorites = if let Some(bili_favorites) = bili_favorites {
@@ -70,8 +70,8 @@ pub async fn get_followed_collections(
     Extension(bili_client): Extension<Arc<BiliClient>>,
     Query(params): Query<FollowedCollectionsRequest>,
 ) -> Result<ApiResponse<CollectionsResponse>, ApiError> {
-    let config = VersionedConfig::get().read();
-    let me = Me::new(bili_client.as_ref(), &config.credential);
+    let credential = &VersionedConfig::get().read().credential;
+    let me = Me::new(bili_client.as_ref(), credential);
     let (page_num, page_size) = (params.page_num.unwrap_or(1), params.page_size.unwrap_or(50));
     let bili_collections = me.get_followed_collections(page_num, page_size).await?;
 
@@ -113,8 +113,8 @@ pub async fn get_followed_uppers(
     Extension(bili_client): Extension<Arc<BiliClient>>,
     Query(params): Query<FollowedUppersRequest>,
 ) -> Result<ApiResponse<UppersResponse>, ApiError> {
-    let config = VersionedConfig::get().read();
-    let me = Me::new(bili_client.as_ref(), &config.credential);
+    let credential = &VersionedConfig::get().read().credential;
+    let me = Me::new(bili_client.as_ref(), credential);
     let (page_num, page_size) = (params.page_num.unwrap_or(1), params.page_size.unwrap_or(20));
     let bili_uppers = me.get_followed_uppers(page_num, page_size).await?;
 

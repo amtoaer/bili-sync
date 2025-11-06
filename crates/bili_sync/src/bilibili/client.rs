@@ -71,7 +71,6 @@ pub struct BiliClient {
 }
 
 impl BiliClient {
-    /// 构建一个新的 BiliClient，选择性传入限流器
     pub fn new() -> Self {
         let client = Client::new();
         let limiter = Limiter::Latest(
