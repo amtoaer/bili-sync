@@ -30,7 +30,7 @@ pub async fn get_created_favorites(
     Extension(bili_client): Extension<Arc<BiliClient>>,
 ) -> Result<ApiResponse<FavoritesResponse>, ApiError> {
     let credential = &VersionedConfig::get().read().credential;
-    let me = Me::new(bili_client.as_ref(), &credential);
+    let me = Me::new(bili_client.as_ref(), credential);
     let bili_favorites = me.get_created_favorites().await?;
 
     let favorites = if let Some(bili_favorites) = bili_favorites {
