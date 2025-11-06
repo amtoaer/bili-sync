@@ -11,7 +11,7 @@ use sea_orm::sea_query::SimpleExpr;
 use sea_orm::{DatabaseConnection, Unchanged};
 
 use crate::adapter::{_ActiveModel, VideoSource, VideoSourceEnum};
-use crate::bilibili::{BiliClient, Dynamic, Submission, VideoInfo};
+use crate::bilibili::{BiliClient, Credential, Dynamic, Submission, VideoInfo};
 
 impl VideoSource for submission::Model {
     fn display_name(&self) -> std::borrow::Cow<'static, str> {
@@ -85,12 +85,13 @@ impl VideoSource for submission::Model {
     async fn refresh<'a>(
         self,
         bili_client: &'a BiliClient,
+        credential: &'a Credential,
         connection: &'a DatabaseConnection,
     ) -> Result<(
         VideoSourceEnum,
         Pin<Box<dyn Stream<Item = Result<VideoInfo>> + Send + 'a>>,
     )> {
-        let submission = Submission::new(bili_client, self.upper_id.to_string());
+        let submission = Submission::new(bili_client, self.upper_id.to_string(), credential);
         let upper = submission.get_info().await?;
         ensure!(
             upper.mid == submission.upper_id,

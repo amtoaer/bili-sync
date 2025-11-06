@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow, bail};
 use arc_swap::{ArcSwap, Guard};
 use sea_orm::DatabaseConnection;
-use tokio::sync::OnceCell;
+use tokio::sync::{OnceCell, watch};
 
 use crate::bilibili::Credential;
 use crate::config::{CONFIG_DIR, Config};
@@ -13,6 +13,8 @@ pub static VERSIONED_CONFIG: OnceCell<VersionedConfig> = OnceCell::const_new();
 pub struct VersionedConfig {
     inner: ArcSwap<Config>,
     update_lock: tokio::sync::Mutex<()>,
+    tx: watch::Sender<Arc<Config>>,
+    rx: watch::Receiver<Arc<Config>>,
 }
 
 impl VersionedConfig {
@@ -68,46 +70,51 @@ impl VersionedConfig {
     }
 
     #[cfg(test)]
-    /// 尝试获取全局的 `VersionedConfig`，如果未初始化则退回测试环境的默认配置
+    /// 尝试获取全局的 `VersionedConfig`，如果未初始化则退回默认配置
     pub fn get() -> &'static VersionedConfig {
         use std::sync::LazyLock;
-        static FALLBACK_CONFIG: LazyLock<VersionedConfig> =
-            LazyLock::new(|| VersionedConfig::new(Config::test_default()));
-        // 优先从全局变量获取，未初始化则返回测试环境的默认配置
+        static FALLBACK_CONFIG: LazyLock<VersionedConfig> = LazyLock::new(|| VersionedConfig::new(Config::default()));
+        // 优先从全局变量获取，未初始化则退回默认配置
         return VERSIONED_CONFIG.get().unwrap_or_else(|| &FALLBACK_CONFIG);
     }
 
-    pub fn new(config: Config) -> Self {
+    fn new(config: Config) -> Self {
+        let inner = ArcSwap::from_pointee(config);
+        let (tx, rx) = watch::channel(inner.load_full());
         Self {
-            inner: ArcSwap::from_pointee(config),
+            inner,
             update_lock: tokio::sync::Mutex::new(()),
+            tx,
+            rx,
         }
     }
 
-    pub fn load(&self) -> Guard<Arc<Config>> {
+    pub fn read(&self) -> Guard<Arc<Config>> {
         self.inner.load()
     }
 
-    pub fn load_full(&self) -> Arc<Config> {
+    pub fn snapshot(&self) -> Arc<Config> {
         self.inner.load_full()
     }
 
-    pub async fn update_credential(&self, new_credential: Credential, connection: &DatabaseConnection) -> Result<()> {
-        // 确保更新内容与写入数据库的操作是原子性的
+    pub fn subscribe(&self) -> watch::Receiver<Arc<Config>> {
+        self.rx.clone()
+    }
+
+    pub async fn update_credential(
+        &self,
+        new_credential: Credential,
+        connection: &DatabaseConnection,
+    ) -> Result<Arc<Config>> {
         let _lock = self.update_lock.lock().await;
-        loop {
-            let old_config = self.inner.load();
-            let mut new_config = old_config.as_ref().clone();
-            new_config.credential = new_credential.clone();
-            new_config.version += 1;
-            if Arc::ptr_eq(
-                &old_config,
-                &self.inner.compare_and_swap(&old_config, Arc::new(new_config)),
-            ) {
-                break;
-            }
-        }
-        self.inner.load().save_to_database(connection).await
+        let mut new_config = self.inner.load().as_ref().clone();
+        new_config.credential = new_credential;
+        new_config.version += 1;
+        new_config.save_to_database(connection).await?;
+        let new_config = Arc::new(new_config);
+        self.inner.store(new_config.clone());
+        self.tx.send(new_config.clone())?;
+        Ok(new_config)
     }
 
     /// 外部 API 会调用这个方法，如果更新失败直接返回错误
@@ -118,14 +125,10 @@ impl VersionedConfig {
             bail!("配置版本不匹配，请刷新页面修改后重新提交");
         }
         new_config.version += 1;
-        let new_config = Arc::new(new_config);
-        if !Arc::ptr_eq(
-            &old_config,
-            &self.inner.compare_and_swap(&old_config, new_config.clone()),
-        ) {
-            bail!("配置版本不匹配，请刷新页面修改后重新提交");
-        }
         new_config.save_to_database(connection).await?;
+        let new_config = Arc::new(new_config);
+        self.inner.store(new_config.clone());
+        self.tx.send(new_config.clone())?;
         Ok(new_config)
     }
 }

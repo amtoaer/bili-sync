@@ -3,10 +3,11 @@ use async_stream::try_stream;
 use futures::Stream;
 use serde_json::Value;
 
-use crate::bilibili::{BiliClient, Validate, VideoInfo};
+use crate::bilibili::{BiliClient, Credential, Validate, VideoInfo};
 pub struct FavoriteList<'a> {
     client: &'a BiliClient,
     fid: String,
+    credential: &'a Credential,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -22,14 +23,22 @@ pub struct Upper<T> {
     pub face: String,
 }
 impl<'a> FavoriteList<'a> {
-    pub fn new(client: &'a BiliClient, fid: String) -> Self {
-        Self { client, fid }
+    pub fn new(client: &'a BiliClient, fid: String, credential: &'a Credential) -> Self {
+        Self {
+            client,
+            fid,
+            credential,
+        }
     }
 
     pub async fn get_info(&self) -> Result<FavoriteListInfo> {
         let mut res = self
             .client
-            .request(reqwest::Method::GET, "https://api.bilibili.com/x/v3/fav/folder/info")
+            .request(
+                reqwest::Method::GET,
+                "https://api.bilibili.com/x/v3/fav/folder/info",
+                self.credential,
+            )
             .await
             .query(&[("media_id", &self.fid)])
             .send()
@@ -43,7 +52,11 @@ impl<'a> FavoriteList<'a> {
 
     async fn get_videos(&self, page: u32) -> Result<Value> {
         self.client
-            .request(reqwest::Method::GET, "https://api.bilibili.com/x/v3/fav/resource/list")
+            .request(
+                reqwest::Method::GET,
+                "https://api.bilibili.com/x/v3/fav/resource/list",
+                self.credential,
+            )
             .await
             .query(&[
                 ("media_id", self.fid.as_str()),

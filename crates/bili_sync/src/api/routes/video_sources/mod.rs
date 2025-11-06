@@ -22,7 +22,7 @@ use crate::api::response::{
 };
 use crate::api::wrapper::{ApiError, ApiResponse, ValidatedJson};
 use crate::bilibili::{BiliClient, Collection, CollectionItem, FavoriteList, Submission};
-use crate::config::{PathSafeTemplate, TEMPLATE};
+use crate::config::{PathSafeTemplate, TEMPLATE, VersionedConfig};
 use crate::utils::rule::FieldEvaluatable;
 
 pub(super) fn router() -> Router {
@@ -170,8 +170,10 @@ pub async fn get_video_sources_default_path(
         "submissions" => "submission_default_path",
         _ => return Err(InnerApiError::BadRequest("Invalid video source type".to_string()).into()),
     };
-    let (template, params) = (TEMPLATE.load(), serde_json::to_value(params)?);
-    Ok(ApiResponse::ok(template.path_safe_render(template_name, &params)?))
+    let template = TEMPLATE.read();
+    Ok(ApiResponse::ok(
+        template.path_safe_render(template_name, &serde_json::to_value(params)?)?,
+    ))
 }
 
 /// 更新视频来源
@@ -323,7 +325,8 @@ pub async fn insert_favorite(
     Extension(bili_client): Extension<Arc<BiliClient>>,
     ValidatedJson(request): ValidatedJson<InsertFavoriteRequest>,
 ) -> Result<ApiResponse<bool>, ApiError> {
-    let favorite = FavoriteList::new(bili_client.as_ref(), request.fid.to_string());
+    let credential = &VersionedConfig::get().read().credential;
+    let favorite = FavoriteList::new(bili_client.as_ref(), request.fid.to_string(), credential);
     let favorite_info = favorite.get_info().await?;
     favorite::Entity::insert(favorite::ActiveModel {
         f_id: Set(favorite_info.id),
@@ -343,6 +346,7 @@ pub async fn insert_collection(
     Extension(bili_client): Extension<Arc<BiliClient>>,
     ValidatedJson(request): ValidatedJson<InsertCollectionRequest>,
 ) -> Result<ApiResponse<bool>, ApiError> {
+    let credential = &VersionedConfig::get().read().credential;
     let collection = Collection::new(
         bili_client.as_ref(),
         CollectionItem {
@@ -350,6 +354,7 @@ pub async fn insert_collection(
             mid: request.mid.to_string(),
             collection_type: request.collection_type,
         },
+        credential,
     );
     let collection_info = collection.get_info().await?;
     collection::Entity::insert(collection::ActiveModel {
@@ -373,7 +378,8 @@ pub async fn insert_submission(
     Extension(bili_client): Extension<Arc<BiliClient>>,
     ValidatedJson(request): ValidatedJson<InsertSubmissionRequest>,
 ) -> Result<ApiResponse<bool>, ApiError> {
-    let submission = Submission::new(bili_client.as_ref(), request.upper_id.to_string());
+    let credential = &VersionedConfig::get().read().credential;
+    let submission = Submission::new(bili_client.as_ref(), request.upper_id.to_string(), credential);
     let upper = submission.get_info().await?;
     submission::Entity::insert(submission::ActiveModel {
         upper_id: Set(upper.mid.parse()?),

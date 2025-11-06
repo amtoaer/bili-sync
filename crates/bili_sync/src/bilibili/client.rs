@@ -1,14 +1,14 @@
+use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use leaky_bucket::RateLimiter;
 use reqwest::{Method, header};
-use sea_orm::DatabaseConnection;
 use ua_generator::ua;
 
 use crate::bilibili::Credential;
 use crate::bilibili::credential::WbiImg;
-use crate::config::{RateLimit, VersionedCache, VersionedConfig};
+use crate::config::{RateLimit, VersionedCache};
 
 // 一个对 reqwest::Client 的简单封装，用于 Bilibili 请求
 #[derive(Clone)]
@@ -60,56 +60,78 @@ impl Default for Client {
     }
 }
 
+enum Limiter {
+    Latest(VersionedCache<Option<RateLimiter>>),
+    Snapshot(Arc<Option<RateLimiter>>),
+}
+
 pub struct BiliClient {
     pub client: Client,
-    limiter: VersionedCache<Option<RateLimiter>>,
+    limiter: Limiter,
 }
 
 impl BiliClient {
     pub fn new() -> Self {
         let client = Client::new();
-        let limiter = VersionedCache::new(|config| {
-            Ok(config
-                .concurrent_limit
-                .rate_limit
-                .as_ref()
-                .map(|RateLimit { limit, duration }| {
-                    RateLimiter::builder()
-                        .initial(*limit)
-                        .refill(*limit)
-                        .max(*limit)
-                        .interval(Duration::from_millis(*duration))
-                        .build()
-                }))
-        })
-        .expect("failed to create rate limiter");
+        let limiter = Limiter::Latest(
+            VersionedCache::new(|config| {
+                Ok(config
+                    .concurrent_limit
+                    .rate_limit
+                    .as_ref()
+                    .map(|RateLimit { limit, duration }| {
+                        RateLimiter::builder()
+                            .initial(*limit)
+                            .refill(*limit)
+                            .max(*limit)
+                            .interval(Duration::from_millis(*duration))
+                            .build()
+                    }))
+            })
+            .expect("failed to create rate limiter"),
+        );
         Self { client, limiter }
     }
 
+    /// 获取当前 BiliClient 的快照，快照中的限流器固定不变
+    pub fn snapshot(&self) -> Result<Self> {
+        let Limiter::Latest(inner) = &self.limiter else {
+            // 语法上没问题，但语义上不允许对快照进行快照
+            bail!("cannot snapshot a snapshot BiliClient");
+        };
+        Ok(Self {
+            client: self.client.clone(),
+            limiter: Limiter::Snapshot(inner.snapshot()),
+        })
+    }
+
     /// 获取一个预构建的请求，通过该方法获取请求时会检查并等待速率限制
-    pub async fn request(&self, method: Method, url: &str) -> reqwest::RequestBuilder {
-        if let Some(limiter) = self.limiter.load().as_ref() {
-            limiter.acquire_one().await;
+    pub async fn request(&self, method: Method, url: &str, credential: &Credential) -> reqwest::RequestBuilder {
+        match &self.limiter {
+            Limiter::Latest(inner) => {
+                if let Some(limiter) = inner.read().as_ref() {
+                    limiter.acquire_one().await;
+                }
+            }
+            Limiter::Snapshot(inner) => {
+                if let Some(limiter) = inner.as_ref() {
+                    limiter.acquire_one().await;
+                }
+            }
         }
-        let credential = &VersionedConfig::get().load().credential;
         self.client.request(method, url, Some(credential))
     }
 
-    pub async fn check_refresh(&self, connection: &DatabaseConnection) -> Result<()> {
-        let credential = &VersionedConfig::get().load().credential;
+    /// 检查并刷新 Credential，不需要刷新返回 Ok(None)，需要刷新返回 Ok(Some(new_credential))
+    pub async fn check_refresh(&self, credential: &Credential) -> Result<Option<Credential>> {
         if !credential.need_refresh(&self.client).await? {
-            return Ok(());
+            return Ok(None);
         }
-        let new_credential = credential.refresh(&self.client).await?;
-        VersionedConfig::get()
-            .update_credential(new_credential, connection)
-            .await?;
-        Ok(())
+        Ok(Some(credential.refresh(&self.client).await?))
     }
 
     /// 获取 wbi img，用于生成请求签名
-    pub async fn wbi_img(&self) -> Result<WbiImg> {
-        let credential = &VersionedConfig::get().load().credential;
+    pub async fn wbi_img(&self, credential: &Credential) -> Result<WbiImg> {
         credential.wbi_img(&self.client).await
     }
 }

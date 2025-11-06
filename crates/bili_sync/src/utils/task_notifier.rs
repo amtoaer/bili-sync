@@ -1,9 +1,7 @@
 use std::sync::LazyLock;
 
 use serde::Serialize;
-use tokio::sync::MutexGuard;
-
-use crate::config::VersionedConfig;
+use tokio::sync::{MutexGuard, watch};
 
 pub static TASK_STATUS_NOTIFIER: LazyLock<TaskStatusNotifier> = LazyLock::new(TaskStatusNotifier::new);
 
@@ -17,13 +15,13 @@ pub struct TaskStatus {
 
 pub struct TaskStatusNotifier {
     mutex: tokio::sync::Mutex<()>,
-    tx: tokio::sync::watch::Sender<TaskStatus>,
-    rx: tokio::sync::watch::Receiver<TaskStatus>,
+    tx: watch::Sender<TaskStatus>,
+    rx: watch::Receiver<TaskStatus>,
 }
 
 impl TaskStatusNotifier {
     pub fn new() -> Self {
-        let (tx, rx) = tokio::sync::watch::channel(TaskStatus::default());
+        let (tx, rx) = watch::channel(TaskStatus::default());
         Self {
             mutex: tokio::sync::Mutex::const_new(()),
             tx,
@@ -42,24 +40,17 @@ impl TaskStatusNotifier {
         lock
     }
 
-    pub fn finish_running(&self, _lock: MutexGuard<()>) {
+    pub fn finish_running(&self, _lock: MutexGuard<()>, interval: i64) {
         let last_status = self.tx.borrow();
         let last_run = last_status.last_run;
         drop(last_status);
-        let config = VersionedConfig::get().load();
         let now = chrono::Local::now();
-
         let _ = self.tx.send(TaskStatus {
             is_running: false,
             last_run,
             last_finish: Some(now),
-            next_run: now.checked_add_signed(chrono::Duration::seconds(config.interval as i64)),
+            next_run: now.checked_add_signed(chrono::Duration::seconds(interval)),
         });
-    }
-
-    /// 精确探测任务执行状态，保证如果读取到“未运行”，那么在锁释放之前任务不会被执行
-    pub fn detect_running(&self) -> Option<MutexGuard<'_, ()>> {
-        self.mutex.try_lock().ok()
     }
 
     pub fn subscribe(&self) -> tokio::sync::watch::Receiver<TaskStatus> {
