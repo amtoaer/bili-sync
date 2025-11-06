@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use arc_swap::{ArcSwap, Guard};
-use tokio_util::{future::FutureExt, sync::CancellationToken};
+use tokio_util::future::FutureExt;
+use tokio_util::sync::CancellationToken;
 
 use crate::config::{Config, VersionedConfig};
 
