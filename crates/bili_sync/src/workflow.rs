@@ -16,7 +16,7 @@ use crate::adapter::{VideoSource, VideoSourceEnum};
 use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, PageInfo, Video, VideoInfo};
 use crate::config::{ARGS, Config, PathSafeTemplate};
 use crate::downloader::Downloader;
-use crate::error::{DownloadAbortError, ExecutionStatus, ProcessPageError};
+use crate::error::ExecutionStatus;
 use crate::utils::download_context::DownloadContext;
 use crate::utils::format_arg::{page_format_args, video_format_args};
 use crate::utils::model::{
@@ -126,7 +126,7 @@ pub async fn fetch_video_details(
                         "获取视频 {} - {} 的详细信息失败，错误为：{:#}",
                         &video_model.bvid, &video_model.name, e
                     );
-                    if let Some(BiliError::RequestFailed(-404, _)) = e.downcast_ref::<BiliError>() {
+                    if let Some(BiliError::ErrorResponse(-404, _, _)) = e.downcast_ref::<BiliError>() {
                         let mut video_active_model: bili_sync_entity::video::ActiveModel = video_model.into();
                         video_active_model.valid = Set(false);
                         video_active_model.save(connection).await?;
@@ -184,17 +184,17 @@ pub async fn download_unprocessed_videos(
             download_video_pages(video_model, pages_model, &semaphore, should_download_upper, cx)
         })
         .collect::<FuturesUnordered<_>>();
-    let mut download_aborted = false;
+    let mut risk_control_related_error = None;
     let mut stream = tasks
         // 触发风控时设置 download_aborted 标记并终止流
         .take_while(|res| {
-            if res
-                .as_ref()
-                .is_err_and(|e| e.downcast_ref::<DownloadAbortError>().is_some())
+            if let Err(e) = res
+                && let Some(e) = e.downcast_ref::<BiliError>()
+                && e.is_risk_control_related()
             {
-                download_aborted = true;
+                risk_control_related_error = Some(e.clone());
             }
-            futures::future::ready(!download_aborted)
+            futures::future::ready(risk_control_related_error.is_none())
         })
         // 过滤掉没有触发风控的普通 Err，只保留正确返回的 Model
         .filter_map(|res| futures::future::ready(res.ok()))
@@ -203,8 +203,8 @@ pub async fn download_unprocessed_videos(
     while let Some(models) = stream.next().await {
         update_videos_model(models, connection).await?;
     }
-    if download_aborted {
-        error!("下载触发风控，已终止所有任务，等待下一轮执行");
+    if let Some(e) = risk_control_related_error {
+        bail!(e);
     }
     video_source.log_download_video_end();
     Ok(())
@@ -286,14 +286,18 @@ pub async fn download_video_pages(
                     &video_model.name, task_name, e
                 )
             }
-            ExecutionStatus::Failed(e) | ExecutionStatus::FixedFailed(_, e) => {
+            ExecutionStatus::Failed(e) => {
                 error!("处理视频「{}」{}失败：{:#}", &video_model.name, task_name, e)
             }
+            ExecutionStatus::Fixed(_) => unreachable!(),
         });
-    if let ExecutionStatus::Failed(e) = results.into_iter().nth(4).context("page download result not found")?
-        && e.downcast_ref::<DownloadAbortError>().is_some()
-    {
-        return Err(e);
+    for result in results {
+        if let ExecutionStatus::Failed(e) = result
+            && let Ok(e) = e.downcast::<BiliError>()
+            && e.is_risk_control_related()
+        {
+            bail!(e);
+        }
     }
     let mut video_active_model: video::ActiveModel = video_model.into();
     video_active_model.download_status = Set(status.into());
@@ -317,7 +321,7 @@ pub async fn dispatch_download_page(
         .into_iter()
         .map(|page_model| download_page(video_model, page_model, &child_semaphore, base_path, cx))
         .collect::<FuturesUnordered<_>>();
-    let (mut download_aborted, mut target_status) = (false, STATUS_OK);
+    let (mut risk_control_related_error, mut target_status) = (None, STATUS_OK);
     let mut stream = tasks
         .take_while(|res| {
             match res {
@@ -333,27 +337,26 @@ pub async fn dispatch_download_page(
                     }
                 }
                 Err(e) => {
-                    if e.downcast_ref::<DownloadAbortError>().is_some() {
-                        download_aborted = true;
+                    if let Some(e) = e.downcast_ref::<BiliError>()
+                        && e.is_risk_control_related()
+                    {
+                        risk_control_related_error = Some(e.clone());
                     }
                 }
             }
             // 仅在发生风控时终止流，其它情况继续执行
-            futures::future::ready(!download_aborted)
+            futures::future::ready(risk_control_related_error.is_none())
         })
         .filter_map(|res| futures::future::ready(res.ok()))
         .chunks(10);
     while let Some(models) = stream.next().await {
         update_pages_model(models, cx.connection).await?;
     }
-    if download_aborted {
-        error!("下载视频「{}」的分页时触发风控，将异常向上传递..", &video_model.name);
-        bail!(DownloadAbortError());
+    if let Some(e) = risk_control_related_error {
+        bail!(e);
     }
-    if target_status != STATUS_OK {
-        return Ok(ExecutionStatus::FixedFailed(target_status, ProcessPageError().into()));
-    }
-    Ok(ExecutionStatus::Succeeded)
+    // 视频中“分页下载”任务的状态始终与所有分页的最小状态一致
+    Ok(ExecutionStatus::Fixed(target_status))
 }
 
 /// 下载某个分页，未发生风控且正常运行时返回 Ok(Page::ActiveModel)，其中 status 字段存储了新的下载状态，发生风控时返回 DownloadAbortError
@@ -507,16 +510,19 @@ pub async fn download_page(
                     &video_model.name, page_model.pid, task_name, e
                 )
             }
-            ExecutionStatus::Failed(e) | ExecutionStatus::FixedFailed(_, e) => error!(
+            ExecutionStatus::Failed(e) => error!(
                 "处理视频「{}」第 {} 页{}失败：{:#}",
                 &video_model.name, page_model.pid, task_name, e
             ),
+            ExecutionStatus::Fixed(_) => unreachable!(),
         });
-    // 如果下载视频时触发风控，直接返回 DownloadAbortError
-    if let ExecutionStatus::Failed(e) = results.into_iter().nth(1).context("video download result not found")?
-        && let Ok(BiliError::RiskControlOccurred) = e.downcast::<BiliError>()
-    {
-        bail!(DownloadAbortError());
+    for result in results {
+        if let ExecutionStatus::Failed(e) = result
+            && let Ok(e) = e.downcast::<BiliError>()
+            && e.is_risk_control_related()
+        {
+            bail!(e);
+        }
     }
     let mut page_active_model: page::ActiveModel = page_model.into();
     page_active_model.download_status = Set(status.into());

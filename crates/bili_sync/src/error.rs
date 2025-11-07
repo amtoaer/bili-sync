@@ -1,15 +1,6 @@
 use std::io;
 
 use anyhow::Result;
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-#[error("Request too frequently")]
-pub struct DownloadAbortError();
-
-#[derive(Error, Debug)]
-#[error("Process page error")]
-pub struct ProcessPageError();
 
 pub enum ExecutionStatus {
     Skipped,
@@ -17,7 +8,7 @@ pub enum ExecutionStatus {
     Ignored(anyhow::Error),
     Failed(anyhow::Error),
     // 任务可以返回该状态固定自己的 status
-    FixedFailed(u32, anyhow::Error),
+    Fixed(u32),
 }
 
 // 目前 stable rust 似乎不支持自定义类型使用 ? 运算符，只能先在返回值使用 Result，再这样套层娃

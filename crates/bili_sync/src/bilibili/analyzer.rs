@@ -217,7 +217,7 @@ impl PageAnalyzer {
             .info
             .pointer_mut("/dash/video")
             .and_then(|v| v.as_array_mut())
-            .ok_or(BiliError::RiskControlOccurred)?
+            .ok_or(BiliError::VideoStreamsEmpty)?
             .iter_mut()
         {
             let (Some(url), Some(quality), Some(codecs_id)) = (
