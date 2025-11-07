@@ -217,6 +217,10 @@ class ApiClient {
 		return this.put<UpdateVideoSourceResponse>(`/video-sources/${type}/${id}`, request);
 	}
 
+	async removeVideoSource(type: string, id: number): Promise<ApiResponse<boolean>> {
+		return this.request<boolean>(`/video-sources/${type}/${id}`, 'DELETE');
+	}
+
 	async evaluateVideoSourceRules(type: string, id: number): Promise<ApiResponse<boolean>> {
 		return this.post<boolean>(`/video-sources/${type}/${id}/evaluate`, null);
 	}
@@ -270,6 +274,7 @@ const api = {
 	getVideoSourcesDetails: () => apiClient.getVideoSourcesDetails(),
 	updateVideoSource: (type: string, id: number, request: UpdateVideoSourceRequest) =>
 		apiClient.updateVideoSource(type, id, request),
+	removeVideoSource: (type: string, id: number) => apiClient.removeVideoSource(type, id),
 	evaluateVideoSourceRules: (type: string, id: number) =>
 		apiClient.evaluateVideoSourceRules(type, id),
 	getDefaultPath: (type: string, name: string) => apiClient.getDefaultPath(type, name),
