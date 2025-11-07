@@ -8,7 +8,7 @@ use tokio::sync::{OnceCell, watch};
 use crate::bilibili::Credential;
 use crate::config::{CONFIG_DIR, Config};
 
-pub static VERSIONED_CONFIG: OnceCell<VersionedConfig> = OnceCell::const_new();
+static VERSIONED_CONFIG: OnceCell<VersionedConfig> = OnceCell::const_new();
 
 pub struct VersionedConfig {
     inner: ArcSwap<Config>,

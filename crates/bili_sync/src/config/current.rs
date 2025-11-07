@@ -11,6 +11,7 @@ use crate::config::default::{default_auth_token, default_bind_address, default_t
 use crate::config::item::{
     ConcurrentLimit, NFOTimeType, SkipOption, default_collection_path, default_favorite_path, default_submission_path,
 };
+use crate::notifier::Notifier;
 use crate::utils::model::{load_db_config, save_db_config};
 
 pub static CONFIG_DIR: LazyLock<PathBuf> =
@@ -27,6 +28,8 @@ pub struct Config {
     pub skip_option: SkipOption,
     pub video_name: String,
     pub page_name: String,
+    #[serde(default)]
+    pub notifiers: Option<Vec<Notifier>>,
     #[serde(default = "default_favorite_path")]
     pub favorite_default_path: String,
     #[serde(default = "default_collection_path")]
@@ -98,6 +101,7 @@ impl Default for Config {
             skip_option: SkipOption::default(),
             video_name: "{{title}}".to_owned(),
             page_name: "{{bvid}}".to_owned(),
+            notifiers: None,
             favorite_default_path: default_favorite_path(),
             collection_default_path: default_collection_path(),
             submission_default_path: default_submission_path(),
