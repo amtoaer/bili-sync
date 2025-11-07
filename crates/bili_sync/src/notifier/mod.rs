@@ -9,6 +9,11 @@ pub enum Notifier {
     Webhook { url: String },
 }
 
+#[derive(Serialize)]
+struct WebhookPayload<'a> {
+    text: &'a str,
+}
+
 pub trait NotifierAllExt {
     async fn notify_all(&self, client: &reqwest::Client, message: &str) -> Result<()>;
 }
@@ -32,9 +37,7 @@ impl Notifier {
                 client.post(&url).form(&params).send().await?;
             }
             Notifier::Webhook { url } => {
-                let payload = serde_json::json!({
-                    "text": message
-                });
+                let payload = WebhookPayload { text: message };
                 client.post(url).json(&payload).send().await?;
             }
         }
