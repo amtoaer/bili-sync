@@ -8,6 +8,7 @@ mod config;
 mod database;
 mod downloader;
 mod error;
+mod notifier;
 mod task;
 mod utils;
 mod workflow;

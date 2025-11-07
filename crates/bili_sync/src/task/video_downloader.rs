@@ -8,6 +8,7 @@ use tokio::time;
 use crate::adapter::VideoSource;
 use crate::bilibili::{self, BiliClient};
 use crate::config::{Config, TEMPLATE, VersionedConfig};
+use crate::notifier::NotifierAllExt;
 use crate::utils::model::get_enabled_video_sources;
 use crate::utils::task_notifier::TASK_STATUS_NOTIFIER;
 use crate::workflow::process_video_source;
@@ -20,7 +21,12 @@ pub async fn video_downloader(connection: DatabaseConnection, bili_client: Arc<B
         let mut config = VersionedConfig::get().snapshot();
         info!("开始执行本轮视频下载任务..");
         if let Err(e) = download_all_video_sources(&connection, &bili_client, &mut config, &mut anchor).await {
-            error!("本轮视频下载任务执行遇到错误：{:#}，跳过本轮执行", e);
+            let error_msg = format!("本轮视频下载任务执行遇到错误：{:#}", e);
+            error!("{error_msg}");
+            let _ = config
+                .notifiers
+                .notify_all(bili_client.inner_client(), &error_msg)
+                .await;
         } else {
             info!("本轮视频下载任务执行完毕");
         }
@@ -67,7 +73,12 @@ async fn download_all_video_sources(
     for video_source in video_sources {
         let display_name = video_source.display_name();
         if let Err(e) = process_video_source(video_source, &bili_client, connection, &template, config).await {
-            error!("处理 {} 时遇到错误：{:#}，跳过该视频源", display_name, e);
+            let error_msg = format!("处理 {} 时遇到错误：{:#}，跳过该视频源", display_name, e);
+            error!("{error_msg}");
+            let _ = config
+                .notifiers
+                .notify_all(bili_client.inner_client(), &error_msg)
+                .await;
         }
     }
     Ok(())

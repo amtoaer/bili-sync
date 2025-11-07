@@ -134,4 +134,8 @@ impl BiliClient {
     pub async fn wbi_img(&self, credential: &Credential) -> Result<WbiImg> {
         credential.wbi_img(&self.client).await
     }
+
+    pub fn inner_client(&self) -> &reqwest::Client {
+        &self.client.0
+    }
 }
