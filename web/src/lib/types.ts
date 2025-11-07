@@ -272,6 +272,20 @@ export interface ConcurrentLimit {
 	download: ConcurrentDownloadLimit;
 }
 
+// Notifier 相关类型
+export interface TelegramNotifier {
+	type: 'telegram';
+	bot_token: string;
+	chat_id: string;
+}
+
+export interface WebhookNotifier {
+	type: 'webhook';
+	url: string;
+}
+
+export type Notifier = TelegramNotifier | WebhookNotifier;
+
 export interface Config {
 	auth_token: string;
 	bind_address: string;
@@ -281,6 +295,7 @@ export interface Config {
 	skip_option: SkipOption;
 	video_name: string;
 	page_name: string;
+	notifiers: Notifier[] | null;
 	favorite_default_path: string;
 	collection_default_path: string;
 	submission_default_path: string;
