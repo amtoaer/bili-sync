@@ -22,7 +22,7 @@ pub async fn video_downloader(connection: DatabaseConnection, bili_client: Arc<B
         info!("开始执行本轮视频下载任务..");
         if let Err(e) = download_all_video_sources(&connection, &bili_client, &mut config, &mut anchor).await {
             let error_msg = format!("本轮视频下载任务执行遇到错误：{:#}", e);
-            error!("{}", error_msg);
+            error!("{error_msg}");
             let _ = config
                 .notifiers
                 .notify_all(bili_client.inner_client(), &error_msg)
@@ -74,7 +74,7 @@ async fn download_all_video_sources(
         let display_name = video_source.display_name();
         if let Err(e) = process_video_source(video_source, &bili_client, connection, &template, config).await {
             let error_msg = format!("处理 {} 时遇到错误：{:#}，跳过该视频源", display_name, e);
-            error!("{}", error_msg);
+            error!("{error_msg}");
             let _ = config
                 .notifiers
                 .notify_all(bili_client.inner_client(), &error_msg)
