@@ -6,7 +6,7 @@ use sea_orm::DatabaseConnection;
 use tokio::time;
 
 use crate::adapter::VideoSource;
-use crate::bilibili::{self, BiliClient};
+use crate::bilibili::{self, BiliClient, BiliError};
 use crate::config::{Config, TEMPLATE, VersionedConfig};
 use crate::notifier::NotifierAllExt;
 use crate::utils::model::get_enabled_video_sources;
@@ -79,6 +79,12 @@ async fn download_all_video_sources(
                 .notifiers
                 .notify_all(bili_client.inner_client(), &error_msg)
                 .await;
+            if let Ok(e) = e.downcast::<BiliError>()
+                && e.is_risk_control_related()
+            {
+                warn!("检测到风控，终止此轮视频下载任务..");
+                break;
+            }
         }
     }
     Ok(())

@@ -53,10 +53,15 @@ impl Validate for serde_json::Value {
     fn validate(self) -> Result<Self::Output> {
         let (code, msg) = match (self["code"].as_i64(), self["message"].as_str()) {
             (Some(code), Some(msg)) => (code, msg),
-            _ => bail!("no code or message found"),
+            _ => bail!(BiliError::InvalidResponse(self.to_string())),
         };
-        ensure!(code == 0, BiliError::RequestFailed(code, msg.to_owned()));
-        ensure!(self["data"]["v_voucher"].is_null(), BiliError::RiskControlOccurred);
+        if code == -352 || !self["data"]["v_voucher"].is_null() {
+            bail!(BiliError::RiskControlOccurred(self.to_string()));
+        }
+        ensure!(
+            code == 0,
+            BiliError::ErrorResponse(code, msg.to_owned(), self.to_string())
+        );
         Ok(self)
     }
 }

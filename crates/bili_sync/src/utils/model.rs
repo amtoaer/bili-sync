@@ -1,5 +1,6 @@
 use anyhow::{Context, Result, anyhow};
 use bili_sync_entity::*;
+use rand::seq::SliceRandom;
 use sea_orm::ActiveValue::Set;
 use sea_orm::DatabaseTransaction;
 use sea_orm::entity::prelude::*;
@@ -134,6 +135,8 @@ pub async fn get_enabled_video_sources(connection: &DatabaseConnection) -> Resul
     sources.extend(watch_later.into_iter().map(VideoSourceEnum::from));
     sources.extend(submission.into_iter().map(VideoSourceEnum::from));
     sources.extend(collection.into_iter().map(VideoSourceEnum::from));
+    // 此处将视频源随机打乱顺序，从概率上确保每个视频源都有机会优先执行，避免后面视频源的长期饥饿问题
+    sources.shuffle(&mut rand::rng());
     Ok(sources)
 }
 
