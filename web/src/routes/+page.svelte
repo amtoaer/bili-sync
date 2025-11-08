@@ -3,6 +3,7 @@
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
 	import { Progress } from '$lib/components/ui/progress/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Chart from '$lib/components/ui/chart/index.js';
 	import MyChartTooltip from '$lib/components/custom/my-chart-tooltip.svelte';
 	import { curveNatural } from 'd3-shape';
@@ -24,11 +25,13 @@
 	import PlayIcon from '@lucide/svelte/icons/play';
 	import CheckCircleIcon from '@lucide/svelte/icons/check-circle';
 	import CalendarIcon from '@lucide/svelte/icons/calendar';
+	import DownloadIcon from '@lucide/svelte/icons/download';
 
 	let dashboardData: DashBoardResponse | null = null;
 	let sysInfo: SysInfo | null = null;
 	let taskStatus: TaskStatus | null = null;
 	let loading = false;
+	let triggering = false;
 	let unsubscribeSysInfo: (() => void) | null = null;
 	let unsubscribeTasks: (() => void) | null = null;
 
@@ -56,6 +59,23 @@
 			});
 		} finally {
 			loading = false;
+		}
+	}
+
+	async function handleTriggerDownload() {
+		triggering = true;
+		try {
+			await api.triggerDownloadTask();
+			toast.success('已触发下载任务', {
+				description: '任务将立即开始执行'
+			});
+		} catch (error) {
+			console.error('触发下载任务失败：', error);
+			toast.error('触发下载任务失败', {
+				description: (error as ApiError).message
+			});
+		} finally {
+			triggering = false;
 		}
 	}
 
@@ -295,6 +315,8 @@
 									<span class="text-muted-foreground text-sm">
 										{taskStatus.last_run
 											? new Date(taskStatus.last_run).toLocaleString('en-US', {
+													month: '2-digit',
+													day: '2-digit',
 													hour: '2-digit',
 													minute: '2-digit',
 													second: '2-digit',
@@ -311,6 +333,8 @@
 									<span class="text-muted-foreground text-sm">
 										{taskStatus.last_finish
 											? new Date(taskStatus.last_finish).toLocaleString('en-US', {
+													month: '2-digit',
+													day: '2-digit',
 													hour: '2-digit',
 													minute: '2-digit',
 													second: '2-digit',
@@ -327,6 +351,8 @@
 									<span class="text-muted-foreground text-sm">
 										{taskStatus.next_run
 											? new Date(taskStatus.next_run).toLocaleString('en-US', {
+													month: '2-digit',
+													day: '2-digit',
 													hour: '2-digit',
 													minute: '2-digit',
 													second: '2-digit',
@@ -335,6 +361,21 @@
 											: '-'}
 									</span>
 								</div>
+							</div>
+							<div class="mt-6 border-t pt-4">
+								<Button
+									class="w-full"
+									size="sm"
+									onclick={handleTriggerDownload}
+									disabled={triggering || (taskStatus?.is_running ?? false)}
+								>
+									<DownloadIcon class="h-4 w-4" />
+									{triggering
+										? '触发中...'
+										: taskStatus?.is_running
+											? '任务运行中'
+											: '立即执行下载任务'}
+								</Button>
 							</div>
 						</div>
 					{:else}
