@@ -71,7 +71,7 @@ impl DownloadTaskManager {
     }
 
     pub(self) async fn start(&self) -> Result<()> {
-        let _ = self.sched.start().await?;
+        self.sched.start().await?;
         Ok(())
     }
 
@@ -123,7 +123,7 @@ impl DownloadTaskManager {
             .add(Job::new_one_shot_async(Duration::from_secs(0), move |_uuid, mut l| {
                 let task_context = task_context_clone.clone();
                 Box::pin(async move {
-                    let old_status = task_context.status_rx.borrow().clone();
+                    let old_status = *task_context.status_rx.borrow();
                     let next_run = l
                         .next_tick_for_job(download_task_id)
                         .await
@@ -160,7 +160,7 @@ impl DownloadTaskManager {
                     .add(Job::new_one_shot_async(Duration::from_secs(0), move |_uuid, mut l| {
                         let task_context_clone = task_context.clone();
                         Box::pin(async move {
-                            let old_status = task_context_clone.status_rx.borrow().clone();
+                            let old_status = *task_context_clone.status_rx.borrow();
                             let next_run = l
                                 .next_tick_for_job(new_task_id)
                                 .await
@@ -183,11 +183,7 @@ impl DownloadTaskManager {
         running: Arc<tokio::sync::Mutex<()>>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
         Box::pin(async move {
-            let _lock = running.lock();
-            if cfg!(debug_assertions) {
-                info!("检测到调试模式，跳过本次凭据检查与刷新任务的执行..");
-                return;
-            }
+            let _lock = running.lock().await;
             let config = VersionedConfig::get().read();
             info!("开始执行本轮凭据检查与刷新任务..");
             match check_and_refresh_credential(connection, &bili_client, &config).await {
@@ -220,21 +216,17 @@ impl DownloadTaskManager {
                 last_finish: None,
                 next_run: None,
             });
-            if cfg!(debug_assertions) {
-                info!("检测到调试模式，跳过本次视频下载任务的执行..");
-            } else {
-                info!("开始执行本轮视频下载任务..");
-                let mut config = VersionedConfig::get().snapshot();
-                match download_all_video_sources(&cx.connection, &cx.bili_client, &mut config).await {
-                    Ok(_) => info!("本轮视频下载任务执行完毕"),
-                    Err(e) => {
-                        let error_msg = format!("本轮视频下载任务执行遇到错误：{:#}", e);
-                        error!("{error_msg}");
-                        let _ = config
-                            .notifiers
-                            .notify_all(cx.bili_client.inner_client(), &error_msg)
-                            .await;
-                    }
+            info!("开始执行本轮视频下载任务..");
+            let mut config = VersionedConfig::get().snapshot();
+            match download_all_video_sources(&cx.connection, &cx.bili_client, &mut config).await {
+                Ok(_) => info!("本轮视频下载任务执行完毕"),
+                Err(e) => {
+                    let error_msg = format!("本轮视频下载任务执行遇到错误：{:#}", e);
+                    error!("{error_msg}");
+                    let _ = config
+                        .notifiers
+                        .notify_all(cx.bili_client.inner_client(), &error_msg)
+                        .await;
                 }
             }
             // 注意此处尽量从 updating 中读取 uuid，因为当前任务可能是不存在 next_tick 的 oneshot 任务
@@ -245,7 +237,7 @@ impl DownloadTaskManager {
                 .ok()
                 .flatten()
                 .map(|dt| dt.with_timezone(&chrono::Local));
-            let last_status = cx.status_rx.borrow().clone();
+            let last_status = *cx.status_rx.borrow();
             let _ = cx.status_tx.send(TaskStatus {
                 is_running: false,
                 last_run: last_status.last_run,

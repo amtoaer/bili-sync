@@ -8,8 +8,10 @@
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import PasswordInput from '$lib/components/custom/password-input.svelte';
 	import NotifierDialog from './NotifierDialog.svelte';
+	import InfoIcon from '@lucide/svelte/icons/info';
 	import api from '$lib/api';
 	import { toast } from 'svelte-sonner';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
@@ -20,6 +22,8 @@
 	let formData: Config | null = null;
 	let saving = false;
 	let loading = false;
+
+	let intervalInput: string = '1200';
 
 	// Notifier 管理相关
 	let showNotifierDialog = false;
@@ -76,6 +80,13 @@
 			const response = await api.getConfig();
 			config = response.data;
 			formData = { ...config };
+
+			// 根据 interval 的类型初始化输入框
+			if (typeof formData.interval === 'number') {
+				intervalInput = String(formData.interval);
+			} else {
+				intervalInput = formData.interval;
+			}
 		} catch (error) {
 			console.error('加载配置失败:', error);
 			toast.error('加载配置失败', {
@@ -108,11 +119,32 @@
 			toast.error('配置未加载');
 			return;
 		}
+
+		// 保存前根据输入内容判断类型
+		const trimmed = intervalInput.trim();
+		const asNumber = Number(trimmed);
+
+		if (!isNaN(asNumber) && trimmed !== '') {
+			// 纯数字，作为 Interval
+			formData.interval = asNumber;
+		} else {
+			// 非数字，作为 Cron 表达式
+			formData.interval = trimmed;
+		}
+
 		saving = true;
 		try {
 			let resp = await api.updateConfig(formData);
 			formData = resp.data;
 			config = { ...formData };
+
+			// 更新输入框显示
+			if (typeof formData.interval === 'number') {
+				intervalInput = String(formData.interval);
+			} else {
+				intervalInput = formData.interval;
+			}
+
 			toast.success('配置已保存');
 		} catch (error) {
 			console.error('保存配置失败:', error);
@@ -214,8 +246,27 @@
 							/>
 						</div>
 						<div class="space-y-2">
-							<Label for="interval">同步间隔（秒）</Label>
-							<Input id="interval" type="number" min="60" bind:value={formData.interval} />
+							<div class="flex items-center gap-1">
+								<Label for="interval">任务触发条件</Label>
+								<Tooltip.Root>
+									<Tooltip.Trigger>
+										<InfoIcon class="text-muted-foreground h-3.5 w-3.5" />
+									</Tooltip.Trigger>
+									<Tooltip.Content>
+										<p class="text-xs">
+											视频下载任务的触发条件，支持两种格式：<br />
+											1. 输入数字表示间隔秒数，例如 1200 表示每隔 20 分钟触发一次； <br />
+											2. 输入 Cron 表达式，格式为“秒 分 时 日 月 周”，例如“0 0 2 * * *”表示每天凌晨2点触发一次。
+										</p>
+									</Tooltip.Content>
+								</Tooltip.Root>
+							</div>
+							<Input
+								id="interval"
+								type="text"
+								bind:value={intervalInput}
+								placeholder="1200 或 0 0 2 * * *"
+							/>
 						</div>
 						<div class="space-y-2">
 							<Label for="video-name">视频名称模板</Label>

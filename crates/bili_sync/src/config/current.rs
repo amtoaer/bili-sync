@@ -1,9 +1,8 @@
 use std::path::PathBuf;
-use std::str::FromStr;
 use std::sync::LazyLock;
 
 use anyhow::{Result, bail};
-use croner::Cron;
+use croner::parser::CronParser;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
@@ -82,13 +81,19 @@ impl Config {
         }
         match &self.interval {
             Trigger::Interval(secs) => {
-                if *secs <= 0 {
-                    errors.push("下载任务执行间隔时间必须大于 0 秒");
+                if *secs <= 60 {
+                    errors.push("下载任务执行间隔时间必须大于 60 秒");
                 }
             }
             Trigger::Cron(cron) => {
-                if Cron::from_str(cron).is_err() {
-                    errors.push("Cron 表达式无效，正确格式为 `秒 分 时 日 月 周`");
+                if CronParser::builder()
+                    .seconds(croner::parser::Seconds::Required)
+                    .dom_and_dow(true)
+                    .build()
+                    .parse(cron)
+                    .is_err()
+                {
+                    errors.push("Cron 表达式无效，正确格式为“秒 分 时 日 月 周”");
                 }
             }
         };

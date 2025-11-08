@@ -286,6 +286,8 @@ export interface WebhookNotifier {
 
 export type Notifier = TelegramNotifier | WebhookNotifier;
 
+export type Trigger = number | string;
+
 export interface Config {
 	auth_token: string;
 	bind_address: string;
@@ -299,7 +301,7 @@ export interface Config {
 	favorite_default_path: string;
 	collection_default_path: string;
 	submission_default_path: string;
-	interval: number;
+	interval: Trigger;
 	upper_path: string;
 	nfo_time_type: string;
 	concurrent_limit: ConcurrentLimit;
