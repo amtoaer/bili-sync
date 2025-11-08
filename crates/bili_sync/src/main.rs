@@ -45,14 +45,13 @@ async fn main() {
         &tracker,
         token.clone(),
     );
-    if !cfg!(debug_assertions) {
-        spawn_task(
-            "定时下载",
-            video_downloader(connection.clone(), bili_client),
-            &tracker,
-            token.clone(),
-        );
-    }
+
+    spawn_task(
+        "定时下载",
+        video_downloader(connection.clone(), bili_client),
+        &tracker,
+        token.clone(),
+    );
 
     tracker.close();
     handle_shutdown(connection, tracker, token).await

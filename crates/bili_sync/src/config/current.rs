@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::sync::LazyLock;
 
 use anyhow::{Result, bail};
+use croner::parser::CronParser;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
@@ -9,7 +10,8 @@ use validator::Validate;
 use crate::bilibili::{Credential, DanmakuOption, FilterOption};
 use crate::config::default::{default_auth_token, default_bind_address, default_time_format};
 use crate::config::item::{
-    ConcurrentLimit, NFOTimeType, SkipOption, default_collection_path, default_favorite_path, default_submission_path,
+    ConcurrentLimit, NFOTimeType, SkipOption, Trigger, default_collection_path, default_favorite_path,
+    default_submission_path,
 };
 use crate::notifier::Notifier;
 use crate::utils::model::{load_db_config, save_db_config};
@@ -36,7 +38,7 @@ pub struct Config {
     pub collection_default_path: String,
     #[serde(default = "default_submission_path")]
     pub submission_default_path: String,
-    pub interval: u64,
+    pub interval: Trigger,
     pub upper_path: PathBuf,
     pub nfo_time_type: NFOTimeType,
     pub concurrent_limit: ConcurrentLimit,
@@ -77,6 +79,24 @@ impl Config {
         if !(self.concurrent_limit.video > 0 && self.concurrent_limit.page > 0) {
             errors.push("video 和 page 允许的并发数必须大于 0");
         }
+        match &self.interval {
+            Trigger::Interval(secs) => {
+                if *secs <= 60 {
+                    errors.push("下载任务执行间隔时间必须大于 60 秒");
+                }
+            }
+            Trigger::Cron(cron) => {
+                if CronParser::builder()
+                    .seconds(croner::parser::Seconds::Required)
+                    .dom_and_dow(true)
+                    .build()
+                    .parse(cron)
+                    .is_err()
+                {
+                    errors.push("Cron 表达式无效，正确格式为“秒 分 时 日 月 周”");
+                }
+            }
+        };
         if !errors.is_empty() {
             bail!(
                 errors
@@ -105,7 +125,7 @@ impl Default for Config {
             favorite_default_path: default_favorite_path(),
             collection_default_path: default_collection_path(),
             submission_default_path: default_submission_path(),
-            interval: 1200,
+            interval: Trigger::default(),
             upper_path: CONFIG_DIR.join("upper_face"),
             nfo_time_type: NFOTimeType::FavTime,
             concurrent_limit: ConcurrentLimit::default(),

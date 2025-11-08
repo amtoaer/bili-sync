@@ -13,6 +13,7 @@ use crate::config::VersionedConfig;
 mod config;
 mod dashboard;
 mod me;
+mod task;
 mod video_sources;
 mod videos;
 mod ws;
@@ -28,6 +29,7 @@ pub fn router() -> Router {
             .merge(videos::router())
             .merge(dashboard::router())
             .merge(ws::router())
+            .merge(task::router())
             .layer(middleware::from_fn(auth)),
     )
 }

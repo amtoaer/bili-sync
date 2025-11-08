@@ -240,6 +240,11 @@ class ApiClient {
 	async getDashboard(): Promise<ApiResponse<DashBoardResponse>> {
 		return this.get<DashBoardResponse>('/dashboard');
 	}
+
+	async triggerDownloadTask(): Promise<ApiResponse<boolean>> {
+		return this.post<boolean>('/task/download');
+	}
+
 	subscribeToLogs(onMessage: (data: string) => void) {
 		return wsManager.subscribeToLogs(onMessage);
 	}
@@ -281,6 +286,7 @@ const api = {
 	getConfig: () => apiClient.getConfig(),
 	updateConfig: (config: Config) => apiClient.updateConfig(config),
 	getDashboard: () => apiClient.getDashboard(),
+	triggerDownloadTask: () => apiClient.triggerDownloadTask(),
 	subscribeToSysInfo: (onMessage: (data: SysInfo) => void) =>
 		apiClient.subscribeToSysInfo(onMessage),
 

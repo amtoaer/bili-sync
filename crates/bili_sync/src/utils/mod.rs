@@ -7,7 +7,6 @@ pub mod nfo;
 pub mod rule;
 pub mod signal;
 pub mod status;
-pub mod task_notifier;
 pub mod validation;
 use tracing_subscriber::fmt;
 use tracing_subscriber::layer::SubscriberExt;
