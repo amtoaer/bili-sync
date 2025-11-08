@@ -69,6 +69,19 @@ pub struct SkipOption {
     pub no_subtitle: bool,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum Trigger {
+    Interval(u64),
+    Cron(String),
+}
+
+impl Default for Trigger {
+    fn default() -> Self {
+        Trigger::Interval(3600)
+    }
+}
+
 pub trait PathSafeTemplate {
     fn path_safe_register(&mut self, name: &'static str, template: impl Into<String>) -> Result<()>;
     fn path_safe_render(&self, name: &'static str, data: &serde_json::Value) -> Result<String>;

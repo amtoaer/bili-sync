@@ -26,7 +26,7 @@ use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 use crate::api::response::SysInfo;
-use crate::utils::task_notifier::{TASK_STATUS_NOTIFIER, TaskStatus};
+use crate::task::{DownloadTaskManager, TaskStatus};
 
 static WEBSOCKET_HANDLER: LazyLock<WebSocketHandler> = LazyLock::new(WebSocketHandler::new);
 
@@ -209,7 +209,7 @@ impl WebSocketHandler {
         let cancel_token = CancellationToken::new();
         tokio::spawn(
             async move {
-                let mut stream = WatchStream::new(TASK_STATUS_NOTIFIER.subscribe()).map(ServerEvent::Tasks);
+                let mut stream = WatchStream::new(DownloadTaskManager::get().subscribe()).map(ServerEvent::Tasks);
                 while let Some(event) = stream.next().await {
                     if let Err(e) = tx.send(event).await {
                         error!("Failed to send task status: {:?}", e);
