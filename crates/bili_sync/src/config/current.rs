@@ -125,7 +125,7 @@ impl Default for Config {
             favorite_default_path: default_favorite_path(),
             collection_default_path: default_collection_path(),
             submission_default_path: default_submission_path(),
-            interval: Trigger::Interval(1200),
+            interval: Trigger::default(),
             upper_path: CONFIG_DIR.join("upper_face"),
             nfo_time_type: NFOTimeType::FavTime,
             concurrent_limit: ConcurrentLimit::default(),

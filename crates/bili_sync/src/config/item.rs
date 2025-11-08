@@ -78,7 +78,7 @@ pub enum Trigger {
 
 impl Default for Trigger {
     fn default() -> Self {
-        Trigger::Interval(3600)
+        Trigger::Interval(1200)
     }
 }
 
