@@ -10,6 +10,6 @@ pub(super) fn router() -> Router {
 }
 
 pub async fn new_download_task() -> Result<ApiResponse<bool>, ApiError> {
-    DownloadTaskManager::get().oneshot().await?;
+    DownloadTaskManager::get().download_once().await?;
     Ok(ApiResponse::ok(true))
 }

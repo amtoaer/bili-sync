@@ -18,12 +18,9 @@ pub trait NotifierAllExt {
     async fn notify_all(&self, client: &reqwest::Client, message: &str) -> Result<()>;
 }
 
-impl NotifierAllExt for Option<Vec<Notifier>> {
+impl NotifierAllExt for Vec<Notifier> {
     async fn notify_all(&self, client: &reqwest::Client, message: &str) -> Result<()> {
-        let Some(notifiers) = self else {
-            return Ok(());
-        };
-        future::join_all(notifiers.iter().map(|notifier| notifier.notify(client, message))).await;
+        future::join_all(self.iter().map(|notifier| notifier.notify(client, message))).await;
         Ok(())
     }
 }
