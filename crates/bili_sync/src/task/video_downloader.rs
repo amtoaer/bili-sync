@@ -1,4 +1,3 @@
-use std::future;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
@@ -21,9 +20,7 @@ static INSTANCE: OnceCell<DownloadTaskManager> = OnceCell::const_new();
 /// 启动周期下载视频的任务
 pub async fn video_downloader(connection: DatabaseConnection, bili_client: Arc<BiliClient>) -> Result<()> {
     let task_manager = DownloadTaskManager::init(connection, bili_client).await?;
-    let _ = task_manager.start().await;
-    future::pending::<()>().await;
-    Ok(())
+    task_manager.start().await
 }
 
 pub struct DownloadTaskManager {
