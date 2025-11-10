@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 use anyhow::{Result, bail};
 use croner::parser::CronParser;
@@ -31,7 +31,7 @@ pub struct Config {
     pub video_name: String,
     pub page_name: String,
     #[serde(default)]
-    pub notifiers: Option<Vec<Notifier>>,
+    pub notifiers: Option<Arc<Vec<Notifier>>>,
     #[serde(default = "default_favorite_path")]
     pub favorite_default_path: String,
     #[serde(default = "default_collection_path")]
