@@ -69,7 +69,14 @@ pub async fn refresh_video_source<'a>(
         .take_while(|(idx, res)| {
             match res {
                 Err(e) => {
-                    error = Err(anyhow!("{:#}", e));
+                    // 这里拿到的 e 是引用，无法直接传递所有权
+                    // 对于 BiliError，我们需要克隆内部的错误并附带原来的上下文，方便外部检查错误类型
+                    // 对于其他错误只保留字符串信息用作提示
+                    if let Some(inner) = e.downcast_ref::<BiliError>() {
+                        error = Err(inner.clone()).context(e.to_string());
+                    } else {
+                        error = Err(anyhow!("{:#}", e));
+                    }
                     futures::future::ready(false)
                 }
                 Ok(v) => {
