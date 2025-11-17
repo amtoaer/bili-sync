@@ -13,7 +13,7 @@ use sea_orm::sea_query::SimpleExpr;
 use sea_orm::{DatabaseConnection, Unchanged};
 
 use crate::adapter::{_ActiveModel, VideoSource, VideoSourceEnum};
-use crate::bilibili::{BiliClient, Collection, CollectionItem, CollectionType, VideoInfo};
+use crate::bilibili::{BiliClient, Collection, CollectionItem, CollectionType, Credential, VideoInfo};
 
 impl VideoSource for collection::Model {
     fn display_name(&self) -> Cow<'static, str> {
@@ -77,6 +77,7 @@ impl VideoSource for collection::Model {
     async fn refresh<'a>(
         self,
         bili_client: &'a BiliClient,
+        credential: &'a Credential,
         connection: &'a DatabaseConnection,
     ) -> Result<(
         VideoSourceEnum,
@@ -89,6 +90,7 @@ impl VideoSource for collection::Model {
                 mid: self.m_id.to_string(),
                 collection_type: CollectionType::from_expected(self.r#type),
             },
+            credential,
         );
         let collection_info = collection.get_info().await?;
         ensure!(
@@ -107,5 +109,10 @@ impl VideoSource for collection::Model {
         .update(connection)
         .await?;
         Ok((updated_model.into(), Box::pin(collection.into_video_stream())))
+    }
+
+    async fn delete_from_db(self, conn: &impl ConnectionTrait) -> Result<()> {
+        self.delete(conn).await?;
+        Ok(())
     }
 }

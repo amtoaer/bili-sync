@@ -217,8 +217,16 @@ class ApiClient {
 		return this.put<UpdateVideoSourceResponse>(`/video-sources/${type}/${id}`, request);
 	}
 
+	async removeVideoSource(type: string, id: number): Promise<ApiResponse<boolean>> {
+		return this.request<boolean>(`/video-sources/${type}/${id}`, 'DELETE');
+	}
+
 	async evaluateVideoSourceRules(type: string, id: number): Promise<ApiResponse<boolean>> {
 		return this.post<boolean>(`/video-sources/${type}/${id}/evaluate`, null);
+	}
+
+	async getDefaultPath(type: string, name: string): Promise<ApiResponse<string>> {
+		return this.get<string>(`/video-sources/${type}/default-path`, { name });
 	}
 
 	async getConfig(): Promise<ApiResponse<Config>> {
@@ -232,6 +240,11 @@ class ApiClient {
 	async getDashboard(): Promise<ApiResponse<DashBoardResponse>> {
 		return this.get<DashBoardResponse>('/dashboard');
 	}
+
+	async triggerDownloadTask(): Promise<ApiResponse<boolean>> {
+		return this.post<boolean>('/task/download');
+	}
+
 	subscribeToLogs(onMessage: (data: string) => void) {
 		return wsManager.subscribeToLogs(onMessage);
 	}
@@ -266,11 +279,14 @@ const api = {
 	getVideoSourcesDetails: () => apiClient.getVideoSourcesDetails(),
 	updateVideoSource: (type: string, id: number, request: UpdateVideoSourceRequest) =>
 		apiClient.updateVideoSource(type, id, request),
+	removeVideoSource: (type: string, id: number) => apiClient.removeVideoSource(type, id),
 	evaluateVideoSourceRules: (type: string, id: number) =>
 		apiClient.evaluateVideoSourceRules(type, id),
+	getDefaultPath: (type: string, name: string) => apiClient.getDefaultPath(type, name),
 	getConfig: () => apiClient.getConfig(),
 	updateConfig: (config: Config) => apiClient.updateConfig(config),
 	getDashboard: () => apiClient.getDashboard(),
+	triggerDownloadTask: () => apiClient.triggerDownloadTask(),
 	subscribeToSysInfo: (onMessage: (data: SysInfo) => void) =>
 		apiClient.subscribeToSysInfo(onMessage),
 

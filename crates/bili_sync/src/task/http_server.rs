@@ -30,11 +30,11 @@ pub async fn http_server(
         .layer(Extension(database_connection))
         .layer(Extension(bili_client))
         .layer(Extension(log_writer));
-    let config = VersionedConfig::get().load_full();
-    let listener = tokio::net::TcpListener::bind(&config.bind_address)
+    let bind_address = VersionedConfig::get().read().bind_address.to_owned();
+    let listener = tokio::net::TcpListener::bind(&bind_address)
         .await
         .context("bind address failed")?;
-    info!("开始运行管理页：http://{}", config.bind_address);
+    info!("开始运行管理页：http://{}", bind_address);
     Ok(axum::serve(listener, ServiceExt::<Request>::into_make_service(app)).await?)
 }
 

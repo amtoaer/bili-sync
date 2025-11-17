@@ -1,9 +1,7 @@
-use std::borrow::Cow;
 use std::collections::HashSet;
 
 use anyhow::{Context, Result, bail, ensure};
 use cookie::Cookie;
-use cow_utils::CowUtils;
 use regex::Regex;
 use reqwest::{Method, header};
 use rsa::pkcs8::DecodePublicKey;
@@ -30,17 +28,13 @@ pub struct Credential {
 
 #[derive(Debug, Deserialize)]
 pub struct WbiImg {
-    img_url: String,
-    sub_url: String,
+    pub(crate) img_url: String,
+    pub(crate) sub_url: String,
 }
 
-impl From<WbiImg> for Option<String> {
-    /// 尝试将 WbiImg 转换成 mixin_key
-    fn from(value: WbiImg) -> Self {
-        let key = match (
-            get_filename(value.img_url.as_str()),
-            get_filename(value.sub_url.as_str()),
-        ) {
+impl WbiImg {
+    pub fn into_mixin_key(self) -> Option<String> {
+        let key = match (get_filename(self.img_url.as_str()), get_filename(self.sub_url.as_str())) {
             (Some(img_key), Some(sub_key)) => img_key.to_string() + sub_key,
             _ => return None,
         };
@@ -100,9 +94,8 @@ JNrRuoEUXpabUzGB8QIDAQAB
         .expect("fail to decode public key");
         let ts = chrono::Local::now().timestamp_millis();
         let data = format!("refresh_{}", ts).into_bytes();
-        let mut rng = rand::rng();
         let encrypted = key
-            .encrypt(&mut rng, Oaep::new::<Sha256>(), &data)
+            .encrypt(&mut rand::rng(), Oaep::new::<Sha256>(), &data)
             .expect("fail to encrypt");
         hex::encode(encrypted)
     }
@@ -213,47 +206,8 @@ fn get_filename(url: &str) -> Option<&str> {
         .map(|(s, _)| s)
 }
 
-pub fn encoded_query<'a>(
-    params: Vec<(&'a str, impl Into<Cow<'a, str>>)>,
-    mixin_key: Option<impl AsRef<str>>,
-) -> Vec<(&'a str, Cow<'a, str>)> {
-    match mixin_key {
-        Some(key) => _encoded_query(params, key.as_ref(), chrono::Local::now().timestamp().to_string()),
-        None => params.into_iter().map(|(k, v)| (k, v.into())).collect(),
-    }
-}
-
-fn _encoded_query<'a>(
-    params: Vec<(&'a str, impl Into<Cow<'a, str>>)>,
-    mixin_key: &str,
-    timestamp: String,
-) -> Vec<(&'a str, Cow<'a, str>)> {
-    let disallowed = ['!', '\'', '(', ')', '*'];
-    let mut params: Vec<(&'a str, Cow<'a, str>)> = params
-        .into_iter()
-        .map(|(k, v)| {
-            (
-                k,
-                match Into::<Cow<'a, str>>::into(v) {
-                    Cow::Borrowed(v) => v.cow_replace(&disallowed[..], ""),
-                    Cow::Owned(v) => v.replace(&disallowed[..], "").into(),
-                },
-            )
-        })
-        .collect();
-    params.push(("wts", timestamp.into()));
-    params.sort_by(|a, b| a.0.cmp(b.0));
-    let query = serde_urlencoded::to_string(&params)
-        .expect("fail to encode query")
-        .replace('+', "%20");
-    params.push(("w_rid", format!("{:x}", md5::compute(query.clone() + mixin_key)).into()));
-    params
-}
-
 #[cfg(test)]
 mod tests {
-    use assert_matches::assert_matches;
-
     use super::*;
 
     #[test]
@@ -281,58 +235,6 @@ mod tests {
         assert_eq!(
             serde_urlencoded::to_string(query).unwrap().replace('+', "%20"),
             "bar=%E4%BA%94%E4%B8%80%E5%9B%9B&baz=1919810&foo=one%20one%20four"
-        );
-    }
-
-    #[test]
-    fn test_wbi_key() {
-        let key = WbiImg {
-            img_url: "https://i0.hdslb.com/bfs/wbi/7cd084941338484aae1ad9425b84077c.png".to_string(),
-            sub_url: "https://i0.hdslb.com/bfs/wbi/4932caff0ff746eab6f01bf08b70ac45.png".to_string(),
-        };
-        let key = Option::<String>::from(key).expect("fail to convert key");
-        assert_eq!(key.as_str(), "ea1db124af3c7062474693fa704f4ff8");
-        // 没有特殊字符
-        assert_matches!(
-            &_encoded_query(
-                vec![("foo", "114"), ("bar", "514"), ("zab", "1919810")],
-                key.as_str(),
-                "1702204169".to_string(),
-            )[..],
-            [
-                ("bar", Cow::Borrowed(a)),
-                ("foo", Cow::Borrowed(b)),
-                ("wts", Cow::Owned(c)),
-                ("zab", Cow::Borrowed(d)),
-                ("w_rid", Cow::Owned(e)),
-            ] => {
-                assert_eq!(*a, "514");
-                assert_eq!(*b, "114");
-                assert_eq!(c, "1702204169");
-                assert_eq!(*d, "1919810");
-                assert_eq!(e, "8f6f2b5b3d485fe1886cec6a0be8c5d4");
-            }
-        );
-        // 有特殊字符
-        assert_matches!(
-            &_encoded_query(
-                vec![("foo", "'1(1)4'"), ("bar", "!5*1!14"), ("zab", "1919810")],
-                key.as_str(),
-                "1702204169".to_string(),
-            )[..],
-            [
-                ("bar", Cow::Owned(a)),
-                ("foo", Cow::Owned(b)),
-                ("wts", Cow::Owned(c)),
-                ("zab", Cow::Borrowed(d)),
-                ("w_rid", Cow::Owned(e)),
-            ] => {
-                assert_eq!(a, "5114");
-                assert_eq!(b, "114");
-                assert_eq!(c, "1702204169");
-                assert_eq!(*d, "1919810");
-                assert_eq!(e, "6a2c86c4b0648ce062ba0dac2de91a85");
-            }
         );
     }
 }

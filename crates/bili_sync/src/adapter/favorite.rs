@@ -12,7 +12,7 @@ use sea_orm::sea_query::SimpleExpr;
 use sea_orm::{DatabaseConnection, Unchanged};
 
 use crate::adapter::{_ActiveModel, VideoSource, VideoSourceEnum};
-use crate::bilibili::{BiliClient, FavoriteList, VideoInfo};
+use crate::bilibili::{BiliClient, Credential, FavoriteList, VideoInfo};
 
 impl VideoSource for favorite::Model {
     fn display_name(&self) -> Cow<'static, str> {
@@ -50,12 +50,13 @@ impl VideoSource for favorite::Model {
     async fn refresh<'a>(
         self,
         bili_client: &'a BiliClient,
+        credential: &'a Credential,
         connection: &'a DatabaseConnection,
     ) -> Result<(
         VideoSourceEnum,
         Pin<Box<dyn Stream<Item = Result<VideoInfo>> + Send + 'a>>,
     )> {
-        let favorite = FavoriteList::new(bili_client, self.f_id.to_string());
+        let favorite = FavoriteList::new(bili_client, self.f_id.to_string(), credential);
         let favorite_info = favorite.get_info().await?;
         ensure!(
             favorite_info.id == self.f_id,
@@ -71,5 +72,10 @@ impl VideoSource for favorite::Model {
         .update(connection)
         .await?;
         Ok((updated_model.into(), Box::pin(favorite.into_video_stream())))
+    }
+
+    async fn delete_from_db(self, conn: &impl ConnectionTrait) -> Result<()> {
+        self.delete(conn).await?;
+        Ok(())
     }
 }

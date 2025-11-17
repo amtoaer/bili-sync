@@ -2,7 +2,6 @@ use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 
 use crate::bilibili::error::BiliError;
-use crate::config::VersionedConfig;
 
 pub struct PageAnalyzer {
     info: serde_json::Value,
@@ -131,14 +130,14 @@ pub enum Stream {
 
 // 通用的获取流链接的方法，交由 Downloader 使用
 impl Stream {
-    pub fn urls(&self) -> Vec<&str> {
+    pub fn urls(&self, enable_cdn_sorting: bool) -> Vec<&str> {
         match self {
             Self::Flv(url) | Self::Html5Mp4(url) | Self::EpisodeTryMp4(url) => vec![url],
             Self::DashVideo { url, backup_url, .. } | Self::DashAudio { url, backup_url, .. } => {
                 let mut urls = std::iter::once(url.as_str())
                     .chain(backup_url.iter().map(|s| s.as_str()))
                     .collect::<Vec<_>>();
-                if VersionedConfig::get().load().cdn_sorting {
+                if enable_cdn_sorting {
                     urls.sort_by_key(|u| {
                         if u.contains("upos-") {
                             0 // 服务商 cdn
@@ -218,7 +217,7 @@ impl PageAnalyzer {
             .info
             .pointer_mut("/dash/video")
             .and_then(|v| v.as_array_mut())
-            .ok_or(BiliError::RiskControlOccurred)?
+            .ok_or(BiliError::VideoStreamsEmpty)?
             .iter_mut()
         {
             let (Some(url), Some(quality), Some(codecs_id)) = (
@@ -267,7 +266,7 @@ impl PageAnalyzer {
             && let Some(flac) = self.info.pointer_mut("/dash/flac/audio")
         {
             let (Some(url), Some(quality)) = (flac["baseUrl"].as_str(), flac["id"].as_u64()) else {
-                bail!("invalid flac stream");
+                bail!("invalid flac stream, flac content: {}", flac);
             };
             let quality = AudioQuality::from_repr(quality as usize).context("invalid flac stream quality")?;
             if quality >= filter_option.audio_min_quality && quality <= filter_option.audio_max_quality {
@@ -424,16 +423,17 @@ mod tests {
                 Some(AudioQuality::Quality192k),
             ),
         ];
+        let config = VersionedConfig::get().read();
         for (bvid, video_quality, video_codec, audio_quality) in testcases.into_iter() {
             let client = BiliClient::new();
-            let video = Video::new(&client, bvid.to_owned());
+            let video = Video::new(&client, bvid.to_owned(), &config.credential);
             let pages = video.get_pages().await.expect("failed to get pages");
             let first_page = pages.into_iter().next().expect("no page found");
             let best_stream = video
                 .get_page_analyzer(&first_page)
                 .await
                 .expect("failed to get page analyzer")
-                .best_stream(&VersionedConfig::get().load().filter_option)
+                .best_stream(&config.filter_option)
                 .expect("failed to get best stream");
             dbg!(bvid, &best_stream);
             match best_stream {
@@ -469,7 +469,7 @@ mod tests {
             codecs: VideoCodecs::AVC,
         };
         assert_eq!(
-            stream.urls(),
+            stream.urls(true),
             vec![
                 "https://upos-sz-mirrorcos.bilivideo.com",
                 "https://cn-tj-cu-01-11.bilivideo.com",

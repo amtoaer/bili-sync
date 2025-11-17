@@ -119,8 +119,8 @@ impl<const N: usize> Status<N> {
 
     /// 根据子任务执行结果更新子任务的状态
     fn set_result(&mut self, result: &ExecutionStatus, offset: usize) {
-        // 如果任务返回 FixedFailed 状态，那么无论之前的状态如何，都将状态设置为 FixedFailed 的状态
-        if let ExecutionStatus::FixedFailed(status, _) = result {
+        // 如果任务返回 Fixed 状态，那么无论之前的状态如何，都将状态设置为 Fixed 的状态
+        if let ExecutionStatus::Fixed(status) = result {
             assert!(*status < 0b1000, "status should be less than 0b1000");
             self.set_status(offset, *status);
         } else if self.get_status(offset) < STATUS_MAX_RETRY {
@@ -201,9 +201,9 @@ mod tests {
         assert_eq!(status.should_run(), [false, false, false]);
         assert!(status.get_completed());
         status.update_status(&[
-            ExecutionStatus::FixedFailed(1, anyhow!("")),
-            ExecutionStatus::FixedFailed(4, anyhow!("")),
-            ExecutionStatus::FixedFailed(7, anyhow!("")),
+            ExecutionStatus::Fixed(1),
+            ExecutionStatus::Fixed(4),
+            ExecutionStatus::Fixed(7),
         ]);
         assert_eq!(status.should_run(), [true, false, false]);
         assert!(!status.get_completed());

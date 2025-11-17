@@ -1,15 +1,19 @@
 use std::path::PathBuf;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 use anyhow::{Result, bail};
+use croner::parser::CronParser;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use crate::bilibili::{Credential, DanmakuOption, FilterOption};
-use crate::config::LegacyConfig;
 use crate::config::default::{default_auth_token, default_bind_address, default_time_format};
-use crate::config::item::{ConcurrentLimit, NFOTimeType, SkipOption};
+use crate::config::item::{
+    ConcurrentLimit, NFOTimeType, SkipOption, Trigger, default_collection_path, default_favorite_path,
+    default_submission_path,
+};
+use crate::notifier::Notifier;
 use crate::utils::model::{load_db_config, save_db_config};
 
 pub static CONFIG_DIR: LazyLock<PathBuf> =
@@ -26,7 +30,15 @@ pub struct Config {
     pub skip_option: SkipOption,
     pub video_name: String,
     pub page_name: String,
-    pub interval: u64,
+    #[serde(default)]
+    pub notifiers: Option<Arc<Vec<Notifier>>>,
+    #[serde(default = "default_favorite_path")]
+    pub favorite_default_path: String,
+    #[serde(default = "default_collection_path")]
+    pub collection_default_path: String,
+    #[serde(default = "default_submission_path")]
+    pub submission_default_path: String,
+    pub interval: Trigger,
     pub upper_path: PathBuf,
     pub nfo_time_type: NFOTimeType,
     pub concurrent_limit: ConcurrentLimit,
@@ -67,6 +79,24 @@ impl Config {
         if !(self.concurrent_limit.video > 0 && self.concurrent_limit.page > 0) {
             errors.push("video 和 page 允许的并发数必须大于 0");
         }
+        match &self.interval {
+            Trigger::Interval(secs) => {
+                if *secs <= 60 {
+                    errors.push("下载任务执行间隔时间必须大于 60 秒");
+                }
+            }
+            Trigger::Cron(cron) => {
+                if CronParser::builder()
+                    .seconds(croner::parser::Seconds::Required)
+                    .dom_and_dow(true)
+                    .build()
+                    .parse(cron)
+                    .is_err()
+                {
+                    errors.push("Cron 表达式无效，正确格式为“秒 分 时 日 月 周”");
+                }
+            }
+        };
         if !errors.is_empty() {
             bail!(
                 errors
@@ -77,14 +107,6 @@ impl Config {
             );
         }
         Ok(())
-    }
-
-    #[cfg(test)]
-    pub(super) fn test_default() -> Self {
-        Self {
-            cdn_sorting: true,
-            ..Default::default()
-        }
     }
 }
 
@@ -99,34 +121,16 @@ impl Default for Config {
             skip_option: SkipOption::default(),
             video_name: "{{title}}".to_owned(),
             page_name: "{{bvid}}".to_owned(),
-            interval: 1200,
+            notifiers: None,
+            favorite_default_path: default_favorite_path(),
+            collection_default_path: default_collection_path(),
+            submission_default_path: default_submission_path(),
+            interval: Trigger::default(),
             upper_path: CONFIG_DIR.join("upper_face"),
             nfo_time_type: NFOTimeType::FavTime,
             concurrent_limit: ConcurrentLimit::default(),
             time_format: default_time_format(),
             cdn_sorting: false,
-            version: 0,
-        }
-    }
-}
-
-impl From<LegacyConfig> for Config {
-    fn from(legacy: LegacyConfig) -> Self {
-        Self {
-            auth_token: legacy.auth_token,
-            bind_address: legacy.bind_address,
-            credential: legacy.credential,
-            filter_option: legacy.filter_option,
-            danmaku_option: legacy.danmaku_option,
-            skip_option: SkipOption::default(),
-            video_name: legacy.video_name,
-            page_name: legacy.page_name,
-            interval: legacy.interval,
-            upper_path: legacy.upper_path,
-            nfo_time_type: legacy.nfo_time_type,
-            concurrent_limit: legacy.concurrent_limit,
-            time_format: legacy.time_format,
-            cdn_sorting: legacy.cdn_sorting,
             version: 0,
         }
     }

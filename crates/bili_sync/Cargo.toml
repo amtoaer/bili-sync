@@ -21,7 +21,7 @@ bili_sync_migration = { workspace = true }
 chrono = { workspace = true }
 clap = { workspace = true }
 cookie = { workspace = true }
-cow-utils = { workspace = true }
+croner = { workspace = true }
 dashmap = { workspace = true }
 dirs = { workspace = true }
 enum_dispatch = { workspace = true }
@@ -49,6 +49,7 @@ strum = { workspace = true }
 sysinfo = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
+tokio-cron-scheduler = { workspace = true }
 tokio-stream = { workspace = true }
 tokio-util = { workspace = true }
 toml = { workspace = true }
@@ -58,9 +59,6 @@ tracing-subscriber = { workspace = true }
 ua_generator = { workspace = true }
 uuid = { workspace = true }
 validator = { workspace = true }
-
-[dev-dependencies]
-assert_matches = { workspace = true }
 
 [build-dependencies]
 built = { workspace = true }

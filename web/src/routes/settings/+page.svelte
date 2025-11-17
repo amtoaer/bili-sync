@@ -7,11 +7,15 @@
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import PasswordInput from '$lib/components/custom/password-input.svelte';
+	import NotifierDialog from './NotifierDialog.svelte';
+	import InfoIcon from '@lucide/svelte/icons/info';
 	import api from '$lib/api';
 	import { toast } from 'svelte-sonner';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
-	import type { Config, ApiError } from '$lib/types';
+	import type { Config, ApiError, Notifier } from '$lib/types';
 
 	let frontendToken = ''; // 前端认证token
 	let config: Config | null = null;
@@ -19,12 +23,70 @@
 	let saving = false;
 	let loading = false;
 
+	let intervalInput: string = '1200';
+
+	// Notifier 管理相关
+	let showNotifierDialog = false;
+	let editingNotifier: Notifier | null = null;
+	let editingNotifierIndex: number | null = null;
+	let isEditing = false;
+
+	function openAddNotifierDialog() {
+		editingNotifier = null;
+		editingNotifierIndex = null;
+		isEditing = false;
+		showNotifierDialog = true;
+	}
+
+	function openEditNotifierDialog(notifier: Notifier, index: number) {
+		editingNotifier = { ...notifier };
+		editingNotifierIndex = index;
+		isEditing = true;
+		showNotifierDialog = true;
+	}
+
+	function closeNotifierDialog() {
+		showNotifierDialog = false;
+		editingNotifier = null;
+		editingNotifierIndex = null;
+		isEditing = false;
+	}
+
+	function addNotifier(notifier: Notifier) {
+		if (!formData) return;
+		if (!formData.notifiers) {
+			formData.notifiers = [];
+		}
+		formData.notifiers = [...formData.notifiers, notifier];
+		closeNotifierDialog();
+	}
+
+	function updateNotifier(index: number, notifier: Notifier) {
+		if (!formData?.notifiers) return;
+		const newNotifiers = [...formData.notifiers];
+		newNotifiers[index] = notifier;
+		formData.notifiers = newNotifiers;
+		closeNotifierDialog();
+	}
+
+	function deleteNotifier(index: number) {
+		if (!formData?.notifiers) return;
+		formData.notifiers = formData.notifiers.filter((_, i) => i !== index);
+	}
+
 	async function loadConfig() {
 		loading = true;
 		try {
 			const response = await api.getConfig();
 			config = response.data;
 			formData = { ...config };
+
+			// 根据 interval 的类型初始化输入框
+			if (typeof formData.interval === 'number') {
+				intervalInput = String(formData.interval);
+			} else {
+				intervalInput = formData.interval;
+			}
 		} catch (error) {
 			console.error('加载配置失败:', error);
 			toast.error('加载配置失败', {
@@ -57,11 +119,32 @@
 			toast.error('配置未加载');
 			return;
 		}
+
+		// 保存前根据输入内容判断类型
+		const trimmed = intervalInput.trim();
+		const asNumber = Number(trimmed);
+
+		if (!isNaN(asNumber) && trimmed !== '') {
+			// 纯数字，作为 Interval
+			formData.interval = asNumber;
+		} else {
+			// 非数字，作为 Cron 表达式
+			formData.interval = trimmed;
+		}
+
 		saving = true;
 		try {
 			let resp = await api.updateConfig(formData);
 			formData = resp.data;
 			config = { ...formData };
+
+			// 更新输入框显示
+			if (typeof formData.interval === 'number') {
+				intervalInput = String(formData.interval);
+			} else {
+				intervalInput = formData.interval;
+			}
+
 			toast.success('配置已保存');
 		} catch (error) {
 			console.error('保存配置失败:', error);
@@ -142,11 +225,12 @@
 	{:else if formData}
 		<div class="space-y-6">
 			<Tabs.Root value="basic" class="w-full">
-				<Tabs.List class="grid w-full grid-cols-5">
+				<Tabs.List class="grid w-full grid-cols-6">
 					<Tabs.Trigger value="basic">基本设置</Tabs.Trigger>
 					<Tabs.Trigger value="auth">B站认证</Tabs.Trigger>
 					<Tabs.Trigger value="filter">视频处理</Tabs.Trigger>
 					<Tabs.Trigger value="danmaku">弹幕渲染</Tabs.Trigger>
+					<Tabs.Trigger value="notifiers">通知设置</Tabs.Trigger>
 					<Tabs.Trigger value="advanced">高级设置</Tabs.Trigger>
 				</Tabs.List>
 
@@ -162,8 +246,27 @@
 							/>
 						</div>
 						<div class="space-y-2">
-							<Label for="interval">同步间隔（秒）</Label>
-							<Input id="interval" type="number" min="60" bind:value={formData.interval} />
+							<div class="flex items-center gap-1">
+								<Label for="interval">任务触发条件</Label>
+								<Tooltip.Root>
+									<Tooltip.Trigger>
+										<InfoIcon class="text-muted-foreground h-3.5 w-3.5" />
+									</Tooltip.Trigger>
+									<Tooltip.Content>
+										<p class="text-xs">
+											视频下载任务的触发条件，支持两种格式：<br />
+											1. 输入数字表示间隔秒数，例如 1200 表示每隔 20 分钟触发一次； <br />
+											2. 输入 Cron 表达式，格式为“秒 分 时 日 月 周”，例如“0 0 2 * * *”表示每天凌晨2点触发一次。
+										</p>
+									</Tooltip.Content>
+								</Tooltip.Root>
+							</div>
+							<Input
+								id="interval"
+								type="text"
+								bind:value={intervalInput}
+								placeholder="1200 或 0 0 2 * * *"
+							/>
 						</div>
 						<div class="space-y-2">
 							<Label for="video-name">视频名称模板</Label>
@@ -191,8 +294,6 @@
 						</div>
 					</div>
 
-					<Separator />
-
 					<div class="space-y-4">
 						<div class="space-y-2">
 							<Label for="backend-auth-token">后端 API 认证Token</Label>
@@ -204,6 +305,23 @@
 							<p class="text-muted-foreground text-xs">
 								修改此Token后，前端需要使用新Token重新认证才能访问API
 							</p>
+						</div>
+					</div>
+
+					<Separator />
+
+					<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+						<div class="space-y-2">
+							<Label for="favorite-default-path">收藏夹快捷订阅路径模板</Label>
+							<Input id="favorite-default-path" bind:value={formData.favorite_default_path} />
+						</div>
+						<div class="space-y-2">
+							<Label for="collection-default-path">合集快捷订阅路径模板</Label>
+							<Input id="collection-default-path" bind:value={formData.collection_default_path} />
+						</div>
+						<div class="space-y-2">
+							<Label for="submission-default-path">UP 主投稿快捷订阅路径模板</Label>
+							<Input id="submission-default-path" bind:value={formData.submission_default_path} />
 						</div>
 					</div>
 
@@ -605,6 +723,66 @@
 					</div>
 				</Tabs.Content>
 
+				<!-- 通知设置 -->
+				<Tabs.Content value="notifiers" class="mt-6 space-y-6">
+					<div class="space-y-4">
+						<div class="flex items-center justify-between">
+							<div>
+								<h3 class="text-lg font-semibold">通知器管理</h3>
+								<p class="text-muted-foreground text-sm">
+									配置通知器，在下载任务出现错误时发送通知
+								</p>
+							</div>
+							<Button onclick={openAddNotifierDialog}>+ 添加通知器</Button>
+						</div>
+
+						{#if !formData.notifiers || formData.notifiers.length === 0}
+							<div class="rounded-lg border-2 border-dashed py-12 text-center">
+								<p class="text-muted-foreground">暂无通知器配置</p>
+								<Button class="mt-4" variant="outline" onclick={openAddNotifierDialog}>
+									添加第一个通知器
+								</Button>
+							</div>
+						{:else}
+							<div class="space-y-3">
+								{#each formData.notifiers as notifier, index (index)}
+									<div class="flex items-center justify-between rounded-lg border p-4">
+										<div class="flex-1">
+											{#if notifier.type === 'telegram'}
+												<div class="flex items-center gap-2">
+													<Badge variant="secondary">Telegram</Badge>
+													<span class="text-muted-foreground text-sm">
+														Chat ID: {notifier.chat_id}
+													</span>
+												</div>
+											{:else if notifier.type === 'webhook'}
+												<div class="flex items-center gap-2">
+													<Badge variant="secondary">Webhook</Badge>
+													<span class="text-muted-foreground text-sm">
+														{notifier.url}
+													</span>
+												</div>
+											{/if}
+										</div>
+										<div class="flex gap-2">
+											<Button
+												size="sm"
+												variant="outline"
+												onclick={() => openEditNotifierDialog(notifier, index)}
+											>
+												编辑
+											</Button>
+											<Button size="sm" variant="destructive" onclick={() => deleteNotifier(index)}>
+												删除
+											</Button>
+										</div>
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				</Tabs.Content>
+
 				<!-- 高级设置 -->
 				<Tabs.Content value="advanced" class="mt-6 space-y-6">
 					<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -741,3 +919,33 @@
 		</div>
 	{/if}
 </div>
+
+<Dialog.Root bind:open={showNotifierDialog}>
+	<Dialog.Portal>
+		<Dialog.Overlay class="bg-background/80 fixed inset-0 z-50 backdrop-blur-sm" />
+		<Dialog.Content
+			class="bg-background fixed top-[50%] left-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border p-6 shadow-lg duration-200 sm:rounded-lg"
+		>
+			<Dialog.Header>
+				<Dialog.Title>
+					{isEditing ? '编辑通知器' : '添加通知器'}
+				</Dialog.Title>
+				<Dialog.Description>配置通知器类型和参数</Dialog.Description>
+			</Dialog.Header>
+
+			{#if showNotifierDialog}
+				<NotifierDialog
+					notifier={editingNotifier}
+					onSave={(notifier) => {
+						if (isEditing && editingNotifierIndex !== null) {
+							updateNotifier(editingNotifierIndex, notifier);
+						} else {
+							addNotifier(notifier);
+						}
+					}}
+					onCancel={closeNotifierDialog}
+				/>
+			{/if}
+		</Dialog.Content>
+	</Dialog.Portal>
+</Dialog.Root>

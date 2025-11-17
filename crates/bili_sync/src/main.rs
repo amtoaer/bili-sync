@@ -8,6 +8,7 @@ mod config;
 mod database;
 mod downloader;
 mod error;
+mod notifier;
 mod task;
 mod utils;
 mod workflow;
@@ -18,7 +19,7 @@ use std::future::Future;
 use std::sync::Arc;
 
 use bilibili::BiliClient;
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use sea_orm::DatabaseConnection;
 use task::{http_server, video_downloader};
 use tokio_util::sync::CancellationToken;
@@ -44,14 +45,13 @@ async fn main() {
         &tracker,
         token.clone(),
     );
-    if !cfg!(debug_assertions) {
-        spawn_task(
-            "定时下载",
-            video_downloader(connection.clone(), bili_client),
-            &tracker,
-            token.clone(),
-        );
-    }
+
+    spawn_task(
+        "定时下载",
+        video_downloader(connection.clone(), bili_client),
+        &tracker,
+        token.clone(),
+    );
 
     tracker.close();
     handle_shutdown(connection, tracker, token).await
@@ -79,7 +79,7 @@ fn spawn_task(
 /// 初始化日志系统、打印欢迎信息，初始化数据库连接和全局配置
 async fn init() -> (DatabaseConnection, LogHelper) {
     let (tx, _rx) = tokio::sync::broadcast::channel(30);
-    let log_history = Arc::new(Mutex::new(VecDeque::with_capacity(MAX_HISTORY_LOGS + 1)));
+    let log_history = Arc::new(RwLock::new(VecDeque::with_capacity(MAX_HISTORY_LOGS + 1)));
     let log_writer = LogHelper::new(tx, log_history.clone());
 
     init_logger(&ARGS.log_level, Some(log_writer.clone()));

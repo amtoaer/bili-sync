@@ -2,32 +2,41 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use axum::Router;
-use axum::extract::{Extension, Path};
+use axum::extract::{Extension, Path, Query};
 use axum::routing::{get, post, put};
 use bili_sync_entity::rule::Rule;
 use bili_sync_entity::*;
 use bili_sync_migration::Expr;
 use sea_orm::ActiveValue::Set;
 use sea_orm::entity::prelude::*;
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QuerySelect, TransactionTrait};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QuerySelect, QueryTrait, TransactionTrait};
 
-use crate::adapter::_ActiveModel;
+use crate::adapter::{_ActiveModel, VideoSource as _, VideoSourceEnum};
 use crate::api::error::InnerApiError;
 use crate::api::request::{
-    InsertCollectionRequest, InsertFavoriteRequest, InsertSubmissionRequest, UpdateVideoSourceRequest,
+    DefaultPathRequest, InsertCollectionRequest, InsertFavoriteRequest, InsertSubmissionRequest,
+    UpdateVideoSourceRequest,
 };
 use crate::api::response::{
     UpdateVideoSourceResponse, VideoSource, VideoSourceDetail, VideoSourcesDetailsResponse, VideoSourcesResponse,
 };
 use crate::api::wrapper::{ApiError, ApiResponse, ValidatedJson};
 use crate::bilibili::{BiliClient, Collection, CollectionItem, FavoriteList, Submission};
+use crate::config::{PathSafeTemplate, TEMPLATE, VersionedConfig};
 use crate::utils::rule::FieldEvaluatable;
 
 pub(super) fn router() -> Router {
     Router::new()
         .route("/video-sources", get(get_video_sources))
         .route("/video-sources/details", get(get_video_sources_details))
-        .route("/video-sources/{type}/{id}", put(update_video_source))
+        .route(
+            "/video-sources/{type}/default-path",
+            get(get_video_sources_default_path),
+        ) // 仅用于前端获取默认路径
+        .route(
+            "/video-sources/{type}/{id}",
+            put(update_video_source).delete(remove_video_source),
+        )
         .route("/video-sources/{type}/{id}/evaluate", post(evaluate_video_source))
         .route("/video-sources/favorites", post(insert_favorite))
         .route("/video-sources/collections", post(insert_collection))
@@ -154,6 +163,22 @@ pub async fn get_video_sources_details(
     }))
 }
 
+pub async fn get_video_sources_default_path(
+    Path(source_type): Path<String>,
+    Query(params): Query<DefaultPathRequest>,
+) -> Result<ApiResponse<String>, ApiError> {
+    let template_name = match source_type.as_str() {
+        "favorites" => "favorite_default_path",
+        "collections" => "collection_default_path",
+        "submissions" => "submission_default_path",
+        _ => return Err(InnerApiError::BadRequest("Invalid video source type".to_string()).into()),
+    };
+    let template = TEMPLATE.read();
+    Ok(ApiResponse::ok(
+        template.path_safe_render(template_name, &serde_json::to_value(params)?)?,
+    ))
+}
+
 /// 更新视频来源
 pub async fn update_video_source(
     Path((source_type, id)): Path<(String, i32)>,
@@ -218,6 +243,43 @@ pub async fn update_video_source(
     };
     active_model.save(&db).await?;
     Ok(ApiResponse::ok(UpdateVideoSourceResponse { rule_display }))
+}
+
+pub async fn remove_video_source(
+    Path((source_type, id)): Path<(String, i32)>,
+    Extension(db): Extension<DatabaseConnection>,
+) -> Result<ApiResponse<bool>, ApiError> {
+    // 不允许删除稍后再看
+    let video_source: Option<VideoSourceEnum> = match source_type.as_str() {
+        "collections" => collection::Entity::find_by_id(id).one(&db).await?.map(Into::into),
+        "favorites" => favorite::Entity::find_by_id(id).one(&db).await?.map(Into::into),
+        "submissions" => submission::Entity::find_by_id(id).one(&db).await?.map(Into::into),
+        _ => return Err(InnerApiError::BadRequest("Invalid video source type".to_string()).into()),
+    };
+    let Some(video_source) = video_source else {
+        return Err(InnerApiError::NotFound(id).into());
+    };
+    let txn = db.begin().await?;
+    page::Entity::delete_many()
+        .filter(
+            page::Column::VideoId.in_subquery(
+                video::Entity::find()
+                    .filter(video_source.filter_expr())
+                    .select_only()
+                    .column(video::Column::Id)
+                    .as_query()
+                    .to_owned(),
+            ),
+        )
+        .exec(&txn)
+        .await?;
+    video::Entity::delete_many()
+        .filter(video_source.filter_expr())
+        .exec(&txn)
+        .await?;
+    video_source.delete_from_db(&txn).await?;
+    txn.commit().await?;
+    Ok(ApiResponse::ok(true))
 }
 
 pub async fn evaluate_video_source(
@@ -303,7 +365,8 @@ pub async fn insert_favorite(
     Extension(bili_client): Extension<Arc<BiliClient>>,
     ValidatedJson(request): ValidatedJson<InsertFavoriteRequest>,
 ) -> Result<ApiResponse<bool>, ApiError> {
-    let favorite = FavoriteList::new(bili_client.as_ref(), request.fid.to_string());
+    let credential = &VersionedConfig::get().read().credential;
+    let favorite = FavoriteList::new(bili_client.as_ref(), request.fid.to_string(), credential);
     let favorite_info = favorite.get_info().await?;
     favorite::Entity::insert(favorite::ActiveModel {
         f_id: Set(favorite_info.id),
@@ -323,6 +386,7 @@ pub async fn insert_collection(
     Extension(bili_client): Extension<Arc<BiliClient>>,
     ValidatedJson(request): ValidatedJson<InsertCollectionRequest>,
 ) -> Result<ApiResponse<bool>, ApiError> {
+    let credential = &VersionedConfig::get().read().credential;
     let collection = Collection::new(
         bili_client.as_ref(),
         CollectionItem {
@@ -330,6 +394,7 @@ pub async fn insert_collection(
             mid: request.mid.to_string(),
             collection_type: request.collection_type,
         },
+        credential,
     );
     let collection_info = collection.get_info().await?;
     collection::Entity::insert(collection::ActiveModel {
@@ -353,7 +418,8 @@ pub async fn insert_submission(
     Extension(bili_client): Extension<Arc<BiliClient>>,
     ValidatedJson(request): ValidatedJson<InsertSubmissionRequest>,
 ) -> Result<ApiResponse<bool>, ApiError> {
-    let submission = Submission::new(bili_client.as_ref(), request.upper_id.to_string());
+    let credential = &VersionedConfig::get().read().credential;
+    let submission = Submission::new(bili_client.as_ref(), request.upper_id.to_string(), credential);
     let upper = submission.get_info().await?;
     submission::Entity::insert(submission::ActiveModel {
         upper_id: Set(upper.mid.parse()?),

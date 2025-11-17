@@ -6,12 +6,12 @@ use futures::Stream;
 use reqwest::Method;
 use serde_json::Value;
 
-use crate::bilibili::credential::encoded_query;
-use crate::bilibili::{BiliClient, MIXIN_KEY, Validate, VideoInfo};
+use crate::bilibili::{BiliClient, Credential, MIXIN_KEY, Validate, VideoInfo, WbiSign};
 
 pub struct Dynamic<'a> {
     client: &'a BiliClient,
     pub upper_id: String,
+    credential: &'a Credential,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -21,24 +21,28 @@ pub struct DynamicItemPublished {
 }
 
 impl<'a> Dynamic<'a> {
-    pub fn new(client: &'a BiliClient, upper_id: String) -> Self {
-        Self { client, upper_id }
+    pub fn new(client: &'a BiliClient, upper_id: String, credential: &'a Credential) -> Self {
+        Self {
+            client,
+            upper_id,
+            credential,
+        }
     }
 
     pub async fn get_dynamics(&self, offset: Option<String>) -> Result<Value> {
         self.client
             .request(
                 Method::GET,
-                "https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/all",
+                "https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/space",
+                self.credential,
             )
             .await
-            .query(&encoded_query(
-                vec![
-                    ("host_mid", self.upper_id.as_str()),
-                    ("offset", offset.as_deref().unwrap_or("")),
-                ],
-                MIXIN_KEY.load().as_deref(),
-            ))
+            .query(&[
+                ("host_mid", self.upper_id.as_str()),
+                ("offset", offset.as_deref().unwrap_or("")),
+                ("type", "video"),
+            ])
+            .wbi_sign(MIXIN_KEY.load().as_deref())?
             .send()
             .await?
             .error_for_status()?

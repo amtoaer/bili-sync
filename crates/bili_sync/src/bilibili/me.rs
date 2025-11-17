@@ -1,28 +1,32 @@
 use anyhow::{Result, ensure};
 use reqwest::Method;
 
-use crate::bilibili::{BiliClient, Validate};
-use crate::config::VersionedConfig;
+use crate::bilibili::{BiliClient, Credential, Validate};
+
 pub struct Me<'a> {
     client: &'a BiliClient,
-    mid: String,
+    credential: &'a Credential,
 }
 
 impl<'a> Me<'a> {
-    pub fn new(client: &'a BiliClient) -> Self {
-        Self {
-            client,
-            mid: Self::my_id(),
-        }
+    pub fn new(client: &'a BiliClient, credential: &'a Credential) -> Self {
+        Self { client, credential }
     }
 
     pub async fn get_created_favorites(&self) -> Result<Option<Vec<FavoriteItem>>> {
-        ensure!(!self.mid.is_empty(), "未获取到用户 ID，请确保填写设置中的 B 站认证信息");
+        ensure!(
+            !self.mid().is_empty(),
+            "未获取到用户 ID，请确保填写设置中的 B 站认证信息"
+        );
         let mut resp = self
             .client
-            .request(Method::GET, "https://api.bilibili.com/x/v3/fav/folder/created/list-all")
+            .request(
+                Method::GET,
+                "https://api.bilibili.com/x/v3/fav/folder/created/list-all",
+                self.credential,
+            )
             .await
-            .query(&[("up_mid", &self.mid)])
+            .query(&[("up_mid", &self.mid())])
             .send()
             .await?
             .error_for_status()?
@@ -33,17 +37,20 @@ impl<'a> Me<'a> {
     }
 
     pub async fn get_followed_collections(&self, page_num: i32, page_size: i32) -> Result<Collections> {
-        ensure!(!self.mid.is_empty(), "未获取到用户 ID，请确保填写设置中的 B 站认证信息");
+        ensure!(
+            !self.mid().is_empty(),
+            "未获取到用户 ID，请确保填写设置中的 B 站认证信息"
+        );
         let mut resp = self
             .client
-            .request(Method::GET, "https://api.bilibili.com/x/v3/fav/folder/collected/list")
+            .request(
+                Method::GET,
+                "https://api.bilibili.com/x/v3/fav/folder/collected/list",
+                self.credential,
+            )
             .await
-            .query(&[
-                ("up_mid", self.mid.as_str()),
-                ("pn", page_num.to_string().as_str()),
-                ("ps", page_size.to_string().as_str()),
-                ("platform", "web"),
-            ])
+            .query(&[("up_mid", self.mid()), ("platform", "web")])
+            .query(&[("pn", page_num), ("ps", page_size)])
             .send()
             .await?
             .error_for_status()?
@@ -54,16 +61,20 @@ impl<'a> Me<'a> {
     }
 
     pub async fn get_followed_uppers(&self, page_num: i32, page_size: i32) -> Result<FollowedUppers> {
-        ensure!(!self.mid.is_empty(), "未获取到用户 ID，请确保填写设置中的 B 站认证信息");
+        ensure!(
+            !self.mid().is_empty(),
+            "未获取到用户 ID，请确保填写设置中的 B 站认证信息"
+        );
         let mut resp = self
             .client
-            .request(Method::GET, "https://api.bilibili.com/x/relation/followings")
+            .request(
+                Method::GET,
+                "https://api.bilibili.com/x/relation/followings",
+                self.credential,
+            )
             .await
-            .query(&[
-                ("vmid", self.mid.as_str()),
-                ("pn", page_num.to_string().as_str()),
-                ("ps", page_size.to_string().as_str()),
-            ])
+            .query(&[("vmid", self.mid())])
+            .query(&[("pn", page_num), ("ps", page_size)])
             .send()
             .await?
             .error_for_status()?
@@ -73,8 +84,8 @@ impl<'a> Me<'a> {
         Ok(serde_json::from_value(resp["data"].take())?)
     }
 
-    fn my_id() -> String {
-        VersionedConfig::get().load().credential.dedeuserid.clone()
+    fn mid(&self) -> &str {
+        &self.credential.dedeuserid
     }
 }
 

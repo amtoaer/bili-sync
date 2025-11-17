@@ -23,7 +23,7 @@ use bili_sync_entity::rule::Rule;
 use bili_sync_entity::submission::Model as Submission;
 use bili_sync_entity::watch_later::Model as WatchLater;
 
-use crate::bilibili::{BiliClient, VideoInfo};
+use crate::bilibili::{BiliClient, Credential, VideoInfo};
 
 #[enum_dispatch]
 pub enum VideoSourceEnum {
@@ -104,6 +104,7 @@ pub trait VideoSource {
     async fn refresh<'a>(
         self,
         bili_client: &'a BiliClient,
+        credential: &'a Credential,
         connection: &'a DatabaseConnection,
     ) -> Result<(
         VideoSourceEnum,
@@ -120,6 +121,8 @@ pub trait VideoSource {
         })?;
         Ok(())
     }
+
+    async fn delete_from_db(self, conn: &impl ConnectionTrait) -> Result<()>;
 }
 
 pub enum _ActiveModel {

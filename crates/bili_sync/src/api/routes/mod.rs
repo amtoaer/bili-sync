@@ -13,6 +13,7 @@ use crate::config::VersionedConfig;
 mod config;
 mod dashboard;
 mod me;
+mod task;
 mod video_sources;
 mod videos;
 mod ws;
@@ -28,13 +29,14 @@ pub fn router() -> Router {
             .merge(videos::router())
             .merge(dashboard::router())
             .merge(ws::router())
+            .merge(task::router())
             .layer(middleware::from_fn(auth)),
     )
 }
 
 /// 中间件：使用 auth token 对请求进行身份验证
 pub async fn auth(mut headers: HeaderMap, request: Request, next: Next) -> Result<Response, StatusCode> {
-    let config = VersionedConfig::get().load();
+    let config = VersionedConfig::get().read();
     let token = config.auth_token.as_str();
     if headers
         .get("Authorization")

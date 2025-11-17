@@ -1,68 +1,66 @@
 use std::sync::Arc;
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, bail};
 use arc_swap::{ArcSwap, Guard};
 use sea_orm::DatabaseConnection;
-use tokio::sync::OnceCell;
+use tokio::sync::{OnceCell, watch};
 
 use crate::bilibili::Credential;
-use crate::config::{CONFIG_DIR, Config, LegacyConfig};
+use crate::config::{CONFIG_DIR, Config};
 
-pub static VERSIONED_CONFIG: OnceCell<VersionedConfig> = OnceCell::const_new();
+static VERSIONED_CONFIG: OnceCell<VersionedConfig> = OnceCell::const_new();
 
 pub struct VersionedConfig {
     inner: ArcSwap<Config>,
     update_lock: tokio::sync::Mutex<()>,
+    tx: watch::Sender<Arc<Config>>,
+    rx: watch::Receiver<Arc<Config>>,
 }
 
 impl VersionedConfig {
     /// 初始化全局的 `VersionedConfig`，初始化失败或者已初始化过则返回错误
-    pub async fn init(connection: &DatabaseConnection) -> Result<()> {
-        let mut config = match Config::load_from_database(connection).await? {
-            Some(Ok(config)) => config,
-            Some(Err(e)) => bail!("解析数据库配置失败： {}", e),
-            None => {
-                let config = match LegacyConfig::migrate_from_file(&CONFIG_DIR.join("config.toml"), connection).await {
-                    Ok(config) => config,
-                    Err(e) => {
-                        if e.downcast_ref::<std::io::Error>()
-                            .is_none_or(|e| e.kind() != std::io::ErrorKind::NotFound)
-                        {
-                            bail!("未成功读取并迁移旧版本配置：{:#}", e);
-                        } else {
-                            let config = Config::default();
-                            warn!(
-                                "生成 auth_token：{}，可使用该 token 登录 web UI，该信息仅在首次运行时打印",
-                                config.auth_token
+    pub async fn init(connection: &DatabaseConnection) -> Result<&'static VersionedConfig> {
+        VERSIONED_CONFIG
+            .get_or_try_init(|| async move {
+                let mut config = match Config::load_from_database(connection).await? {
+                    Some(Ok(config)) => config,
+                    Some(Err(e)) => bail!("解析数据库配置失败： {}", e),
+                    None => {
+                        if CONFIG_DIR.join("config.toml").exists() {
+                            // 数据库中没有配置，但旧版配置文件存在，说明是从 2.6.0 之前的版本直接升级的
+                            bail!(
+                                "当前版本已移除配置文件的迁移逻辑，不再支持从配置文件加载配置。\n\
+                            如果你正在运行 2.6.0 之前的版本，请先升级至 2.6.x 或 2.7.x，\n\
+                            启动时会自动将配置文件迁移至数据库，然后再升级至最新版本。"
                             );
-                            config
                         }
+                        let config = Config::default();
+                        warn!(
+                            "生成 auth_token：{}，可使用该 token 登录 web UI，该信息仅在首次运行时打印",
+                            config.auth_token
+                        );
+                        config.save_to_database(connection).await?;
+                        config
                     }
                 };
-                config.save_to_database(connection).await?;
-                config
-            }
-        };
-        // version 本身不具有实际意义，仅用于并发更新时的版本控制，在初始化时可以直接清空
-        config.version = 0;
-        let versioned_config = VersionedConfig::new(config);
-        VERSIONED_CONFIG
-            .set(versioned_config)
-            .map_err(|e| anyhow!("VERSIONED_CONFIG has already been initialized: {}", e))?;
-        Ok(())
+                // version 本身不具有实际意义，仅用于并发更新时的版本控制，在初始化时可以直接清空
+                config.version = 0;
+                Ok(VersionedConfig::new(config))
+            })
+            .await
     }
 
     #[cfg(test)]
     /// 仅在测试环境使用，该方法会尝试从测试数据库中加载配置并写入到全局的 VERSIONED_CONFIG
-    pub async fn init_for_test(connection: &DatabaseConnection) -> Result<()> {
-        let Some(Ok(config)) = Config::load_from_database(&connection).await? else {
-            bail!("no config found in test database");
-        };
-        let versioned_config = VersionedConfig::new(config);
+    pub async fn init_for_test(connection: &DatabaseConnection) -> Result<&'static VersionedConfig> {
         VERSIONED_CONFIG
-            .set(versioned_config)
-            .map_err(|e| anyhow!("VERSIONED_CONFIG has already been initialized: {}", e))?;
-        Ok(())
+            .get_or_try_init(|| async move {
+                let Some(Ok(config)) = Config::load_from_database(&connection).await? else {
+                    bail!("no config found in test database");
+                };
+                Ok(VersionedConfig::new(config))
+            })
+            .await
     }
 
     #[cfg(not(test))]
@@ -72,46 +70,51 @@ impl VersionedConfig {
     }
 
     #[cfg(test)]
-    /// 尝试获取全局的 `VersionedConfig`，如果未初始化则退回测试环境的默认配置
+    /// 尝试获取全局的 `VersionedConfig`，如果未初始化则退回默认配置
     pub fn get() -> &'static VersionedConfig {
         use std::sync::LazyLock;
-        static FALLBACK_CONFIG: LazyLock<VersionedConfig> =
-            LazyLock::new(|| VersionedConfig::new(Config::test_default()));
-        // 优先从全局变量获取，未初始化则返回测试环境的默认配置
+        static FALLBACK_CONFIG: LazyLock<VersionedConfig> = LazyLock::new(|| VersionedConfig::new(Config::default()));
+        // 优先从全局变量获取，未初始化则退回默认配置
         return VERSIONED_CONFIG.get().unwrap_or_else(|| &FALLBACK_CONFIG);
     }
 
-    pub fn new(config: Config) -> Self {
+    fn new(config: Config) -> Self {
+        let inner = ArcSwap::from_pointee(config);
+        let (tx, rx) = watch::channel(inner.load_full());
         Self {
-            inner: ArcSwap::from_pointee(config),
+            inner,
             update_lock: tokio::sync::Mutex::new(()),
+            tx,
+            rx,
         }
     }
 
-    pub fn load(&self) -> Guard<Arc<Config>> {
+    pub fn read(&self) -> Guard<Arc<Config>> {
         self.inner.load()
     }
 
-    pub fn load_full(&self) -> Arc<Config> {
+    pub fn snapshot(&self) -> Arc<Config> {
         self.inner.load_full()
     }
 
-    pub async fn update_credential(&self, new_credential: Credential, connection: &DatabaseConnection) -> Result<()> {
-        // 确保更新内容与写入数据库的操作是原子性的
+    pub fn subscribe(&self) -> watch::Receiver<Arc<Config>> {
+        self.rx.clone()
+    }
+
+    pub async fn update_credential(
+        &self,
+        new_credential: Credential,
+        connection: &DatabaseConnection,
+    ) -> Result<Arc<Config>> {
         let _lock = self.update_lock.lock().await;
-        loop {
-            let old_config = self.inner.load();
-            let mut new_config = old_config.as_ref().clone();
-            new_config.credential = new_credential.clone();
-            new_config.version += 1;
-            if Arc::ptr_eq(
-                &old_config,
-                &self.inner.compare_and_swap(&old_config, Arc::new(new_config)),
-            ) {
-                break;
-            }
-        }
-        self.inner.load().save_to_database(connection).await
+        let mut new_config = self.inner.load().as_ref().clone();
+        new_config.credential = new_credential;
+        new_config.version += 1;
+        new_config.save_to_database(connection).await?;
+        let new_config = Arc::new(new_config);
+        self.inner.store(new_config.clone());
+        self.tx.send(new_config.clone())?;
+        Ok(new_config)
     }
 
     /// 外部 API 会调用这个方法，如果更新失败直接返回错误
@@ -122,14 +125,10 @@ impl VersionedConfig {
             bail!("配置版本不匹配，请刷新页面修改后重新提交");
         }
         new_config.version += 1;
-        let new_config = Arc::new(new_config);
-        if !Arc::ptr_eq(
-            &old_config,
-            &self.inner.compare_and_swap(&old_config, new_config.clone()),
-        ) {
-            bail!("配置版本不匹配，请刷新页面修改后重新提交");
-        }
         new_config.save_to_database(connection).await?;
+        let new_config = Arc::new(new_config);
+        self.inner.store(new_config.clone());
+        self.tx.send(new_config.clone())?;
         Ok(new_config)
     }
 }

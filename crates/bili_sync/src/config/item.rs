@@ -1,19 +1,10 @@
-use std::path::PathBuf;
-
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::utils::filenamify::filenamify;
 
-/// 稍后再看的配置
-#[derive(Serialize, Deserialize, Default)]
-pub struct WatchLaterConfig {
-    pub enabled: bool,
-    pub path: PathBuf,
-}
-
 /// NFO 文件使用的时间类型
-#[derive(Serialize, Deserialize, Default, Clone)]
+#[derive(Serialize, Deserialize, Default, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
 pub enum NFOTimeType {
     #[default]
@@ -78,6 +69,19 @@ pub struct SkipOption {
     pub no_subtitle: bool,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum Trigger {
+    Interval(u64),
+    Cron(String),
+}
+
+impl Default for Trigger {
+    fn default() -> Self {
+        Trigger::Interval(1200)
+    }
+}
+
 pub trait PathSafeTemplate {
     fn path_safe_register(&mut self, name: &'static str, template: impl Into<String>) -> Result<()>;
     fn path_safe_render(&self, name: &'static str, data: &serde_json::Value) -> Result<String>;
@@ -93,4 +97,16 @@ impl PathSafeTemplate for handlebars::Handlebars<'_> {
     fn path_safe_render(&self, name: &'static str, data: &serde_json::Value) -> Result<String> {
         Ok(filenamify(&self.render(name, data)?).replace("__SEP__", std::path::MAIN_SEPARATOR_STR))
     }
+}
+
+pub fn default_favorite_path() -> String {
+    "收藏夹/{{name}}".to_owned()
+}
+
+pub fn default_collection_path() -> String {
+    "合集/{{name}}".to_owned()
+}
+
+pub fn default_submission_path() -> String {
+    "投稿/{{name}}".to_owned()
 }

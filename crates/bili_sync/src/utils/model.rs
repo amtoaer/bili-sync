@@ -1,13 +1,14 @@
 use anyhow::{Context, Result, anyhow};
 use bili_sync_entity::*;
+use rand::seq::SliceRandom;
 use sea_orm::ActiveValue::Set;
+use sea_orm::DatabaseTransaction;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::{OnConflict, SimpleExpr};
-use sea_orm::{DatabaseTransaction, TransactionTrait};
 
 use crate::adapter::{VideoSource, VideoSourceEnum};
 use crate::bilibili::VideoInfo;
-use crate::config::{Config, LegacyConfig};
+use crate::config::Config;
 use crate::utils::status::STATUS_COMPLETED;
 
 /// 筛选未填充的视频
@@ -134,6 +135,8 @@ pub async fn get_enabled_video_sources(connection: &DatabaseConnection) -> Resul
     sources.extend(watch_later.into_iter().map(VideoSourceEnum::from));
     sources.extend(submission.into_iter().map(VideoSourceEnum::from));
     sources.extend(collection.into_iter().map(VideoSourceEnum::from));
+    // 此处将视频源随机打乱顺序，从概率上确保每个视频源都有机会优先执行，避免后面视频源的长期饥饿问题
+    sources.shuffle(&mut rand::rng());
     Ok(sources)
 }
 
@@ -164,71 +167,5 @@ pub async fn save_db_config(config: &Config, connection: &DatabaseConnection) ->
         .exec(connection)
         .await
         .context("Failed to save config to database")?;
-    Ok(())
-}
-
-/// 迁移旧版本配置（即将所有相关联的内容设置为 enabled）
-pub async fn migrate_legacy_config(config: &LegacyConfig, connection: &DatabaseConnection) -> Result<()> {
-    let transaction = connection.begin().await.context("Failed to begin transaction")?;
-    tokio::try_join!(
-        migrate_favorite(config, &transaction),
-        migrate_watch_later(config, &transaction),
-        migrate_submission(config, &transaction),
-        migrate_collection(config, &transaction)
-    )?;
-    transaction.commit().await.context("Failed to commit transaction")?;
-    Ok(())
-}
-
-async fn migrate_favorite(config: &LegacyConfig, connection: &DatabaseTransaction) -> Result<()> {
-    favorite::Entity::update_many()
-        .filter(favorite::Column::FId.is_in(config.favorite_list.keys().collect::<Vec<_>>()))
-        .col_expr(favorite::Column::Enabled, Expr::value(true))
-        .exec(connection)
-        .await
-        .context("Failed to migrate favorite config")?;
-    Ok(())
-}
-
-async fn migrate_watch_later(config: &LegacyConfig, connection: &DatabaseTransaction) -> Result<()> {
-    if config.watch_later.enabled {
-        watch_later::Entity::update_many()
-            .col_expr(watch_later::Column::Enabled, Expr::value(true))
-            .exec(connection)
-            .await
-            .context("Failed to migrate watch later config")?;
-    }
-    Ok(())
-}
-
-async fn migrate_submission(config: &LegacyConfig, connection: &DatabaseTransaction) -> Result<()> {
-    submission::Entity::update_many()
-        .filter(submission::Column::UpperId.is_in(config.submission_list.keys().collect::<Vec<_>>()))
-        .col_expr(submission::Column::Enabled, Expr::value(true))
-        .exec(connection)
-        .await
-        .context("Failed to migrate submission config")?;
-    Ok(())
-}
-
-async fn migrate_collection(config: &LegacyConfig, connection: &DatabaseTransaction) -> Result<()> {
-    let tuples: Vec<(i64, i64, i32)> = config
-        .collection_list
-        .keys()
-        .filter_map(|key| Some((key.sid.parse().ok()?, key.mid.parse().ok()?, key.collection_type.into())))
-        .collect();
-    collection::Entity::update_many()
-        .filter(
-            Expr::tuple([
-                Expr::column(collection::Column::SId),
-                Expr::column(collection::Column::MId),
-                Expr::column(collection::Column::Type),
-            ])
-            .in_tuples(tuples),
-        )
-        .col_expr(collection::Column::Enabled, Expr::value(true))
-        .exec(connection)
-        .await
-        .context("Failed to migrate collection config")?;
     Ok(())
 }
