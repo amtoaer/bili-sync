@@ -92,7 +92,8 @@ JNrRuoEUXpabUzGB8QIDAQAB
 -----END PUBLIC KEY-----",
         )
         .expect("fail to decode public key");
-        let ts = chrono::Local::now().timestamp_millis();
+        // 精确到毫秒的时间戳可能出现时间比服务器快的情况，提前 20s 以防万一
+        let ts = chrono::Local::now().timestamp_millis() - 20000;
         let data = format!("refresh_{}", ts).into_bytes();
         let encrypted = key
             .encrypt(&mut rand::rng(), Oaep::new::<Sha256>(), &data)
