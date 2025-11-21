@@ -75,9 +75,17 @@ impl Credential {
 
     pub async fn refresh(&self, client: &Client) -> Result<Self> {
         let correspond_path = Self::get_correspond_path();
-        let csrf = self.get_refresh_csrf(client, correspond_path).await?;
-        let new_credential = self.get_new_credential(client, &csrf).await?;
-        self.confirm_refresh(client, &new_credential).await?;
+        let csrf = self
+            .get_refresh_csrf(client, correspond_path)
+            .await
+            .context("获取 refresh_csrf 失败")?;
+        let new_credential = self
+            .get_new_credential(client, &csrf)
+            .await
+            .context("刷新 Credential 失败")?;
+        self.confirm_refresh(client, &new_credential)
+            .await
+            .context("确认更新 Credential 失败")?;
         Ok(new_credential)
     }
 
