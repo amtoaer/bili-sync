@@ -10,7 +10,7 @@ use validator::Validate;
 use crate::bilibili::{Credential, DanmakuOption, FilterOption};
 use crate::config::default::{default_auth_token, default_bind_address, default_time_format};
 use crate::config::item::{
-    ConcurrentLimit, NFOTimeType, SkipOption, Trigger, default_collection_path, default_favorite_path,
+    ConcurrentLimit, NFOTimeType, SkipOption, Trigger, VideoPageType, default_collection_path, default_favorite_path,
     default_submission_path,
 };
 use crate::notifier::Notifier;
@@ -29,6 +29,8 @@ pub struct Config {
     #[serde(default)]
     pub skip_option: SkipOption,
     pub video_name: String,
+    #[serde(default)]
+    pub page_type: VideoPageType,
     pub page_name: String,
     #[serde(default)]
     pub notifiers: Option<Arc<Vec<Notifier>>>,
@@ -120,6 +122,7 @@ impl Default for Config {
             danmaku_option: DanmakuOption::default(),
             skip_option: SkipOption::default(),
             video_name: "{{title}}".to_owned(),
+            page_type: VideoPageType::default(),
             page_name: "{{bvid}}".to_owned(),
             notifiers: None,
             favorite_default_path: default_favorite_path(),

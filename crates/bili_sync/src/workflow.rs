@@ -14,7 +14,7 @@ use tokio::sync::Semaphore;
 
 use crate::adapter::{VideoSource, VideoSourceEnum};
 use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, PageInfo, Video, VideoInfo};
-use crate::config::{ARGS, Config, PathSafeTemplate};
+use crate::config::{ARGS, Config, PathSafeTemplate, VideoPageType};
 use crate::downloader::Downloader;
 use crate::error::ExecutionStatus;
 use crate::utils::download_context::DownloadContext;
@@ -244,7 +244,7 @@ pub async fn download_video_pages(
         .join(upper_id);
     let is_single_page = video_model.single_page.context("single_page is null")?;
     // 对于单页视频，page 的下载已经足够
-    // 对于多页视频，page 下载仅包含了分集内容，需要额外补上视频的 poster 的 tvshow.nfo
+    // 对于多页视频，page 下载仅包含了分集内容，需要额外补上视频的 poster 和 nfo
     let (res_1, res_2, res_3, res_4, res_5) = tokio::join!(
         // 下载视频封面
         fetch_video_poster(
@@ -258,7 +258,7 @@ pub async fn download_video_pages(
         generate_video_nfo(
             separate_status[1] && !is_single_page && !cx.config.skip_option.no_video_nfo,
             &video_model,
-            base_path.join("tvshow.nfo"),
+            base_path.clone(),
             cx
         ),
         // 下载 Up 主头像
@@ -393,13 +393,23 @@ pub async fn download_page(
                 old_video_path.parent().context("invalid page path format")?,
                 old_video_filename.trim_end_matches(".mp4").to_string(),
             )
-        } else {
+        } else if cx.config.page_type == VideoPageType::TvShow {
             // 多页下的路径是 {base_path}/Season 1/{base_name} - S01Exx.mp4
             (
                 old_video_path
                     .parent()
                     .and_then(|p| p.parent())
                     .context("invalid page path format")?,
+                old_video_filename
+                    .rsplit_once(" - ")
+                    .context("invalid page path format")?
+                    .0
+                    .to_string(),
+            )
+        } else {
+            // MultiParts 的路径是 {base_path}/{base_name} - part01.mp4
+            (
+                old_video_path.parent().context("invalid page path format")?,
                 old_video_filename
                     .rsplit_once(" - ")
                     .context("invalid page path format")?
@@ -425,7 +435,7 @@ pub async fn download_page(
             Some(base_path.join(format!("{}-fanart.jpg", &base_name))),
             base_path.join(format!("{}.srt", &base_name)),
         )
-    } else {
+    } else if cx.config.page_type == VideoPageType::TvShow {
         (
             base_path
                 .join("Season 1")
@@ -444,6 +454,17 @@ pub async fn download_page(
             base_path
                 .join("Season 1")
                 .join(format!("{} - S01E{:0>2}.srt", &base_name, page_model.pid)),
+        )
+    } else {
+        // 以 MultiParts 形式保存分p视频
+        (
+            base_path.join(format!("{} - part{:0>2}-thumb.jpg", &base_name, page_model.pid)),
+            base_path.join(format!("{} - part{:0>2}.mp4", &base_name, page_model.pid)),
+            base_path.join(format!("{} - part{:0>2}.nfo", &base_name, page_model.pid)),
+            base_path.join(format!("{} - part{:0>2}.zh-CN.default.ass", &base_name, page_model.pid)),
+            // 对于多页视频，会在上一步 fetch_video_poster 中获取剧集的 fanart，无需在此处下载单集的
+            None,
+            base_path.join(format!("{} - part{:0>2}.srt", &base_name, page_model.pid)),
         )
     };
     let dimension = match (page_model.width, page_model.height) {
@@ -675,7 +696,7 @@ pub async fn generate_page_nfo(
         return Ok(ExecutionStatus::Skipped);
     }
     let single_page = video_model.single_page.context("single_page is null")?;
-    let nfo = if single_page {
+    let nfo = if single_page || cx.config.page_type == VideoPageType::MultiParts {
         NFO::Movie(video_model.to_nfo(cx.config.nfo_time_type))
     } else {
         NFO::Episode(page_model.to_nfo(cx.config.nfo_time_type))
@@ -736,13 +757,25 @@ pub async fn generate_upper_nfo(
 pub async fn generate_video_nfo(
     should_run: bool,
     video_model: &video::Model,
-    nfo_path: PathBuf,
+    base_path: PathBuf,
     cx: DownloadContext<'_>,
 ) -> Result<ExecutionStatus> {
     if !should_run {
         return Ok(ExecutionStatus::Skipped);
     }
-    generate_nfo(NFO::TVShow(video_model.to_nfo(cx.config.nfo_time_type)), nfo_path).await?;
+    if cx.config.page_type == VideoPageType::TvShow {
+        generate_nfo(
+            NFO::TVShow(video_model.to_nfo(cx.config.nfo_time_type)),
+            base_path.join("tvshow.nfo"),
+        )
+        .await?;
+    } else {
+        generate_nfo(
+            NFO::Movie(video_model.to_nfo(cx.config.nfo_time_type)),
+            base_path.join("movie.nfo"),
+        )
+        .await?;
+    }
     Ok(ExecutionStatus::Succeeded)
 }
 

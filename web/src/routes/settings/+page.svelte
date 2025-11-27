@@ -273,6 +273,17 @@
 							<Input id="video-name" bind:value={formData.video_name} />
 						</div>
 						<div class="space-y-2">
+							<Label for="page-type">视频分页形式</Label>
+							<select
+								id="page-type"
+								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+								bind:value={formData.page_type}
+							>
+								<option value="tvshow">剧集</option>
+								<option value="multi_parts">分段视频</option>
+							</select>
+						</div>
+						<div class="space-y-2">
 							<Label for="page-name">分页名称模板</Label>
 							<Input id="page-name" bind:value={formData.page_name} />
 						</div>
