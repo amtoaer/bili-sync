@@ -22,7 +22,7 @@ pub struct Movie<'a> {
     pub bvid: &'a str,
     pub upper_id: i64,
     pub upper_name: &'a str,
-    pub aired: NaiveDateTime,
+    pub premiered: NaiveDateTime,
     pub tags: Option<Vec<String>>,
 }
 
@@ -32,7 +32,7 @@ pub struct TVShow<'a> {
     pub bvid: &'a str,
     pub upper_id: i64,
     pub upper_name: &'a str,
-    pub aired: NaiveDateTime,
+    pub premiered: NaiveDateTime,
     pub tags: Option<Vec<String>>,
 }
 
@@ -101,7 +101,7 @@ impl NFO<'_> {
                     .await?;
                 writer
                     .create_element("year")
-                    .write_text_content_async(BytesText::new(&movie.aired.format("%Y").to_string()))
+                    .write_text_content_async(BytesText::new(&movie.premiered.format("%Y").to_string()))
                     .await?;
                 if let Some(tags) = movie.tags {
                     for tag in tags {
@@ -117,8 +117,8 @@ impl NFO<'_> {
                     .write_text_content_async(BytesText::new(movie.bvid))
                     .await?;
                 writer
-                    .create_element("aired")
-                    .write_text_content_async(BytesText::new(&movie.aired.format("%Y-%m-%d").to_string()))
+                    .create_element("premiered")
+                    .write_text_content_async(BytesText::new(&movie.premiered.format("%Y-%m-%d").to_string()))
                     .await?;
                 Ok(writer)
             })
@@ -155,7 +155,7 @@ impl NFO<'_> {
                     .await?;
                 writer
                     .create_element("year")
-                    .write_text_content_async(BytesText::new(&tvshow.aired.format("%Y").to_string()))
+                    .write_text_content_async(BytesText::new(&tvshow.premiered.format("%Y").to_string()))
                     .await?;
                 if let Some(tags) = tvshow.tags {
                     for tag in tags {
@@ -171,8 +171,8 @@ impl NFO<'_> {
                     .write_text_content_async(BytesText::new(tvshow.bvid))
                     .await?;
                 writer
-                    .create_element("aired")
-                    .write_text_content_async(BytesText::new(&tvshow.aired.format("%Y-%m-%d").to_string()))
+                    .create_element("premiered")
+                    .write_text_content_async(BytesText::new(&tvshow.premiered.format("%Y-%m-%d").to_string()))
                     .await?;
                 Ok(writer)
             })
@@ -282,7 +282,7 @@ mod tests {
     <genre>tag1</genre>
     <genre>tag2</genre>
     <uniqueid type="bilibili">BV1nWcSeeEkV</uniqueid>
-    <aired>2022-02-02</aired>
+    <premiered>2022-02-02</premiered>
 </movie>"#,
         );
         assert_eq!(
@@ -303,7 +303,7 @@ mod tests {
     <genre>tag1</genre>
     <genre>tag2</genre>
     <uniqueid type="bilibili">BV1nWcSeeEkV</uniqueid>
-    <aired>2022-02-02</aired>
+    <premiered>2022-02-02</premiered>
 </tvshow>"#,
         );
         assert_eq!(
@@ -355,7 +355,7 @@ impl<'a> ToNFO<'a, Movie<'a>> for &'a video::Model {
             bvid: &self.bvid,
             upper_id: self.upper_id,
             upper_name: &self.upper_name,
-            aired: match nfo_time_type {
+            premiered: match nfo_time_type {
                 NFOTimeType::FavTime => self.favtime,
                 NFOTimeType::PubTime => self.pubtime,
             },
@@ -372,7 +372,7 @@ impl<'a> ToNFO<'a, TVShow<'a>> for &'a video::Model {
             bvid: &self.bvid,
             upper_id: self.upper_id,
             upper_name: &self.upper_name,
-            aired: match nfo_time_type {
+            premiered: match nfo_time_type {
                 NFOTimeType::FavTime => self.favtime,
                 NFOTimeType::PubTime => self.pubtime,
             },
