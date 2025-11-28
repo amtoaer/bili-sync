@@ -22,6 +22,7 @@ pub struct Movie<'a> {
     pub bvid: &'a str,
     pub upper_id: i64,
     pub upper_name: &'a str,
+    pub upper_thumb: &'a str,
     pub premiered: NaiveDateTime,
     pub tags: Option<Vec<String>>,
 }
@@ -32,6 +33,7 @@ pub struct TVShow<'a> {
     pub bvid: &'a str,
     pub upper_id: i64,
     pub upper_name: &'a str,
+    pub upper_thumb: &'a str,
     pub premiered: NaiveDateTime,
     pub tags: Option<Vec<String>>,
 }
@@ -96,6 +98,10 @@ impl NFO<'_> {
                             .create_element("role")
                             .write_text_content_async(BytesText::new(movie.upper_name))
                             .await?;
+                        writer
+                            .create_element("thumb")
+                            .write_text_content_async(BytesText::new(movie.upper_thumb))
+                            .await?;
                         Ok(writer)
                     })
                     .await?;
@@ -149,6 +155,10 @@ impl NFO<'_> {
                         writer
                             .create_element("role")
                             .write_text_content_async(BytesText::new(tvshow.upper_name))
+                            .await?;
+                        writer
+                            .create_element("thumb")
+                            .write_text_content_async(BytesText::new(tvshow.upper_thumb))
                             .await?;
                         Ok(writer)
                     })
@@ -252,6 +262,7 @@ mod tests {
             name: "name".to_string(),
             upper_id: 1,
             upper_name: "upper_name".to_string(),
+            upper_face: "https://i1.hdslb.com/bfs/face/72e8f33cadc72e022fc34624cc69e1b12ebb72c0.jpg".to_string(),
             favtime: chrono::NaiveDateTime::new(
                 chrono::NaiveDate::from_ymd_opt(2022, 2, 2).unwrap(),
                 chrono::NaiveTime::from_hms_opt(2, 2, 2).unwrap(),
@@ -277,6 +288,7 @@ mod tests {
     <actor>
         <name>1</name>
         <role>upper_name</role>
+        <thumb>https://i1.hdslb.com/bfs/face/72e8f33cadc72e022fc34624cc69e1b12ebb72c0.jpg</thumb>
     </actor>
     <year>2022</year>
     <genre>tag1</genre>
@@ -298,6 +310,7 @@ mod tests {
     <actor>
         <name>1</name>
         <role>upper_name</role>
+        <thumb>https://i1.hdslb.com/bfs/face/72e8f33cadc72e022fc34624cc69e1b12ebb72c0.jpg</thumb>
     </actor>
     <year>2022</year>
     <genre>tag1</genre>
@@ -355,6 +368,7 @@ impl<'a> ToNFO<'a, Movie<'a>> for &'a video::Model {
             bvid: &self.bvid,
             upper_id: self.upper_id,
             upper_name: &self.upper_name,
+            upper_thumb: &self.upper_face,
             premiered: match nfo_time_type {
                 NFOTimeType::FavTime => self.favtime,
                 NFOTimeType::PubTime => self.pubtime,
@@ -372,6 +386,7 @@ impl<'a> ToNFO<'a, TVShow<'a>> for &'a video::Model {
             bvid: &self.bvid,
             upper_id: self.upper_id,
             upper_name: &self.upper_name,
+            upper_thumb: &self.upper_face,
             premiered: match nfo_time_type {
                 NFOTimeType::FavTime => self.favtime,
                 NFOTimeType::PubTime => self.pubtime,
