@@ -22,7 +22,8 @@ pub struct Movie<'a> {
     pub bvid: &'a str,
     pub upper_id: i64,
     pub upper_name: &'a str,
-    pub aired: NaiveDateTime,
+    pub upper_thumb: &'a str,
+    pub premiered: NaiveDateTime,
     pub tags: Option<Vec<String>>,
 }
 
@@ -32,7 +33,8 @@ pub struct TVShow<'a> {
     pub bvid: &'a str,
     pub upper_id: i64,
     pub upper_name: &'a str,
-    pub aired: NaiveDateTime,
+    pub upper_thumb: &'a str,
+    pub premiered: NaiveDateTime,
     pub tags: Option<Vec<String>>,
 }
 
@@ -96,12 +98,16 @@ impl NFO<'_> {
                             .create_element("role")
                             .write_text_content_async(BytesText::new(movie.upper_name))
                             .await?;
+                        writer
+                            .create_element("thumb")
+                            .write_text_content_async(BytesText::new(movie.upper_thumb))
+                            .await?;
                         Ok(writer)
                     })
                     .await?;
                 writer
                     .create_element("year")
-                    .write_text_content_async(BytesText::new(&movie.aired.format("%Y").to_string()))
+                    .write_text_content_async(BytesText::new(&movie.premiered.format("%Y").to_string()))
                     .await?;
                 if let Some(tags) = movie.tags {
                     for tag in tags {
@@ -117,8 +123,8 @@ impl NFO<'_> {
                     .write_text_content_async(BytesText::new(movie.bvid))
                     .await?;
                 writer
-                    .create_element("aired")
-                    .write_text_content_async(BytesText::new(&movie.aired.format("%Y-%m-%d").to_string()))
+                    .create_element("premiered")
+                    .write_text_content_async(BytesText::new(&movie.premiered.format("%Y-%m-%d").to_string()))
                     .await?;
                 Ok(writer)
             })
@@ -150,12 +156,16 @@ impl NFO<'_> {
                             .create_element("role")
                             .write_text_content_async(BytesText::new(tvshow.upper_name))
                             .await?;
+                        writer
+                            .create_element("thumb")
+                            .write_text_content_async(BytesText::new(tvshow.upper_thumb))
+                            .await?;
                         Ok(writer)
                     })
                     .await?;
                 writer
                     .create_element("year")
-                    .write_text_content_async(BytesText::new(&tvshow.aired.format("%Y").to_string()))
+                    .write_text_content_async(BytesText::new(&tvshow.premiered.format("%Y").to_string()))
                     .await?;
                 if let Some(tags) = tvshow.tags {
                     for tag in tags {
@@ -171,8 +181,8 @@ impl NFO<'_> {
                     .write_text_content_async(BytesText::new(tvshow.bvid))
                     .await?;
                 writer
-                    .create_element("aired")
-                    .write_text_content_async(BytesText::new(&tvshow.aired.format("%Y-%m-%d").to_string()))
+                    .create_element("premiered")
+                    .write_text_content_async(BytesText::new(&tvshow.premiered.format("%Y-%m-%d").to_string()))
                     .await?;
                 Ok(writer)
             })
@@ -252,6 +262,7 @@ mod tests {
             name: "name".to_string(),
             upper_id: 1,
             upper_name: "upper_name".to_string(),
+            upper_face: "https://i1.hdslb.com/bfs/face/72e8f33cadc72e022fc34624cc69e1b12ebb72c0.jpg".to_string(),
             favtime: chrono::NaiveDateTime::new(
                 chrono::NaiveDate::from_ymd_opt(2022, 2, 2).unwrap(),
                 chrono::NaiveTime::from_hms_opt(2, 2, 2).unwrap(),
@@ -277,12 +288,13 @@ mod tests {
     <actor>
         <name>1</name>
         <role>upper_name</role>
+        <thumb>https://i1.hdslb.com/bfs/face/72e8f33cadc72e022fc34624cc69e1b12ebb72c0.jpg</thumb>
     </actor>
     <year>2022</year>
     <genre>tag1</genre>
     <genre>tag2</genre>
     <uniqueid type="bilibili">BV1nWcSeeEkV</uniqueid>
-    <aired>2022-02-02</aired>
+    <premiered>2022-02-02</premiered>
 </movie>"#,
         );
         assert_eq!(
@@ -298,12 +310,13 @@ mod tests {
     <actor>
         <name>1</name>
         <role>upper_name</role>
+        <thumb>https://i1.hdslb.com/bfs/face/72e8f33cadc72e022fc34624cc69e1b12ebb72c0.jpg</thumb>
     </actor>
     <year>2022</year>
     <genre>tag1</genre>
     <genre>tag2</genre>
     <uniqueid type="bilibili">BV1nWcSeeEkV</uniqueid>
-    <aired>2022-02-02</aired>
+    <premiered>2022-02-02</premiered>
 </tvshow>"#,
         );
         assert_eq!(
@@ -355,7 +368,8 @@ impl<'a> ToNFO<'a, Movie<'a>> for &'a video::Model {
             bvid: &self.bvid,
             upper_id: self.upper_id,
             upper_name: &self.upper_name,
-            aired: match nfo_time_type {
+            upper_thumb: &self.upper_face,
+            premiered: match nfo_time_type {
                 NFOTimeType::FavTime => self.favtime,
                 NFOTimeType::PubTime => self.pubtime,
             },
@@ -372,7 +386,8 @@ impl<'a> ToNFO<'a, TVShow<'a>> for &'a video::Model {
             bvid: &self.bvid,
             upper_id: self.upper_id,
             upper_name: &self.upper_name,
-            aired: match nfo_time_type {
+            upper_thumb: &self.upper_face,
+            premiered: match nfo_time_type {
                 NFOTimeType::FavTime => self.favtime,
                 NFOTimeType::PubTime => self.pubtime,
             },
