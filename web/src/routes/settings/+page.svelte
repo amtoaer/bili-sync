@@ -74,6 +74,18 @@
 		formData.notifiers = formData.notifiers.filter((_, i) => i !== index);
 	}
 
+	async function testNotifier(notifier: Notifier) {
+		try {
+			await api.testNotifier(notifier);
+			toast.success('测试通知发送成功');
+		} catch (error) {
+			console.error('测试通知失败:', error);
+			toast.error('测试通知失败', {
+				description: (error as ApiError).message
+			});
+		}
+	}
+
 	async function loadConfig() {
 		loading = true;
 		try {
@@ -771,6 +783,9 @@
 												onclick={() => openEditNotifierDialog(notifier, index)}
 											>
 												编辑
+											</Button>
+											<Button size="sm" variant="secondary" onclick={() => testNotifier(notifier)}>
+												测试
 											</Button>
 											<Button size="sm" variant="destructive" onclick={() => deleteNotifier(index)}>
 												删除

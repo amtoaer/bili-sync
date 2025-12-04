@@ -34,8 +34,12 @@ pub async fn update_config(
 
 pub async fn ping_notifiers(
     Extension(bili_client): Extension<Arc<BiliClient>>,
-    Json(notifier): Json<Notifier>,
+    Json(mut notifier): Json<Notifier>,
 ) -> Result<ApiResponse<()>, ApiError> {
+    // 对于 webhook 类型的通知器测试，设置上 ignore_cache tag 以强制实时渲染
+    if let Notifier::Webhook { ignore_cache, .. } = &mut notifier {
+        *ignore_cache = Some(());
+    }
     notifier
         .notify(bili_client.inner_client(), "This is a test notification from BiliSync.")
         .await?;
