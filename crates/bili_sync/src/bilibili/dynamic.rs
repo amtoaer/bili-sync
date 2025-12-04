@@ -1,7 +1,6 @@
 use anyhow::{Context, Result, anyhow};
 use async_stream::try_stream;
-use chrono::serde::ts_seconds;
-use chrono::{DateTime, Utc};
+use chrono::DateTime;
 use futures::Stream;
 use reqwest::Method;
 use serde_json::Value;
@@ -12,12 +11,6 @@ pub struct Dynamic<'a> {
     client: &'a BiliClient,
     pub upper_id: String,
     credential: &'a Credential,
-}
-
-#[derive(Debug, serde::Deserialize)]
-pub struct DynamicItemPublished {
-    #[serde(with = "ts_seconds")]
-    pub_ts: DateTime<Utc>,
 }
 
 impl<'a> Dynamic<'a> {
@@ -64,13 +57,17 @@ impl<'a> Dynamic<'a> {
                     if item["type"].as_str().is_none_or(|t| t != "DYNAMIC_TYPE_AV") {
                         continue;
                     }
-                    let published: DynamicItemPublished = serde_json::from_value(item["modules"]["module_author"].take())
-                        .with_context(|| "failed to parse published time")?;
+                    let pub_ts = item["modules"]["module_author"]["pub_ts"].take();
+                    let pub_dt = pub_ts
+                        .as_i64()
+                        .or_else(|| pub_ts.as_str().and_then(|s| s.parse::<i64>().ok()))
+                        .and_then(DateTime::from_timestamp_secs)
+                        .with_context(|| format!("invalid pub_ts: {:?}", pub_ts))?;
                     let mut video_info: VideoInfo =
                         serde_json::from_value(item["modules"]["module_dynamic"]["major"]["archive"].take())?;
                     // 这些地方不使用 let else 是因为 try_stream! 宏不支持
                     if let VideoInfo::Dynamic { ref mut pubtime, .. } = video_info {
-                        *pubtime = published.pub_ts;
+                        *pubtime = pub_dt;
                         yield video_info;
                     } else {
                         Err(anyhow!("video info is not dynamic"))?;
