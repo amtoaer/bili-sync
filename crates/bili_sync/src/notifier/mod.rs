@@ -2,16 +2,21 @@ use anyhow::Result;
 use futures::future;
 use serde::{Deserialize, Serialize};
 
+use crate::config::TEMPLATE;
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", tag = "type")]
 pub enum Notifier {
     Telegram { bot_token: String, chat_id: String },
-    Webhook { url: String },
+    Webhook { url: String, template: Option<String> },
 }
 
-#[derive(Serialize)]
-struct WebhookPayload<'a> {
-    text: &'a str,
+pub const DEFAULT_WEBHOOK_PAYLOAD: &str = r#"{
+    "text": "{{{message}}}"
+}"#;
+
+pub fn webhook_template_key(url: &str) -> String {
+    format!("payload_{}", url)
 }
 
 pub trait NotifierAllExt {
@@ -33,9 +38,21 @@ impl Notifier {
                 let params = [("chat_id", chat_id.as_str()), ("text", message)];
                 client.post(&url).form(&params).send().await?;
             }
-            Notifier::Webhook { url } => {
-                let payload = WebhookPayload { text: message };
-                client.post(url).json(&payload).send().await?;
+            Notifier::Webhook { url, .. } => {
+                let payload = TEMPLATE.read().render(
+                    &webhook_template_key(url),
+                    &serde_json::json!(
+                        {
+                            "message": message,
+                        }
+                    ),
+                )?;
+                client
+                    .post(url)
+                    .header("Content-Type", "application/json")
+                    .body(payload)
+                    .send()
+                    .await?;
             }
         }
         Ok(())
