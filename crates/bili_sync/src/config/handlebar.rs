@@ -5,6 +5,7 @@ use handlebars::handlebars_helper;
 
 use crate::config::versioned_cache::VersionedCache;
 use crate::config::{Config, PathSafeTemplate};
+use crate::notifier::{Notifier, webhook_template_content, webhook_template_key};
 
 pub static TEMPLATE: LazyLock<VersionedCache<handlebars::Handlebars<'static>>> =
     LazyLock::new(|| VersionedCache::new(create_template).expect("Failed to create handlebars template"));
@@ -17,6 +18,13 @@ fn create_template(config: &Config) -> Result<handlebars::Handlebars<'static>> {
     handlebars.path_safe_register("favorite_default_path", config.favorite_default_path.clone())?;
     handlebars.path_safe_register("collection_default_path", config.collection_default_path.clone())?;
     handlebars.path_safe_register("submission_default_path", config.submission_default_path.clone())?;
+    if let Some(notifiers) = &config.notifiers {
+        for notifier in notifiers.iter() {
+            if let Notifier::Webhook { url, template, .. } = notifier {
+                handlebars.register_template_string(&webhook_template_key(url), webhook_template_content(template))?;
+            }
+        }
+    }
     Ok(handlebars)
 }
 

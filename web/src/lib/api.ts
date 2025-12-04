@@ -229,6 +229,10 @@ class ApiClient {
 		return this.get<string>(`/video-sources/${type}/default-path`, { name });
 	}
 
+	async testNotifier(notifier: Notifier): Promise<ApiResponse<boolean>> {
+		return this.post<boolean>('/config/notifiers/ping', notifier);
+	}
+
 	async getConfig(): Promise<ApiResponse<Config>> {
 		return this.get<Config>('/config');
 	}
@@ -283,6 +287,7 @@ const api = {
 	evaluateVideoSourceRules: (type: string, id: number) =>
 		apiClient.evaluateVideoSourceRules(type, id),
 	getDefaultPath: (type: string, name: string) => apiClient.getDefaultPath(type, name),
+	testNotifier: (notifier: Notifier) => apiClient.testNotifier(notifier),
 	getConfig: () => apiClient.getConfig(),
 	updateConfig: (config: Config) => apiClient.updateConfig(config),
 	getDashboard: () => apiClient.getDashboard(),

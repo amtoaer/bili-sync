@@ -282,6 +282,7 @@ export interface TelegramNotifier {
 export interface WebhookNotifier {
 	type: 'webhook';
 	url: string;
+	template?: string | null;
 }
 
 export type Notifier = TelegramNotifier | WebhookNotifier;

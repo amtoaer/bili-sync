@@ -15,6 +15,7 @@
 	let botToken = '';
 	let chatId = '';
 	let webhookUrl = '';
+	let webhookTemplate = '';
 
 	// 初始化表单
 	$: {
@@ -26,12 +27,14 @@
 			} else {
 				type = 'webhook';
 				webhookUrl = notifier.url;
+				webhookTemplate = notifier.template || '';
 			}
 		} else {
 			type = 'telegram';
 			botToken = '';
 			chatId = '';
 			webhookUrl = '';
+			webhookTemplate = '';
 		}
 	}
 
@@ -69,7 +72,8 @@
 
 			const newNotifier: Notifier = {
 				type: 'webhook',
-				url: webhookUrl.trim()
+				url: webhookUrl.trim(),
+				template: webhookTemplate.trim() || null
 			};
 			onSave(newNotifier);
 		}
@@ -113,10 +117,23 @@
 				格式示例：{jsonExample}
 			</p>
 		</div>
+		<div class="space-y-2">
+			<Label for="webhook-template">模板（可选）</Label>
+			<textarea
+				id="webhook-template"
+				class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-[120px] w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+				placeholder={'{"text": "{{{message}}}"}'}
+				bind:value={webhookTemplate}
+			></textarea>
+			<p class="text-muted-foreground text-xs">
+				用于渲染 Webhook 的 Handlebars 模板。如果不填写，将使用默认模板。<br />
+				可用变量：<code class="text-xs">message</code>（通知内容）
+			</p>
+		</div>
 	{/if}
 </div>
 
 <div class="flex justify-end gap-3">
 	<Button variant="outline" onclick={onCancel}>取消</Button>
-	<Button onclick={handleSave}>保存</Button>
+	<Button onclick={handleSave}>确认</Button>
 </div>
