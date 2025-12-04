@@ -61,7 +61,7 @@ impl<'a> Dynamic<'a> {
                     let pub_dt = pub_ts
                         .as_i64()
                         .or_else(|| pub_ts.as_str().and_then(|s| s.parse::<i64>().ok()))
-                        .and_then(|ts| DateTime::from_timestamp_secs(ts))
+                        .and_then(DateTime::from_timestamp_secs)
                         .with_context(|| format!("invalid pub_ts: {:?}", pub_ts))?;
                     let mut video_info: VideoInfo =
                         serde_json::from_value(item["modules"]["module_dynamic"]["major"]["archive"].take())?;
