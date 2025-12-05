@@ -6,8 +6,10 @@
 	import { breadcrumbStore } from '$lib/stores/breadcrumb';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
+	import { ModeWatcher } from 'mode-watcher';
 </script>
 
+<ModeWatcher disableHeadScriptInjection />
 <Toaster />
 <Sidebar.Provider>
 	<AppSidebar />
