@@ -169,19 +169,16 @@
 							<span class="text-muted-foreground text-sm font-medium">{typeLabel}名称：</span>
 							<span class="text-sm">{itemTitle}</span>
 						</div>
-						{#if item!.type === 'favorite'}
+						{#if item!.type !== 'upper'}
 							<div class="flex items-center gap-2">
 								<span class="text-muted-foreground text-sm font-medium">视频数量：</span>
-								<span class="text-sm">{item!.media_count} 个</span>
+								<span class="text-sm">{item!.media_count} 条</span>
 							</div>
-						{/if}
-						{#if item!.type === 'upper'}
-							{#if item!.sign}
-								<div class="flex items-start gap-2">
-									<span class="text-muted-foreground text-sm font-medium">个人简介：</span>
-									<span class="text-muted-foreground text-sm">{item!.sign}</span>
-								</div>
-							{/if}
+						{:else if item!.sign}
+							<div class="flex items-start gap-2">
+								<span class="text-muted-foreground text-sm font-medium">个人简介：</span>
+								<span class="text-muted-foreground text-sm">{item!.sign}</span>
+							</div>
 						{/if}
 					</div>
 				</div>
