@@ -45,7 +45,11 @@ pub async fn get_videos(
         }
     }
     if let Some(query_word) = params.query {
-        query = query.filter(video::Column::Name.contains(query_word));
+        query = query.filter(
+            video::Column::Name
+                .contains(&query_word)
+                .or(video::Column::Bvid.contains(query_word)),
+        );
     }
     let total_count = query.clone().count(&db).await?;
     let (page, page_size) = if let (Some(page), Some(page_size)) = (params.page, params.page_size) {

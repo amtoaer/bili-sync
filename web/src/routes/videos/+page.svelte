@@ -185,7 +185,7 @@
 
 <div class="mb-4 flex items-center justify-between">
 	<SearchBar
-		placeholder="搜索标题.."
+		placeholder="搜索视频标题或 BV 号.."
 		value={$appStateStore.query}
 		onSearch={(value) => {
 			setQuery(value);
