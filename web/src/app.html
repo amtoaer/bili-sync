@@ -5,6 +5,22 @@
 		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="referrer" content="no-referrer" />
+		<script>
+			(function () {
+				function getThemePreference() {
+					const saved = localStorage.getItem('mode-watcher-mode');
+					if (saved && (saved === 'light' || saved === 'dark')) {
+						return saved;
+					}
+					return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+				}
+				const theme = getThemePreference();
+				if (theme === 'dark') {
+					document.documentElement.classList.add('dark');
+				}
+				document.documentElement.style.colorScheme = theme;
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

@@ -8,7 +8,9 @@
 	import UserIcon from '@lucide/svelte/icons/user';
 	import Settings2Icon from '@lucide/svelte/icons/settings-2';
 	import SquareTerminalIcon from '@lucide/svelte/icons/square-terminal';
+	import PaletteIcon from '@lucide/svelte/icons/palette';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
+	import { mode, toggleMode } from 'mode-watcher';
 	import type { ComponentProps } from 'svelte';
 
 	let sidebar = Sidebar.useSidebar();
@@ -136,6 +138,22 @@
 	<Sidebar.Footer>
 		<Sidebar.Separator />
 		<Sidebar.Menu>
+			<Sidebar.MenuItem>
+				<Sidebar.MenuButton class="h-8">
+					{#snippet child({ props })}
+						<button
+							{...props}
+							onclick={() => {
+								toggleMode();
+								closeMobileSidebar();
+							}}
+						>
+							<PaletteIcon class="size-4" />
+							<span class="text-sm">{mode.current === 'light' ? '亮色' : '暗色'}</span>
+						</button>
+					{/snippet}
+				</Sidebar.MenuButton>
+			</Sidebar.MenuItem>
 			{#each data.footer as item (item.title)}
 				<Sidebar.MenuItem>
 					<Sidebar.MenuButton class="h-8">
