@@ -100,9 +100,11 @@ pub struct FavoriteItem {
 #[derive(Debug, serde::Deserialize)]
 pub struct CollectionItem {
     pub id: i64,
+    pub fid: i64,
     pub mid: i64,
     pub state: i32,
     pub title: String,
+    pub media_count: i64,
 }
 
 #[derive(Debug, serde::Deserialize)]

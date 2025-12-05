@@ -4,7 +4,7 @@
 	import BotIcon from '@lucide/svelte/icons/bot';
 	import ChartPieIcon from '@lucide/svelte/icons/chart-pie';
 	import HeartIcon from '@lucide/svelte/icons/heart';
-	import FolderIcon from '@lucide/svelte/icons/folder';
+	import FoldersIcon from '@lucide/svelte/icons/folders';
 	import UserIcon from '@lucide/svelte/icons/user';
 	import Settings2Icon from '@lucide/svelte/icons/settings-2';
 	import SquareTerminalIcon from '@lucide/svelte/icons/square-terminal';
@@ -62,12 +62,12 @@
 						href: '/me/favorites'
 					},
 					{
-						title: '我关注的合集',
-						icon: FolderIcon,
+						title: '我追的合集 / 收藏夹',
+						icon: FoldersIcon,
 						href: '/me/collections'
 					},
 					{
-						title: '我关注的 up 主',
+						title: '我关注的 UP 主',
 						icon: UserIcon,
 						href: '/me/uppers'
 					}

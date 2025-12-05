@@ -110,45 +110,46 @@ export interface ResetRequest {
 	force: boolean;
 }
 
-// 收藏夹相关类型
-export interface FavoriteWithSubscriptionStatus {
-	title: string;
-	media_count: number;
-	fid: number;
-	mid: number;
-	subscribed: boolean;
-}
+export type Followed =
+	| {
+			type: 'favorite';
+			title: string;
+			media_count: number;
+			fid: number;
+			mid: number;
+			invalid: boolean;
+			subscribed: boolean;
+	  }
+	| {
+			type: 'collection';
+			title: string;
+			sid: number;
+			mid: number;
+			media_count: number;
+			invalid: boolean;
+			subscribed: boolean;
+	  }
+	| {
+			type: 'upper';
+			mid: number;
+			uname: string;
+			face: string;
+			sign: string;
+			invalid: boolean;
+			subscribed: boolean;
+	  };
 
 export interface FavoritesResponse {
-	favorites: FavoriteWithSubscriptionStatus[];
-}
-
-// 合集相关类型
-export interface CollectionWithSubscriptionStatus {
-	title: string;
-	sid: number;
-	mid: number;
-	invalid: boolean;
-	subscribed: boolean;
+	favorites: Followed[];
 }
 
 export interface CollectionsResponse {
-	collections: CollectionWithSubscriptionStatus[];
+	collections: Followed[];
 	total: number;
 }
 
-// UP 主相关类型
-export interface UpperWithSubscriptionStatus {
-	mid: number;
-	uname: string;
-	face: string;
-	sign: string;
-	invalid: boolean;
-	subscribed: boolean;
-}
-
 export interface UppersResponse {
-	uppers: UpperWithSubscriptionStatus[];
+	uppers: Followed[];
 	total: number;
 }
 
