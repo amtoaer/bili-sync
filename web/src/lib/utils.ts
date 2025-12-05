@@ -1,5 +1,16 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import type { Followed } from './types';
+
+export function getFollowedKey(followed: Followed): number {
+	if (followed.type == 'favorite') {
+		return followed.fid;
+	} else if (followed.type == 'collection') {
+		return followed.sid;
+	} else {
+		return followed.mid;
+	}
+}
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));

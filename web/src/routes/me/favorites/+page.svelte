@@ -6,9 +6,10 @@
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
 
 	import api from '$lib/api';
-	import type { FavoriteWithSubscriptionStatus, ApiError } from '$lib/types';
+	import type { Followed, ApiError } from '$lib/types';
+	import { getFollowedKey } from '$lib/utils';
 
-	let favorites: FavoriteWithSubscriptionStatus[] = [];
+	let favorites: Followed[] = [];
 	let loading = false;
 
 	async function loadFavorites() {
@@ -39,7 +40,7 @@
 </script>
 
 <svelte:head>
-	<title>我的收藏夹 - Bili Sync</title>
+	<title>我创建的收藏夹 - Bili Sync</title>
 </svelte:head>
 
 <div>
@@ -59,13 +60,9 @@
 		<div
 			style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; width: 100%; max-width: none; justify-items: start;"
 		>
-			{#each favorites as favorite (favorite.fid)}
+			{#each favorites as favorite (getFollowedKey(favorite))}
 				<div style="max-width: 450px; width: 100%;">
-					<SubscriptionCard
-						item={favorite}
-						type="favorites"
-						onSubscriptionSuccess={handleSubscriptionSuccess}
-					/>
+					<SubscriptionCard item={favorite} onSubscriptionSuccess={handleSubscriptionSuccess} />
 				</div>
 			{/each}
 		</div>

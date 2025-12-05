@@ -10,28 +10,20 @@
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import XIcon from '@lucide/svelte/icons/x';
-	import type {
-		FavoriteWithSubscriptionStatus,
-		CollectionWithSubscriptionStatus,
-		UpperWithSubscriptionStatus
-	} from '$lib/types';
+	import type { Followed } from '$lib/types';
 
-	export let item:
-		| FavoriteWithSubscriptionStatus
-		| CollectionWithSubscriptionStatus
-		| UpperWithSubscriptionStatus;
-	export let type: 'favorites' | 'collections' | 'submissions' = 'favorites';
+	export let item: Followed;
 	export let onSubscriptionSuccess: (() => void) | null = null;
 
 	let dialogOpen = false;
 
 	function getIcon() {
-		switch (type) {
-			case 'favorites':
+		switch (item.type) {
+			case 'favorite':
 				return HeartIcon;
-			case 'collections':
+			case 'collection':
 				return FolderIcon;
-			case 'submissions':
+			case 'upper':
 				return UserIcon;
 			default:
 				return VideoIcon;
@@ -39,12 +31,12 @@
 	}
 
 	function getTypeLabel() {
-		switch (type) {
-			case 'favorites':
+		switch (item.type) {
+			case 'favorite':
 				return '收藏夹';
-			case 'collections':
+			case 'collection':
 				return '合集';
-			case 'submissions':
+			case 'upper':
 				return 'UP 主';
 			default:
 				return '';
@@ -52,55 +44,52 @@
 	}
 
 	function getTitle(): string {
-		switch (type) {
-			case 'favorites':
-				return (item as FavoriteWithSubscriptionStatus).title;
-			case 'collections':
-				return (item as CollectionWithSubscriptionStatus).title;
-			case 'submissions':
-				return (item as UpperWithSubscriptionStatus).uname;
+		switch (item.type) {
+			case 'favorite':
+			case 'collection':
+				return item.title;
+			case 'upper':
+				return item.uname;
 			default:
 				return '';
 		}
 	}
 
 	function getSubtitle(): string {
-		switch (type) {
-			case 'favorites':
-				return `uid: ${(item as FavoriteWithSubscriptionStatus).mid}`;
-			case 'collections':
-				return `uid: ${(item as CollectionWithSubscriptionStatus).mid}`;
+		switch (item.type) {
+			case 'favorite':
+			case 'collection':
+				return `UID：${item.mid}`;
 			default:
 				return '';
 		}
 	}
 
 	function getDescription(): string {
-		switch (type) {
-			case 'submissions':
-				return (item as UpperWithSubscriptionStatus).sign || '';
+		switch (item.type) {
+			case 'upper':
+				return item.sign || '';
 			default:
 				return '';
 		}
 	}
 
 	function isDisabled(): boolean {
-		switch (type) {
-			case 'collections':
-				return (item as CollectionWithSubscriptionStatus).invalid;
-			case 'submissions': {
-				return (item as UpperWithSubscriptionStatus).invalid;
-			}
+		switch (item.type) {
+			case 'collection':
+			case 'upper':
+			case 'favorite':
+				return item.invalid;
 			default:
 				return false;
 		}
 	}
 
 	function getDisabledReason(): string {
-		switch (type) {
-			case 'collections':
+		switch (item.type) {
+			case 'collection':
 				return '已失效';
-			case 'submissions':
+			case 'upper':
 				return '账号已注销';
 			default:
 				return '';
@@ -108,22 +97,19 @@
 	}
 
 	function getCount(): number | null {
-		switch (type) {
-			case 'favorites':
-				return (item as FavoriteWithSubscriptionStatus).media_count;
+		switch (item.type) {
+			case 'favorite':
+			case 'collection':
+				return item.media_count;
 			default:
 				return null;
 		}
 	}
 
-	function getCountLabel(): string {
-		return '个视频';
-	}
-
 	function getAvatarUrl(): string {
-		switch (type) {
-			case 'submissions':
-				return (item as UpperWithSubscriptionStatus).face;
+		switch (item.type) {
+			case 'upper':
+				return item.face;
 			default:
 				return '';
 		}
@@ -149,7 +135,6 @@
 	const subtitle = getSubtitle();
 	const description = getDescription();
 	const count = getCount();
-	const countLabel = getCountLabel();
 	const avatarUrl = getAvatarUrl();
 	const subscribed = item.subscribed;
 	const disabled = isDisabled();
@@ -161,7 +146,7 @@
 		? 'opacity-60'
 		: ''}"
 >
-	<CardHeader class="flex-shrink-0 pb-4">
+	<CardHeader class="flex-shrink-0">
 		<div class="flex items-start gap-3">
 			<!-- 头像或图标 - 简化设计 -->
 			<div
@@ -169,7 +154,7 @@
 					? 'opacity-50'
 					: ''}"
 			>
-				{#if avatarUrl && type === 'submissions'}
+				{#if avatarUrl && item.type === 'upper'}
 					<img
 						src={avatarUrl}
 						alt={title}
@@ -197,7 +182,7 @@
 					{#if disabled}
 						<Badge variant="destructive" class="shrink-0 text-xs">不可用</Badge>
 					{:else}
-						<Badge variant={subscribed ? 'outline' : 'secondary'} class="shrink-0 text-xs">
+						<Badge variant="secondary" class="shrink-0 text-xs">
 							{subscribed ? '已订阅' : typeLabel}
 						</Badge>
 					{/if}
@@ -211,25 +196,26 @@
 					</div>
 				{/if}
 
+				<!-- 计数信息 -->
+				{#if count !== null && !disabled}
+					<div class="text-muted-foreground flex items-center gap-1 text-sm">
+						<VideoIcon class="h-3 w-3 shrink-0" />
+						<span class="truncate">视频数：{count}</span>
+					</div>
+				{/if}
+
+				<!-- 描述信息 -->
 				{#if description && !disabled}
 					<p class="text-muted-foreground line-clamp-1 text-sm" title={description}>
 						{description}
 					</p>
-				{/if}
-
-				<!-- 计数信息 -->
-				{#if count !== null && !disabled}
-					<div class="text-muted-foreground text-sm">
-						{count}
-						{countLabel}
-					</div>
 				{/if}
 			</div>
 		</div>
 	</CardHeader>
 
 	<!-- 底部按钮区域 -->
-	<CardContent class="flex min-w-0 flex-1 flex-col justify-end pt-0 pb-4">
+	<CardContent class="flex min-w-0 flex-1 flex-col justify-end">
 		<div class="flex justify-end">
 			{#if disabled}
 				<Button
@@ -262,4 +248,4 @@
 </Card>
 
 <!-- 订阅对话框 -->
-<SubscriptionDialog bind:open={dialogOpen} {item} {type} onSuccess={handleSubscriptionSuccess} />
+<SubscriptionDialog bind:open={dialogOpen} {item} onSuccess={handleSubscriptionSuccess} />

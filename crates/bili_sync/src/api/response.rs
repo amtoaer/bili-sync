@@ -92,47 +92,48 @@ where
 }
 
 #[derive(Serialize)]
-pub struct FavoriteWithSubscriptionStatus {
-    pub title: String,
-    pub media_count: i64,
-    pub fid: i64,
-    pub mid: i64,
-    pub subscribed: bool,
-}
-
-#[derive(Serialize)]
-pub struct CollectionWithSubscriptionStatus {
-    pub title: String,
-    pub sid: i64,
-    pub mid: i64,
-    pub invalid: bool,
-    pub subscribed: bool,
-}
-
-#[derive(Serialize)]
-pub struct UpperWithSubscriptionStatus {
-    pub mid: i64,
-    pub uname: String,
-    pub face: String,
-    pub sign: String,
-    pub invalid: bool,
-    pub subscribed: bool,
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum Followed {
+    Favorite {
+        title: String,
+        media_count: i64,
+        fid: i64,
+        mid: i64,
+        invalid: bool,
+        subscribed: bool,
+    },
+    Collection {
+        title: String,
+        sid: i64,
+        mid: i64,
+        media_count: i64,
+        invalid: bool,
+        subscribed: bool,
+    },
+    Upper {
+        mid: i64,
+        uname: String,
+        face: String,
+        sign: String,
+        invalid: bool,
+        subscribed: bool,
+    },
 }
 
 #[derive(Serialize)]
 pub struct FavoritesResponse {
-    pub favorites: Vec<FavoriteWithSubscriptionStatus>,
+    pub favorites: Vec<Followed>,
 }
 
 #[derive(Serialize)]
 pub struct CollectionsResponse {
-    pub collections: Vec<CollectionWithSubscriptionStatus>,
+    pub collections: Vec<Followed>,
     pub total: i64,
 }
 
 #[derive(Serialize)]
 pub struct UppersResponse {
-    pub uppers: Vec<UpperWithSubscriptionStatus>,
+    pub uppers: Vec<Followed>,
     pub total: i64,
 }
 

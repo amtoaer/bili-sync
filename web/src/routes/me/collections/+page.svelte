@@ -5,9 +5,10 @@
 	import Pagination from '$lib/components/pagination.svelte';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
 	import api from '$lib/api';
-	import type { CollectionWithSubscriptionStatus, ApiError } from '$lib/types';
+	import type { Followed, ApiError } from '$lib/types';
+	import { getFollowedKey } from '$lib/utils';
 
-	let collections: CollectionWithSubscriptionStatus[] = [];
+	let collections: Followed[] = [];
 	let totalCount = 0;
 	let currentPage = 0;
 	let loading = false;
@@ -21,8 +22,8 @@
 			collections = response.data.collections;
 			totalCount = response.data.total;
 		} catch (error) {
-			console.error('加载合集失败：', error);
-			toast.error('加载合集失败', {
+			console.error('加载合集 / 收藏夹失败：', error);
+			toast.error('加载合集 / 收藏夹失败', {
 				description: (error as ApiError).message
 			});
 		} finally {
@@ -43,7 +44,7 @@
 	onMount(async () => {
 		setBreadcrumb([
 			{
-				label: '我关注的合集'
+				label: '我追的合集 / 收藏夹'
 			}
 		]);
 		await loadCollections();
@@ -53,14 +54,19 @@
 </script>
 
 <svelte:head>
-	<title>关注的合集 - Bili Sync</title>
+	<title>我追的合集 / 收藏夹 - Bili Sync</title>
 </svelte:head>
 
 <div>
 	<div class="mb-6 flex items-center justify-between">
-		<div class="text-sm font-medium">
+		<div class="flex items-center gap-6">
 			{#if !loading}
-				共 {totalCount} 个合集
+				<div class=" text-sm font-medium">
+					共 {totalCount} 个合集 / 收藏夹
+				</div>
+				<div class=" text-sm font-medium">
+					当前第 {currentPage + 1} / {totalPages} 页
+				</div>
 			{/if}
 		</div>
 	</div>
@@ -73,13 +79,9 @@
 		<div
 			style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; width: 100%; max-width: none; justify-items: start;"
 		>
-			{#each collections as collection (collection.sid)}
+			{#each collections as collection (getFollowedKey(collection))}
 				<div style="max-width: 450px; width: 100%;">
-					<SubscriptionCard
-						item={collection}
-						type="collections"
-						onSubscriptionSuccess={handleSubscriptionSuccess}
-					/>
+					<SubscriptionCard item={collection} onSubscriptionSuccess={handleSubscriptionSuccess} />
 				</div>
 			{/each}
 		</div>
@@ -91,8 +93,10 @@
 	{:else}
 		<div class="flex items-center justify-center py-12">
 			<div class="space-y-2 text-center">
-				<p class="text-muted-foreground">暂无合集数据</p>
-				<p class="text-muted-foreground text-sm">请先在 B 站关注一些合集，或检查账号配置</p>
+				<p class="text-muted-foreground">暂无合集 / 收藏夹数据</p>
+				<p class="text-muted-foreground text-sm">
+					请先在 B 站关注一些合集 / 收藏夹，或检查账号配置
+				</p>
 			</div>
 		</div>
 	{/if}

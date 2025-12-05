@@ -5,9 +5,9 @@
 	import Pagination from '$lib/components/pagination.svelte';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
 	import api from '$lib/api';
-	import type { UpperWithSubscriptionStatus, ApiError } from '$lib/types';
+	import type { Followed, ApiError } from '$lib/types';
 
-	let uppers: UpperWithSubscriptionStatus[] = [];
+	let uppers: Followed[] = [];
 	let totalCount = 0;
 	let currentPage = 0;
 	let loading = false;
@@ -49,7 +49,7 @@
 </script>
 
 <svelte:head>
-	<title>关注的UP主 - Bili Sync</title>
+	<title>我关注的 UP 主 - Bili Sync</title>
 </svelte:head>
 
 <div>
@@ -76,11 +76,7 @@
 		>
 			{#each uppers as upper (upper.mid)}
 				<div style="max-width: 450px; width: 100%;">
-					<SubscriptionCard
-						item={upper}
-						type="submissions"
-						onSubscriptionSuccess={handleSubscriptionSuccess}
-					/>
+					<SubscriptionCard item={upper} onSubscriptionSuccess={handleSubscriptionSuccess} />
 				</div>
 			{/each}
 		</div>

@@ -36,6 +36,7 @@ futures = "0.3.31"
 git2 = { version = "0.20.2", features = [], default-features = false }
 handlebars = "6.3.2"
 hex = "0.4.3"
+itertools = "0.14.0"
 leaky-bucket = "1.1.2"
 md5 = "0.8.0"
 memchr = "2.7.6"

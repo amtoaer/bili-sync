@@ -13,9 +13,7 @@
 	} from '$lib/components/ui/sheet/index.js';
 	import api from '$lib/api';
 	import type {
-		FavoriteWithSubscriptionStatus,
-		CollectionWithSubscriptionStatus,
-		UpperWithSubscriptionStatus,
+		Followed,
 		InsertFavoriteRequest,
 		InsertCollectionRequest,
 		InsertSubmissionRequest,
@@ -24,38 +22,37 @@
 
 	interface Props {
 		open: boolean;
-		item:
-			| FavoriteWithSubscriptionStatus
-			| CollectionWithSubscriptionStatus
-			| UpperWithSubscriptionStatus
-			| null;
-		type: 'favorites' | 'collections' | 'submissions';
+		item: Followed | null;
 		onSuccess: (() => void) | null;
 	}
 
-	let {
-		open = $bindable(false),
-		item = null,
-		type = 'favorites',
-		onSuccess = null
-	}: Props = $props();
+	let { open = $bindable(false), item = null, onSuccess = null }: Props = $props();
 
 	let customPath = $state('');
 	let loading = $state(false);
 
 	// 根据类型和 item 生成默认路径
 	async function generateDefaultPath(): Promise<string> {
-		if (!itemTitle) return '';
-		return (await api.getDefaultPath(type, itemTitle)).data;
+		if (!item || !itemTitle) return '';
+		// 根据 item.type 映射到对应的 API 类型
+		const apiType =
+			item.type === 'favorite'
+				? 'favorites'
+				: item.type === 'collection'
+					? 'collections'
+					: 'submissions';
+		return (await api.getDefaultPath(apiType, itemTitle)).data;
 	}
 
 	function getTypeLabel(): string {
-		switch (type) {
-			case 'favorites':
+		if (!item) return '';
+
+		switch (item.type) {
+			case 'favorite':
 				return '收藏夹';
-			case 'collections':
+			case 'collection':
 				return '合集';
-			case 'submissions':
+			case 'upper':
 				return 'UP 主';
 			default:
 				return '';
@@ -65,13 +62,12 @@
 	function getItemTitle(): string {
 		if (!item) return '';
 
-		switch (type) {
-			case 'favorites':
-				return (item as FavoriteWithSubscriptionStatus).title;
-			case 'collections':
-				return (item as CollectionWithSubscriptionStatus).title;
-			case 'submissions':
-				return (item as UpperWithSubscriptionStatus).uname;
+		switch (item.type) {
+			case 'favorite':
+			case 'collection':
+				return item.title;
+			case 'upper':
+				return item.uname;
 			default:
 				return '';
 		}
@@ -84,30 +80,27 @@
 		try {
 			let response;
 
-			switch (type) {
-				case 'favorites': {
-					const favorite = item as FavoriteWithSubscriptionStatus;
+			switch (item.type) {
+				case 'favorite': {
 					const request: InsertFavoriteRequest = {
-						fid: favorite.fid,
+						fid: item.fid,
 						path: customPath.trim()
 					};
 					response = await api.insertFavorite(request);
 					break;
 				}
-				case 'collections': {
-					const collection = item as CollectionWithSubscriptionStatus;
+				case 'collection': {
 					const request: InsertCollectionRequest = {
-						sid: collection.sid,
-						mid: collection.mid,
+						sid: item.sid,
+						mid: item.mid,
 						path: customPath.trim()
 					};
 					response = await api.insertCollection(request);
 					break;
 				}
-				case 'submissions': {
-					const upper = item as UpperWithSubscriptionStatus;
+				case 'upper': {
 					const request: InsertSubmissionRequest = {
-						upper_id: upper.mid,
+						upper_id: item.mid,
 						path: customPath.trim()
 					};
 					response = await api.insertSubmission(request);
@@ -176,21 +169,16 @@
 							<span class="text-muted-foreground text-sm font-medium">{typeLabel}名称：</span>
 							<span class="text-sm">{itemTitle}</span>
 						</div>
-						{#if type === 'favorites'}
-							{@const favorite = item as FavoriteWithSubscriptionStatus}
+						{#if item!.type !== 'upper'}
 							<div class="flex items-center gap-2">
 								<span class="text-muted-foreground text-sm font-medium">视频数量：</span>
-								<span class="text-sm">{favorite.media_count} 个</span>
+								<span class="text-sm">{item!.media_count} 条</span>
 							</div>
-						{/if}
-						{#if type === 'submissions'}
-							{@const upper = item as UpperWithSubscriptionStatus}
-							{#if upper.sign}
-								<div class="flex items-start gap-2">
-									<span class="text-muted-foreground text-sm font-medium">个人简介：</span>
-									<span class="text-muted-foreground text-sm">{upper.sign}</span>
-								</div>
-							{/if}
+						{:else if item!.sign}
+							<div class="flex items-start gap-2">
+								<span class="text-muted-foreground text-sm font-medium">个人简介：</span>
+								<span class="text-muted-foreground text-sm">{item!.sign}</span>
+							</div>
 						{/if}
 					</div>
 				</div>
