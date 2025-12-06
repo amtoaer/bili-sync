@@ -10,7 +10,7 @@ use tokio_cron_scheduler::{Job, JobScheduler};
 
 use crate::adapter::VideoSource;
 use crate::bilibili::{self, BiliClient, BiliError};
-use crate::config::{Config, TEMPLATE, Trigger, VersionedConfig};
+use crate::config::{ARGS, Config, TEMPLATE, Trigger, VersionedConfig};
 use crate::utils::model::get_enabled_video_sources;
 use crate::utils::notify::error_and_notify;
 use crate::workflow::process_video_source;
@@ -109,16 +109,20 @@ impl DownloadTaskManager {
         // 读取初始配置
         let mut rx = VersionedConfig::get().subscribe();
         let initial_config = rx.borrow_and_update().clone();
-        // 初始化凭据检查与刷新任务，该任务必须成功，否则直接退出
-        sched
-            .lock()
-            .await
-            .add(Job::new_async_tz(
-                "0 0 1 * * *",
-                chrono::Local,
-                DownloadTaskManager::check_and_refresh_credential_task(cx.clone()),
-            )?)
-            .await?;
+        if ARGS.disable_credential_refresh {
+            warn!("已禁用凭据检查与刷新任务，bili-sync 将不会自动检查刷新 Credential，需要用户自行维护");
+        } else {
+            // 初始化凭据检查与刷新任务，该任务必须成功，否则直接退出
+            sched
+                .lock()
+                .await
+                .add(Job::new_async_tz(
+                    "0 0 1 * * *",
+                    chrono::Local,
+                    DownloadTaskManager::check_and_refresh_credential_task(cx.clone()),
+                )?)
+                .await?;
+        }
         // 初始化并添加视频下载任务，将任务 ID 保存到 TaskManager 中
         let video_task_id = async {
             let job_run = DownloadTaskManager::download_video_task(cx.clone());

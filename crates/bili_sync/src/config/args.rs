@@ -13,6 +13,9 @@ pub struct Args {
 
     #[arg(short, long, default_value = "None,bili_sync=info", env = "RUST_LOG")]
     pub log_level: String,
+
+    #[arg(short, long, env = "DISABLE_CREDENTIAL_REFRESH")]
+    pub disable_credential_refresh: bool,
 }
 
 mod built_info {
