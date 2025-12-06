@@ -64,7 +64,11 @@ pub struct UpdateFilteredVideoStatusRequest {
     pub submission: Option<i32>,
     pub watch_later: Option<i32>,
     pub query: Option<String>,
+    #[serde(default)]
+    #[validate(nested)]
     pub video_updates: Vec<StatusUpdate>,
+    #[serde(default)]
+    #[validate(nested)]
     pub page_updates: Vec<StatusUpdate>,
 }
 

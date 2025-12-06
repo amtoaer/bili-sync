@@ -25,6 +25,7 @@ import type {
 	UpdateVideoSourceResponse,
 	Notifier,
 	UpdateFilteredVideoStatusRequest,
+	UpdateFilteredVideoStatusResponse,
 	ResetFilteredVideoStatusRequest
 } from './types';
 import { wsManager } from './ws';
@@ -177,8 +178,8 @@ class ApiClient {
 
 	async updateFilteredVideoStatus(
 		request: UpdateFilteredVideoStatusRequest
-	): Promise<ApiResponse<UpdateVideoStatusResponse>> {
-		return this.post<UpdateVideoStatusResponse>('/videos/update-status', request);
+	): Promise<ApiResponse<UpdateFilteredVideoStatusResponse>> {
+		return this.post<UpdateFilteredVideoStatusResponse>('/videos/update-status', request);
 	}
 
 	async getCreatedFavorites(): Promise<ApiResponse<FavoritesResponse>> {

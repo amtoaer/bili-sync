@@ -3,11 +3,18 @@
 	import Pagination from '$lib/components/pagination.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+	import EditIcon from '@lucide/svelte/icons/edit';
 	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
 	import api from '$lib/api';
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
-	import type { VideosResponse, VideoSourcesResponse, ApiError, VideoSource } from '$lib/types';
+	import type {
+		VideosResponse,
+		VideoSourcesResponse,
+		ApiError,
+		VideoSource,
+		UpdateFilteredVideoStatusRequest
+	} from '$lib/types';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
@@ -26,6 +33,7 @@
 	import { toast } from 'svelte-sonner';
 	import DropdownFilter, { type Filter } from '$lib/components/dropdown-filter.svelte';
 	import SearchBar from '$lib/components/search-bar.svelte';
+	import FilteredStatusEditor from '$lib/components/filtered-status-editor.svelte';
 
 	const pageSize = 20;
 
@@ -38,6 +46,9 @@
 	let resettingAll = false;
 
 	let forceReset = false;
+
+	let updateAllDialogOpen = false;
+	let updatingAll = false;
 
 	let videoSources: VideoSourcesResponse | null = null;
 	let filters: Record<string, Filter> | null = null;
@@ -150,31 +161,56 @@
 		}
 	}
 
+	async function handleUpdateAllVideos(request: UpdateFilteredVideoStatusRequest) {
+		updatingAll = true;
+		try {
+			// 获取筛选参数并合并
+			const filterParams = ToFilterParams($appStateStore);
+			const fullRequest = {
+				...filterParams,
+				...request
+			};
+			const result = await api.updateFilteredVideoStatus(fullRequest);
+			const data = result.data;
+			if (data.success) {
+				toast.success('更新成功', {
+					description: `已更新 ${data.updated_videos_count} 个视频和 ${data.updated_pages_count} 个分页`
+				});
+				const { query, currentPage, videoSource } = $appStateStore;
+				await loadVideos(query, currentPage, videoSource);
+			} else {
+				toast.info('没有视频被更新');
+			}
+		} catch (error) {
+			console.error('更新失败：', error);
+			toast.error('更新失败', {
+				description: (error as ApiError).message
+			});
+		} finally {
+			updatingAll = false;
+			updateAllDialogOpen = false;
+		}
+	}
+
 	// 获取筛选条件的显示数组
 	function getFilterDescriptionParts(): string[] {
 		const state = $appStateStore;
 		const parts: string[] = [];
-
 		if (state.query.trim()) {
-			parts.push(`关键词: "${state.query}"`);
+			parts.push(`搜索词："${state.query}"`);
 		}
-
 		if (state.videoSource && videoSources) {
 			const sourceType = state.videoSource.type;
 			const sourceId = parseInt(state.videoSource.id);
-
-			// 找到对应的 VIDEO_SOURCES 配置
 			const sourceConfig = Object.values(VIDEO_SOURCES).find((s) => s.type === sourceType);
 			if (sourceConfig) {
-				// 找到对应的视频源名称
 				const sourceList = videoSources[sourceType as keyof VideoSourcesResponse] as VideoSource[];
 				const source = sourceList.find((s) => s.id === sourceId);
 				if (source) {
-					parts.push(`${sourceConfig.title}: ${source.name}`);
+					parts.push(`${sourceConfig.title}：${source.name}`);
 				}
 			}
 		}
-
 		return parts;
 	}
 
@@ -262,6 +298,16 @@
 				size="sm"
 				variant="outline"
 				class="hover:bg-accent hover:text-accent-foreground h-8 cursor-pointer text-xs font-medium"
+				onclick={() => (updateAllDialogOpen = true)}
+				disabled={updatingAll || loading}
+			>
+				<EditIcon class="mr-1.5 h-3 w-3" />
+				{hasFilters ? '编辑筛选' : '编辑全部'}
+			</Button>
+			<Button
+				size="sm"
+				variant="outline"
+				class="hover:bg-accent hover:text-accent-foreground h-8 cursor-pointer text-xs font-medium"
 				onclick={() => (resetAllDialogOpen = true)}
 				disabled={resettingAll || loading}
 			>
@@ -312,22 +358,21 @@
 			<AlertDialog.Description>
 				{#if hasFilters}
 					确定要重置<strong>符合以下筛选条件</strong>的视频的下载状态吗？<br />
-					<div class="bg-muted mt-2 rounded-md p-2 text-left">
+					<div class="bg-muted my-2 rounded-md p-2 text-left">
 						{#each filterDescriptionParts as part, index (index)}
-							<div class="text-foreground text-sm font-medium">{part}</div>
+							<div><strong>{part}</strong></div>
 						{/each}
 					</div>
 				{:else}
 					确定要重置<strong>全部视频</strong>的下载状态吗？<br />
 				{/if}
-				<br />
 				此操作会将所有的失败状态重置为未开始，<span class="text-destructive font-medium"
 					>无法撤销</span
 				>。
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 
-		<div class="space-y-4 py-4">
+		<div class="py-2">
 			<div class="rounded-lg border border-orange-200 bg-orange-50 p-3">
 				<div class="mb-2 flex items-center space-x-2">
 					<Checkbox id="force-reset-all" bind:checked={forceReset} />
@@ -364,3 +409,11 @@
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
 </AlertDialog.Root>
+
+<FilteredStatusEditor
+	bind:open={updateAllDialogOpen}
+	{hasFilters}
+	loading={updatingAll}
+	filterDescriptionParts={filterDescriptionParts || []}
+	onsubmit={handleUpdateAllVideos}
+/>
