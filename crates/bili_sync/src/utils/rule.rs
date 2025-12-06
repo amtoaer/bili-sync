@@ -16,6 +16,7 @@ impl Evaluatable<&str> for Condition<String> {
         match self {
             Condition::Equals(expected) => expected == value,
             Condition::Contains(substring) => value.contains(substring),
+            Condition::IContains(substring) => value.to_lowercase().contains(&substring.to_lowercase()),
             Condition::Prefix(prefix) => value.starts_with(prefix),
             Condition::Suffix(suffix) => value.ends_with(suffix),
             Condition::MatchesRegex(_, regex) => regex.is_match(value),

@@ -11,6 +11,8 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 pub enum Condition<T: Serialize + Display> {
     Equals(T),
     Contains(T),
+    #[serde(rename = "icontains")]
+    IContains(T),
     #[serde(deserialize_with = "deserialize_regex", serialize_with = "serialize_regex")]
     MatchesRegex(String, #[derivative(PartialEq = "ignore")] regex::Regex),
     Prefix(T),
@@ -41,6 +43,7 @@ impl<T: Serialize + Display> Display for Condition<T> {
         match self {
             Condition::Equals(v) => write!(f, "等于“{}”", v),
             Condition::Contains(v) => write!(f, "包含“{}”", v),
+            Condition::IContains(v) => write!(f, "包含（不区分大小写）“{}”", v),
             Condition::MatchesRegex(pat, _) => write!(f, "匹配“{}”", pat),
             Condition::Prefix(v) => write!(f, "以“{}”开头", v),
             Condition::Suffix(v) => write!(f, "以“{}”结尾", v),
