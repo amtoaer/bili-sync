@@ -33,6 +33,7 @@
 				return [
 					{ value: 'equals', label: '等于' },
 					{ value: 'contains', label: '包含' },
+					{ value: 'icontains', label: '包含（不区分大小写）' },
 					{ value: 'prefix', label: '以...开头' },
 					{ value: 'suffix', label: '以...结尾' },
 					{ value: 'matchesRegex', label: '匹配正则' }
