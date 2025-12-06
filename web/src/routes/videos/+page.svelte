@@ -97,7 +97,7 @@
 
 	async function handleResetVideo(id: number, forceReset: boolean) {
 		try {
-			const result = await api.resetVideo(id, { force: forceReset });
+			const result = await api.resetVideoStatus(id, { force: forceReset });
 			const data = result.data;
 			if (data.resetted) {
 				toast.success('重置成功', {
@@ -118,10 +118,10 @@
 		}
 	}
 
-	async function handleResetAllVideos() {
+	async function handleFilteredVideoStatus() {
 		resettingAll = true;
 		try {
-			const result = await api.resetAllVideos({ force: forceReset });
+			const result = await api.resetFilteredVideoStatus({ force: forceReset });
 			const data = result.data;
 			if (data.resetted) {
 				toast.success('重置成功', {
@@ -303,7 +303,7 @@
 				}}>取消</AlertDialog.Cancel
 			>
 			<AlertDialog.Action
-				onclick={handleResetAllVideos}
+				onclick={handleFilteredVideoStatus}
 				disabled={resettingAll}
 				class={forceReset ? 'bg-orange-600 hover:bg-orange-700' : ''}
 			>

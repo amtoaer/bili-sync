@@ -5,7 +5,7 @@ import type {
 	VideosResponse,
 	VideoResponse,
 	ResetVideoResponse,
-	ResetAllVideosResponse,
+	ResetFilteredVideosResponse,
 	UpdateVideoStatusRequest,
 	UpdateVideoStatusResponse,
 	ApiError,
@@ -21,8 +21,11 @@ import type {
 	DashBoardResponse,
 	SysInfo,
 	TaskStatus,
-	ResetRequest,
-	UpdateVideoSourceResponse
+	ResetVideoStatusRequest,
+	UpdateVideoSourceResponse,
+	Notifier,
+	UpdateFilteredVideoStatusRequest,
+	ResetFilteredVideoStatusRequest
 } from './types';
 import { wsManager } from './ws';
 
@@ -152,12 +155,17 @@ class ApiClient {
 		return this.get<VideoResponse>(`/videos/${id}`);
 	}
 
-	async resetVideo(id: number, request: ResetRequest): Promise<ApiResponse<ResetVideoResponse>> {
-		return this.post<ResetVideoResponse>(`/videos/${id}/reset`, request);
+	async resetVideoStatus(
+		id: number,
+		request: ResetVideoStatusRequest
+	): Promise<ApiResponse<ResetVideoResponse>> {
+		return this.post<ResetVideoResponse>(`/videos/${id}/reset-status`, request);
 	}
 
-	async resetAllVideos(request: ResetRequest): Promise<ApiResponse<ResetAllVideosResponse>> {
-		return this.post<ResetAllVideosResponse>('/videos/reset-all', request);
+	async resetFilteredVideoStatus(
+		request: ResetFilteredVideoStatusRequest
+	): Promise<ApiResponse<ResetFilteredVideosResponse>> {
+		return this.post<ResetFilteredVideosResponse>('/videos/reset-status', request);
 	}
 
 	async updateVideoStatus(
@@ -165,6 +173,12 @@ class ApiClient {
 		request: UpdateVideoStatusRequest
 	): Promise<ApiResponse<UpdateVideoStatusResponse>> {
 		return this.post<UpdateVideoStatusResponse>(`/videos/${id}/update-status`, request);
+	}
+
+	async updateFilteredVideoStatus(
+		request: UpdateFilteredVideoStatusRequest
+	): Promise<ApiResponse<UpdateVideoStatusResponse>> {
+		return this.post<UpdateVideoStatusResponse>('/videos/update-status', request);
 	}
 
 	async getCreatedFavorites(): Promise<ApiResponse<FavoritesResponse>> {
@@ -268,10 +282,14 @@ const api = {
 	getVideoSources: () => apiClient.getVideoSources(),
 	getVideos: (params?: VideosRequest) => apiClient.getVideos(params),
 	getVideo: (id: number) => apiClient.getVideo(id),
-	resetVideo: (id: number, request: ResetRequest) => apiClient.resetVideo(id, request),
-	resetAllVideos: (request: ResetRequest) => apiClient.resetAllVideos(request),
+	resetVideoStatus: (id: number, request: ResetVideoStatusRequest) =>
+		apiClient.resetVideoStatus(id, request),
+	resetFilteredVideoStatus: (request: ResetFilteredVideoStatusRequest) =>
+		apiClient.resetFilteredVideoStatus(request),
 	updateVideoStatus: (id: number, request: UpdateVideoStatusRequest) =>
 		apiClient.updateVideoStatus(id, request),
+	updateFilteredVideoStatus: (request: UpdateFilteredVideoStatusRequest) =>
+		apiClient.updateFilteredVideoStatus(request),
 	getCreatedFavorites: () => apiClient.getCreatedFavorites(),
 	getFollowedCollections: (pageNum?: number, pageSize?: number) =>
 		apiClient.getFollowedCollections(pageNum, pageSize),
