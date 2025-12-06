@@ -19,7 +19,9 @@
 		setAll,
 		setCurrentPage,
 		setQuery,
-		ToQuery
+		ToQuery,
+		ToFilterParams,
+		hasActiveFilters
 	} from '$lib/stores/filter';
 	import { toast } from 'svelte-sonner';
 	import DropdownFilter, { type Filter } from '$lib/components/dropdown-filter.svelte';
@@ -118,10 +120,15 @@
 		}
 	}
 
-	async function handleFilteredVideoStatus() {
+	async function handleResetAllVideos() {
 		resettingAll = true;
 		try {
-			const result = await api.resetFilteredVideoStatus({ force: forceReset });
+			// 获取筛选参数
+			const filterParams = ToFilterParams($appStateStore);
+			const result = await api.resetFilteredVideoStatus({
+				...filterParams,
+				force: forceReset
+			});
 			const data = result.data;
 			if (data.resetted) {
 				toast.success('重置成功', {
@@ -141,6 +148,34 @@
 			resettingAll = false;
 			resetAllDialogOpen = false;
 		}
+	}
+
+	// 获取筛选条件的显示数组
+	function getFilterDescriptionParts(): string[] {
+		const state = $appStateStore;
+		const parts: string[] = [];
+
+		if (state.query.trim()) {
+			parts.push(`关键词: "${state.query}"`);
+		}
+
+		if (state.videoSource && videoSources) {
+			const sourceType = state.videoSource.type;
+			const sourceId = parseInt(state.videoSource.id);
+
+			// 找到对应的 VIDEO_SOURCES 配置
+			const sourceConfig = Object.values(VIDEO_SOURCES).find((s) => s.type === sourceType);
+			if (sourceConfig) {
+				// 找到对应的视频源名称
+				const sourceList = videoSources[sourceType as keyof VideoSourcesResponse] as VideoSource[];
+				const source = sourceList.find((s) => s.id === sourceId);
+				if (source) {
+					parts.push(`${sourceConfig.title}: ${source.name}`);
+				}
+			}
+		}
+
+		return parts;
 	}
 
 	$: if ($page.url.search !== lastSearch) {
@@ -177,6 +212,8 @@
 	});
 
 	$: totalPages = videosData ? Math.ceil(videosData.total_count / pageSize) : 0;
+	$: hasFilters = hasActiveFilters($appStateStore);
+	$: filterDescriptionParts = videoSources && $appStateStore && getFilterDescriptionParts();
 </script>
 
 <svelte:head>
@@ -229,7 +266,7 @@
 				disabled={resettingAll || loading}
 			>
 				<RotateCcwIcon class="mr-1.5 h-3 w-3 {resettingAll ? 'animate-spin' : ''}" />
-				重置全部
+				{hasFilters ? '重置筛选' : '重置全部'}
 			</Button>
 		</div>
 	</div>
@@ -271,9 +308,19 @@
 <AlertDialog.Root bind:open={resetAllDialogOpen}>
 	<AlertDialog.Content>
 		<AlertDialog.Header>
-			<AlertDialog.Title>重置全部视频</AlertDialog.Title>
+			<AlertDialog.Title>{hasFilters ? '重置筛选视频' : '重置全部视频'}</AlertDialog.Title>
 			<AlertDialog.Description>
-				确定要重置<strong>全部视频</strong>的下载状态吗？<br />
+				{#if hasFilters}
+					确定要重置<strong>符合以下筛选条件</strong>的视频的下载状态吗？<br />
+					<div class="bg-muted mt-2 rounded-md p-2 text-left">
+						{#each filterDescriptionParts as part, index (index)}
+							<div class="text-foreground text-sm font-medium">{part}</div>
+						{/each}
+					</div>
+				{:else}
+					确定要重置<strong>全部视频</strong>的下载状态吗？<br />
+				{/if}
+				<br />
 				此操作会将所有的失败状态重置为未开始，<span class="text-destructive font-medium"
 					>无法撤销</span
 				>。
@@ -303,7 +350,7 @@
 				}}>取消</AlertDialog.Cancel
 			>
 			<AlertDialog.Action
-				onclick={handleFilteredVideoStatus}
+				onclick={handleResetAllVideos}
 				disabled={resettingAll}
 				class={forceReset ? 'bg-orange-600 hover:bg-orange-700' : ''}
 			>
