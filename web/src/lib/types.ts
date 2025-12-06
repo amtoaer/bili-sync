@@ -1,11 +1,8 @@
-// API 响应包装器
-
 export interface ApiResponse<T> {
 	status_code: number;
 	data: T;
 }
 
-// 请求参数类型
 export interface VideosRequest {
 	collection?: number;
 	favorite?: number;
@@ -16,13 +13,11 @@ export interface VideosRequest {
 	page_size?: number;
 }
 
-// 视频来源类型
 export interface VideoSource {
 	id: number;
 	name: string;
 }
 
-// 视频来源响应类型
 export interface VideoSourcesResponse {
 	collection: VideoSource[];
 	favorite: VideoSource[];
@@ -30,7 +25,6 @@ export interface VideoSourcesResponse {
 	watch_later: VideoSource[];
 }
 
-// 视频信息类型
 export interface VideoInfo {
 	id: number;
 	bvid: string;
@@ -40,13 +34,11 @@ export interface VideoInfo {
 	download_status: [number, number, number, number, number];
 }
 
-// 视频列表响应类型
 export interface VideosResponse {
 	videos: VideoInfo[];
 	total_count: number;
 }
 
-// 分页信息类型
 export interface PageInfo {
 	id: number;
 	pid: number;
@@ -54,59 +46,75 @@ export interface PageInfo {
 	download_status: [number, number, number, number, number];
 }
 
-// 单个视频响应类型
 export interface VideoResponse {
 	video: VideoInfo;
 	pages: PageInfo[];
 }
 
-// 重置视频响应类型
 export interface ResetVideoResponse {
 	resetted: boolean;
 	video: VideoInfo;
 	pages: PageInfo[];
 }
 
-// 重置所有视频响应类型
-export interface ResetAllVideosResponse {
+export interface ResetFilteredVideosResponse {
 	resetted: boolean;
 	resetted_videos_count: number;
 	resetted_pages_count: number;
 }
 
-// API 错误类型
-export interface ApiError {
-	message: string;
-	status?: number;
-}
-
-// 状态更新类型
-export interface StatusUpdate {
-	status_index: number;
-	status_value: number;
-}
-
-// 页面状态更新类型
-export interface PageStatusUpdate {
-	page_id: number;
-	updates: StatusUpdate[];
-}
-
-// 重置视频状态请求类型
-export interface UpdateVideoStatusRequest {
-	video_updates?: StatusUpdate[];
-	page_updates?: PageStatusUpdate[];
-}
-
-// 重置视频状态响应类型
 export interface UpdateVideoStatusResponse {
 	success: boolean;
 	video: VideoInfo;
 	pages: PageInfo[];
 }
 
-// 重置请求类型
-export interface ResetRequest {
+export interface UpdateFilteredVideoStatusResponse {
+	success: boolean;
+	updated_videos_count: number;
+	updated_pages_count: number;
+}
+
+export interface ApiError {
+	message: string;
+	status?: number;
+}
+
+export interface StatusUpdate {
+	status_index: number;
+	status_value: number;
+}
+
+export interface PageStatusUpdate {
+	page_id: number;
+	updates: StatusUpdate[];
+}
+
+export interface UpdateVideoStatusRequest {
+	video_updates?: StatusUpdate[];
+	page_updates?: PageStatusUpdate[];
+}
+
+export interface UpdateFilteredVideoStatusRequest {
+	collection?: number;
+	favorite?: number;
+	submission?: number;
+	watch_later?: number;
+	query?: string;
+	video_updates?: StatusUpdate[];
+	page_updates?: StatusUpdate[];
+}
+
+export interface ResetVideoStatusRequest {
+	force: boolean;
+}
+
+export interface ResetFilteredVideoStatusRequest {
+	collection?: number;
+	favorite?: number;
+	submission?: number;
+	watch_later?: number;
+	query?: string;
 	force: boolean;
 }
 
@@ -170,7 +178,6 @@ export interface InsertSubmissionRequest {
 	path: string;
 }
 
-// Rule 相关类型
 export interface Condition<T> {
 	operator: string;
 	value: T | T[];
@@ -184,7 +191,6 @@ export interface RuleTarget<T> {
 export type AndGroup = RuleTarget<string | number | Date>[];
 export type Rule = AndGroup[];
 
-// 视频源详细信息类型
 export interface VideoSourceDetail {
 	id: number;
 	name: string;
@@ -195,7 +201,6 @@ export interface VideoSourceDetail {
 	enabled: boolean;
 }
 
-// 视频源详细信息响应类型
 export interface VideoSourcesDetailsResponse {
 	collections: VideoSourceDetail[];
 	favorites: VideoSourceDetail[];
@@ -203,7 +208,6 @@ export interface VideoSourcesDetailsResponse {
 	watch_later: VideoSourceDetail[];
 }
 
-// 更新视频源请求类型
 export interface UpdateVideoSourceRequest {
 	path: string;
 	enabled: boolean;
@@ -211,7 +215,6 @@ export interface UpdateVideoSourceRequest {
 	useDynamicApi?: boolean | null;
 }
 
-// 配置相关类型
 export interface Credential {
 	sessdata: string;
 	bili_jct: string;
@@ -273,7 +276,6 @@ export interface ConcurrentLimit {
 	download: ConcurrentDownloadLimit;
 }
 
-// Notifier 相关类型
 export interface TelegramNotifier {
 	type: 'telegram';
 	bot_token: string;
@@ -312,13 +314,11 @@ export interface Config {
 	version: number;
 }
 
-// 日期计数对类型
 export interface DayCountPair {
 	day: string;
 	cnt: number;
 }
 
-// 仪表盘响应类型
 export interface DashBoardResponse {
 	enabled_favorites: number;
 	enabled_collections: number;
@@ -327,7 +327,6 @@ export interface DashBoardResponse {
 	videos_by_day: DayCountPair[];
 }
 
-// 系统信息响应类型
 export interface SysInfo {
 	total_memory: number;
 	used_memory: number;

@@ -31,6 +31,41 @@ export const ToQuery = (state: AppState): string => {
 	return queryString ? `videos?${queryString}` : 'videos';
 };
 
+// 将 AppState 转换为请求体中的筛选参数
+export const ToFilterParams = (
+	state: AppState
+): {
+	query?: string;
+	collection?: number;
+	favorite?: number;
+	submission?: number;
+	watch_later?: number;
+} => {
+	const params: {
+		query?: string;
+		collection?: number;
+		favorite?: number;
+		submission?: number;
+		watch_later?: number;
+	} = {};
+
+	if (state.query.trim()) {
+		params.query = state.query;
+	}
+
+	if (state.videoSource && state.videoSource.type && state.videoSource.id) {
+		const { type, id } = state.videoSource;
+		params[type as 'collection' | 'favorite' | 'submission' | 'watch_later'] = parseInt(id);
+	}
+
+	return params;
+};
+
+// 检查是否有活动的筛选条件
+export const hasActiveFilters = (state: AppState): boolean => {
+	return !!(state.query.trim() || state.videoSource);
+};
+
 export const setQuery = (query: string) => {
 	appStateStore.update((state) => ({
 		...state,

@@ -166,7 +166,7 @@
 				bind:resetting
 				onReset={async (forceReset: boolean) => {
 					try {
-						const result = await api.resetVideo(videoData!.video.id, { force: forceReset });
+						const result = await api.resetVideoStatus(videoData!.video.id, { force: forceReset });
 						const data = result.data;
 						if (data.resetted) {
 							videoData = {

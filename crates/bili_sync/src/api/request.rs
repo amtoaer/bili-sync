@@ -16,7 +16,18 @@ pub struct VideosRequest {
 }
 
 #[derive(Deserialize)]
-pub struct ResetRequest {
+pub struct ResetVideoStatusRequest {
+    #[serde(default)]
+    pub force: bool,
+}
+
+#[derive(Deserialize)]
+pub struct ResetFilteredVideoStatusRequest {
+    pub collection: Option<i32>,
+    pub favorite: Option<i32>,
+    pub submission: Option<i32>,
+    pub watch_later: Option<i32>,
+    pub query: Option<String>,
     #[serde(default)]
     pub force: bool,
 }
@@ -44,6 +55,21 @@ pub struct UpdateVideoStatusRequest {
     #[serde(default)]
     #[validate(nested)]
     pub page_updates: Vec<PageStatusUpdate>,
+}
+
+#[derive(Deserialize, Validate)]
+pub struct UpdateFilteredVideoStatusRequest {
+    pub collection: Option<i32>,
+    pub favorite: Option<i32>,
+    pub submission: Option<i32>,
+    pub watch_later: Option<i32>,
+    pub query: Option<String>,
+    #[serde(default)]
+    #[validate(nested)]
+    pub video_updates: Vec<StatusUpdate>,
+    #[serde(default)]
+    #[validate(nested)]
+    pub page_updates: Vec<StatusUpdate>,
 }
 
 #[derive(Deserialize)]
