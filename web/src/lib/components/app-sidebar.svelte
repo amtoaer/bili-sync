@@ -139,7 +139,7 @@
 		<Sidebar.Separator />
 		<Sidebar.Menu>
 			<Sidebar.MenuItem>
-				<Sidebar.MenuButton class="h-8">
+				<Sidebar.MenuButton class="h-8 cursor-pointer">
 					{#snippet child({ props })}
 						<button
 							{...props}
