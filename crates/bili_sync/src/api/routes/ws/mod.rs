@@ -11,12 +11,13 @@ use axum::{Extension, Router};
 use dashmap::DashMap;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt, future};
+use itertools::Itertools;
 pub use log_helper::{LogHelper, MAX_HISTORY_LOGS};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use sysinfo::{
-    CpuRefreshKind, DiskRefreshKind, Disks, MemoryRefreshKind, Pid, ProcessRefreshKind, ProcessesToUpdate, System,
-    get_current_pid,
+    CpuRefreshKind, DiskKind, DiskRefreshKind, Disks, MemoryRefreshKind, Pid, ProcessRefreshKind, ProcessesToUpdate,
+    System, get_current_pid,
 };
 use tokio::sync::mpsc;
 use tokio::{pin, select};
@@ -245,14 +246,23 @@ impl WebSocketHandler {
                         Some(p) => p,
                         None => continue,
                     };
+                    let (available, total) = disks
+                        .iter()
+                        .filter(|d| !matches!(d.kind(), DiskKind::Unknown(_)))
+                        .unique_by(|d| d.name())
+                        .fold((0, 0), |(mut available, mut total), d| {
+                            available += d.available_space();
+                            total += d.total_space();
+                            (available, total)
+                        });
                     let sys_info = SysInfo {
                         total_memory: system.total_memory(),
                         used_memory: system.used_memory(),
                         process_memory: process.memory(),
                         used_cpu: system.global_cpu_usage(),
                         process_cpu: process.cpu_usage() / system.cpus().len() as f32,
-                        total_disk: disks.iter().map(|d| d.total_space()).sum(),
-                        available_disk: disks.iter().map(|d| d.available_space()).sum(),
+                        total_disk: total,
+                        available_disk: available,
                     };
                     if tx.blocking_send(sys_info).is_err() {
                         break;
@@ -316,6 +326,6 @@ impl SysInfoExt for System {
 
 impl SysInfoExt for Disks {
     fn refresh_needed(&mut self, _self_pid: Pid) {
-        self.refresh_specifics(false, DiskRefreshKind::nothing().with_storage());
+        self.refresh_specifics(true, DiskRefreshKind::nothing().with_storage().with_kind());
     }
 }
