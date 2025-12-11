@@ -16,8 +16,8 @@ pub use log_helper::{LogHelper, MAX_HISTORY_LOGS};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use sysinfo::{
-    CpuRefreshKind, DiskKind, DiskRefreshKind, Disks, MemoryRefreshKind, Pid, ProcessRefreshKind, ProcessesToUpdate,
-    System, get_current_pid,
+    CpuRefreshKind, DiskRefreshKind, Disks, MemoryRefreshKind, Pid, ProcessRefreshKind, ProcessesToUpdate, System,
+    get_current_pid,
 };
 use tokio::sync::mpsc;
 use tokio::{pin, select};
@@ -248,7 +248,13 @@ impl WebSocketHandler {
                     };
                     let (available, total) = disks
                         .iter()
-                        .filter(|d| !matches!(d.kind(), DiskKind::Unknown(_)))
+                        .filter(|d| {
+                            d.available_space() > 0
+                                && d.total_space() > 0
+                                // 简单过滤一些虚拟文件系统
+                                && !["overlay", "tmpfs", "sysfs", "proc"]
+                                    .contains(&d.file_system().to_string_lossy().as_ref())
+                        })
                         .unique_by(|d| d.name())
                         .fold((0, 0), |(mut available, mut total), d| {
                             available += d.available_space();
@@ -326,6 +332,6 @@ impl SysInfoExt for System {
 
 impl SysInfoExt for Disks {
     fn refresh_needed(&mut self, _self_pid: Pid) {
-        self.refresh_specifics(true, DiskRefreshKind::nothing().with_storage().with_kind());
+        self.refresh_specifics(true, DiskRefreshKind::nothing().with_storage());
     }
 }
