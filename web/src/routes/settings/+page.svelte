@@ -587,24 +587,24 @@
 						<Label>处理跳过选项</Label>
 						<p class="text-muted-foreground text-sm">在视频处理部分跳过某些执行环节</p>
 						<div class="flex items-center space-x-2">
-							<Switch id="no-dolby-video" bind:checked={formData.skip_option.no_poster} />
-							<Label for="no-dolby-video">跳过视频封面</Label>
+							<Switch id="skip-poster" bind:checked={formData.skip_option.no_poster} />
+							<Label for="skip-poster">跳过视频封面</Label>
 						</div>
 						<div class="flex items-center space-x-2">
-							<Switch id="no-dolby-audio" bind:checked={formData.skip_option.no_video_nfo} />
-							<Label for="no-dolby-audio">跳过视频 NFO</Label>
+							<Switch id="skip-video-nfo" bind:checked={formData.skip_option.no_video_nfo} />
+							<Label for="skip-video-nfo">跳过视频 NFO</Label>
 						</div>
 						<div class="flex items-center space-x-2">
-							<Switch id="no-hdr" bind:checked={formData.skip_option.no_upper} />
-							<Label for="no-hdr">跳过 Up 主头像、信息</Label>
+							<Switch id="skip-upper-info" bind:checked={formData.skip_option.no_upper} />
+							<Label for="skip-upper-info">跳过 Up 主头像、信息</Label>
 						</div>
 						<div class="flex items-center space-x-2">
-							<Switch id="no-hires" bind:checked={formData.skip_option.no_danmaku} />
-							<Label for="no-hires">跳过弹幕</Label>
+							<Switch id="skip-danmaku" bind:checked={formData.skip_option.no_danmaku} />
+							<Label for="skip-danmaku">跳过弹幕</Label>
 						</div>
 						<div class="flex items-center space-x-2">
-							<Switch id="no-hires" bind:checked={formData.skip_option.no_subtitle} />
-							<Label for="no-hires">跳过字幕</Label>
+							<Switch id="skip-subtitle" bind:checked={formData.skip_option.no_subtitle} />
+							<Label for="skip-subtitle">跳过字幕</Label>
 						</div>
 					</div>
 				</Tabs.Content>
