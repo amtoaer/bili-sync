@@ -80,10 +80,7 @@ impl WbiSign for RequestBuilder {
             return Ok(self);
         };
         let (client, req) = self.build_split();
-        let mut req = match req {
-            Ok(req) => req,
-            Err(e) => return Err(e.into()),
-        };
+        let mut req = req?;
         sign_request(&mut req, mixin_key.as_ref(), chrono::Utc::now().timestamp())?;
         Ok(RequestBuilder::from_parts(client, req))
     }
