@@ -34,10 +34,13 @@ impl<const N: usize> Status<N> {
         let mut changed = false;
         for i in 0..N {
             let status = self.get_status(i);
-            if !(status < STATUS_MAX_RETRY || status == STATUS_OK) {
+            if status != STATUS_NOT_STARTED && status != STATUS_OK {
                 self.set_status(i, STATUS_NOT_STARTED);
                 changed = true;
             }
+        }
+        if changed {
+            self.set_completed(false);
         }
         changed
     }
@@ -51,8 +54,8 @@ impl<const N: usize> Status<N> {
         // 但考虑特殊情况，新版本引入了一个新的子任务项，此时会出现明明有子任务未执行，但 completed 标记位仍然为 true 的情况
         // 当然可以在新版本迁移文件中全局重置 completed 标记位，但这样影响范围太大感觉不太好
         // 在后面进行这部分额外判断可以兼容这种情况，在由用户手动触发的 reset_failed 调用中修正 completed 标记位
-        if self.should_run().into_iter().any(|x| x) {
-            changed |= self.get_completed();
+        if !changed && self.get_completed() && self.should_run().into_iter().any(|x| x) {
+            changed = true;
             self.set_completed(false);
         }
         changed
@@ -235,12 +238,12 @@ mod tests {
 
     #[test]
     fn test_status_reset_failed() {
-        // 重置一个已经失败的任务
+        // 重置一个出现部分失败但还有重试次数的任务，将所有的失败状态重置为 0
         let mut status = Status::<3>::from([3, 4, 7]);
         assert!(!status.get_completed());
         assert!(status.reset_failed());
         assert!(!status.get_completed());
-        assert_eq!(<[u32; 3]>::from(status), [3, 0, 7]);
+        assert_eq!(<[u32; 3]>::from(status), [0, 0, 7]);
         // 没有内容需要重置，但 completed 标记位是错误的（模拟新增一个子任务状态的情况）
         // 此时 reset_failed 不会修正 completed 标记位，而 force_reset_failed 会
         status.set_completed(true);
@@ -254,6 +257,12 @@ mod tests {
         assert!(status.get_completed());
         assert!(!status.reset_failed());
         assert!(status.get_completed());
+        // 重置一个全部失败的任务，修改状态并且修改标记位
+        let mut status = Status::<3>::from([4, 4, 4]);
+        assert!(status.get_completed());
+        assert!(status.reset_failed());
+        assert!(!status.get_completed());
+        assert_eq!(<[u32; 3]>::from(status), [0, 0, 0]);
     }
 
     #[test]
