@@ -6,7 +6,7 @@ use sea_orm::DatabaseConnection;
 use tokio::sync::{OnceCell, watch};
 
 use crate::bilibili::Credential;
-use crate::config::{CONFIG_DIR, Config};
+use crate::config::Config;
 
 static VERSIONED_CONFIG: OnceCell<VersionedConfig> = OnceCell::const_new();
 
@@ -26,14 +26,6 @@ impl VersionedConfig {
                     Some(Ok(config)) => config,
                     Some(Err(e)) => bail!("解析数据库配置失败： {}", e),
                     None => {
-                        if CONFIG_DIR.join("config.toml").exists() {
-                            // 数据库中没有配置，但旧版配置文件存在，说明是从 2.6.0 之前的版本直接升级的
-                            bail!(
-                                "当前版本已移除配置文件的迁移逻辑，不再支持从配置文件加载配置。\n\
-                            如果你正在运行 2.6.0 之前的版本，请先升级至 2.6.x 或 2.7.x，\n\
-                            启动时会自动将配置文件迁移至数据库，然后再升级至最新版本。"
-                            );
-                        }
                         let config = Config::default();
                         warn!(
                             "生成 auth_token：{}，可使用该 token 登录 web UI，该信息仅在首次运行时打印",
