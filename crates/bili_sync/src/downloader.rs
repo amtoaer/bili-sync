@@ -252,15 +252,14 @@ impl ResponseExt for reqwest::Response {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
     use std::path::Path;
 
-    use crate::{
-        bilibili::{BestStream, BiliClient, Video},
-        config::VersionedConfig,
-        database::setup_database,
-        downloader::Downloader,
-    };
+    use anyhow::Result;
+
+    use crate::bilibili::{BestStream, BiliClient, Video};
+    use crate::config::VersionedConfig;
+    use crate::database::setup_database;
+    use crate::downloader::Downloader;
 
     #[ignore = "only for manual test"]
     #[tokio::test]
