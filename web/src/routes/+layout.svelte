@@ -10,7 +10,7 @@
 </script>
 
 <ModeWatcher disableHeadScriptInjection />
-<Toaster />
+<Toaster position="top-center" duration={3000} />
 <Sidebar.Provider>
 	<AppSidebar />
 	<Sidebar.Inset class="flex flex-col" style="height: calc(100vh - 1rem)">
