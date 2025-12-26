@@ -169,9 +169,11 @@ impl Downloader {
         concurrent_download: &ConcurrentDownloadLimit,
     ) -> Result<()> {
         let (concurrency, threshold) = (concurrent_download.concurrency, concurrent_download.threshold);
+        // 有些 B 站视频 url GET 有内容但 HEAD 会返回 404，此处使用 bytes=0-0 的 GET 代替 HEAD 以获取文件大小
         let resp = self
             .client
-            .request(Method::HEAD, url, None)
+            .request(Method::GET, url, None)
+            .header(header::RANGE, "bytes=0-0")
             .send()
             .await?
             .error_for_status()?;
@@ -245,5 +247,58 @@ impl ResponseExt for reqwest::Response {
             .get(header::CONTENT_LENGTH)
             .and_then(|v| v.to_str().ok())
             .and_then(|s| s.parse::<u64>().ok())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use std::path::Path;
+
+    use crate::{
+        bilibili::{BestStream, BiliClient, Video},
+        config::VersionedConfig,
+        database::setup_database,
+        downloader::Downloader,
+    };
+
+    #[ignore = "only for manual test"]
+    #[tokio::test]
+    async fn test_parse_and_download_video() -> Result<()> {
+        VersionedConfig::init_for_test(&setup_database(Path::new("./test.sqlite")).await?).await?;
+        let config = VersionedConfig::get().read();
+        let client = BiliClient::new();
+        let video = Video::new(&client, "BV14oCrBqEd2".to_owned(), &config.credential);
+        let pages = video.get_pages().await.expect("failed to get pages");
+        let first_page = pages.into_iter().next().expect("no page found");
+        let mut page_analyzer = video
+            .get_page_analyzer(&first_page)
+            .await
+            .expect("failed to get page analyzer");
+        let json_info = serde_json::to_string_pretty(&page_analyzer.info)?;
+        tokio::fs::write("./debug_playurl.json", json_info).await?;
+        let best_stream = page_analyzer
+            .best_stream(&config.filter_option)
+            .expect("failed to get best stream");
+        let BestStream::VideoAudio {
+            video,
+            audio: Some(audio),
+        } = best_stream
+        else {
+            panic!("best stream is not video & audio");
+        };
+        dbg!(&video);
+        dbg!(&audio);
+        let downloader = Downloader::new(client.client);
+        downloader
+            .multi_fetch_and_merge(
+                &video.urls(true),
+                &audio.urls(true),
+                Path::new("./output.mp4"),
+                &config.concurrent_limit.download,
+            )
+            .await
+            .expect("failed to download video");
+        Ok(())
     }
 }
