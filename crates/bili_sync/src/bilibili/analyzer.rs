@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::bilibili::error::BiliError;
 
 pub struct PageAnalyzer {
-    info: serde_json::Value,
+    pub(crate) info: serde_json::Value,
 }
 
 #[derive(Debug, strum::FromRepr, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Clone)]
