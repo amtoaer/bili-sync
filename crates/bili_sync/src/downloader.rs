@@ -6,7 +6,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result, bail, ensure};
 use async_tempfile::TempFile;
 use futures::TryStreamExt;
-use reqwest::{Method, header};
+use reqwest::{Method, StatusCode, header};
 use tokio::fs::{self};
 use tokio::io::{AsyncSeekExt, AsyncWriteExt};
 use tokio::process::Command;
@@ -177,14 +177,18 @@ impl Downloader {
             .send()
             .await?
             .error_for_status()?;
-        let file_size = resp.header_content_length().unwrap_or_default();
+        if resp.status() != StatusCode::PARTIAL_CONTENT {
+            // 服务器不支持分块，退回到串行下载
+            return self.fetch_serial(url, file).await;
+        }
+        // 使用 get 获取时，文件大小包含在 Content-Range 头中
+        let Some(file_size) = resp.header_file_size() else {
+            // 无法从 Content-Range 头中获取文件大小，退回到串行下载
+            return self.fetch_serial(url, file).await;
+        };
         let chunk_size = file_size / concurrency as u64;
-        if resp
-            .headers()
-            .get(header::ACCEPT_RANGES)
-            .is_none_or(|v| v.to_str().unwrap_or_default() == "none") // https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Accept-Ranges#none
-            || chunk_size < threshold
-        {
+        if chunk_size < threshold {
+            // 分块小于并行下载阈值，退回到串行下载
             return self.fetch_serial(url, file).await;
         }
         file.set_len(file_size).await?;
@@ -238,7 +242,10 @@ impl Downloader {
 /// reqwest.content_length() 居然指的是 body_size 而非 content-length header，没办法自己实现一下
 /// https://github.com/seanmonstar/reqwest/issues/1814
 trait ResponseExt {
+    /// 获取 Content-Length 头的值
     fn header_content_length(&self) -> Option<u64>;
+    /// 获取 Content-Range 头中的文件总大小部分
+    fn header_file_size(&self) -> Option<u64>;
 }
 
 impl ResponseExt for reqwest::Response {
@@ -247,6 +254,17 @@ impl ResponseExt for reqwest::Response {
             .get(header::CONTENT_LENGTH)
             .and_then(|v| v.to_str().ok())
             .and_then(|s| s.parse::<u64>().ok())
+    }
+
+    fn header_file_size(&self) -> Option<u64> {
+        self.headers()
+            .get(header::CONTENT_RANGE)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| {
+                // Content-Range: bytes 0-0/800946
+                s.rsplit_once('/')
+            })
+            .and_then(|(_, size_str)| size_str.parse::<u64>().ok())
     }
 }
 
@@ -262,12 +280,12 @@ mod tests {
     use crate::downloader::Downloader;
 
     #[ignore = "only for manual test"]
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_parse_and_download_video() -> Result<()> {
         VersionedConfig::init_for_test(&setup_database(Path::new("./test.sqlite")).await?).await?;
         let config = VersionedConfig::get().read();
         let client = BiliClient::new();
-        let video = Video::new(&client, "BV14oCrBqEd2".to_owned(), &config.credential);
+        let video = Video::new(&client, "BV19WBFBnEqn".to_owned(), &config.credential);
         let pages = video.get_pages().await.expect("failed to get pages");
         let first_page = pages.into_iter().next().expect("no page found");
         let mut page_analyzer = video
