@@ -308,7 +308,7 @@ mod tests {
         VersionedConfig::init_for_test(&setup_database(Path::new("./test.sqlite")).await?).await?;
         let config = VersionedConfig::get().read();
         let client = BiliClient::new();
-        let video = Video::new(&client, "BV19WBFBnEqn".to_owned(), &config.credential);
+        let video = Video::new(&client, "BV1QJmaYKEv4".to_owned(), &config.credential);
         let pages = video.get_pages().await.expect("failed to get pages");
         let first_page = pages.into_iter().next().expect("no page found");
         let mut page_analyzer = video
