@@ -30,7 +30,8 @@ impl Downloader {
 
     pub async fn fetch(&self, url: &str, path: &Path, concurrent_download: &ConcurrentDownloadLimit) -> Result<()> {
         let mut temp_file = TempFile::new().await?;
-        self.fetch_internal(url, &mut temp_file, concurrent_download).await?;
+        self.fetch_internal(url, &mut temp_file, false, concurrent_download)
+            .await?;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).await?;
         }
@@ -48,7 +49,7 @@ impl Downloader {
         path: &Path,
         concurrent_download: &ConcurrentDownloadLimit,
     ) -> Result<()> {
-        let temp_file = self.multi_fetch_internal(urls, concurrent_download).await?;
+        let temp_file = self.multi_fetch_internal(urls, true, concurrent_download).await?;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).await?;
         }
@@ -65,8 +66,8 @@ impl Downloader {
         concurrent_download: &ConcurrentDownloadLimit,
     ) -> Result<()> {
         let (video_temp_file, audio_temp_file) = tokio::try_join!(
-            self.multi_fetch_internal(video_urls, concurrent_download),
-            self.multi_fetch_internal(audio_urls, concurrent_download)
+            self.multi_fetch_internal(video_urls, true, concurrent_download),
+            self.multi_fetch_internal(audio_urls, true, concurrent_download)
         )?;
         let final_temp_file = TempFile::new().await?;
         let output = Command::new("ffmpeg")
@@ -105,6 +106,7 @@ impl Downloader {
     async fn multi_fetch_internal(
         &self,
         urls: &[&str],
+        is_stream: bool,
         concurrent_download: &ConcurrentDownloadLimit,
     ) -> Result<TempFile> {
         if urls.is_empty() {
@@ -112,7 +114,10 @@ impl Downloader {
         }
         let mut temp_file = TempFile::new().await?;
         for (idx, url) in urls.iter().enumerate() {
-            match self.fetch_internal(url, &mut temp_file, concurrent_download).await {
+            match self
+                .fetch_internal(url, &mut temp_file, is_stream, concurrent_download)
+                .await
+            {
                 Ok(_) => return Ok(temp_file),
                 Err(e) => {
                     if idx == urls.len() - 1 {
@@ -131,10 +136,11 @@ impl Downloader {
         &self,
         url: &str,
         file: &mut TempFile,
+        is_stream: bool,
         concurrent_download: &ConcurrentDownloadLimit,
     ) -> Result<()> {
         if concurrent_download.enable {
-            self.fetch_parallel(url, file, concurrent_download).await
+            self.fetch_parallel(url, file, is_stream, concurrent_download).await
         } else {
             self.fetch_serial(url, file).await
         }
@@ -166,29 +172,46 @@ impl Downloader {
         &self,
         url: &str,
         file: &mut TempFile,
+        is_stream: bool,
         concurrent_download: &ConcurrentDownloadLimit,
     ) -> Result<()> {
         let (concurrency, threshold) = (concurrent_download.concurrency, concurrent_download.threshold);
-        // 有些 B 站视频 url GET 有内容但 HEAD 会返回 404，此处使用 bytes=0-0 的 GET 代替 HEAD 以获取文件大小
-        let resp = self
-            .client
-            .request(Method::GET, url, None)
-            .header(header::RANGE, "bytes=0-0")
-            .send()
-            .await?
-            .error_for_status()?;
-        if resp.status() != StatusCode::PARTIAL_CONTENT {
-            // 服务器不支持分块，退回到串行下载
-            return self.fetch_serial(url, file).await;
-        }
-        // 使用 get 获取时，文件大小包含在 Content-Range 头中
-        let Some(file_size) = resp.header_file_size() else {
-            // 无法从 Content-Range 头中获取文件大小，退回到串行下载
+        let file_size = if is_stream {
+            // B 站视频、音频流存在 HEAD 为 404 但 GET 正常的情况，此处假设支持分块，直接使用携带 Range 头的 GET 请求探测
+            let resp = self
+                .client
+                .request(Method::GET, url, None)
+                .header(header::RANGE, "bytes=0-0")
+                .send()
+                .await?
+                .error_for_status()?;
+            if resp.status() != StatusCode::PARTIAL_CONTENT {
+                return self.fetch_serial(url, file).await;
+            }
+            resp.header_file_size()
+        } else {
+            // 对于普通文件，直接使用常规的 HEAD 请求探测
+            let resp = self
+                .client
+                .request(Method::HEAD, url, None)
+                .send()
+                .await?
+                .error_for_status()?;
+            if resp
+                .headers()
+                .get(header::ACCEPT_RANGES)
+                // https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Accept-Ranges#none
+                .is_none_or(|v| v.to_str().unwrap_or_default() == "none")
+            {
+                return self.fetch_serial(url, file).await;
+            }
+            resp.header_content_length()
+        };
+        let Some(file_size) = file_size else {
             return self.fetch_serial(url, file).await;
         };
         let chunk_size = file_size / concurrency as u64;
         if chunk_size < threshold {
-            // 分块小于并行下载阈值，退回到串行下载
             return self.fetch_serial(url, file).await;
         }
         file.set_len(file_size).await?;
