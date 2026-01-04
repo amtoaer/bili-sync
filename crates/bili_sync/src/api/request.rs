@@ -82,6 +82,7 @@ pub struct FollowedCollectionsRequest {
 pub struct FollowedUppersRequest {
     pub page_num: Option<i32>,
     pub page_size: Option<i32>,
+    pub name: Option<String>,
 }
 
 #[derive(Deserialize, Validate)]

@@ -3,6 +3,7 @@
 	import { toast } from 'svelte-sonner';
 	import SubscriptionCard from '$lib/components/subscription-card.svelte';
 	import Pagination from '$lib/components/pagination.svelte';
+	import SearchBar from '$lib/components/search-bar.svelte';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
 	import api from '$lib/api';
 	import type { Followed, ApiError } from '$lib/types';
@@ -11,13 +12,14 @@
 	let totalCount = 0;
 	let currentPage = 0;
 	let loading = false;
+	let searchQuery = '';
 
 	const pageSize = 50;
 
-	async function loadUppers(page: number = 0) {
+	async function loadUppers(page: number = 0, name?: string) {
 		loading = true;
 		try {
-			const response = await api.getFollowedUppers(page + 1, pageSize); // API 使用 1 基索引
+			const response = await api.getFollowedUppers(page + 1, pageSize, name || undefined); // API 使用 1 基索引
 			uppers = response.data.uppers;
 			totalCount = response.data.total;
 		} catch (error) {
@@ -32,12 +34,18 @@
 
 	function handleSubscriptionSuccess() {
 		// 重新加载数据以获取最新状态
-		loadUppers(currentPage);
+		loadUppers(currentPage, searchQuery);
 	}
 
 	async function handlePageChange(page: number) {
 		currentPage = page;
-		await loadUppers(page);
+		await loadUppers(page, searchQuery);
+	}
+
+	async function handleSearch(query: string) {
+		searchQuery = query;
+		currentPage = 0;
+		await loadUppers(0, query);
 	}
 
 	onMount(async () => {
@@ -53,6 +61,10 @@
 </svelte:head>
 
 <div>
+	<div class="mb-4 flex items-center justify-between">
+		<SearchBar placeholder="搜索 UP 主.." value={searchQuery} onSearch={handleSearch}></SearchBar>
+	</div>
+
 	<div class="mb-6 flex items-center justify-between">
 		<div class="flex items-center gap-6">
 			{#if !loading}

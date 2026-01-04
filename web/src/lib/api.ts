@@ -199,11 +199,13 @@ class ApiClient {
 
 	async getFollowedUppers(
 		pageNum?: number,
-		pageSize?: number
+		pageSize?: number,
+		name?: string
 	): Promise<ApiResponse<UppersResponse>> {
 		const params = {
 			page_num: pageNum,
-			page_size: pageSize
+			page_size: pageSize,
+			name: name
 		};
 		return this.get<UppersResponse>('/me/uppers', params as Record<string, unknown>);
 	}
@@ -294,8 +296,8 @@ const api = {
 	getCreatedFavorites: () => apiClient.getCreatedFavorites(),
 	getFollowedCollections: (pageNum?: number, pageSize?: number) =>
 		apiClient.getFollowedCollections(pageNum, pageSize),
-	getFollowedUppers: (pageNum?: number, pageSize?: number) =>
-		apiClient.getFollowedUppers(pageNum, pageSize),
+	getFollowedUppers: (pageNum?: number, pageSize?: number, name?: string) =>
+		apiClient.getFollowedUppers(pageNum, pageSize, name),
 	insertFavorite: (request: InsertFavoriteRequest) => apiClient.insertFavorite(request),
 	insertCollection: (request: InsertCollectionRequest) => apiClient.insertCollection(request),
 	insertSubmission: (request: InsertSubmissionRequest) => apiClient.insertSubmission(request),

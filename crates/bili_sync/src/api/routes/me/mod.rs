@@ -153,7 +153,9 @@ pub async fn get_followed_uppers(
     let credential = &VersionedConfig::get().read().credential;
     let me = Me::new(bili_client.as_ref(), credential);
     let (page_num, page_size) = (params.page_num.unwrap_or(1), params.page_size.unwrap_or(20));
-    let bili_uppers = me.get_followed_uppers(page_num, page_size).await?;
+    let bili_uppers = me
+        .get_followed_uppers(page_num, page_size, params.name.as_deref())
+        .await?;
 
     let bili_uid: Vec<_> = bili_uppers.list.iter().map(|upper| upper.mid).collect();
 
