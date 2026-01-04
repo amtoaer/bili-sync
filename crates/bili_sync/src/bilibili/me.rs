@@ -60,21 +60,31 @@ impl<'a> Me<'a> {
         Ok(serde_json::from_value(resp["data"].take())?)
     }
 
-    pub async fn get_followed_uppers(&self, page_num: i32, page_size: i32) -> Result<FollowedUppers> {
+    pub async fn get_followed_uppers(
+        &self,
+        page_num: i32,
+        page_size: i32,
+        name: Option<&str>,
+    ) -> Result<FollowedUppers> {
         ensure!(
             !self.mid().is_empty(),
             "未获取到用户 ID，请确保填写设置中的 B 站认证信息"
         );
-        let mut resp = self
+        let url = if name.is_some() {
+            "https://api.bilibili.com/x/relation/followings/search"
+        } else {
+            "https://api.bilibili.com/x/relation/followings"
+        };
+        let mut request = self
             .client
-            .request(
-                Method::GET,
-                "https://api.bilibili.com/x/relation/followings",
-                self.credential,
-            )
+            .request(Method::GET, url, self.credential)
             .await
             .query(&[("vmid", self.mid())])
-            .query(&[("pn", page_num), ("ps", page_size)])
+            .query(&[("pn", page_num), ("ps", page_size)]);
+        if let Some(name) = name {
+            request = request.query(&[("name", name)]);
+        }
+        let mut resp = request
             .send()
             .await?
             .error_for_status()?
