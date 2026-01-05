@@ -8,11 +8,11 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use crate::bilibili::{Credential, DanmakuOption, FilterOption};
-use crate::config::default::{default_auth_token, default_bind_address, default_time_format};
-use crate::config::item::{
-    ConcurrentLimit, NFOTimeType, SkipOption, Trigger, default_collection_path, default_favorite_path,
-    default_submission_path,
+use crate::config::default::{
+    default_auth_token, default_bind_address, default_collection_path, default_favorite_path, default_submission_path,
+    default_time_format,
 };
+use crate::config::item::{ConcurrentLimit, NFOTimeType, SkipOption, Trigger};
 use crate::notifier::Notifier;
 use crate::utils::model::{load_db_config, save_db_config};
 

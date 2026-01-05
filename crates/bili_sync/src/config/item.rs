@@ -98,15 +98,3 @@ impl PathSafeTemplate for handlebars::Handlebars<'_> {
         Ok(filenamify(&self.render(name, data)?).replace("__SEP__", std::path::MAIN_SEPARATOR_STR))
     }
 }
-
-pub fn default_favorite_path() -> String {
-    "收藏夹/{{name}}".to_owned()
-}
-
-pub fn default_collection_path() -> String {
-    "合集/{{name}}".to_owned()
-}
-
-pub fn default_submission_path() -> String {
-    "投稿/{{name}}".to_owned()
-}
