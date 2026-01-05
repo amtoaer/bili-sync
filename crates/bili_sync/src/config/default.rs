@@ -13,6 +13,6 @@ pub(super) fn default_auth_token() -> String {
         .collect()
 }
 
-pub(super) fn default_bind_address() -> String {
+pub(crate) fn default_bind_address() -> String {
     "0.0.0.0:12345".to_string()
 }

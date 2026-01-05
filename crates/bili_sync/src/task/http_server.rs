@@ -13,7 +13,7 @@ use sea_orm::DatabaseConnection;
 
 use crate::api::{LogHelper, router};
 use crate::bilibili::BiliClient;
-use crate::config::VersionedConfig;
+use crate::config::{VersionedConfig, default_bind_address};
 
 #[derive(RustEmbed)]
 #[preserve_source = false]
@@ -30,10 +30,29 @@ pub async fn http_server(
         .layer(Extension(database_connection))
         .layer(Extension(bili_client))
         .layer(Extension(log_writer));
-    let bind_address = VersionedConfig::get().read().bind_address.to_owned();
-    let listener = tokio::net::TcpListener::bind(&bind_address)
-        .await
-        .context("bind address failed")?;
+    let (bind_address, listener) = {
+        let bind_address = VersionedConfig::get().read().bind_address.to_owned();
+        let listen_res = tokio::net::TcpListener::bind(&bind_address)
+            .await
+            .context("bind address failed");
+        match listen_res {
+            Ok(listener) => (bind_address, listener),
+            Err(e) => {
+                let default_bind_address = default_bind_address();
+                if default_bind_address == bind_address {
+                    return Err(e);
+                }
+                warn!(
+                    "绑定到地址 {} 失败：{:#}，尝试绑定到默认地址 {}",
+                    bind_address, e, default_bind_address
+                );
+                let listener = tokio::net::TcpListener::bind(&default_bind_address)
+                    .await
+                    .context("bind default address failed")?;
+                (default_bind_address, listener)
+            }
+        }
+    };
     info!("开始运行管理页：http://{}", bind_address);
     Ok(axum::serve(listener, ServiceExt::<Request>::into_make_service(app)).await?)
 }
