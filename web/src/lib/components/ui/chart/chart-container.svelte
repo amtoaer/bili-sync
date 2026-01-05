@@ -17,6 +17,7 @@
 		config: ChartConfig;
 	} = $props();
 
+	// svelte-ignore state_referenced_locally
 	const chartId = `chart-${id || uid.replace(/:/g, '')}`;
 
 	setChartContext({
