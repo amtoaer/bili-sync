@@ -47,6 +47,15 @@
 		return `${cpu.toFixed(1)}%`;
 	}
 
+	function formatTimestamp(timestamp: number): string {
+		return new Date(timestamp).toLocaleString('en-US', {
+			hour: '2-digit',
+			minute: '2-digit',
+			second: '2-digit',
+			hour12: true
+		});
+	}
+
 	async function loadDashboard() {
 		loading = true;
 		try {
@@ -131,27 +140,28 @@
 		}
 	} satisfies Chart.ChartConfig;
 
-	let memoryHistory: Array<{ time: Date; used: number; process: number }> = [];
-	let cpuHistory: Array<{ time: Date; used: number; process: number }> = [];
+	let memoryHistory: Array<{ time: number; used: number; process: number }> = [];
+	let cpuHistory: Array<{ time: number; used: number; process: number }> = [];
 
 	$: if (sysInfo) {
 		memoryHistory = [
-			...memoryHistory.slice(-19),
+			...memoryHistory.slice(-14),
 			{
-				time: new Date(),
+				time: sysInfo.timestamp,
 				used: sysInfo.used_memory,
 				process: sysInfo.process_memory
 			}
 		];
 		cpuHistory = [
-			...cpuHistory.slice(-19),
+			...cpuHistory.slice(-14),
 			{
-				time: new Date(),
+				time: sysInfo.timestamp,
 				used: sysInfo.used_cpu,
 				process: sysInfo.process_cpu
 			}
 		];
 	}
+
 	// 计算磁盘使用率
 	$: diskUsagePercent = sysInfo
 		? ((sysInfo.total_disk - sysInfo.available_disk) / sysInfo.total_disk) * 100
@@ -435,13 +445,8 @@
 							>
 								{#snippet tooltip()}
 									<MyChartTooltip
-										labelFormatter={(v: Date) => {
-											return v.toLocaleString('en-US', {
-												hour: '2-digit',
-												minute: '2-digit',
-												second: '2-digit',
-												hour12: true
-											});
+										labelFormatter={(timestamp: number) => {
+											return formatTimestamp(timestamp);
 										}}
 										valueFormatter={(v: number) => formatBytes(v)}
 										indicator="line"
@@ -502,13 +507,8 @@
 							>
 								{#snippet tooltip()}
 									<MyChartTooltip
-										labelFormatter={(v: Date) => {
-											return v.toLocaleString('en-US', {
-												hour: '2-digit',
-												minute: '2-digit',
-												second: '2-digit',
-												hour12: true
-											});
+										labelFormatter={(timestamp: number) => {
+											return formatTimestamp(timestamp);
 										}}
 										valueFormatter={(v: number) => formatCpu(v)}
 										indicator="line"

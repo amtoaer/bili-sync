@@ -184,6 +184,7 @@ pub struct DashBoardResponse {
 
 #[derive(Serialize, Clone, Copy)]
 pub struct SysInfo {
+    pub timestamp: i64,
     pub total_memory: u64,
     pub used_memory: u64,
     pub process_memory: u64,
