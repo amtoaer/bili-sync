@@ -328,6 +328,7 @@ export interface DashBoardResponse {
 }
 
 export interface SysInfo {
+	timestamp: number;
 	total_memory: number;
 	used_memory: number;
 	process_memory: number;
@@ -336,7 +337,6 @@ export interface SysInfo {
 	total_disk: number;
 	used_disk: number;
 	available_disk: number;
-	uptime: number;
 }
 
 export interface TaskStatus {

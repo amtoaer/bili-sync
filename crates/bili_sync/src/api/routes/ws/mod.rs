@@ -262,6 +262,7 @@ impl WebSocketHandler {
                             (available, total)
                         });
                     let sys_info = SysInfo {
+                        timestamp: chrono::Utc::now().timestamp_millis(),
                         total_memory: system.total_memory(),
                         used_memory: system.used_memory(),
                         process_memory: process.memory(),
