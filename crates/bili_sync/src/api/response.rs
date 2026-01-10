@@ -33,6 +33,12 @@ pub struct ResetVideoResponse {
 }
 
 #[derive(Serialize)]
+pub struct ClearAndResetVideoStatusResponse {
+    pub warning: Option<String>,
+    pub video: VideoInfo,
+}
+
+#[derive(Serialize)]
 pub struct ResetFilteredVideosResponse {
     pub resetted: bool,
     pub resetted_videos_count: usize,

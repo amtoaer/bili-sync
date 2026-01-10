@@ -9,6 +9,7 @@
 	import type { VideoInfo } from '$lib/types';
 	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
 	import InfoIcon from '@lucide/svelte/icons/info';
+	import BrushCleaningIcon from '@lucide/svelte/icons/brush-cleaning';
 	import UserIcon from '@lucide/svelte/icons/user';
 	import SquareArrowOutUpRightIcon from '@lucide/svelte/icons/square-arrow-out-up-right';
 	import MoreHorizontalIcon from '@lucide/svelte/icons/more-horizontal';
@@ -24,8 +25,11 @@
 	export let taskNames: string[] = []; // 自定义任务名称
 	export let showProgress: boolean = true; // 是否显示进度信息
 	export let onReset: ((forceReset: boolean) => Promise<void>) | null = null; // 自定义重置函数
+	export let onClearAndReset: (() => Promise<void>) | null = null; // 自定义清空重置函数
 	export let resetDialogOpen = false; // 导出对话框状态，让父组件可以控制
+	export let clearAndResetDialogOpen = false; // 导出清空重置对话框状态
 	export let resetting = false;
+	export let clearAndResetting = false;
 
 	let forceReset = false;
 
@@ -98,6 +102,15 @@
 		forceReset = false;
 	}
 
+	async function handleClearAndReset() {
+		clearAndResetting = true;
+		if (onClearAndReset) {
+			await onClearAndReset();
+		}
+		clearAndResetting = false;
+		clearAndResetDialogOpen = false;
+	}
+
 	function handleViewDetail() {
 		goto(`/video/${video.id}`);
 	}
@@ -112,7 +125,7 @@
 </script>
 
 <Card class={cardClasses}>
-	<CardHeader class="flex-shrink-0 pb-3">
+	<CardHeader class="shrink-0 pb-3">
 		<div class="flex min-w-0 items-start justify-between gap-3">
 			<CardTitle
 				class="line-clamp-2 min-w-0 flex-1 cursor-default {mode === 'default'
@@ -196,6 +209,17 @@
 							{/snippet}
 						</DropdownMenu.Trigger>
 						<DropdownMenu.Content align="start" class="w-48">
+							<DropdownMenu.Item class="cursor-pointer" onclick={() => (resetDialogOpen = true)}>
+								<RotateCcwIcon class="mr-2 h-4 w-4" />
+								重置
+							</DropdownMenu.Item>
+							<DropdownMenu.Item
+								class="cursor-pointer"
+								onclick={() => (clearAndResetDialogOpen = true)}
+							>
+								<BrushCleaningIcon class="mr-2 h-4 w-4" />
+								清空重置
+							</DropdownMenu.Item>
 							<DropdownMenu.Item
 								class="cursor-pointer"
 								onclick={() =>
@@ -203,10 +227,6 @@
 							>
 								<SquareArrowOutUpRightIcon class="mr-2 h-4 w-4" />
 								在 B 站打开
-							</DropdownMenu.Item>
-							<DropdownMenu.Item class="cursor-pointer" onclick={() => (resetDialogOpen = true)}>
-								<RotateCcwIcon class="mr-2 h-4 w-4" />
-								重置下载状态
 							</DropdownMenu.Item>
 						</DropdownMenu.Content>
 					</DropdownMenu.Root>
@@ -257,6 +277,41 @@
 				class={forceReset ? 'bg-orange-600 hover:bg-orange-700' : ''}
 			>
 				{resetting ? '重置中...' : forceReset ? '确认强制重置' : '确认重置'}
+			</AlertDialog.Action>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>
+
+<!-- 清空重置确认对话框 -->
+<AlertDialog.Root bind:open={clearAndResetDialogOpen}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>清空重置视频</AlertDialog.Title>
+			<AlertDialog.Description>
+				确定要清空重置视频 <strong>"{displayTitle}"</strong> 吗？
+				<br />
+				<br />
+				此操作会：
+				<ul class="mt-2 ml-4 list-disc space-y-1">
+					<li>将视频状态重置为未开始</li>
+					<li>删除所有分页信息</li>
+					<li class="text-destructive font-medium">删除视频对应的文件夹</li>
+				</ul>
+				<br />
+				该功能可在多页视频变更后手动触发全量更新，执行后<span class="text-destructive font-medium"
+					>无法撤销</span
+				>。
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>取消</AlertDialog.Cancel>
+			<AlertDialog.Action
+				onclick={handleClearAndReset}
+				disabled={clearAndResetting}
+				class="bg-destructive hover:bg-destructive/90"
+			>
+				{clearAndResetting ? '清空重置中...' : '确认清空重置'}
 			</AlertDialog.Action>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
