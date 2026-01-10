@@ -26,7 +26,9 @@ import type {
 	Notifier,
 	UpdateFilteredVideoStatusRequest,
 	UpdateFilteredVideoStatusResponse,
-	ResetFilteredVideoStatusRequest
+	ResetFilteredVideoStatusRequest,
+	QrcodeGenerateResponse,
+	QrcodePollResponse
 } from './types';
 import { wsManager } from './ws';
 
@@ -266,6 +268,14 @@ class ApiClient {
 		return this.post<boolean>('/task/download');
 	}
 
+	async generateQrcode(): Promise<ApiResponse<QrcodeGenerateResponse>> {
+		return this.post<QrcodeGenerateResponse>('/login/qrcode/generate');
+	}
+
+	async pollQrcode(qrcodeKey: string): Promise<ApiResponse<QrcodePollResponse>> {
+		return this.get<QrcodePollResponse>('/login/qrcode/poll', { qrcode_key: qrcodeKey });
+	}
+
 	subscribeToLogs(onMessage: (data: string) => void) {
 		return wsManager.subscribeToLogs(onMessage);
 	}
@@ -313,6 +323,8 @@ const api = {
 	updateConfig: (config: Config) => apiClient.updateConfig(config),
 	getDashboard: () => apiClient.getDashboard(),
 	triggerDownloadTask: () => apiClient.triggerDownloadTask(),
+	generateQrcode: () => apiClient.generateQrcode(),
+	pollQrcode: (qrcodeKey: string) => apiClient.pollQrcode(qrcodeKey),
 	subscribeToSysInfo: (onMessage: (data: SysInfo) => void) =>
 		apiClient.subscribeToSysInfo(onMessage),
 

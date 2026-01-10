@@ -12,6 +12,7 @@ use crate::config::VersionedConfig;
 
 mod config;
 mod dashboard;
+mod login;
 mod me;
 mod task;
 mod video_sources;
@@ -25,6 +26,7 @@ pub fn router() -> Router {
         "/api",
         config::router()
             .merge(me::router())
+            .merge(login::router())
             .merge(video_sources::router())
             .merge(videos::router())
             .merge(dashboard::router())

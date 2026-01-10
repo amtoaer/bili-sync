@@ -10,12 +10,13 @@
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import PasswordInput from '$lib/components/custom/password-input.svelte';
+	import QrLogin from '$lib/components/custom/qr-login.svelte';
 	import NotifierDialog from './NotifierDialog.svelte';
 	import InfoIcon from '@lucide/svelte/icons/info';
 	import api from '$lib/api';
 	import { toast } from 'svelte-sonner';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
-	import type { Config, ApiError, Notifier } from '$lib/types';
+	import type { Config, ApiError, Notifier, Credential } from '$lib/types';
 
 	let frontendToken = ''; // 前端认证token
 	let config: Config | null = null;
@@ -166,6 +167,18 @@
 		} finally {
 			saving = false;
 		}
+	}
+
+	function handleQrLoginSuccess(credential: Credential) {
+		if (!formData) return;
+
+		// 自动填充凭证到 formData
+		formData.credential = credential;
+
+		// 自动保存配置
+		saveConfig();
+
+		toast.success('扫码登录成功，凭证已保存');
 	}
 
 	onMount(() => {
@@ -349,7 +362,23 @@
 
 				<!-- B站认证 -->
 				<Tabs.Content value="auth" class="mt-6 space-y-6">
+					<!-- 扫码登录区域 -->
+					<div class="space-y-2">
+						<Label class="text-base font-semibold">快速登录</Label>
+						<p class="text-sm text-muted-foreground mb-3">
+							使用哔哩哔哩 APP 扫码登录，凭证将自动填充并保存
+						</p>
+						<QrLogin onSuccess={handleQrLoginSuccess} />
+					</div>
+
+					<Separator />
+
+					<!-- 原有的手动输入 Cookie 表单 -->
 					<div class="space-y-4">
+						<Label class="text-base font-semibold">手动输入凭证（可选）</Label>
+						<p class="text-sm text-muted-foreground mb-3">
+							如果无法使用扫码登录，可以手动从浏览器复制以下 Cookie
+						</p>
 						<div class="space-y-2">
 							<Label for="sessdata">SESSDATA</Label>
 							<PasswordInput

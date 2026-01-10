@@ -47,5 +47,9 @@
 		"format": "prettier --write .",
 		"lint": "prettier --check . && eslint ."
 	},
-	"type": "module"
+	"type": "module",
+	"dependencies": {
+		"@types/qrcode": "^1.5.6",
+		"qrcode": "^1.5.4"
+	}
 }
