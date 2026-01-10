@@ -365,7 +365,7 @@
 					<!-- 扫码登录区域 -->
 					<div class="space-y-2">
 						<Label class="text-base font-semibold">快速登录</Label>
-						<p class="text-sm text-muted-foreground mb-3">
+						<p class="text-muted-foreground mb-3 text-sm">
 							使用哔哩哔哩 APP 扫码登录，凭证将自动填充并保存
 						</p>
 						<QrLogin onSuccess={handleQrLoginSuccess} />
@@ -376,7 +376,7 @@
 					<!-- 原有的手动输入 Cookie 表单 -->
 					<div class="space-y-4">
 						<Label class="text-base font-semibold">手动输入凭证（可选）</Label>
-						<p class="text-sm text-muted-foreground mb-3">
+						<p class="text-muted-foreground mb-3 text-sm">
 							如果无法使用扫码登录，可以手动从浏览器复制以下 Cookie
 						</p>
 						<div class="space-y-2">
