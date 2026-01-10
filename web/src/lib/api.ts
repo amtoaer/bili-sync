@@ -27,8 +27,8 @@ import type {
 	UpdateFilteredVideoStatusRequest,
 	UpdateFilteredVideoStatusResponse,
 	ResetFilteredVideoStatusRequest,
-	QrcodeGenerateResponse,
-	QrcodePollResponse
+	QrcodeGenerateResponse as GenerateQrcodeResponse,
+	QrcodePollResponse as PollQrcodeResponse
 } from './types';
 import { wsManager } from './ws';
 
@@ -268,12 +268,12 @@ class ApiClient {
 		return this.post<boolean>('/task/download');
 	}
 
-	async generateQrcode(): Promise<ApiResponse<QrcodeGenerateResponse>> {
-		return this.post<QrcodeGenerateResponse>('/login/qrcode/generate');
+	async generateQrcode(): Promise<ApiResponse<GenerateQrcodeResponse>> {
+		return this.post<GenerateQrcodeResponse>('/login/qrcode/generate');
 	}
 
-	async pollQrcode(qrcodeKey: string): Promise<ApiResponse<QrcodePollResponse>> {
-		return this.get<QrcodePollResponse>('/login/qrcode/poll', { qrcode_key: qrcodeKey });
+	async pollQrcode(qrcodeKey: string): Promise<ApiResponse<PollQrcodeResponse>> {
+		return this.get<PollQrcodeResponse>('/login/qrcode/poll', { qrcode_key: qrcodeKey });
 	}
 
 	subscribeToLogs(onMessage: (data: string) => void) {

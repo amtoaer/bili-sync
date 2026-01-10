@@ -123,3 +123,8 @@ pub struct UpdateVideoSourceRequest {
 pub struct DefaultPathRequest {
     pub name: String,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct PollQrcodeRequest {
+    pub qrcode_key: String,
+}

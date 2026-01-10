@@ -3,7 +3,10 @@ use bili_sync_entity::*;
 use sea_orm::{DerivePartialModel, FromQueryResult};
 use serde::Serialize;
 
-use crate::utils::status::{PageStatus, VideoStatus};
+use crate::{
+    bilibili::{PollStatus, Qrcode},
+    utils::status::{PageStatus, VideoStatus},
+};
 
 #[derive(Serialize)]
 pub struct VideoSourcesResponse {
@@ -213,3 +216,7 @@ pub struct VideoSourceDetail {
 pub struct UpdateVideoSourceResponse {
     pub rule_display: Option<String>,
 }
+
+pub type GenerateQrcodeResponse = Qrcode;
+
+pub type PollQrcodeResponse = PollStatus;

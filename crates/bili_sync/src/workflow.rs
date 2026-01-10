@@ -133,7 +133,7 @@ pub async fn fetch_video_details(
                         "获取视频 {} - {} 的详细信息失败，错误为：{:#}",
                         &video_model.bvid, &video_model.name, e
                     );
-                    if let Some(BiliError::ErrorResponse(-404, _, _)) = e.downcast_ref::<BiliError>() {
+                    if let Some(BiliError::ErrorResponse(-404, _)) = e.downcast_ref::<BiliError>() {
                         let mut video_active_model: bili_sync_entity::video::ActiveModel = video_model.into();
                         video_active_model.valid = Set(false);
                         video_active_model.save(connection).await?;
