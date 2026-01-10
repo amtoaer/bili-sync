@@ -124,7 +124,15 @@
 				video: data.video,
 				pages: []
 			};
-			toast.success('清空重置成功');
+			if (data.warning) {
+				toast.warning('清空重置成功', {
+					description: data.warning
+				});
+			} else {
+				toast.success('清空重置成功', {
+					description: `视频「${data.video.name}」已清空重置`
+				});
+			}
 		} catch (error) {
 			console.error('清空重置失败：', error);
 			toast.error('清空重置失败', {
