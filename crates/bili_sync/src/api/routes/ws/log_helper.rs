@@ -5,7 +5,7 @@ use parking_lot::RwLock;
 use tokio::sync::broadcast;
 use tracing_subscriber::fmt::MakeWriter;
 
-pub const MAX_HISTORY_LOGS: usize = 30;
+pub const MAX_HISTORY_LOGS: usize = 200;
 
 /// LogHelper 维护了日志发送器和一个日志历史记录的缓冲区
 pub struct LogHelper {

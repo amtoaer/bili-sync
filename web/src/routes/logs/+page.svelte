@@ -27,7 +27,7 @@
 		main = document.getElementById('main');
 		main?.addEventListener('scroll', checkScrollPosition);
 		unsubscribeLog = api.subscribeToLogs((data: string) => {
-			logs = [...logs.slice(-200), JSON.parse(data)];
+			logs = [...logs.slice(-499), JSON.parse(data)];
 			setTimeout(scrollToBottom, 0);
 		});
 		return () => {
