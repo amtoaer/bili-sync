@@ -6,7 +6,6 @@
 	import api from '$lib/api';
 	import type { Credential, ApiError } from '$lib/types';
 	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
-	import CheckCircle from '@lucide/svelte/icons/check-circle';
 	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import QRCode from 'qrcode';
 
@@ -14,7 +13,8 @@
 	 * 扫码登录组件
 	 *
 	 * 状态流转:
-	 * idle -> loading -> showing -> (success | expired | error)
+	 * loading -> showing -> (success | expired | error)
+	 * success 会调用 onSuccess 回调，由父组件关闭弹窗，不需要内部做处理
 	 *
 	 * @prop onSuccess - 登录成功回调，接收完整的凭证对象
 	 */
@@ -25,13 +25,16 @@
 	const COUNTDOWN_INTERVAL = 1000; // 倒计时更新间隔（毫秒）
 	const QR_SIZE = 256; // 二维码图片尺寸（像素）
 	const QR_MARGIN = 2; // 二维码边距
-	const WARNING_TIME = 30; // 显示警告颜色的剩余时间（秒）
 
 	export let onSuccess: (credential: Credential) => void;
 
-	type Status = 'idle' | 'loading' | 'showing' | 'success' | 'expired' | 'error';
+	export function init() {
+		generateQrcode();
+	}
 
-	let status: Status = 'idle';
+	type Status = 'loading' | 'showing' | 'expired' | 'error';
+
+	let status: Status = 'loading';
 	let qrcodeUrl = ''; // B站返回的二维码 URL（需要转换为图片）
 	let qrcodeKey = ''; // 用于轮询的认证 token
 	let qrcodeDataUrl = ''; // 生成的二维码图片 Data URL
@@ -54,7 +57,6 @@
 		// 先停止之前的轮询和倒计时（排他性）
 		stopPolling();
 		stopCountdown();
-
 		status = 'loading';
 		errorMessage = '';
 		scanned = false;
@@ -110,8 +112,6 @@
 			if (pollResult.status === 'success') {
 				stopPolling();
 				stopCountdown();
-				status = 'success';
-				toast.success('登录成功！');
 				onSuccess(pollResult.credential);
 			} else if (pollResult.status === 'pending') {
 				scanned = pollResult.scanned || false;
@@ -119,12 +119,9 @@
 				stopPolling();
 				stopCountdown();
 				status = 'expired';
-				toast.error('二维码已过期');
 			}
 		} catch (error) {
 			console.error('轮询登录状态失败:', error);
-			// 检查是否还在轮询，如果不在则不继续重试
-			if (!isPolling) return;
 		}
 	}
 
@@ -163,7 +160,6 @@
 				stopPolling();
 				stopCountdown();
 				status = 'expired';
-				toast.error('二维码已过期');
 			}
 		}, COUNTDOWN_INTERVAL);
 	}
@@ -187,74 +183,83 @@
 </script>
 
 <div class="qr-login-container">
-	{#if status === 'idle' || status === 'error'}
-		<div class="flex flex-col items-center gap-3">
-			{#if status === 'error'}
-				<p class="text-destructive text-sm">{errorMessage}</p>
-			{/if}
-			<Button onclick={generateQrcode} class="w-full">
-				<RefreshCw class="mr-2 h-4 w-4" />
-				{status === 'error' ? '重新获取二维码' : '扫码登录'}
-			</Button>
-		</div>
-	{:else if status === 'loading'}
-		<div class="flex flex-col items-center gap-3">
-			<LoaderCircle class="text-muted-foreground h-8 w-8 animate-spin" />
-			<p class="text-muted-foreground text-sm">正在生成二维码...</p>
-		</div>
-	{:else if status === 'showing'}
-		<Card.Root class="border-0 shadow-none">
-			<Card.Content class="p-4">
-				<div class="flex flex-col items-center gap-4">
-					<div class="border-border rounded-lg border-2 bg-white p-3">
-						<!-- 使用生成的二维码图片 Data URL -->
+	<Card.Root class="border-0 shadow-none">
+		<Card.Content class="p-4">
+			<div class="flex flex-col items-center gap-4">
+				<!-- 二维码容器 - 始终显示边框 -->
+				<div class="border-border relative rounded-lg border-2 bg-white p-3">
+					{#if status === 'loading'}
+						<!-- 加载状态 -->
+						<div class="flex h-48 w-48 items-center justify-center">
+							<LoaderCircle class="text-muted-foreground h-8 w-8 animate-spin" />
+						</div>
+					{:else if status === 'showing'}
+						<!-- 显示二维码 -->
 						<img src={qrcodeDataUrl} alt="登录二维码" class="h-48 w-48" />
-					</div>
+					{:else}
+						<!-- 过期或错误状态 - 显示占位图标 -->
+						<div class="flex h-48 w-48 items-center justify-center">
+							<RefreshCw class="text-muted-foreground h-12 w-12" />
+						</div>
+					{/if}
+				</div>
 
-					<div class="space-y-2 text-center">
+				<!-- 状态提示文本 -->
+				<div class="text-muted-foreground space-y-2 text-center text-sm">
+					{#if status === 'loading'}
+						<p>正在生成二维码...</p>
+					{:else if status === 'showing'}
 						{#if scanned}
-							<div class="text-primary flex items-center justify-center gap-2">
-								<LoaderCircle class="h-5 w-5 animate-spin" />
-								<p class="font-medium">已扫描，请在手机上确认登录</p>
+							<div class="flex items-center justify-center gap-2">
+								<LoaderCircle class="h-4 w-4 animate-spin" />
+								<p>已扫描，请在手机上确认登录</p>
 							</div>
 						{:else}
-							<p class="text-muted-foreground text-sm">请使用哔哩哔哩 APP 扫描二维码</p>
+							<p>请使用哔哩哔哩 APP 扫描二维码</p>
 						{/if}
+					{:else if status === 'expired'}
+						<p>二维码已过期</p>
+					{:else if status === 'error'}
+						<p class="text-destructive">{errorMessage}</p>
+					{/if}
 
-						<div class="flex items-center justify-center gap-2">
-							<span class="text-muted-foreground text-xs">有效时间:</span>
-							<span
-								class="font-mono text-sm font-bold"
-								class:text-destructive={countdown < WARNING_TIME}
-								class:text-primary={countdown >= WARNING_TIME}
-							>
+					<!-- 倒计时 - 始终显示 -->
+					<div class="flex items-center justify-center gap-2">
+						<span class="text-muted-foreground text-xs">有效时间:</span>
+						<span
+							class="font-mono text-sm font-bold"
+							class:text-primary={countdown > 0}
+							class:text-muted-foreground={countdown <= 0}
+						>
+							{#if status === 'showing'}
 								{Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, '0')}
-							</span>
-						</div>
+							{:else}
+								-:--
+							{/if}
+						</span>
 					</div>
+				</div>
 
+				<!-- 操作按钮 - 根据状态变化 -->
+				{#if status === 'loading'}
+					<Button variant="outline" size="sm" class="w-full" disabled>
+						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+						加载中...
+					</Button>
+				{:else if status === 'showing'}
 					<Button variant="outline" size="sm" onclick={generateQrcode} class="w-full">
 						<RefreshCw class="mr-2 h-4 w-4" />
 						刷新二维码
 					</Button>
-				</div>
-			</Card.Content>
-		</Card.Root>
-	{:else if status === 'success'}
-		<div class="flex flex-col items-center gap-3 py-4">
-			<CheckCircle class="h-12 w-12 text-green-500" />
-			<p class="text-lg font-medium text-green-600">登录成功！</p>
-			<p class="text-muted-foreground text-sm">凭证已自动保存</p>
-		</div>
-	{:else if status === 'expired'}
-		<div class="flex flex-col items-center gap-3">
-			<p class="text-muted-foreground text-sm">二维码已过期</p>
-			<Button onclick={generateQrcode} variant="outline" class="w-full">
-				<RefreshCw class="mr-2 h-4 w-4" />
-				重新获取
-			</Button>
-		</div>
-	{/if}
+				{:else}
+					<Button variant="outline" size="sm" onclick={generateQrcode} class="w-full">
+						<RefreshCw class="mr-2 h-4 w-4" />
+						重新获取二维码
+					</Button>
+				{/if}
+			</div>
+		</Card.Content>
+	</Card.Root>
 </div>
 
 <style>
