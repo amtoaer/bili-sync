@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -10,12 +10,14 @@
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import PasswordInput from '$lib/components/custom/password-input.svelte';
+	import QrLogin from '$lib/components/custom/qr-login.svelte';
 	import NotifierDialog from './NotifierDialog.svelte';
 	import InfoIcon from '@lucide/svelte/icons/info';
+	import QrCodeIcon from '@lucide/svelte/icons/qr-code';
 	import api from '$lib/api';
 	import { toast } from 'svelte-sonner';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
-	import type { Config, ApiError, Notifier } from '$lib/types';
+	import type { Config, ApiError, Notifier, Credential } from '$lib/types';
 
 	let frontendToken = ''; // 前端认证token
 	let config: Config | null = null;
@@ -30,6 +32,10 @@
 	let editingNotifier: Notifier | null = null;
 	let editingNotifierIndex: number | null = null;
 	let isEditing = false;
+
+	// QR 登录 Dialog 相关
+	let showQrLoginDialog = false;
+	let qrLoginComponent: QrLogin;
 
 	function openAddNotifierDialog() {
 		editingNotifier = null;
@@ -166,6 +172,21 @@
 		} finally {
 			saving = false;
 		}
+	}
+
+	function handleQrLoginSuccess(credential: Credential) {
+		if (!formData) return;
+
+		// 自动填充凭证到 formData
+		formData.credential = credential;
+
+		toast.success('扫码登录成功，已填充凭据');
+
+		// 自动保存配置
+		saveConfig();
+
+		// 关闭弹窗
+		showQrLoginDialog = false;
 	}
 
 	onMount(() => {
@@ -349,6 +370,27 @@
 
 				<!-- B站认证 -->
 				<Tabs.Content value="auth" class="mt-6 space-y-6">
+					<div class="flex items-center justify-between">
+						<div class="space-y-1">
+							<Label class="text-base font-semibold">快速登录</Label>
+							<p class="text-muted-foreground text-sm">使用哔哩哔哩 APP 扫码登录，自动填充凭据</p>
+						</div>
+						<Button
+							onclick={() => {
+								showQrLoginDialog = true;
+								tick().then(() => {
+									qrLoginComponent!.init();
+								});
+							}}
+						>
+							<QrCodeIcon class="mr-2 h-4 w-4" />
+							扫码登录
+						</Button>
+					</div>
+
+					<Separator />
+
+					<!-- 原有的手动输入 Cookie 表单 -->
 					<div class="space-y-4">
 						<div class="space-y-2">
 							<Label for="sessdata">SESSDATA</Label>
@@ -961,6 +1003,23 @@
 					onCancel={closeNotifierDialog}
 				/>
 			{/if}
+		</Dialog.Content>
+	</Dialog.Portal>
+</Dialog.Root>
+
+<!-- QR 登录弹窗 -->
+<Dialog.Root bind:open={showQrLoginDialog}>
+	<Dialog.Portal>
+		<Dialog.Overlay class="bg-background/80 fixed inset-0 z-50 backdrop-blur-sm" />
+		<Dialog.Content
+			class="bg-background fixed top-[50%] left-[50%] z-50 grid w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 border p-6 shadow-lg duration-200 sm:rounded-lg"
+		>
+			<Dialog.Header>
+				<Dialog.Title>扫码登录</Dialog.Title>
+				<Dialog.Description>使用哔哩哔哩 APP 扫描二维码登录</Dialog.Description>
+			</Dialog.Header>
+
+			<QrLogin bind:this={qrLoginComponent} onSuccess={handleQrLoginSuccess} />
 		</Dialog.Content>
 	</Dialog.Portal>
 </Dialog.Root>

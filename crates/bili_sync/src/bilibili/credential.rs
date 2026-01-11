@@ -9,13 +9,20 @@ use rsa::sha2::Sha256;
 use rsa::{Oaep, RsaPublicKey};
 use serde::{Deserialize, Serialize};
 
-use crate::bilibili::{Client, Validate};
+use crate::bilibili::{BiliError, Client, Validate};
 
 const MIXIN_KEY_ENC_TAB: [usize; 64] = [
     46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49, 33, 9, 42, 19, 29, 28, 14, 39, 12, 38,
     41, 13, 37, 48, 7, 16, 24, 55, 40, 61, 26, 17, 0, 1, 60, 51, 30, 4, 22, 25, 54, 21, 56, 59, 6, 63, 57, 62, 11, 36,
     20, 34, 44, 52,
 ];
+
+mod qrcode_status_code {
+    pub const SUCCESS: i64 = 0;
+    pub const NOT_SCANNED: i64 = 86101;
+    pub const SCANNED_UNCONFIRMED: i64 = 86090;
+    pub const EXPIRED: i64 = 86038;
+}
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Credential {
@@ -30,6 +37,28 @@ pub struct Credential {
 pub struct WbiImg {
     pub(crate) img_url: String,
     pub(crate) sub_url: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Qrcode {
+    pub url: String,
+    pub qrcode_key: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum PollStatus {
+    Success {
+        credential: Credential,
+    },
+    Pending {
+        message: String,
+        #[serde(default)]
+        scanned: bool,
+    },
+    Expired {
+        message: String,
+    },
 }
 
 impl WbiImg {
@@ -54,6 +83,78 @@ impl Credential {
             .await?
             .validate()?;
         Ok(serde_json::from_value(res["data"]["wbi_img"].take())?)
+    }
+
+    pub async fn generate_qrcode(client: &Client) -> Result<Qrcode> {
+        let mut res = client
+            .request(
+                Method::GET,
+                "https://passport.bilibili.com/x/passport-login/web/qrcode/generate",
+                None,
+            )
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<serde_json::Value>()
+            .await?
+            .validate()?;
+        Ok(serde_json::from_value(res["data"].take())?)
+    }
+
+    pub async fn poll_qrcode(client: &Client, qrcode_key: &str) -> Result<PollStatus> {
+        let mut resp = client
+            .request(
+                Method::GET,
+                "https://passport.bilibili.com/x/passport-login/web/qrcode/poll",
+                None,
+            )
+            .query(&[("qrcode_key", qrcode_key)])
+            .send()
+            .await?
+            .error_for_status()?;
+        let headers = std::mem::take(resp.headers_mut());
+        let json = resp.json::<serde_json::Value>().await?.validate()?;
+        let code = json["data"]["code"].as_i64().context("missing 'code' field in data")?;
+
+        match code {
+            qrcode_status_code::SUCCESS => {
+                let mut credential = Self::extract(headers, json)?;
+                credential.buvid3 = Self::get_buvid3(client).await?;
+                Ok(PollStatus::Success { credential })
+            }
+            qrcode_status_code::NOT_SCANNED => Ok(PollStatus::Pending {
+                message: "未扫描".to_owned(),
+                scanned: false,
+            }),
+            qrcode_status_code::SCANNED_UNCONFIRMED => Ok(PollStatus::Pending {
+                message: "已扫描，请在手机上确认登录".to_owned(),
+                scanned: true,
+            }),
+            qrcode_status_code::EXPIRED => Ok(PollStatus::Expired {
+                message: "二维码已过期".to_owned(),
+            }),
+            _ => {
+                bail!(BiliError::InvalidResponse(json.to_string()));
+            }
+        }
+    }
+
+    /// 获取 buvid3 浏览器指纹
+    ///
+    /// 参考 https://github.com/SocialSisterYi/bilibili-API-collect/blob/master/docs/misc/buvid3_4.md
+    async fn get_buvid3(client: &Client) -> Result<String> {
+        let resp = client
+            .request(Method::GET, "https://api.bilibili.com/x/web-frontend/getbuvid", None)
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<serde_json::Value>()
+            .await?
+            .validate()?;
+        resp["data"]["buvid"]
+            .as_str()
+            .context("missing 'buvid' field in data")
+            .map(|s| s.to_string())
     }
 
     /// 检查凭据是否有效
@@ -124,7 +225,7 @@ JNrRuoEUXpabUzGB8QIDAQAB
     }
 
     async fn get_new_credential(&self, client: &Client, csrf: &str) -> Result<Credential> {
-        let mut res = client
+        let mut resp = client
             .request(
                 Method::POST,
                 "https://passport.bilibili.com/x/passport-login/web/cookie/refresh",
@@ -141,37 +242,10 @@ JNrRuoEUXpabUzGB8QIDAQAB
             .send()
             .await?
             .error_for_status()?;
-        // 必须在 .json 前取出 headers，否则 res 会被消耗
-        let headers = std::mem::take(res.headers_mut());
-        let res = res.json::<serde_json::Value>().await?.validate()?;
-        let set_cookies = headers.get_all(header::SET_COOKIE);
-        let mut credential = Self {
-            buvid3: self.buvid3.clone(),
-            ..Self::default()
-        };
-        let required_cookies = HashSet::from(["SESSDATA", "bili_jct", "DedeUserID"]);
-        let cookies: Vec<Cookie> = set_cookies
-            .iter()
-            .filter_map(|x| x.to_str().ok())
-            .filter_map(|x| Cookie::parse(x).ok())
-            .filter(|x| required_cookies.contains(x.name()))
-            .collect();
-        ensure!(
-            cookies.len() == required_cookies.len(),
-            "not all required cookies found"
-        );
-        for cookie in cookies {
-            match cookie.name() {
-                "SESSDATA" => credential.sessdata = cookie.value().to_string(),
-                "bili_jct" => credential.bili_jct = cookie.value().to_string(),
-                "DedeUserID" => credential.dedeuserid = cookie.value().to_string(),
-                _ => unreachable!(),
-            }
-        }
-        match res["data"]["refresh_token"].as_str() {
-            Some(token) => credential.ac_time_value = token.to_string(),
-            None => bail!("refresh_token not found"),
-        }
+        let headers = std::mem::take(resp.headers_mut());
+        let json = resp.json::<serde_json::Value>().await?.validate()?;
+        let mut credential = Self::extract(headers, json)?;
+        credential.buvid3 = self.buvid3.clone();
         Ok(credential)
     }
 
@@ -194,6 +268,36 @@ JNrRuoEUXpabUzGB8QIDAQAB
             .await?
             .validate()?;
         Ok(())
+    }
+
+    /// 解析 header 和 json，获取除 buvid3 字段外全部填充的 Credential
+    fn extract(headers: header::HeaderMap, json: serde_json::Value) -> Result<Credential> {
+        let mut credential = Credential::default();
+        let required_cookies = HashSet::from(["SESSDATA", "bili_jct", "DedeUserID"]);
+        let cookies: Vec<Cookie> = headers
+            .get_all(header::SET_COOKIE)
+            .iter()
+            .filter_map(|x| x.to_str().ok())
+            .filter_map(|x| Cookie::parse(x).ok())
+            .filter(|x| required_cookies.contains(x.name()))
+            .collect();
+        ensure!(
+            cookies.len() == required_cookies.len(),
+            "not all required cookies found"
+        );
+        for cookie in cookies {
+            match cookie.name() {
+                "SESSDATA" => credential.sessdata = cookie.value().to_string(),
+                "bili_jct" => credential.bili_jct = cookie.value().to_string(),
+                "DedeUserID" => credential.dedeuserid = cookie.value().to_string(),
+                _ => unreachable!(),
+            }
+        }
+        match json["data"]["refresh_token"].as_str() {
+            Some(token) => credential.ac_time_value = token.to_string(),
+            None => bail!("refresh_token not found"),
+        }
+        Ok(credential)
     }
 }
 
@@ -245,5 +349,95 @@ mod tests {
             serde_urlencoded::to_string(query).unwrap().replace('+', "%20"),
             "bar=%E4%BA%94%E4%B8%80%E5%9B%9B&baz=1919810&foo=one%20one%20four"
         );
+    }
+
+    #[test]
+    fn test_extract_credential_success() {
+        let mut headers = header::HeaderMap::new();
+        headers.append(
+            header::SET_COOKIE,
+            "SESSDATA=test_sessdata; Path=/; Domain=bilibili.com".parse().unwrap(),
+        );
+        headers.append(
+            header::SET_COOKIE,
+            "bili_jct=test_jct; Path=/; Domain=bilibili.com".parse().unwrap(),
+        );
+        headers.append(
+            header::SET_COOKIE,
+            "DedeUserID=123456; Path=/; Domain=bilibili.com".parse().unwrap(),
+        );
+
+        let json = serde_json::json!({
+            "data": {
+                "refresh_token": "test_refresh_token"
+            }
+        });
+
+        let credential = Credential::extract(headers, json).unwrap();
+
+        assert_eq!(credential.sessdata, "test_sessdata");
+        assert_eq!(credential.bili_jct, "test_jct");
+        assert_eq!(credential.dedeuserid, "123456");
+        assert_eq!(credential.ac_time_value, "test_refresh_token");
+        assert!(credential.buvid3.is_empty());
+    }
+
+    #[test]
+    fn test_extract_credential_missing_sessdata() {
+        let headers = header::HeaderMap::new();
+        let json = serde_json::json!({
+            "data": {
+                "refresh_token": "test_refresh_token"
+            }
+        });
+        assert!(Credential::extract(headers, json).is_err());
+    }
+
+    #[test]
+    fn test_extract_credential_missing_refresh_token() {
+        let mut headers = header::HeaderMap::new();
+        headers.append(header::SET_COOKIE, "SESSDATA=test_sessdata".parse().unwrap());
+        headers.append(header::SET_COOKIE, "bili_jct=test_jct".parse().unwrap());
+        headers.append(header::SET_COOKIE, "DedeUserID=123456".parse().unwrap());
+        let json = serde_json::json!({
+            "data": {}
+        });
+        assert!(Credential::extract(headers, json).is_err());
+    }
+
+    #[ignore = "requires manual testing with real QR code scan"]
+    #[tokio::test]
+    async fn test_qrcode_login_flow() -> Result<()> {
+        let client = Client::new();
+        // 1. 生成二维码
+        let qr_response = Credential::generate_qrcode(&client).await?;
+        println!("二维码 URL: {}", qr_response.url);
+        println!("qrcode_key: {}", qr_response.qrcode_key);
+        println!("\n请使用 B 站 APP 扫描二维码...\n");
+        // 2. 轮询登录状态（最多轮询 90 次，每 2 秒一次，共 180 秒）
+        for i in 1..=90 {
+            println!("第 {} 次轮询...", i);
+            let status = Credential::poll_qrcode(&client, &qr_response.qrcode_key).await?;
+            match status {
+                PollStatus::Success { credential } => {
+                    println!("\n登录成功！");
+                    println!("SESSDATA: {}", credential.sessdata);
+                    println!("bili_jct: {}", credential.bili_jct);
+                    println!("buvid3: {}", credential.buvid3);
+                    println!("DedeUserID: {}", credential.dedeuserid);
+                    println!("ac_time_value: {}", credential.ac_time_value);
+                    return Ok(());
+                }
+                PollStatus::Pending { message, scanned } => {
+                    println!("状态: {}, 已扫描: {}", message, scanned);
+                }
+                PollStatus::Expired { message } => {
+                    println!("\n二维码已过期: {}", message);
+                    anyhow::bail!("二维码过期");
+                }
+            }
+            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+        }
+        bail!("轮询超时")
     }
 }

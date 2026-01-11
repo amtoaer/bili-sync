@@ -349,3 +349,24 @@ export interface TaskStatus {
 export interface UpdateVideoSourceResponse {
 	ruleDisplay: string;
 }
+
+// 扫码登录相关类型
+export interface QrcodeGenerateResponse {
+	url: string;
+	qrcode_key: string;
+}
+
+export type QrcodePollResponse =
+	| {
+			status: 'success';
+			credential: Credential;
+	  }
+	| {
+			status: 'pending';
+			message: string;
+			scanned?: boolean;
+	  }
+	| {
+			status: 'expired';
+			message: string;
+	  };

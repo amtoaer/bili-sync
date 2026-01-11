@@ -2,13 +2,13 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 pub use analyzer::{BestStream, FilterOption};
-use anyhow::{Result, bail, ensure};
+use anyhow::{Context, Result, bail, ensure};
 use arc_swap::ArcSwapOption;
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
 pub use client::{BiliClient, Client};
 pub use collection::{Collection, CollectionItem, CollectionType};
-pub use credential::Credential;
+pub use credential::{Credential, PollStatus, Qrcode};
 pub use danmaku::DanmakuOption;
 pub use dynamic::Dynamic;
 pub use error::BiliError;
@@ -51,17 +51,13 @@ impl Validate for serde_json::Value {
     type Output = serde_json::Value;
 
     fn validate(self) -> Result<Self::Output> {
-        let (code, msg) = match (self["code"].as_i64(), self["message"].as_str()) {
-            (Some(code), Some(msg)) => (code, msg),
-            _ => bail!(BiliError::InvalidResponse(self.to_string())),
-        };
+        let code = self["code"]
+            .as_i64()
+            .with_context(|| BiliError::InvalidResponse(self.to_string()))?;
         if code == -352 || !self["data"]["v_voucher"].is_null() {
             bail!(BiliError::RiskControlOccurred(self.to_string()));
         }
-        ensure!(
-            code == 0,
-            BiliError::ErrorResponse(code, msg.to_owned(), self.to_string())
-        );
+        ensure!(code == 0, BiliError::ErrorResponse(code, self.to_string()));
         Ok(self)
     }
 }
