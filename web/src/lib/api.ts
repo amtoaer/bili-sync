@@ -5,6 +5,7 @@ import type {
 	VideosResponse,
 	VideoResponse,
 	ResetVideoResponse,
+	ClearAndResetVideoResponse,
 	ResetFilteredVideosResponse,
 	UpdateVideoStatusRequest,
 	UpdateVideoStatusResponse,
@@ -165,6 +166,10 @@ class ApiClient {
 		return this.post<ResetVideoResponse>(`/videos/${id}/reset-status`, request);
 	}
 
+	async clearAndResetVideoStatus(id: number): Promise<ApiResponse<ClearAndResetVideoResponse>> {
+		return this.post<ClearAndResetVideoResponse>(`/videos/${id}/clear-and-reset-status`);
+	}
+
 	async resetFilteredVideoStatus(
 		request: ResetFilteredVideoStatusRequest
 	): Promise<ApiResponse<ResetFilteredVideosResponse>> {
@@ -297,6 +302,7 @@ const api = {
 	getVideo: (id: number) => apiClient.getVideo(id),
 	resetVideoStatus: (id: number, request: ResetVideoStatusRequest) =>
 		apiClient.resetVideoStatus(id, request),
+	clearAndResetVideoStatus: (id: number) => apiClient.clearAndResetVideoStatus(id),
 	resetFilteredVideoStatus: (request: ResetFilteredVideoStatusRequest) =>
 		apiClient.resetFilteredVideoStatus(request),
 	updateVideoStatus: (id: number, request: UpdateVideoStatusRequest) =>

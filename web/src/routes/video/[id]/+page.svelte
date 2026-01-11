@@ -8,6 +8,7 @@
 	import type { ApiError, VideoResponse, UpdateVideoStatusRequest } from '$lib/types';
 	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
 	import EditIcon from '@lucide/svelte/icons/edit';
+	import BrushCleaningIcon from '@lucide/svelte/icons/brush-cleaning';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
 	import { appStateStore, ToQuery } from '$lib/stores/filter';
 	import VideoCard from '$lib/components/video-card.svelte';
@@ -19,6 +20,8 @@
 	let error: string | null = null;
 	let resetDialogOpen = false;
 	let resetting = false;
+	let clearAndResetDialogOpen = false;
+	let clearAndResetting = false;
 	let statusEditorOpen = false;
 	let statusEditorLoading = false;
 
@@ -87,6 +90,56 @@
 			statusEditorLoading = false;
 		}
 	}
+
+	async function handleReset(forceReset: boolean) {
+		if (!videoData) return;
+		try {
+			const result = await api.resetVideoStatus(videoData.video.id, { force: forceReset });
+			const data = result.data;
+			if (data.resetted) {
+				videoData = {
+					video: data.video,
+					pages: data.pages
+				};
+				toast.success('重置成功');
+			} else {
+				toast.info('重置无效', {
+					description: `视频「${data.video.name}」没有失败的状态，无需重置`
+				});
+			}
+		} catch (error) {
+			console.error('重置失败:', error);
+			toast.error('重置失败', {
+				description: (error as ApiError).message
+			});
+		}
+	}
+
+	async function handleClearAndReset() {
+		if (!videoData) return;
+		try {
+			const result = await api.clearAndResetVideoStatus(videoData.video.id);
+			const data = result.data;
+			videoData = {
+				video: data.video,
+				pages: []
+			};
+			if (data.warning) {
+				toast.warning('清空重置成功', {
+					description: data.warning
+				});
+			} else {
+				toast.success('清空重置成功', {
+					description: `视频「${data.video.name}」已清空重置`
+				});
+			}
+		} catch (error) {
+			console.error('清空重置失败：', error);
+			toast.error('清空重置失败', {
+				description: (error as ApiError).message
+			});
+		}
+	}
 </script>
 
 <svelte:head>
@@ -130,10 +183,20 @@
 					variant="outline"
 					class="shrink-0 cursor-pointer "
 					onclick={() => (resetDialogOpen = true)}
-					disabled={resetting}
+					disabled={resetting || clearAndResetting}
 				>
 					<RotateCcwIcon class="mr-2 h-4 w-4 {resetting ? 'animate-spin' : ''}" />
 					重置
+				</Button>
+				<Button
+					size="sm"
+					variant="outline"
+					class="shrink-0 cursor-pointer "
+					onclick={() => (clearAndResetDialogOpen = true)}
+					disabled={resetting || clearAndResetting}
+				>
+					<BrushCleaningIcon class="mr-2 h-4 w-4 {clearAndResetting ? 'animate-spin' : ''}" />
+					清空重置
 				</Button>
 				<Button
 					size="sm"
@@ -164,28 +227,10 @@
 				taskNames={['视频封面', '视频信息', 'UP 主头像', 'UP 主信息', '分页下载']}
 				bind:resetDialogOpen
 				bind:resetting
-				onReset={async (forceReset: boolean) => {
-					try {
-						const result = await api.resetVideoStatus(videoData!.video.id, { force: forceReset });
-						const data = result.data;
-						if (data.resetted) {
-							videoData = {
-								video: data.video,
-								pages: data.pages
-							};
-							toast.success('重置成功');
-						} else {
-							toast.info('重置无效', {
-								description: `视频「${data.video.name}」没有失败的状态，无需重置`
-							});
-						}
-					} catch (error) {
-						console.error('重置失败:', error);
-						toast.error('重置失败', {
-							description: (error as ApiError).message
-						});
-					}
-				}}
+				bind:clearAndResetDialogOpen
+				bind:clearAndResetting
+				onReset={handleReset}
+				onClearAndReset={handleClearAndReset}
 			/>
 		</div>
 	</section>
@@ -226,7 +271,6 @@
 			<div class="py-12 text-center">
 				<div class="space-y-2">
 					<p class="text-muted-foreground">暂无分 P 数据</p>
-					<p class="text-muted-foreground text-sm">该视频可能为单 P 视频</p>
 				</div>
 			</div>
 		{/if}

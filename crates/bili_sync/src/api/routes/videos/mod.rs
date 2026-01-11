@@ -1,12 +1,14 @@
 use std::collections::HashSet;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use axum::extract::{Extension, Path, Query};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use bili_sync_entity::*;
+use sea_orm::ActiveValue::Set;
 use sea_orm::{
-    ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, TransactionTrait,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, PaginatorTrait, QueryFilter,
+    QueryOrder, TransactionTrait, TryIntoModel,
 };
 
 use crate::api::error::InnerApiError;
@@ -16,8 +18,9 @@ use crate::api::request::{
     UpdateVideoStatusRequest, VideosRequest,
 };
 use crate::api::response::{
-    PageInfo, ResetFilteredVideosResponse, ResetVideoResponse, SimplePageInfo, SimpleVideoInfo,
-    UpdateFilteredVideoStatusResponse, UpdateVideoStatusResponse, VideoInfo, VideoResponse, VideosResponse,
+    ClearAndResetVideoStatusResponse, PageInfo, ResetFilteredVideosResponse, ResetVideoResponse, SimplePageInfo,
+    SimpleVideoInfo, UpdateFilteredVideoStatusResponse, UpdateVideoStatusResponse, VideoInfo, VideoResponse,
+    VideosResponse,
 };
 use crate::api::wrapper::{ApiError, ApiResponse, ValidatedJson};
 use crate::utils::status::{PageStatus, VideoStatus};
@@ -26,6 +29,10 @@ pub(super) fn router() -> Router {
     Router::new()
         .route("/videos", get(get_videos))
         .route("/videos/{id}", get(get_video))
+        .route(
+            "/videos/{id}/clear-and-reset-status",
+            post(clear_and_reset_video_status),
+        )
         .route("/videos/{id}/reset-status", post(reset_video_status))
         .route("/videos/{id}/update-status", post(update_video_status))
         .route("/videos/reset-status", post(reset_filtered_video_status))
@@ -149,6 +156,43 @@ pub async fn reset_video_status(
         resetted,
         video: video_info,
         pages: resetted_pages_info,
+    }))
+}
+
+pub async fn clear_and_reset_video_status(
+    Path(id): Path<i32>,
+    Extension(db): Extension<DatabaseConnection>,
+) -> Result<ApiResponse<ClearAndResetVideoStatusResponse>, ApiError> {
+    let video_info = video::Entity::find_by_id(id).one(&db).await?;
+    let Some(video_info) = video_info else {
+        return Err(InnerApiError::NotFound(id).into());
+    };
+    let txn = db.begin().await?;
+    let mut video_info = video_info.into_active_model();
+    video_info.single_page = Set(None);
+    video_info.download_status = Set(0);
+    let video_info = video_info.update(&txn).await?;
+    page::Entity::delete_many()
+        .filter(page::Column::VideoId.eq(id))
+        .exec(&txn)
+        .await?;
+    txn.commit().await?;
+    let video_info = video_info.try_into_model()?;
+    let warning = tokio::fs::remove_dir_all(&video_info.path)
+        .await
+        .context(format!("删除本地路径「{}」失败", video_info.path))
+        .err()
+        .map(|e| format!("{:#}", e));
+    Ok(ApiResponse::ok(ClearAndResetVideoStatusResponse {
+        warning,
+        video: VideoInfo {
+            id: video_info.id,
+            bvid: video_info.bvid,
+            name: video_info.name,
+            upper_name: video_info.upper_name,
+            should_download: video_info.should_download,
+            download_status: video_info.download_status,
+        },
     }))
 }
 

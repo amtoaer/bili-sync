@@ -57,6 +57,11 @@ export interface ResetVideoResponse {
 	pages: PageInfo[];
 }
 
+export interface ClearAndResetVideoResponse {
+	warning?: string;
+	video: VideoInfo;
+}
+
 export interface ResetFilteredVideosResponse {
 	resetted: boolean;
 	resetted_videos_count: number;

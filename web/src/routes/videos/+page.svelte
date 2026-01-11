@@ -131,6 +131,29 @@
 		}
 	}
 
+	async function handleClearAndResetVideo(id: number) {
+		try {
+			const result = await api.clearAndResetVideoStatus(id);
+			const data = result.data;
+			if (data.warning) {
+				toast.warning('清空重置成功', {
+					description: data.warning
+				});
+			} else {
+				toast.success('清空重置成功', {
+					description: `视频「${data.video.name}」已清空重置`
+				});
+			}
+			const { query, currentPage, videoSource } = $appStateStore;
+			await loadVideos(query, currentPage, videoSource);
+		} catch (error) {
+			console.error('清空重置失败：', error);
+			toast.error('清空重置失败', {
+				description: (error as ApiError).message
+			});
+		}
+	}
+
 	async function handleResetAllVideos() {
 		resettingAll = true;
 		try {
@@ -331,6 +354,9 @@
 				{video}
 				onReset={async (forceReset: boolean) => {
 					await handleResetVideo(video.id, forceReset);
+				}}
+				onClearAndReset={async () => {
+					await handleClearAndResetVideo(video.id);
 				}}
 			/>
 		{/each}
