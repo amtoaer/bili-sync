@@ -1,6 +1,6 @@
 {
 	"name": "bili-sync-web",
-	"version": "2.10.0",
+	"version": "2.10.1",
 	"devDependencies": {
 		"@eslint/compat": "^1.4.1",
 		"@eslint/js": "^9.39.2",
