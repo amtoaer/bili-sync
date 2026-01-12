@@ -12,11 +12,19 @@
 	import type { VideoInfo, PageInfo, StatusUpdate, UpdateVideoStatusRequest } from '$lib/types';
 	import { toast } from 'svelte-sonner';
 
-	export let open = false;
-	export let video: VideoInfo;
-	export let pages: PageInfo[] = [];
-	export let loading = false;
-	export let onsubmit: (request: UpdateVideoStatusRequest) => void;
+	let {
+		open = $bindable(false),
+		video,
+		pages = [],
+		loading = false,
+		onsubmit
+	}: {
+		open?: boolean;
+		video: VideoInfo;
+		pages?: PageInfo[];
+		loading?: boolean;
+		onsubmit: (request: UpdateVideoStatusRequest) => void;
+	} = $props();
 
 	// 视频任务名称（与后端 VideoStatus 对应）
 	const videoTaskNames = ['视频封面', '视频信息', 'UP 主头像', 'UP 主信息', '分页下载'];
@@ -24,28 +32,13 @@
 	// 分页任务名称（与后端 PageStatus 对应）
 	const pageTaskNames = ['视频封面', '视频内容', '视频信息', '视频弹幕', '视频字幕'];
 
-	// 重置单个视频任务到原始状态
-	function resetVideoTask(taskIndex: number) {
-		videoStatuses[taskIndex] = originalVideoStatuses[taskIndex];
-		videoStatuses = [...videoStatuses];
-	}
+	let videoStatuses = $state<number[]>([]);
+	let pageStatuses = $state<Record<number, number[]>>({});
 
-	// 重置单个分页任务到原始状态
-	function resetPageTask(pageId: number, taskIndex: number) {
-		if (!pageStatuses[pageId]) {
-			pageStatuses[pageId] = [];
-		}
-		pageStatuses[pageId][taskIndex] = originalPageStatuses[pageId]?.[taskIndex] ?? 0;
-		pageStatuses = { ...pageStatuses };
-	}
+	let originalVideoStatuses = $state<number[]>([]);
+	let originalPageStatuses = $state<Record<number, number[]>>({});
 
-	let videoStatuses: number[] = [];
-	let pageStatuses: Record<number, number[]> = {};
-
-	let originalVideoStatuses: number[] = [];
-	let originalPageStatuses: Record<number, number[]> = {};
-
-	$: {
+	$effect(() => {
 		videoStatuses = [...video.download_status];
 		originalVideoStatuses = [...video.download_status];
 
@@ -68,6 +61,19 @@
 			pageStatuses = {};
 			originalPageStatuses = {};
 		}
+	});
+
+	// 重置单个视频任务到原始状态
+	function resetVideoTask(taskIndex: number) {
+		videoStatuses[taskIndex] = originalVideoStatuses[taskIndex];
+	}
+
+	// 重置单个分页任务到原始状态
+	function resetPageTask(pageId: number, taskIndex: number) {
+		if (!pageStatuses[pageId]) {
+			pageStatuses[pageId] = [];
+		}
+		pageStatuses[pageId][taskIndex] = originalPageStatuses[pageId]?.[taskIndex] ?? 0;
 	}
 
 	function handleVideoStatusChange(taskIndex: number, newValue: number) {
@@ -108,9 +114,8 @@
 		});
 	}
 
-	function hasAnyChanges(): boolean {
-		return hasVideoChanges() || hasPageChanges();
-	}
+	// 使用 $derived 创建派生状态
+	let hasAnyChanges = $derived(hasVideoChanges() || hasPageChanges());
 
 	function buildRequest(): UpdateVideoStatusRequest {
 		const request: UpdateVideoStatusRequest = {};
@@ -151,7 +156,7 @@
 	}
 
 	function handleSubmit() {
-		if (!hasAnyChanges()) {
+		if (!hasAnyChanges) {
 			toast.info('没有状态变更需要提交');
 			return;
 		}
@@ -231,14 +236,14 @@
 			<Button
 				variant="outline"
 				onclick={resetAllStatuses}
-				disabled={!hasAnyChanges()}
+				disabled={!hasAnyChanges}
 				class="flex-1 cursor-pointer"
 			>
 				重置所有状态
 			</Button>
 			<Button
 				onclick={handleSubmit}
-				disabled={loading || !hasAnyChanges()}
+				disabled={loading || !hasAnyChanges}
 				class="flex-1 cursor-pointer"
 			>
 				{loading ? '提交中...' : '提交更改'}
