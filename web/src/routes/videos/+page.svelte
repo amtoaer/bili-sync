@@ -26,6 +26,7 @@
 		setAll,
 		setCurrentPage,
 		setQuery,
+		setFailedOnly,
 		ToQuery,
 		ToFilterParams,
 		hasActiveFilters
@@ -61,9 +62,13 @@
 				videoSource = { type: source.type, id: value };
 			}
 		}
+		// 支持从 URL 里还原失败筛选
+		const failedParam = searchParams.get('failed');
+		const failedOnly = failedParam === 'true' || failedParam === '1';
 		return {
 			query: searchParams.get('query') || '',
 			videoSource,
+			failedOnly,
 			pageNum: parseInt(searchParams.get('page') || '0')
 		};
 	}
@@ -71,7 +76,8 @@
 	async function loadVideos(
 		query: string,
 		pageNum: number = 0,
-		filter?: { type: string; id: string } | null
+		filter?: { type: string; id: string } | null,
+		failedOnly: boolean = false
 	) {
 		loading = true;
 		try {
@@ -84,6 +90,10 @@
 			}
 			if (filter) {
 				params[filter.type] = parseInt(filter.id);
+			}
+			// 失败筛选走后端过滤逻辑
+			if (failedOnly) {
+				params.failed = 'true';
 			}
 			const result = await api.getVideos(params);
 			videosData = result.data;
@@ -103,9 +113,9 @@
 	}
 
 	async function handleSearchParamsChange(searchParams: URLSearchParams) {
-		const { query, videoSource, pageNum } = getApiParams(searchParams);
-		setAll(query, pageNum, videoSource);
-		loadVideos(query, pageNum, videoSource);
+		const { query, videoSource, pageNum, failedOnly } = getApiParams(searchParams);
+		setAll(query, pageNum, videoSource, failedOnly);
+		loadVideos(query, pageNum, videoSource, failedOnly);
 	}
 
 	async function handleResetVideo(id: number, forceReset: boolean) {
@@ -234,6 +244,10 @@
 				}
 			}
 		}
+		// 给筛选说明补上失败状态
+		if (state.failedOnly) {
+			parts.push('下载失败');
+		}
 		return parts;
 	}
 
@@ -291,15 +305,29 @@
 	></SearchBar>
 	<div class="flex items-center gap-2">
 		<span class="text-muted-foreground text-sm">筛选：</span>
+		<div class="flex items-center gap-2 rounded-md border border-border/60 px-2 py-1">
+			<Checkbox
+				id="failed-only"
+				checked={$appStateStore.failedOnly}
+				onCheckedChange={(value) => {
+					// 保持和 URL 同步，方便分享当前筛选
+					const nextValue = value === true || value === 'indeterminate' ? true : false;
+					setFailedOnly(nextValue);
+					resetCurrentPage();
+					goto(`/${ToQuery({ ...$appStateStore, failedOnly: nextValue })}`);
+				}}
+			/>
+			<Label for="failed-only" class="text-xs text-muted-foreground">仅失败</Label>
+		</div>
 		<DropdownFilter
 			{filters}
 			selectedLabel={$appStateStore.videoSource}
 			onSelect={(type, id) => {
-				setAll('', 0, { type, id });
+				setAll('', 0, { type, id }, $appStateStore.failedOnly);
 				goto(`/${ToQuery($appStateStore)}`);
 			}}
 			onRemove={() => {
-				setAll('', 0, null);
+				setAll('', 0, null, $appStateStore.failedOnly);
 				goto(`/${ToQuery($appStateStore)}`);
 			}}
 		/>

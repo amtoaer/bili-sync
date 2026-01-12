@@ -55,7 +55,8 @@
 
 	function getOverallStatus(
 		downloadStatus: number[],
-		shouldDownload: boolean
+		shouldDownload: boolean,
+		hasFailedHint?: boolean
 	): {
 		text: string;
 		style: string;
@@ -64,14 +65,17 @@
 			// 被过滤规则排除，显示为“跳过”
 			return { text: '跳过', style: 'bg-gray-100 text-gray-700' };
 		}
+		// 这里优先使用后端给的失败标记，保证分页失败也会显示红色
+		const hasFailed =
+			hasFailedHint === true ||
+			downloadStatus.some((status) => status !== 7 && status !== 0);
 		const completed = downloadStatus.filter((status) => status === 7).length;
 		const total = downloadStatus.length;
-		const failed = downloadStatus.filter((status) => status !== 7 && status !== 0).length;
 
 		if (completed === total) {
 			// 全部完成，显示为“完成”
 			return { text: '完成', style: 'bg-emerald-700 text-emerald-100' };
-		} else if (failed > 0) {
+		} else if (hasFailed) {
 			// 出现了失败，显示为“失败”
 			return { text: '失败', style: 'bg-rose-700 text-rose-100' };
 		} else {
@@ -88,7 +92,11 @@
 		return defaultTaskNames[index] || `任务${index + 1}`;
 	}
 
-	$: overallStatus = getOverallStatus(video.download_status, video.should_download);
+	$: overallStatus = getOverallStatus(
+		video.download_status,
+		video.should_download,
+		video.has_failed
+	);
 	$: completed = video.download_status.filter((status) => status === 7).length;
 	$: total = video.download_status.length;
 
