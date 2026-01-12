@@ -11,11 +11,19 @@
 	import type { StatusUpdate, UpdateFilteredVideoStatusRequest } from '$lib/types';
 	import { toast } from 'svelte-sonner';
 
-	export let open = false;
-	export let hasFilters = false;
-	export let loading = false;
-	export let filterDescriptionParts: string[] = [];
-	export let onsubmit: (request: UpdateFilteredVideoStatusRequest) => void;
+	let {
+		open = $bindable(false),
+		hasFilters = false,
+		loading = false,
+		filterDescriptionParts = [],
+		onsubmit
+	}: {
+		open?: boolean;
+		hasFilters?: boolean;
+		loading?: boolean;
+		filterDescriptionParts?: string[];
+		onsubmit: (request: UpdateFilteredVideoStatusRequest) => void;
+	} = $props();
 
 	// 视频任务名称（与后端 VideoStatus 对应）
 	const videoTaskNames = ['视频封面', '视频信息', 'UP 主头像', 'UP 主信息', '分页下载'];
@@ -27,29 +35,25 @@
 	type StatusValue = null | 0 | 7;
 
 	// 视频任务状态，默认都是 null（未选择）
-	let videoStatuses: StatusValue[] = Array(5).fill(null);
+	let videoStatuses = $state<StatusValue[]>(Array(5).fill(null));
 
 	// 分页任务状态，默认都是 null（未选择）
-	let pageStatuses: StatusValue[] = Array(5).fill(null);
+	let pageStatuses = $state<StatusValue[]>(Array(5).fill(null));
 
 	function setVideoStatus(taskIndex: number, value: StatusValue) {
 		videoStatuses[taskIndex] = value;
-		videoStatuses = [...videoStatuses];
 	}
 
 	function setPageStatus(taskIndex: number, value: StatusValue) {
 		pageStatuses[taskIndex] = value;
-		pageStatuses = [...pageStatuses];
 	}
 
 	function resetVideoStatus(taskIndex: number) {
 		videoStatuses[taskIndex] = null;
-		videoStatuses = [...videoStatuses];
 	}
 
 	function resetPageStatus(taskIndex: number) {
 		pageStatuses[taskIndex] = null;
-		pageStatuses = [...pageStatuses];
 	}
 
 	function resetAllStatuses() {
@@ -57,12 +61,15 @@
 		pageStatuses = Array(5).fill(null);
 	}
 
-	function hasAnyChanges(): boolean {
-		return (
-			videoStatuses.some((status) => status !== null) ||
-			pageStatuses.some((status) => status !== null)
-		);
+	function hasVideoChanges(): boolean {
+		return videoStatuses.some((status) => status !== null);
 	}
+
+	function hasPageChanges(): boolean {
+		return pageStatuses.some((status) => status !== null);
+	}
+
+	let hasAnyChanges = $derived(hasVideoChanges() || hasPageChanges());
 
 	function buildRequest(): UpdateFilteredVideoStatusRequest {
 		const request: UpdateFilteredVideoStatusRequest = {};
@@ -99,7 +106,7 @@
 	}
 
 	function handleSubmit() {
-		if (!hasAnyChanges()) {
+		if (!hasAnyChanges) {
 			toast.info('请至少选择一个状态进行修改');
 			return;
 		}
@@ -108,9 +115,11 @@
 	}
 
 	// 当 Sheet 关闭时重置状态
-	$: if (!open) {
-		resetAllStatuses();
-	}
+	$effect(() => {
+		if (!open) {
+			resetAllStatuses();
+		}
+	});
 
 	function getStatusInfo(status: StatusValue) {
 		if (status === 0) {
@@ -305,14 +314,14 @@
 			<Button
 				variant="outline"
 				onclick={resetAllStatuses}
-				disabled={!hasAnyChanges() || loading}
+				disabled={!hasAnyChanges || loading}
 				class="flex-1 cursor-pointer"
 			>
 				重置所有状态
 			</Button>
 			<Button
 				onclick={handleSubmit}
-				disabled={loading || !hasAnyChanges()}
+				disabled={loading || !hasAnyChanges}
 				class="flex-1 cursor-pointer"
 			>
 				{loading ? '提交中...' : '提交更改'}
