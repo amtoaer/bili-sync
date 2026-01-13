@@ -5,11 +5,10 @@ use axum::extract::{Extension, Path, Query};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use bili_sync_entity::*;
-use sea_orm::sea_query::{Condition, Expr};
 use sea_orm::ActiveValue::Set;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, PaginatorTrait, QueryFilter,
-    QueryOrder, Select, TransactionTrait, TryIntoModel,
+    QueryOrder, TransactionTrait, TryIntoModel,
 };
 
 use crate::api::error::InnerApiError;
@@ -25,25 +24,6 @@ use crate::api::response::{
 };
 use crate::api::wrapper::{ApiError, ApiResponse, ValidatedJson};
 use crate::utils::status::{PageStatus, VideoStatus};
-
-// 失败筛选依赖下载状态的位图编码，命中任一子任务失败即可
-fn apply_failed_only_filter(mut query: Select<video::Entity>, failed_only: Option<bool>) -> Select<video::Entity> {
-    if failed_only != Some(true) {
-        return query;
-    }
-    // 用显式表名避免别名导致的筛选失效
-    let mut condition = Condition::any();
-    for offset in 0..5 {
-        let shift = offset * 3;
-        // 子任务状态不是 0 或 7 说明处于失败态
-        condition = condition.add(Expr::cust(format!(
-            "((\"video\".\"download_status\" >> {}) & 7) NOT IN (0, 7)",
-            shift
-        )));
-    }
-    query = query.filter(condition);
-    query
-}
 
 pub(super) fn router() -> Router {
     Router::new()
@@ -82,22 +62,22 @@ pub async fn get_videos(
                 .or(video::Column::Bvid.contains(query_word)),
         );
     }
-    // 仅查看失败的视频
-    query = apply_failed_only_filter(query, params.failed);
+    if params.failed_only {
+        query = query.filter(VideoStatus::query_builder().any_failed())
+    }
     let total_count = query.clone().count(&db).await?;
     let (page, page_size) = if let (Some(page), Some(page_size)) = (params.page, params.page_size) {
         (page, page_size)
     } else {
         (0, 10)
     };
-    let videos = query
-        .order_by_desc(video::Column::Id)
-        .into_partial_model::<VideoInfo>()
-        .paginate(&db, page_size)
-        .fetch_page(page)
-        .await?;
     Ok(ApiResponse::ok(VideosResponse {
-        videos,
+        videos: query
+            .order_by_desc(video::Column::Id)
+            .into_partial_model::<VideoInfo>()
+            .paginate(&db, page_size)
+            .fetch_page(page)
+            .await?,
         total_count,
     }))
 }
@@ -241,8 +221,9 @@ pub async fn reset_filtered_video_status(
                 .or(video::Column::Bvid.contains(query_word)),
         );
     }
-    // 仅重置失败的视频
-    query = apply_failed_only_filter(query, request.failed);
+    if request.failed_only {
+        query = query.filter(VideoStatus::query_builder().any_failed());
+    }
     let all_videos = query.into_partial_model::<SimpleVideoInfo>().all(&db).await?;
     let all_pages = page::Entity::find()
         .filter(page::Column::VideoId.is_in(all_videos.iter().map(|v| v.id)))
@@ -376,8 +357,9 @@ pub async fn update_filtered_video_status(
                 .or(video::Column::Bvid.contains(query_word)),
         );
     }
-    // 仅更新失败的视频
-    query = apply_failed_only_filter(query, request.failed);
+    if request.failed_only {
+        query = query.filter(VideoStatus::query_builder().any_failed())
+    }
     let mut all_videos = query.into_partial_model::<SimpleVideoInfo>().all(&db).await?;
     let mut all_pages = page::Entity::find()
         .filter(page::Column::VideoId.is_in(all_videos.iter().map(|v| v.id)))
