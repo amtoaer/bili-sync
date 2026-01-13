@@ -26,6 +26,7 @@
 		setAll,
 		setCurrentPage,
 		setQuery,
+		setFailedOnly,
 		ToQuery,
 		ToFilterParams,
 		hasActiveFilters
@@ -61,9 +62,13 @@
 				videoSource = { type: source.type, id: value };
 			}
 		}
+		// 支持从 URL 里还原失败筛选
+		const failedParam = searchParams.get('failed_only');
+		const failedOnly = failedParam === 'true' || failedParam === '1';
 		return {
 			query: searchParams.get('query') || '',
 			videoSource,
+			failedOnly,
 			pageNum: parseInt(searchParams.get('page') || '0')
 		};
 	}
@@ -71,11 +76,12 @@
 	async function loadVideos(
 		query: string,
 		pageNum: number = 0,
-		filter?: { type: string; id: string } | null
+		filter?: { type: string; id: string } | null,
+		failedOnly: boolean = false
 	) {
 		loading = true;
 		try {
-			const params: Record<string, string | number> = {
+			const params: Record<string, string | number | boolean> = {
 				page: pageNum,
 				page_size: pageSize
 			};
@@ -85,6 +91,7 @@
 			if (filter) {
 				params[filter.type] = parseInt(filter.id);
 			}
+			params.failed_only = failedOnly;
 			const result = await api.getVideos(params);
 			videosData = result.data;
 		} catch (error) {
@@ -103,9 +110,9 @@
 	}
 
 	async function handleSearchParamsChange(searchParams: URLSearchParams) {
-		const { query, videoSource, pageNum } = getApiParams(searchParams);
-		setAll(query, pageNum, videoSource);
-		loadVideos(query, pageNum, videoSource);
+		const { query, videoSource, pageNum, failedOnly } = getApiParams(searchParams);
+		setAll(query, pageNum, videoSource, failedOnly);
+		loadVideos(query, pageNum, videoSource, failedOnly);
 	}
 
 	async function handleResetVideo(id: number, forceReset: boolean) {
@@ -116,8 +123,8 @@
 				toast.success('重置成功', {
 					description: `视频「${data.video.name}」已重置`
 				});
-				const { query, currentPage, videoSource } = $appStateStore;
-				await loadVideos(query, currentPage, videoSource);
+				const { query, currentPage, videoSource, failedOnly } = $appStateStore;
+				await loadVideos(query, currentPage, videoSource, failedOnly);
 			} else {
 				toast.info('重置无效', {
 					description: `视频「${data.video.name}」没有失败的状态，无需重置`
@@ -144,8 +151,8 @@
 					description: `视频「${data.video.name}」已清空重置`
 				});
 			}
-			const { query, currentPage, videoSource } = $appStateStore;
-			await loadVideos(query, currentPage, videoSource);
+			const { query, currentPage, videoSource, failedOnly } = $appStateStore;
+			await loadVideos(query, currentPage, videoSource, failedOnly);
 		} catch (error) {
 			console.error('清空重置失败：', error);
 			toast.error('清空重置失败', {
@@ -168,8 +175,8 @@
 				toast.success('重置成功', {
 					description: `已重置 ${data.resetted_videos_count} 个视频和 ${data.resetted_pages_count} 个分页`
 				});
-				const { query, currentPage, videoSource } = $appStateStore;
-				await loadVideos(query, currentPage, videoSource);
+				const { query, currentPage, videoSource, failedOnly } = $appStateStore;
+				await loadVideos(query, currentPage, videoSource, failedOnly);
 			} else {
 				toast.info('没有需要重置的视频');
 			}
@@ -199,8 +206,8 @@
 				toast.success('更新成功', {
 					description: `已更新 ${data.updated_videos_count} 个视频和 ${data.updated_pages_count} 个分页`
 				});
-				const { query, currentPage, videoSource } = $appStateStore;
-				await loadVideos(query, currentPage, videoSource);
+				const { query, currentPage, videoSource, failedOnly } = $appStateStore;
+				await loadVideos(query, currentPage, videoSource, failedOnly);
 			} else {
 				toast.info('没有视频被更新');
 			}
@@ -234,6 +241,7 @@
 				}
 			}
 		}
+		parts.push(`仅失败视频：${state.failedOnly}`);
 		return parts;
 	}
 
@@ -291,15 +299,29 @@
 	></SearchBar>
 	<div class="flex items-center gap-2">
 		<span class="text-muted-foreground text-sm">筛选：</span>
+		<div
+			class="bg-secondary text-secondary-foreground inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium"
+		>
+			<Checkbox
+				id="failed-only"
+				checked={$appStateStore.failedOnly}
+				onCheckedChange={(value) => {
+					setFailedOnly(value);
+					resetCurrentPage();
+					goto(`/${ToQuery($appStateStore)}`);
+				}}
+			/>
+			<Label for="failed-only" class="text-xs">仅失败视频</Label>
+		</div>
 		<DropdownFilter
 			{filters}
 			selectedLabel={$appStateStore.videoSource}
 			onSelect={(type, id) => {
-				setAll('', 0, { type, id });
+				setAll('', 0, { type, id }, $appStateStore.failedOnly);
 				goto(`/${ToQuery($appStateStore)}`);
 			}}
 			onRemove={() => {
-				setAll('', 0, null);
+				setAll('', 0, null, $appStateStore.failedOnly);
 				goto(`/${ToQuery($appStateStore)}`);
 			}}
 		/>

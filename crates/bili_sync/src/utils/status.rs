@@ -1,3 +1,10 @@
+use std::marker::PhantomData;
+
+use bili_sync_entity::{page, video};
+use bili_sync_migration::ExprTrait;
+use sea_orm::sea_query::Expr;
+use sea_orm::{ColumnTrait, Condition};
+
 use crate::error::ExecutionStatus;
 
 pub static STATUS_NOT_STARTED: u32 = 0b000;
@@ -11,10 +18,17 @@ pub static STATUS_COMPLETED: u32 = 1 << 31;
 /// 如果子任务执行成功，将状态设置为 0b111，该值定义为 STATUS_OK。
 /// 子任务达到最大失败次数或者执行成功时，认为该子任务已经完成。
 /// 当所有子任务都已经完成时，为最高位打上标记 1，表示整个下载任务已经完成。
-#[derive(Clone, Copy, Default)]
-pub struct Status<const N: usize>(u32);
+#[derive(Clone, Copy)]
+pub struct Status<const N: usize, C>(u32, PhantomData<C>);
 
-impl<const N: usize> Status<N> {
+impl<const N: usize, C> Default for Status<N, C> {
+    fn default() -> Self {
+        Self(0, PhantomData)
+    }
+}
+
+impl<const N: usize, C> Status<N, C> {
+    pub(crate) const LEN: usize = N;
     // 获取最高位的完成标记
     pub fn get_completed(&self) -> bool {
         self.0 >> 31 == 1
@@ -136,20 +150,20 @@ impl<const N: usize> Status<N> {
     }
 }
 
-impl<const N: usize> From<u32> for Status<N> {
+impl<const N: usize, C> From<u32> for Status<N, C> {
     fn from(status: u32) -> Self {
-        Status(status)
+        Status(status, PhantomData)
     }
 }
 
-impl<const N: usize> From<Status<N>> for u32 {
-    fn from(status: Status<N>) -> Self {
+impl<const N: usize, C> From<Status<N, C>> for u32 {
+    fn from(status: Status<N, C>) -> Self {
         status.0
     }
 }
 
-impl<const N: usize> From<Status<N>> for [u32; N] {
-    fn from(status: Status<N>) -> Self {
+impl<const N: usize, C> From<Status<N, C>> for [u32; N] {
+    fn from(status: Status<N, C>) -> Self {
         let mut result = [0; N];
         for (i, item) in result.iter_mut().enumerate() {
             *item = status.get_status(i);
@@ -158,9 +172,9 @@ impl<const N: usize> From<Status<N>> for [u32; N] {
     }
 }
 
-impl<const N: usize> From<[u32; N]> for Status<N> {
+impl<const N: usize, C> From<[u32; N]> for Status<N, C> {
     fn from(status: [u32; N]) -> Self {
-        let mut result = Status::<N>::default();
+        let mut result = Self::default();
         for (i, item) in status.iter().enumerate() {
             assert!(*item < 0b1000, "status should be less than 0b1000");
             result.set_status(i, *item);
@@ -173,10 +187,45 @@ impl<const N: usize> From<[u32; N]> for Status<N> {
 }
 
 /// 包含五个子任务，从前到后依次是：视频封面、视频信息、Up 主头像、Up 主信息、分页下载
-pub type VideoStatus = Status<5>;
+pub type VideoStatus = Status<5, video::Column>;
+
+impl VideoStatus {
+    pub fn query_builder() -> StatusQueryBuilder<{ Self::LEN }, video::Column> {
+        StatusQueryBuilder::new(video::Column::DownloadStatus)
+    }
+}
 
 /// 包含五个子任务，从前到后分别是：视频封面、视频内容、视频信息、视频弹幕、视频字幕
-pub type PageStatus = Status<5>;
+pub type PageStatus = Status<5, page::Column>;
+
+impl PageStatus {
+    pub fn query_builder() -> StatusQueryBuilder<{ Self::LEN }, page::Column> {
+        StatusQueryBuilder::new(page::Column::DownloadStatus)
+    }
+}
+
+pub struct StatusQueryBuilder<const N: usize, C: ColumnTrait> {
+    column: C,
+}
+
+impl<const N: usize, C: ColumnTrait> StatusQueryBuilder<N, C> {
+    fn new(column: C) -> Self {
+        Self { column }
+    }
+
+    pub fn any_failed(&self) -> Condition {
+        let mut condition = Condition::any();
+        for offset in 0..N as i32 {
+            condition = condition.add(
+                Expr::col(self.column)
+                    .right_shift(offset * 3)
+                    .bit_and(7)
+                    .is_not_in([0, 7]),
+            )
+        }
+        condition
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -186,7 +235,7 @@ mod tests {
 
     #[test]
     fn test_status_update() {
-        let mut status = Status::<3>::default();
+        let mut status = Status::<3, video::Column>::default();
         assert_eq!(status.should_run(), [true, true, true]);
         for _ in 0..3 {
             status.update_status(&[
@@ -217,7 +266,7 @@ mod tests {
     fn test_status_convert() {
         let testcases = [[0, 0, 1], [1, 2, 3], [3, 1, 2], [3, 0, 7]];
         for testcase in testcases.iter() {
-            let status = Status::<3>::from(testcase.clone());
+            let status = Status::<3, video::Column>::from(testcase.clone());
             assert_eq!(<[u32; 3]>::from(status), *testcase);
         }
     }
@@ -226,7 +275,7 @@ mod tests {
     fn test_status_convert_and_update() {
         let testcases = [([0, 0, 1], [1, 7, 7]), ([3, 4, 3], [4, 4, 7]), ([3, 1, 7], [4, 7, 7])];
         for (before, after) in testcases.iter() {
-            let mut status = Status::<3>::from(before.clone());
+            let mut status = Status::<3, video::Column>::from(before.clone());
             status.update_status(&[
                 ExecutionStatus::Failed(anyhow!("")),
                 ExecutionStatus::Succeeded,
@@ -239,7 +288,7 @@ mod tests {
     #[test]
     fn test_status_reset_failed() {
         // 重置一个出现部分失败但还有重试次数的任务，将所有的失败状态重置为 0
-        let mut status = Status::<3>::from([3, 4, 7]);
+        let mut status = Status::<3, video::Column>::from([3, 4, 7]);
         assert!(!status.get_completed());
         assert!(status.reset_failed());
         assert!(!status.get_completed());
@@ -253,12 +302,12 @@ mod tests {
         assert!(status.force_reset_failed());
         assert!(!status.get_completed());
         // 重置一个已经成功的任务，没有改变状态，也不会修改标记位
-        let mut status = Status::<3>::from([7, 7, 7]);
+        let mut status = Status::<3, video::Column>::from([7, 7, 7]);
         assert!(status.get_completed());
         assert!(!status.reset_failed());
         assert!(status.get_completed());
         // 重置一个全部失败的任务，修改状态并且修改标记位
-        let mut status = Status::<3>::from([4, 4, 4]);
+        let mut status = Status::<3, video::Column>::from([4, 4, 4]);
         assert!(status.get_completed());
         assert!(status.reset_failed());
         assert!(!status.get_completed());
@@ -268,13 +317,13 @@ mod tests {
     #[test]
     fn test_status_set() {
         // 设置子状态，从 completed 到 uncompleted
-        let mut status = Status::<5>::from([7, 7, 7, 7, 7]);
+        let mut status = Status::<5, video::Column>::from([7, 7, 7, 7, 7]);
         assert!(status.get_completed());
         status.set(4, 0);
         assert!(!status.get_completed());
         assert_eq!(<[u32; 5]>::from(status), [7, 7, 7, 7, 0]);
         // 设置子状态，从 uncompleted 到 completed
-        let mut status = Status::<5>::from([4, 7, 7, 7, 0]);
+        let mut status = Status::<5, video::Column>::from([4, 7, 7, 7, 0]);
         assert!(!status.get_completed());
         status.set(4, 7);
         assert!(status.get_completed());

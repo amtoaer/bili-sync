@@ -11,6 +11,8 @@ pub struct VideosRequest {
     pub submission: Option<i32>,
     pub watch_later: Option<i32>,
     pub query: Option<String>,
+    #[serde(default)]
+    pub failed_only: bool,
     pub page: Option<u64>,
     pub page_size: Option<u64>,
 }
@@ -28,6 +30,8 @@ pub struct ResetFilteredVideoStatusRequest {
     pub submission: Option<i32>,
     pub watch_later: Option<i32>,
     pub query: Option<String>,
+    #[serde(default)]
+    pub failed_only: bool,
     #[serde(default)]
     pub force: bool,
 }
@@ -64,6 +68,8 @@ pub struct UpdateFilteredVideoStatusRequest {
     pub submission: Option<i32>,
     pub watch_later: Option<i32>,
     pub query: Option<String>,
+    #[serde(default)]
+    pub failed_only: bool,
     #[serde(default)]
     #[validate(nested)]
     pub video_updates: Vec<StatusUpdate>,

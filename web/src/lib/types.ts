@@ -9,6 +9,7 @@ export interface VideosRequest {
 	submission?: number;
 	watch_later?: number;
 	query?: string;
+	failed_only?: boolean;
 	page?: number;
 	page_size?: number;
 }
@@ -106,6 +107,8 @@ export interface UpdateFilteredVideoStatusRequest {
 	submission?: number;
 	watch_later?: number;
 	query?: string;
+	// 仅更新下载失败
+	failed_only?: boolean;
 	video_updates?: StatusUpdate[];
 	page_updates?: StatusUpdate[];
 }
@@ -120,6 +123,8 @@ export interface ResetFilteredVideoStatusRequest {
 	submission?: number;
 	watch_later?: number;
 	query?: string;
+	// 仅重置下载失败
+	failed_only?: boolean;
 	force: boolean;
 }
 

@@ -7,25 +7,30 @@ export interface AppState {
 		type: string;
 		id: string;
 	} | null;
+	failedOnly: boolean;
 }
 
 export const appStateStore = writable<AppState>({
 	query: '',
 	currentPage: 0,
-	videoSource: null
+	videoSource: null,
+	failedOnly: false
 });
 
 export const ToQuery = (state: AppState): string => {
-	const { query, videoSource } = state;
+	const { query, videoSource, currentPage, failedOnly } = state;
 	const params = new URLSearchParams();
-	if (state.currentPage > 0) {
-		params.set('page', String(state.currentPage));
+	if (currentPage > 0) {
+		params.set('page', String(currentPage));
 	}
 	if (query.trim()) {
 		params.set('query', query);
 	}
 	if (videoSource && videoSource.type && videoSource.id) {
 		params.set(videoSource.type, videoSource.id);
+	}
+	if (failedOnly) {
+		params.set('failed_only', 'true');
 	}
 	const queryString = params.toString();
 	return queryString ? `videos?${queryString}` : 'videos';
@@ -40,6 +45,7 @@ export const ToFilterParams = (
 	favorite?: number;
 	submission?: number;
 	watch_later?: number;
+	failed_only?: boolean;
 } => {
 	const params: {
 		query?: string;
@@ -47,6 +53,7 @@ export const ToFilterParams = (
 		favorite?: number;
 		submission?: number;
 		watch_later?: number;
+		failed_only?: boolean;
 	} = {};
 
 	if (state.query.trim()) {
@@ -57,13 +64,15 @@ export const ToFilterParams = (
 		const { type, id } = state.videoSource;
 		params[type as 'collection' | 'favorite' | 'submission' | 'watch_later'] = parseInt(id);
 	}
-
+	if (state.failedOnly) {
+		params.failed_only = true;
+	}
 	return params;
 };
 
 // 检查是否有活动的筛选条件
 export const hasActiveFilters = (state: AppState): boolean => {
-	return !!(state.query.trim() || state.videoSource);
+	return !!(state.query.trim() || state.videoSource || state.failedOnly);
 };
 
 export const setQuery = (query: string) => {
@@ -94,6 +103,13 @@ export const setCurrentPage = (page: number) => {
 	}));
 };
 
+export const setFailedOnly = (failedOnly: boolean) => {
+	appStateStore.update((state) => ({
+		...state,
+		failedOnly
+	}));
+};
+
 export const resetCurrentPage = () => {
 	appStateStore.update((state) => ({
 		...state,
@@ -104,12 +120,14 @@ export const resetCurrentPage = () => {
 export const setAll = (
 	query: string,
 	currentPage: number,
-	videoSource: { type: string; id: string } | null
+	videoSource: { type: string; id: string } | null,
+	failedOnly: boolean
 ) => {
 	appStateStore.set({
 		query,
 		currentPage,
-		videoSource
+		videoSource,
+		failedOnly
 	});
 };
 
@@ -117,6 +135,7 @@ export const clearAll = () => {
 	appStateStore.set({
 		query: '',
 		currentPage: 0,
-		videoSource: null
+		videoSource: null,
+		failedOnly: false
 	});
 };
