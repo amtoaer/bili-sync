@@ -1,10 +1,11 @@
 use std::marker::PhantomData;
 
-use crate::error::ExecutionStatus;
 use bili_sync_entity::{page, video};
 use bili_sync_migration::ExprTrait;
 use sea_orm::sea_query::Expr;
 use sea_orm::{ColumnTrait, Condition};
+
+use crate::error::ExecutionStatus;
 
 pub static STATUS_NOT_STARTED: u32 = 0b000;
 pub(super) static STATUS_MAX_RETRY: u32 = 0b100;
