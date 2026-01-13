@@ -123,28 +123,31 @@ pub async fn get_videos(
         .paginate(&db, page_size)
         .fetch_page(page)
         .await?;
-    let video_ids = videos.iter().map(|v| v.id).collect::<Vec<_>>();
-    let mut failed_video_ids = HashSet::new();
-    for video_info in &videos {
-        if has_failed_status(video_info.download_status) {
-            failed_video_ids.insert(video_info.id);
-        }
-    }
-    if !video_ids.is_empty() {
-        let pages = page::Entity::find()
-            .filter(page::Column::VideoId.is_in(video_ids))
-            .into_partial_model::<SimplePageInfo>()
-            .all(&db)
-            .await?;
-        for page_info in pages {
-            if has_failed_status(page_info.download_status) {
-                failed_video_ids.insert(page_info.video_id);
+    if params.failed == Some(true) {
+        // 仅失败筛选时才计算失败标记，避免额外的分页查询
+        let video_ids = videos.iter().map(|v| v.id).collect::<Vec<_>>();
+        let mut failed_video_ids = HashSet::new();
+        for video_info in &videos {
+            if has_failed_status(video_info.download_status) {
+                failed_video_ids.insert(video_info.id);
             }
         }
-    }
-    for video_info in videos.iter_mut() {
-        // 让前端可以直接根据失败标记展示红色状态
-        video_info.has_failed = Some(failed_video_ids.contains(&video_info.id));
+        if !video_ids.is_empty() {
+            let pages = page::Entity::find()
+                .filter(page::Column::VideoId.is_in(video_ids))
+                .into_partial_model::<SimplePageInfo>()
+                .all(&db)
+                .await?;
+            for page_info in pages {
+                if has_failed_status(page_info.download_status) {
+                    failed_video_ids.insert(page_info.video_id);
+                }
+            }
+        }
+        for video_info in videos.iter_mut() {
+            // 让前端可以直接根据失败标记展示红色状态
+            video_info.has_failed = Some(failed_video_ids.contains(&video_info.id));
+        }
     }
     Ok(ApiResponse::ok(VideosResponse {
         videos,
