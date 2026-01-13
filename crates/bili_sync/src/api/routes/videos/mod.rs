@@ -26,48 +26,21 @@ use crate::api::response::{
 use crate::api::wrapper::{ApiError, ApiResponse, ValidatedJson};
 use crate::utils::status::{PageStatus, VideoStatus};
 
-// 只要任一子任务不是 0 或 7，就认为处于失败状态
-fn has_failed_status(status: u32) -> bool {
-    for offset in 0..5 {
-        let shift = offset * 3;
-        let task_status = (status >> shift) & 7;
-        if task_status != 0 && task_status != 7 {
-            return true;
-        }
-    }
-    false
-}
-
 // 失败筛选依赖下载状态的位图编码，命中任一子任务失败即可
 fn apply_failed_only_filter(mut query: Select<video::Entity>, failed_only: Option<bool>) -> Select<video::Entity> {
     if failed_only != Some(true) {
         return query;
     }
     // 用显式表名避免别名导致的筛选失效
-    let mut video_clauses = Vec::new();
+    let mut condition = Condition::any();
     for offset in 0..5 {
         let shift = offset * 3;
         // 子任务状态不是 0 或 7 说明处于失败态
-        video_clauses.push(format!(
+        condition = condition.add(Expr::cust(format!(
             "((\"video\".\"download_status\" >> {}) & 7) NOT IN (0, 7)",
             shift
-        ));
+        )));
     }
-    let video_failed = video_clauses.join(" OR ");
-    // 分页失败需要单独检查，避免视频总体状态已完成但分页失败被漏掉
-    let mut page_clauses = Vec::new();
-    for offset in 0..5 {
-        let shift = offset * 3;
-        page_clauses.push(format!(
-            "((\"page\".\"download_status\" >> {}) & 7) NOT IN (0, 7)",
-            shift
-        ));
-    }
-    let page_failed = page_clauses.join(" OR ");
-    let condition = Condition::any().add(Expr::cust(format!(
-        "({}) OR EXISTS (SELECT 1 FROM \"page\" WHERE \"page\".\"video_id\" = \"video\".\"id\" AND ({}))",
-        video_failed, page_failed
-    )));
     query = query.filter(condition);
     query
 }
@@ -117,38 +90,12 @@ pub async fn get_videos(
     } else {
         (0, 10)
     };
-    let mut videos = query
+    let videos = query
         .order_by_desc(video::Column::Id)
         .into_partial_model::<VideoInfo>()
         .paginate(&db, page_size)
         .fetch_page(page)
         .await?;
-    if params.failed == Some(true) {
-        // 仅失败筛选时才计算失败标记，避免额外的分页查询
-        let video_ids = videos.iter().map(|v| v.id).collect::<Vec<_>>();
-        let mut failed_video_ids = HashSet::new();
-        for video_info in &videos {
-            if has_failed_status(video_info.download_status) {
-                failed_video_ids.insert(video_info.id);
-            }
-        }
-        if !video_ids.is_empty() {
-            let pages = page::Entity::find()
-                .filter(page::Column::VideoId.is_in(video_ids))
-                .into_partial_model::<SimplePageInfo>()
-                .all(&db)
-                .await?;
-            for page_info in pages {
-                if has_failed_status(page_info.download_status) {
-                    failed_video_ids.insert(page_info.video_id);
-                }
-            }
-        }
-        for video_info in videos.iter_mut() {
-            // 让前端可以直接根据失败标记展示红色状态
-            video_info.has_failed = Some(failed_video_ids.contains(&video_info.id));
-        }
-    }
     Ok(ApiResponse::ok(VideosResponse {
         videos,
         total_count,
@@ -267,8 +214,6 @@ pub async fn clear_and_reset_video_status(
             name: video_info.name,
             upper_name: video_info.upper_name,
             should_download: video_info.should_download,
-            // 这里是详情接口，不需要失败标记
-            has_failed: None,
             download_status: video_info.download_status,
         },
     }))

@@ -74,10 +74,6 @@ pub struct VideoInfo {
     pub name: String,
     pub upper_name: String,
     pub should_download: bool,
-    // 仅列表场景需要，表示是否存在失败任务
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[sea_orm(skip)]
-    pub has_failed: Option<bool>,
     #[serde(serialize_with = "serde_video_download_status")]
     pub download_status: u32,
 }

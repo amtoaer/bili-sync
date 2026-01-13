@@ -33,8 +33,6 @@ export interface VideoInfo {
 	name: string;
 	upper_name: string;
 	should_download: boolean;
-	// 列表接口可能会带这个字段，表示是否存在失败任务
-	has_failed?: boolean;
 	download_status: [number, number, number, number, number];
 }
 
