@@ -63,7 +63,7 @@
 			}
 		}
 		// 支持从 URL 里还原失败筛选
-		const failedParam = searchParams.get('failed');
+		const failedParam = searchParams.get('failed_only');
 		const failedOnly = failedParam === 'true' || failedParam === '1';
 		return {
 			query: searchParams.get('query') || '',
@@ -81,7 +81,7 @@
 	) {
 		loading = true;
 		try {
-			const params: Record<string, string | number> = {
+			const params: Record<string, string | number | boolean> = {
 				page: pageNum,
 				page_size: pageSize
 			};
@@ -91,10 +91,7 @@
 			if (filter) {
 				params[filter.type] = parseInt(filter.id);
 			}
-			// 失败筛选走后端过滤逻辑
-			if (failedOnly) {
-				params.failed = 'true';
-			}
+			params.failed_only = failedOnly;
 			const result = await api.getVideos(params);
 			videosData = result.data;
 		} catch (error) {
@@ -126,8 +123,8 @@
 				toast.success('重置成功', {
 					description: `视频「${data.video.name}」已重置`
 				});
-				const { query, currentPage, videoSource } = $appStateStore;
-				await loadVideos(query, currentPage, videoSource);
+				const { query, currentPage, videoSource, failedOnly } = $appStateStore;
+				await loadVideos(query, currentPage, videoSource, failedOnly);
 			} else {
 				toast.info('重置无效', {
 					description: `视频「${data.video.name}」没有失败的状态，无需重置`
@@ -154,8 +151,8 @@
 					description: `视频「${data.video.name}」已清空重置`
 				});
 			}
-			const { query, currentPage, videoSource } = $appStateStore;
-			await loadVideos(query, currentPage, videoSource);
+			const { query, currentPage, videoSource, failedOnly } = $appStateStore;
+			await loadVideos(query, currentPage, videoSource, failedOnly);
 		} catch (error) {
 			console.error('清空重置失败：', error);
 			toast.error('清空重置失败', {
@@ -178,8 +175,8 @@
 				toast.success('重置成功', {
 					description: `已重置 ${data.resetted_videos_count} 个视频和 ${data.resetted_pages_count} 个分页`
 				});
-				const { query, currentPage, videoSource } = $appStateStore;
-				await loadVideos(query, currentPage, videoSource);
+				const { query, currentPage, videoSource, failedOnly } = $appStateStore;
+				await loadVideos(query, currentPage, videoSource, failedOnly);
 			} else {
 				toast.info('没有需要重置的视频');
 			}
@@ -209,8 +206,8 @@
 				toast.success('更新成功', {
 					description: `已更新 ${data.updated_videos_count} 个视频和 ${data.updated_pages_count} 个分页`
 				});
-				const { query, currentPage, videoSource } = $appStateStore;
-				await loadVideos(query, currentPage, videoSource);
+				const { query, currentPage, videoSource, failedOnly } = $appStateStore;
+				await loadVideos(query, currentPage, videoSource, failedOnly);
 			} else {
 				toast.info('没有视频被更新');
 			}
@@ -244,10 +241,7 @@
 				}
 			}
 		}
-		// 给筛选说明补上失败状态
-		if (state.failedOnly) {
-			parts.push('下载失败');
-		}
+		parts.push(`仅失败视频：${state.failedOnly}`);
 		return parts;
 	}
 
@@ -305,19 +299,19 @@
 	></SearchBar>
 	<div class="flex items-center gap-2">
 		<span class="text-muted-foreground text-sm">筛选：</span>
-		<div class="flex items-center gap-2 rounded-md border border-border/60 px-2 py-1">
+		<div
+			class="bg-secondary text-secondary-foreground inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium"
+		>
 			<Checkbox
 				id="failed-only"
 				checked={$appStateStore.failedOnly}
 				onCheckedChange={(value) => {
-					// 保持和 URL 同步，方便分享当前筛选
-					const nextValue = value === true || value === 'indeterminate' ? true : false;
-					setFailedOnly(nextValue);
+					setFailedOnly(value);
 					resetCurrentPage();
-					goto(`/${ToQuery({ ...$appStateStore, failedOnly: nextValue })}`);
+					goto(`/${ToQuery($appStateStore)}`);
 				}}
 			/>
-			<Label for="failed-only" class="text-xs text-muted-foreground">仅失败</Label>
+			<Label for="failed-only" class="text-xs">仅失败视频</Label>
 		</div>
 		<DropdownFilter
 			{filters}

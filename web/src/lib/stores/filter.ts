@@ -7,7 +7,6 @@ export interface AppState {
 		type: string;
 		id: string;
 	} | null;
-	// 只看下载失败
 	failedOnly: boolean;
 }
 
@@ -19,10 +18,10 @@ export const appStateStore = writable<AppState>({
 });
 
 export const ToQuery = (state: AppState): string => {
-	const { query, videoSource, failedOnly } = state;
+	const { query, videoSource, currentPage, failedOnly } = state;
 	const params = new URLSearchParams();
-	if (state.currentPage > 0) {
-		params.set('page', String(state.currentPage));
+	if (currentPage > 0) {
+		params.set('page', String(currentPage));
 	}
 	if (query.trim()) {
 		params.set('query', query);
@@ -30,9 +29,8 @@ export const ToQuery = (state: AppState): string => {
 	if (videoSource && videoSource.type && videoSource.id) {
 		params.set(videoSource.type, videoSource.id);
 	}
-	// 保持失败筛选在 URL 中，刷新后还能恢复
 	if (failedOnly) {
-		params.set('failed', 'true');
+		params.set('failed_only', 'true');
 	}
 	const queryString = params.toString();
 	return queryString ? `videos?${queryString}` : 'videos';
@@ -47,7 +45,7 @@ export const ToFilterParams = (
 	favorite?: number;
 	submission?: number;
 	watch_later?: number;
-	failed?: boolean;
+	failed_only?: boolean;
 } => {
 	const params: {
 		query?: string;
@@ -55,7 +53,7 @@ export const ToFilterParams = (
 		favorite?: number;
 		submission?: number;
 		watch_later?: number;
-		failed?: boolean;
+		failed_only?: boolean;
 	} = {};
 
 	if (state.query.trim()) {
@@ -66,11 +64,9 @@ export const ToFilterParams = (
 		const { type, id } = state.videoSource;
 		params[type as 'collection' | 'favorite' | 'submission' | 'watch_later'] = parseInt(id);
 	}
-	// 用于后端筛选失败状态
 	if (state.failedOnly) {
-		params.failed = true;
+		params.failed_only = true;
 	}
-
 	return params;
 };
 
