@@ -61,7 +61,7 @@ rsa = { version = "0.10.0-rc.9", features = ["sha2"] }
 rust-embed-for-web = { git = "https://github.com/amtoaer/rust-embed-for-web", tag = "v1.0.0" }
 sea-orm = { version = "1.1.19", features = [
     "macros",
-    "runtime-tokio-rustls",
+    "runtime-tokio",
     "sqlx-sqlite",
     "sqlite-use-returning-for-3_35",
 ] }
