@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use anyhow::{Result, bail};
 use leaky_bucket::RateLimiter;
+use parking_lot::Once;
 use reqwest::{Method, header};
 use ua_generator::ua;
 
@@ -16,6 +17,12 @@ pub struct Client(reqwest::Client);
 
 impl Client {
     pub fn new() -> Self {
+        static INIT: Once = Once::new();
+        INIT.call_once(|| {
+            rustls::crypto::ring::default_provider()
+                .install_default()
+                .expect("Failed to install rustls crypto provider");
+        });
         // 正常访问 api 所必须的 header，作为默认 header 添加到每个请求中
         let mut headers = header::HeaderMap::new();
         headers.insert(
