@@ -1,19 +1,20 @@
 <script lang="ts">
 	import CheckCircleIcon from '@lucide/svelte/icons/check-circle';
 	import XCircleIcon from '@lucide/svelte/icons/x-circle';
-	import CircleIcon from '@lucide/svelte/icons/circle';
 	import ClockIcon from '@lucide/svelte/icons/clock';
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
+	import TrashIcon from '@lucide/svelte/icons/trash';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { type StatusFilterValue } from '$lib/stores/filter';
 
 	interface Props {
-		value: StatusFilterValue;
+		value: StatusFilterValue | null;
 		onSelect?: (value: StatusFilterValue) => void;
+		onRemove?: () => void;
 	}
 
-	let { value = $bindable('all'), onSelect }: Props = $props();
+	let { value = $bindable(null), onSelect, onRemove }: Props = $props();
 
 	let open = $state(false);
 	let triggerRef = $state<HTMLButtonElement>(null!);
@@ -23,11 +24,6 @@
 	}
 
 	const statusOptions = [
-		{
-			value: 'all' as const,
-			label: '全部',
-			icon: CircleIcon
-		},
 		{
 			value: 'failed' as const,
 			label: '仅失败',
@@ -40,7 +36,7 @@
 		},
 		{
 			value: 'waiting' as const,
-			label: '等待中',
+			label: '仅等待',
 			icon: ClockIcon
 		}
 	];
@@ -51,14 +47,12 @@
 		closeAndFocusTrigger();
 	}
 
-	const currentOption = $derived(
-		statusOptions.find((opt) => opt.value === value) || statusOptions[0]
-	);
+	const currentOption = $derived(statusOptions.find((opt) => opt.value === value));
 </script>
 
 <div class="inline-flex items-center gap-1">
 	<span class="bg-secondary text-secondary-foreground rounded-lg px-2 py-1 text-xs font-medium">
-		{currentOption.label}
+		{currentOption ? currentOption.label : '未应用'}
 	</span>
 
 	<DropdownMenu.Root bind:open>
@@ -69,7 +63,7 @@
 				</Button>
 			{/snippet}
 		</DropdownMenu.Trigger>
-		<DropdownMenu.Content class="w-[140px]" align="end">
+		<DropdownMenu.Content class="w-50" align="end">
 			<DropdownMenu.Group>
 				<DropdownMenu.Label class="text-xs">视频状态</DropdownMenu.Label>
 				{#each statusOptions as option (option.value)}
@@ -83,6 +77,16 @@
 						{/if}
 					</DropdownMenu.Item>
 				{/each}
+				<DropdownMenu.Separator />
+				<DropdownMenu.Item
+					onclick={() => {
+						closeAndFocusTrigger();
+						onRemove?.();
+					}}
+				>
+					<TrashIcon class="mr-2 size-3" />
+					<span class="text-xs font-medium">移除筛选</span>
+				</DropdownMenu.Item>
 			</DropdownMenu.Group>
 		</DropdownMenu.Content>
 	</DropdownMenu.Root>

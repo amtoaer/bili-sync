@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 
-export type StatusFilterValue = 'all' | 'failed' | 'succeeded' | 'waiting';
+export type StatusFilterValue = 'failed' | 'succeeded' | 'waiting' | null;
 
 export interface AppState {
 	query: string;
@@ -9,14 +9,14 @@ export interface AppState {
 		type: string;
 		id: string;
 	} | null;
-	statusFilter: StatusFilterValue;
+	statusFilter: StatusFilterValue | null;
 }
 
 export const appStateStore = writable<AppState>({
 	query: '',
 	currentPage: 0,
 	videoSource: null,
-	statusFilter: 'all'
+	statusFilter: null
 });
 
 export const ToQuery = (state: AppState): string => {
@@ -31,7 +31,7 @@ export const ToQuery = (state: AppState): string => {
 	if (videoSource && videoSource.type && videoSource.id) {
 		params.set(videoSource.type, videoSource.id);
 	}
-	if (statusFilter !== 'all') {
+	if (statusFilter) {
 		params.set('status_filter', statusFilter);
 	}
 	const queryString = params.toString();
@@ -47,7 +47,7 @@ export const ToFilterParams = (
 	favorite?: number;
 	submission?: number;
 	watch_later?: number;
-	status_filter?: StatusFilterValue;
+	status_filter?: Exclude<StatusFilterValue, null>;
 } => {
 	const params: {
 		query?: string;
@@ -55,7 +55,7 @@ export const ToFilterParams = (
 		favorite?: number;
 		submission?: number;
 		watch_later?: number;
-		status_filter?: StatusFilterValue;
+		status_filter?: Exclude<StatusFilterValue, null>;
 	} = {};
 
 	if (state.query.trim()) {
@@ -66,7 +66,7 @@ export const ToFilterParams = (
 		const { type, id } = state.videoSource;
 		params[type as 'collection' | 'favorite' | 'submission' | 'watch_later'] = parseInt(id);
 	}
-	if (state.statusFilter !== 'all') {
+	if (state.statusFilter) {
 		params.status_filter = state.statusFilter;
 	}
 	return params;
@@ -74,7 +74,7 @@ export const ToFilterParams = (
 
 // 检查是否有活动的筛选条件
 export const hasActiveFilters = (state: AppState): boolean => {
-	return !!(state.query.trim() || state.videoSource || state.statusFilter !== 'all');
+	return !!(state.query.trim() || state.videoSource || state.statusFilter);
 };
 
 export const setQuery = (query: string) => {
@@ -105,7 +105,7 @@ export const setCurrentPage = (page: number) => {
 	}));
 };
 
-export const setStatusFilter = (statusFilter: StatusFilterValue) => {
+export const setStatusFilter = (statusFilter: StatusFilterValue | null) => {
 	appStateStore.update((state) => ({
 		...state,
 		statusFilter
@@ -123,7 +123,7 @@ export const setAll = (
 	query: string,
 	currentPage: number,
 	videoSource: { type: string; id: string } | null,
-	statusFilter: StatusFilterValue
+	statusFilter: StatusFilterValue | null
 ) => {
 	appStateStore.set({
 		query,
@@ -138,6 +138,6 @@ export const clearAll = () => {
 		query: '',
 		currentPage: 0,
 		videoSource: null,
-		statusFilter: 'all'
+		statusFilter: null
 	});
 };

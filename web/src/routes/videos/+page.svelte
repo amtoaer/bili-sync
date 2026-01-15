@@ -66,12 +66,12 @@
 		}
 		// 支持从 URL 里还原状态筛选
 		const statusFilterParam = searchParams.get('status_filter');
-		const statusFilter: StatusFilterValue =
+		const statusFilter: StatusFilter | null =
 			statusFilterParam === 'failed' ||
 			statusFilterParam === 'succeeded' ||
 			statusFilterParam === 'waiting'
 				? statusFilterParam
-				: 'all';
+				: null;
 		return {
 			query: searchParams.get('query') || '',
 			videoSource,
@@ -84,7 +84,7 @@
 		query: string,
 		pageNum: number = 0,
 		filter?: { type: string; id: string } | null,
-		statusFilter: StatusFilterValue = 'all'
+		statusFilter: StatusFilter | null = null
 	) {
 		loading = true;
 		try {
@@ -98,7 +98,7 @@
 			if (filter) {
 				params[filter.type] = parseInt(filter.id);
 			}
-			if (statusFilter !== 'all') {
+			if (statusFilter) {
 				params.status_filter = statusFilter;
 			}
 			const result = await api.getVideos(params);
@@ -250,13 +250,14 @@
 				}
 			}
 		}
-		const statusLabels = {
-			all: '全部',
-			failed: '仅失败',
-			succeeded: '仅成功',
-			waiting: '等待中'
-		};
-		parts.push(`状态：${statusLabels[state.statusFilter]}`);
+		if (state.statusFilter) {
+			const statusLabels = {
+				failed: '仅失败',
+				succeeded: '仅成功',
+				waiting: '仅等待'
+			};
+			parts.push(`状态：${statusLabels[state.statusFilter]}`);
+		}
 		return parts;
 	}
 
@@ -320,6 +321,11 @@
 				value={$appStateStore.statusFilter}
 				onSelect={(value) => {
 					setStatusFilter(value);
+					resetCurrentPage();
+					goto(`/${ToQuery($appStateStore)}`);
+				}}
+				onRemove={() => {
+					setStatusFilter(null);
 					resetCurrentPage();
 					goto(`/${ToQuery($appStateStore)}`);
 				}}
