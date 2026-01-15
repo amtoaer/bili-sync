@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use bili_sync_entity::{page, video};
-use bili_sync_migration::ExprTrait;
+use bili_sync_migration::{ExprTrait, IntoCondition};
 use sea_orm::sea_query::Expr;
 use sea_orm::{ColumnTrait, Condition};
 
@@ -213,7 +213,17 @@ impl<const N: usize, C: ColumnTrait> StatusQueryBuilder<N, C> {
         Self { column }
     }
 
-    pub fn any_failed(&self) -> Condition {
+    /// 完成状态：所有子任务的状态都是成功
+    pub fn succeeded(&self) -> impl IntoCondition {
+        let mut condition = Condition::all();
+        for offset in 0..N as i32 {
+            condition = condition.add(Expr::col(self.column).right_shift(offset * 3).bit_and(7).eq(7))
+        }
+        condition
+    }
+
+    /// 失败状态：存在任何失败的子任务
+    pub fn failed(&self) -> impl IntoCondition {
         let mut condition = Condition::any();
         for offset in 0..N as i32 {
             condition = condition.add(
@@ -224,6 +234,15 @@ impl<const N: usize, C: ColumnTrait> StatusQueryBuilder<N, C> {
             )
         }
         condition
+    }
+
+    /// 等待状态：所有子任务的状态都不是失败，且其中存在未开始
+    pub fn waiting(&self) -> impl IntoCondition {
+        let mut condition = Condition::any();
+        for offset in 0..N as i32 {
+            condition = condition.add(Expr::col(self.column).right_shift(offset * 3).bit_and(7).eq(0))
+        }
+        condition.and(self.failed().into_condition().not())
     }
 }
 

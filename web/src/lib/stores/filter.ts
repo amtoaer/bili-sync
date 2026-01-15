@@ -1,5 +1,7 @@
 import { writable } from 'svelte/store';
 
+export type StatusFilterValue = 'all' | 'failed' | 'succeeded' | 'waiting';
+
 export interface AppState {
 	query: string;
 	currentPage: number;
@@ -7,18 +9,18 @@ export interface AppState {
 		type: string;
 		id: string;
 	} | null;
-	failedOnly: boolean;
+	statusFilter: StatusFilterValue;
 }
 
 export const appStateStore = writable<AppState>({
 	query: '',
 	currentPage: 0,
 	videoSource: null,
-	failedOnly: false
+	statusFilter: 'all'
 });
 
 export const ToQuery = (state: AppState): string => {
-	const { query, videoSource, currentPage, failedOnly } = state;
+	const { query, videoSource, currentPage, statusFilter } = state;
 	const params = new URLSearchParams();
 	if (currentPage > 0) {
 		params.set('page', String(currentPage));
@@ -29,8 +31,8 @@ export const ToQuery = (state: AppState): string => {
 	if (videoSource && videoSource.type && videoSource.id) {
 		params.set(videoSource.type, videoSource.id);
 	}
-	if (failedOnly) {
-		params.set('failed_only', 'true');
+	if (statusFilter !== 'all') {
+		params.set('status_filter', statusFilter);
 	}
 	const queryString = params.toString();
 	return queryString ? `videos?${queryString}` : 'videos';
@@ -45,7 +47,7 @@ export const ToFilterParams = (
 	favorite?: number;
 	submission?: number;
 	watch_later?: number;
-	failed_only?: boolean;
+	status_filter?: StatusFilterValue;
 } => {
 	const params: {
 		query?: string;
@@ -53,7 +55,7 @@ export const ToFilterParams = (
 		favorite?: number;
 		submission?: number;
 		watch_later?: number;
-		failed_only?: boolean;
+		status_filter?: StatusFilterValue;
 	} = {};
 
 	if (state.query.trim()) {
@@ -64,15 +66,15 @@ export const ToFilterParams = (
 		const { type, id } = state.videoSource;
 		params[type as 'collection' | 'favorite' | 'submission' | 'watch_later'] = parseInt(id);
 	}
-	if (state.failedOnly) {
-		params.failed_only = true;
+	if (state.statusFilter !== 'all') {
+		params.status_filter = state.statusFilter;
 	}
 	return params;
 };
 
 // 检查是否有活动的筛选条件
 export const hasActiveFilters = (state: AppState): boolean => {
-	return !!(state.query.trim() || state.videoSource || state.failedOnly);
+	return !!(state.query.trim() || state.videoSource || state.statusFilter !== 'all');
 };
 
 export const setQuery = (query: string) => {
@@ -103,10 +105,10 @@ export const setCurrentPage = (page: number) => {
 	}));
 };
 
-export const setFailedOnly = (failedOnly: boolean) => {
+export const setStatusFilter = (statusFilter: StatusFilterValue) => {
 	appStateStore.update((state) => ({
 		...state,
-		failedOnly
+		statusFilter
 	}));
 };
 
@@ -121,13 +123,13 @@ export const setAll = (
 	query: string,
 	currentPage: number,
 	videoSource: { type: string; id: string } | null,
-	failedOnly: boolean
+	statusFilter: StatusFilterValue
 ) => {
 	appStateStore.set({
 		query,
 		currentPage,
 		videoSource,
-		failedOnly
+		statusFilter
 	});
 };
 
@@ -136,6 +138,6 @@ export const clearAll = () => {
 		query: '',
 		currentPage: 0,
 		videoSource: null,
-		failedOnly: false
+		statusFilter: 'all'
 	});
 };

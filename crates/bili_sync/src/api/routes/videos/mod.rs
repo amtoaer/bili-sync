@@ -14,7 +14,7 @@ use sea_orm::{
 use crate::api::error::InnerApiError;
 use crate::api::helper::{update_page_download_status, update_video_download_status};
 use crate::api::request::{
-    ResetFilteredVideoStatusRequest, ResetVideoStatusRequest, UpdateFilteredVideoStatusRequest,
+    ResetFilteredVideoStatusRequest, ResetVideoStatusRequest, StatusFilter, UpdateFilteredVideoStatusRequest,
     UpdateVideoStatusRequest, VideosRequest,
 };
 use crate::api::response::{
@@ -62,8 +62,12 @@ pub async fn get_videos(
                 .or(video::Column::Bvid.contains(query_word)),
         );
     }
-    if params.failed_only {
-        query = query.filter(VideoStatus::query_builder().any_failed())
+    if let Some(status_filter) = params.status_filter {
+        query = match status_filter {
+            StatusFilter::Failed => query.filter(VideoStatus::query_builder().failed()),
+            StatusFilter::Succeeded => query.filter(VideoStatus::query_builder().succeeded()),
+            StatusFilter::Waiting => query.filter(VideoStatus::query_builder().waiting()),
+        }
     }
     let total_count = query.clone().count(&db).await?;
     let (page, page_size) = if let (Some(page), Some(page_size)) = (params.page, params.page_size) {
@@ -221,8 +225,12 @@ pub async fn reset_filtered_video_status(
                 .or(video::Column::Bvid.contains(query_word)),
         );
     }
-    if request.failed_only {
-        query = query.filter(VideoStatus::query_builder().any_failed());
+    if let Some(status_filter) = request.status_filter {
+        query = match status_filter {
+            StatusFilter::Failed => query.filter(VideoStatus::query_builder().failed()),
+            StatusFilter::Succeeded => query.filter(VideoStatus::query_builder().succeeded()),
+            StatusFilter::Waiting => query.filter(VideoStatus::query_builder().waiting()),
+        }
     }
     let all_videos = query.into_partial_model::<SimpleVideoInfo>().all(&db).await?;
     let all_pages = page::Entity::find()
@@ -357,8 +365,12 @@ pub async fn update_filtered_video_status(
                 .or(video::Column::Bvid.contains(query_word)),
         );
     }
-    if request.failed_only {
-        query = query.filter(VideoStatus::query_builder().any_failed())
+    if let Some(status_filter) = request.status_filter {
+        query = match status_filter {
+            StatusFilter::Failed => query.filter(VideoStatus::query_builder().failed()),
+            StatusFilter::Succeeded => query.filter(VideoStatus::query_builder().succeeded()),
+            StatusFilter::Waiting => query.filter(VideoStatus::query_builder().waiting()),
+        }
     }
     let mut all_videos = query.into_partial_model::<SimpleVideoInfo>().all(&db).await?;
     let mut all_pages = page::Entity::find()

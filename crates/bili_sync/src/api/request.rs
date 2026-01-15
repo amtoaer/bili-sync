@@ -5,14 +5,21 @@ use validator::Validate;
 use crate::bilibili::CollectionType;
 
 #[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum StatusFilter {
+    Failed,
+    Succeeded,
+    Waiting,
+}
+
+#[derive(Deserialize)]
 pub struct VideosRequest {
     pub collection: Option<i32>,
     pub favorite: Option<i32>,
     pub submission: Option<i32>,
     pub watch_later: Option<i32>,
     pub query: Option<String>,
-    #[serde(default)]
-    pub failed_only: bool,
+    pub status_filter: Option<StatusFilter>,
     pub page: Option<u64>,
     pub page_size: Option<u64>,
 }
@@ -30,8 +37,7 @@ pub struct ResetFilteredVideoStatusRequest {
     pub submission: Option<i32>,
     pub watch_later: Option<i32>,
     pub query: Option<String>,
-    #[serde(default)]
-    pub failed_only: bool,
+    pub status_filter: Option<StatusFilter>,
     #[serde(default)]
     pub force: bool,
 }
@@ -68,8 +74,7 @@ pub struct UpdateFilteredVideoStatusRequest {
     pub submission: Option<i32>,
     pub watch_later: Option<i32>,
     pub query: Option<String>,
-    #[serde(default)]
-    pub failed_only: bool,
+    pub status_filter: Option<StatusFilter>,
     #[serde(default)]
     #[validate(nested)]
     pub video_updates: Vec<StatusUpdate>,

@@ -26,15 +26,17 @@
 		setAll,
 		setCurrentPage,
 		setQuery,
-		setFailedOnly,
+		setStatusFilter,
 		ToQuery,
 		ToFilterParams,
-		hasActiveFilters
+		hasActiveFilters,
+		type StatusFilterValue
 	} from '$lib/stores/filter';
 	import { toast } from 'svelte-sonner';
 	import DropdownFilter, { type Filter } from '$lib/components/dropdown-filter.svelte';
 	import SearchBar from '$lib/components/search-bar.svelte';
 	import FilteredStatusEditor from '$lib/components/filtered-status-editor.svelte';
+	import StatusFilter from '$lib/components/status-filter.svelte';
 
 	const pageSize = 20;
 
@@ -62,13 +64,18 @@
 				videoSource = { type: source.type, id: value };
 			}
 		}
-		// 支持从 URL 里还原失败筛选
-		const failedParam = searchParams.get('failed_only');
-		const failedOnly = failedParam === 'true' || failedParam === '1';
+		// 支持从 URL 里还原状态筛选
+		const statusFilterParam = searchParams.get('status_filter');
+		const statusFilter: StatusFilterValue =
+			statusFilterParam === 'failed' ||
+			statusFilterParam === 'succeeded' ||
+			statusFilterParam === 'waiting'
+				? statusFilterParam
+				: 'all';
 		return {
 			query: searchParams.get('query') || '',
 			videoSource,
-			failedOnly,
+			statusFilter,
 			pageNum: parseInt(searchParams.get('page') || '0')
 		};
 	}
@@ -77,7 +84,7 @@
 		query: string,
 		pageNum: number = 0,
 		filter?: { type: string; id: string } | null,
-		failedOnly: boolean = false
+		statusFilter: StatusFilterValue = 'all'
 	) {
 		loading = true;
 		try {
@@ -91,7 +98,9 @@
 			if (filter) {
 				params[filter.type] = parseInt(filter.id);
 			}
-			params.failed_only = failedOnly;
+			if (statusFilter !== 'all') {
+				params.status_filter = statusFilter;
+			}
 			const result = await api.getVideos(params);
 			videosData = result.data;
 		} catch (error) {
@@ -110,9 +119,9 @@
 	}
 
 	async function handleSearchParamsChange(searchParams: URLSearchParams) {
-		const { query, videoSource, pageNum, failedOnly } = getApiParams(searchParams);
-		setAll(query, pageNum, videoSource, failedOnly);
-		loadVideos(query, pageNum, videoSource, failedOnly);
+		const { query, videoSource, pageNum, statusFilter } = getApiParams(searchParams);
+		setAll(query, pageNum, videoSource, statusFilter);
+		loadVideos(query, pageNum, videoSource, statusFilter);
 	}
 
 	async function handleResetVideo(id: number, forceReset: boolean) {
@@ -123,8 +132,8 @@
 				toast.success('重置成功', {
 					description: `视频「${data.video.name}」已重置`
 				});
-				const { query, currentPage, videoSource, failedOnly } = $appStateStore;
-				await loadVideos(query, currentPage, videoSource, failedOnly);
+				const { query, currentPage, videoSource, statusFilter } = $appStateStore;
+				await loadVideos(query, currentPage, videoSource, statusFilter);
 			} else {
 				toast.info('重置无效', {
 					description: `视频「${data.video.name}」没有失败的状态，无需重置`
@@ -151,8 +160,8 @@
 					description: `视频「${data.video.name}」已清空重置`
 				});
 			}
-			const { query, currentPage, videoSource, failedOnly } = $appStateStore;
-			await loadVideos(query, currentPage, videoSource, failedOnly);
+			const { query, currentPage, videoSource, statusFilter } = $appStateStore;
+			await loadVideos(query, currentPage, videoSource, statusFilter);
 		} catch (error) {
 			console.error('清空重置失败：', error);
 			toast.error('清空重置失败', {
@@ -175,8 +184,8 @@
 				toast.success('重置成功', {
 					description: `已重置 ${data.resetted_videos_count} 个视频和 ${data.resetted_pages_count} 个分页`
 				});
-				const { query, currentPage, videoSource, failedOnly } = $appStateStore;
-				await loadVideos(query, currentPage, videoSource, failedOnly);
+				const { query, currentPage, videoSource, statusFilter } = $appStateStore;
+				await loadVideos(query, currentPage, videoSource, statusFilter);
 			} else {
 				toast.info('没有需要重置的视频');
 			}
@@ -206,8 +215,8 @@
 				toast.success('更新成功', {
 					description: `已更新 ${data.updated_videos_count} 个视频和 ${data.updated_pages_count} 个分页`
 				});
-				const { query, currentPage, videoSource, failedOnly } = $appStateStore;
-				await loadVideos(query, currentPage, videoSource, failedOnly);
+				const { query, currentPage, videoSource, statusFilter } = $appStateStore;
+				await loadVideos(query, currentPage, videoSource, statusFilter);
 			} else {
 				toast.info('没有视频被更新');
 			}
@@ -241,7 +250,13 @@
 				}
 			}
 		}
-		parts.push(`仅失败视频：${state.failedOnly}`);
+		const statusLabels = {
+			all: '全部',
+			failed: '仅失败',
+			succeeded: '仅成功',
+			waiting: '等待中'
+		};
+		parts.push(`状态：${statusLabels[state.statusFilter]}`);
 		return parts;
 	}
 
@@ -297,34 +312,35 @@
 			goto(`/${ToQuery($appStateStore)}`);
 		}}
 	></SearchBar>
-	<div class="flex items-center gap-2">
-		<span class="text-muted-foreground text-sm">筛选：</span>
-		<div
-			class="bg-secondary text-secondary-foreground inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium"
-		>
-			<Checkbox
-				id="failed-only"
-				checked={$appStateStore.failedOnly}
-				onCheckedChange={(value) => {
-					setFailedOnly(value);
+	<div class="flex items-center gap-3">
+		<!-- 状态筛选 -->
+		<div class="flex items-center gap-1">
+			<span class="text-muted-foreground text-xs">状态:</span>
+			<StatusFilter
+				value={$appStateStore.statusFilter}
+				onSelect={(value) => {
+					setStatusFilter(value);
 					resetCurrentPage();
 					goto(`/${ToQuery($appStateStore)}`);
 				}}
 			/>
-			<Label for="failed-only" class="text-xs">仅失败视频</Label>
 		</div>
-		<DropdownFilter
-			{filters}
-			selectedLabel={$appStateStore.videoSource}
-			onSelect={(type, id) => {
-				setAll('', 0, { type, id }, $appStateStore.failedOnly);
-				goto(`/${ToQuery($appStateStore)}`);
-			}}
-			onRemove={() => {
-				setAll('', 0, null, $appStateStore.failedOnly);
-				goto(`/${ToQuery($appStateStore)}`);
-			}}
-		/>
+		<!-- 视频源筛选 -->
+		<div class="flex items-center gap-1">
+			<span class="text-muted-foreground text-xs">来源:</span>
+			<DropdownFilter
+				{filters}
+				selectedLabel={$appStateStore.videoSource}
+				onSelect={(type, id) => {
+					setAll('', 0, { type, id }, $appStateStore.statusFilter);
+					goto(`/${ToQuery($appStateStore)}`);
+				}}
+				onRemove={() => {
+					setAll('', 0, null, $appStateStore.statusFilter);
+					goto(`/${ToQuery($appStateStore)}`);
+				}}
+			/>
+		</div>
 	</div>
 </div>
 
