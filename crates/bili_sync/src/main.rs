@@ -78,6 +78,9 @@ fn spawn_task(
 
 /// 初始化日志系统、打印欢迎信息，初始化数据库连接和全局配置
 async fn init() -> (DatabaseConnection, LogHelper) {
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .expect("Failed to install rustls crypto provider");
     let (tx, _rx) = tokio::sync::broadcast::channel(30);
     let log_history = Arc::new(RwLock::new(VecDeque::with_capacity(MAX_HISTORY_LOGS + 1)));
     let log_writer = LogHelper::new(tx, log_history.clone());

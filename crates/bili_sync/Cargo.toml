@@ -42,6 +42,7 @@ regex = { workspace = true }
 reqwest = { workspace = true }
 rsa = { workspace = true }
 rust-embed-for-web = { workspace = true }
+rustls = { workspace = true }
 sea-orm = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
