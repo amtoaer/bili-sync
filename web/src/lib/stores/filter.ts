@@ -1,5 +1,7 @@
 import { writable } from 'svelte/store';
 
+export type StatusFilterValue = 'failed' | 'succeeded' | 'waiting' | null;
+
 export interface AppState {
 	query: string;
 	currentPage: number;
@@ -7,18 +9,18 @@ export interface AppState {
 		type: string;
 		id: string;
 	} | null;
-	failedOnly: boolean;
+	statusFilter: StatusFilterValue | null;
 }
 
 export const appStateStore = writable<AppState>({
 	query: '',
 	currentPage: 0,
 	videoSource: null,
-	failedOnly: false
+	statusFilter: null
 });
 
 export const ToQuery = (state: AppState): string => {
-	const { query, videoSource, currentPage, failedOnly } = state;
+	const { query, videoSource, currentPage, statusFilter } = state;
 	const params = new URLSearchParams();
 	if (currentPage > 0) {
 		params.set('page', String(currentPage));
@@ -29,8 +31,8 @@ export const ToQuery = (state: AppState): string => {
 	if (videoSource && videoSource.type && videoSource.id) {
 		params.set(videoSource.type, videoSource.id);
 	}
-	if (failedOnly) {
-		params.set('failed_only', 'true');
+	if (statusFilter) {
+		params.set('status_filter', statusFilter);
 	}
 	const queryString = params.toString();
 	return queryString ? `videos?${queryString}` : 'videos';
@@ -45,7 +47,7 @@ export const ToFilterParams = (
 	favorite?: number;
 	submission?: number;
 	watch_later?: number;
-	failed_only?: boolean;
+	status_filter?: Exclude<StatusFilterValue, null>;
 } => {
 	const params: {
 		query?: string;
@@ -53,7 +55,7 @@ export const ToFilterParams = (
 		favorite?: number;
 		submission?: number;
 		watch_later?: number;
-		failed_only?: boolean;
+		status_filter?: Exclude<StatusFilterValue, null>;
 	} = {};
 
 	if (state.query.trim()) {
@@ -64,35 +66,21 @@ export const ToFilterParams = (
 		const { type, id } = state.videoSource;
 		params[type as 'collection' | 'favorite' | 'submission' | 'watch_later'] = parseInt(id);
 	}
-	if (state.failedOnly) {
-		params.failed_only = true;
+	if (state.statusFilter) {
+		params.status_filter = state.statusFilter;
 	}
 	return params;
 };
 
 // 检查是否有活动的筛选条件
 export const hasActiveFilters = (state: AppState): boolean => {
-	return !!(state.query.trim() || state.videoSource || state.failedOnly);
+	return !!(state.query.trim() || state.videoSource || state.statusFilter);
 };
 
 export const setQuery = (query: string) => {
 	appStateStore.update((state) => ({
 		...state,
 		query
-	}));
-};
-
-export const setVideoSourceFilter = (filter: { type: string; id: string }) => {
-	appStateStore.update((state) => ({
-		...state,
-		videoSource: filter
-	}));
-};
-
-export const clearVideoSourceFilter = () => {
-	appStateStore.update((state) => ({
-		...state,
-		videoSource: null
 	}));
 };
 
@@ -103,10 +91,10 @@ export const setCurrentPage = (page: number) => {
 	}));
 };
 
-export const setFailedOnly = (failedOnly: boolean) => {
+export const setStatusFilter = (statusFilter: StatusFilterValue | null) => {
 	appStateStore.update((state) => ({
 		...state,
-		failedOnly
+		statusFilter
 	}));
 };
 
@@ -121,21 +109,12 @@ export const setAll = (
 	query: string,
 	currentPage: number,
 	videoSource: { type: string; id: string } | null,
-	failedOnly: boolean
+	statusFilter: StatusFilterValue | null
 ) => {
 	appStateStore.set({
 		query,
 		currentPage,
 		videoSource,
-		failedOnly
-	});
-};
-
-export const clearAll = () => {
-	appStateStore.set({
-		query: '',
-		currentPage: 0,
-		videoSource: null,
-		failedOnly: false
+		statusFilter
 	});
 };

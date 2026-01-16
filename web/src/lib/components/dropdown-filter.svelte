@@ -62,7 +62,7 @@
 				</Button>
 			{/snippet}
 		</DropdownMenu.Trigger>
-		<DropdownMenu.Content class="w-[200px]" align="end">
+		<DropdownMenu.Content class="w-50" align="end">
 			<DropdownMenu.Group>
 				{#if filters}
 					{#each Object.entries(filters) as [key, filter] (key)}

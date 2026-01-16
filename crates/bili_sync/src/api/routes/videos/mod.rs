@@ -62,8 +62,8 @@ pub async fn get_videos(
                 .or(video::Column::Bvid.contains(query_word)),
         );
     }
-    if params.failed_only {
-        query = query.filter(VideoStatus::query_builder().any_failed())
+    if let Some(status_filter) = params.status_filter {
+        query = query.filter(status_filter.to_video_query());
     }
     let total_count = query.clone().count(&db).await?;
     let (page, page_size) = if let (Some(page), Some(page_size)) = (params.page, params.page_size) {
@@ -221,8 +221,8 @@ pub async fn reset_filtered_video_status(
                 .or(video::Column::Bvid.contains(query_word)),
         );
     }
-    if request.failed_only {
-        query = query.filter(VideoStatus::query_builder().any_failed());
+    if let Some(status_filter) = request.status_filter {
+        query = query.filter(status_filter.to_video_query());
     }
     let all_videos = query.into_partial_model::<SimpleVideoInfo>().all(&db).await?;
     let all_pages = page::Entity::find()
@@ -357,8 +357,8 @@ pub async fn update_filtered_video_status(
                 .or(video::Column::Bvid.contains(query_word)),
         );
     }
-    if request.failed_only {
-        query = query.filter(VideoStatus::query_builder().any_failed())
+    if let Some(status_filter) = request.status_filter {
+        query = query.filter(status_filter.to_video_query());
     }
     let mut all_videos = query.into_partial_model::<SimpleVideoInfo>().all(&db).await?;
     let mut all_pages = page::Entity::find()

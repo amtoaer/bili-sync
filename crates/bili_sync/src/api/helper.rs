@@ -1,9 +1,22 @@
 use std::borrow::Borrow;
 
 use itertools::Itertools;
-use sea_orm::{ConnectionTrait, DatabaseTransaction};
+use sea_orm::{Condition, ConnectionTrait, DatabaseTransaction};
 
+use crate::api::request::StatusFilter;
 use crate::api::response::{PageInfo, SimplePageInfo, SimpleVideoInfo, VideoInfo};
+use crate::utils::status::VideoStatus;
+
+impl StatusFilter {
+    pub fn to_video_query(&self) -> Condition {
+        let query_builder = VideoStatus::query_builder();
+        match self {
+            Self::Failed => query_builder.failed(),
+            Self::Succeeded => query_builder.succeeded(),
+            Self::Waiting => query_builder.waiting(),
+        }
+    }
+}
 
 pub trait VideoRecord {
     fn as_id_status_tuple(&self) -> (i32, u32);
