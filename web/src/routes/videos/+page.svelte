@@ -29,8 +29,7 @@
 		setStatusFilter,
 		ToQuery,
 		ToFilterParams,
-		hasActiveFilters,
-		type StatusFilterValue
+		hasActiveFilters
 	} from '$lib/stores/filter';
 	import { toast } from 'svelte-sonner';
 	import DropdownFilter, { type Filter } from '$lib/components/dropdown-filter.svelte';

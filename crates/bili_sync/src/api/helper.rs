@@ -3,13 +3,9 @@ use std::borrow::Borrow;
 use itertools::Itertools;
 use sea_orm::{Condition, ConnectionTrait, DatabaseTransaction};
 
-use crate::{
-    api::{
-        request::StatusFilter,
-        response::{PageInfo, SimplePageInfo, SimpleVideoInfo, VideoInfo},
-    },
-    utils::status::VideoStatus,
-};
+use crate::api::request::StatusFilter;
+use crate::api::response::{PageInfo, SimplePageInfo, SimpleVideoInfo, VideoInfo};
+use crate::utils::status::VideoStatus;
 
 impl StatusFilter {
     pub fn to_video_query(&self) -> Condition {
