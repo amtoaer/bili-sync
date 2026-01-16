@@ -84,20 +84,6 @@ export const setQuery = (query: string) => {
 	}));
 };
 
-export const setVideoSourceFilter = (filter: { type: string; id: string }) => {
-	appStateStore.update((state) => ({
-		...state,
-		videoSource: filter
-	}));
-};
-
-export const clearVideoSourceFilter = () => {
-	appStateStore.update((state) => ({
-		...state,
-		videoSource: null
-	}));
-};
-
 export const setCurrentPage = (page: number) => {
 	appStateStore.update((state) => ({
 		...state,
@@ -130,14 +116,5 @@ export const setAll = (
 		currentPage,
 		videoSource,
 		statusFilter
-	});
-};
-
-export const clearAll = () => {
-	appStateStore.set({
-		query: '',
-		currentPage: 0,
-		videoSource: null,
-		statusFilter: null
 	});
 };

@@ -29,7 +29,8 @@
 		setStatusFilter,
 		ToQuery,
 		ToFilterParams,
-		hasActiveFilters
+		hasActiveFilters,
+		type StatusFilterValue
 	} from '$lib/stores/filter';
 	import { toast } from 'svelte-sonner';
 	import DropdownFilter, { type Filter } from '$lib/components/dropdown-filter.svelte';
@@ -65,7 +66,7 @@
 		}
 		// 支持从 URL 里还原状态筛选
 		const statusFilterParam = searchParams.get('status_filter');
-		const statusFilter: StatusFilter | null =
+		const statusFilter: StatusFilterValue | null =
 			statusFilterParam === 'failed' ||
 			statusFilterParam === 'succeeded' ||
 			statusFilterParam === 'waiting'
@@ -83,7 +84,7 @@
 		query: string,
 		pageNum: number = 0,
 		filter?: { type: string; id: string } | null,
-		statusFilter: StatusFilter | null = null
+		statusFilter: StatusFilterValue | null = null
 	) {
 		loading = true;
 		try {
