@@ -214,7 +214,7 @@ impl<const N: usize, C: ColumnTrait> StatusQueryBuilder<N, C> {
     }
 
     /// 完成状态：所有子任务的状态都是成功
-    pub fn succeeded(&self) -> impl IntoCondition {
+    pub fn succeeded(&self) -> Condition {
         let mut condition = Condition::all();
         for offset in 0..N as i32 {
             condition = condition.add(Expr::col(self.column).right_shift(offset * 3).bit_and(7).eq(7))
@@ -223,7 +223,7 @@ impl<const N: usize, C: ColumnTrait> StatusQueryBuilder<N, C> {
     }
 
     /// 失败状态：存在任何失败的子任务
-    pub fn failed(&self) -> impl IntoCondition {
+    pub fn failed(&self) -> Condition {
         let mut condition = Condition::any();
         for offset in 0..N as i32 {
             condition = condition.add(
@@ -237,12 +237,12 @@ impl<const N: usize, C: ColumnTrait> StatusQueryBuilder<N, C> {
     }
 
     /// 等待状态：所有子任务的状态都不是失败，且其中存在未开始
-    pub fn waiting(&self) -> impl IntoCondition {
+    pub fn waiting(&self) -> Condition {
         let mut condition = Condition::any();
         for offset in 0..N as i32 {
             condition = condition.add(Expr::col(self.column).right_shift(offset * 3).bit_and(7).eq(0))
         }
-        condition.and(self.failed().into_condition().not())
+        condition.and(self.failed().not()).into_condition()
     }
 }
 
