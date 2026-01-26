@@ -4,6 +4,7 @@
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
@@ -15,6 +16,8 @@
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import InfoIcon from '@lucide/svelte/icons/info';
 	import TrashIcon2 from '@lucide/svelte/icons/trash-2';
+	import CheckCircleIcon from '@lucide/svelte/icons/check-circle';
+	import XCircleIcon from '@lucide/svelte/icons/x-circle';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { toast } from 'svelte-sonner';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
@@ -315,7 +318,7 @@
 										<Table.Head class="w-[20%]">名称</Table.Head>
 										<Table.Head class="w-[30%]">下载路径</Table.Head>
 										<Table.Head class="w-[15%]">过滤规则</Table.Head>
-										<Table.Head class="w-[10%]">启用状态</Table.Head>
+										<Table.Head class="w-[10%]">状态</Table.Head>
 										{#if key === 'submissions'}
 											<Table.Head class="w-[10%]">使用动态 API</Table.Head>
 										{/if}
@@ -352,19 +355,36 @@
 												{/if}
 											</Table.Cell>
 											<Table.Cell>
-												<div class="flex h-8 items-center gap-2">
-													<Switch checked={source.enabled} disabled />
-												</div>
+												{#if source.enabled}
+													<Badge variant="default" class="flex w-fit items-center gap-1.5">
+														<CheckCircleIcon class="h-3 w-3" />
+														已启用
+													</Badge>
+												{:else}
+													<Badge variant="secondary" class="flex w-fit items-center gap-1.5">
+														<XCircleIcon class="h-3 w-3" />
+														已禁用
+													</Badge>
+												{/if}
 											</Table.Cell>
 											{#if key === 'submissions'}
 												<Table.Cell>
-													<div class="flex h-8 items-center gap-2">
-														{#if source.useDynamicApi !== null}
-															<Switch checked={source.useDynamicApi} disabled />
+													{#if source.useDynamicApi !== null}
+														{#if source.useDynamicApi}
+															<Badge variant="default" class="flex w-fit items-center gap-1.5">
+																<CheckCircleIcon class="h-3 w-3" />
+																已启用
+															</Badge>
+														{:else}
+															<Badge variant="secondary" class="flex w-fit items-center gap-1.5">
+																<XCircleIcon class="h-3 w-3" />
+																已禁用
+															</Badge>
 														{/if}
-													</div>
+													{/if}
 												</Table.Cell>
 											{/if}
+
 											<Table.Cell class="text-right">
 												<Button
 													size="sm"
