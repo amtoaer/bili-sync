@@ -359,14 +359,16 @@
 											</Table.Cell>
 											<Table.Cell>
 												{#if source.enabled}
-													<Badge class="flex w-fit items-center gap-1.5 bg-green-600 text-white">
+													<Badge
+														class="flex w-fit items-center gap-1.5 bg-emerald-500 text-emerald-100"
+													>
 														<CheckCircleIcon class="h-3 w-3" />
 														已启用{#if key === 'submissions' && source.useDynamicApi !== null}{source.useDynamicApi
 																? '（使用动态 API）'
 																: ''}{/if}
 													</Badge>
 												{:else}
-													<Badge class="flex w-fit items-center gap-1.5 bg-red-600 text-white ">
+													<Badge class="flex w-fit items-center gap-1.5 bg-rose-500 text-rose-100 ">
 														<XCircleIcon class="h-3 w-3" />
 														已禁用
 													</Badge>
@@ -375,7 +377,7 @@
 
 											<Table.Cell class="text-right">
 												<Tooltip.Root disableHoverableContent={true}>
-													<Tooltip.Trigger asChild>
+													<Tooltip.Trigger>
 														<Button
 															size="sm"
 															variant="outline"
@@ -390,7 +392,7 @@
 													</Tooltip.Content>
 												</Tooltip.Root>
 												<Tooltip.Root disableHoverableContent={true}>
-													<Tooltip.Trigger asChild>
+													<Tooltip.Trigger>
 														<Button
 															size="sm"
 															variant="outline"
@@ -406,7 +408,7 @@
 												</Tooltip.Root>
 												{#if activeTab !== 'watch_later'}
 													<Tooltip.Root disableHoverableContent={true}>
-														<Tooltip.Trigger asChild>
+														<Tooltip.Trigger>
 															<Button
 																size="sm"
 																variant="outline"
@@ -464,7 +466,7 @@
 	<!-- 编辑对话框 -->
 	<Dialog.Root bind:open={showEditDialog}>
 		<Dialog.Content
-			class="no-scrollbar max-h-[85vh] !max-w-[90vw] overflow-y-auto lg:!max-w-[70vw]"
+			class="no-scrollbar max-h-[85vh] max-w-[90vw]! overflow-y-auto lg:max-w-[70vw]!"
 		>
 			<Dialog.Title class="text-lg font-semibold">
 				编辑视频源: {editingSource?.name || ''}
