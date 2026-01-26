@@ -360,7 +360,7 @@
 											<Table.Cell>
 												{#if source.enabled}
 													<Badge
-														class="flex w-fit items-center gap-1.5 bg-emerald-500 text-emerald-100"
+														class="flex w-fit items-center gap-1.5 bg-emerald-700 text-emerald-100"
 													>
 														<CheckCircleIcon class="h-3 w-3" />
 														已启用{#if key === 'submissions' && source.useDynamicApi !== null}{source.useDynamicApi
@@ -368,7 +368,7 @@
 																: ''}{/if}
 													</Badge>
 												{:else}
-													<Badge class="flex w-fit items-center gap-1.5 bg-rose-500 text-rose-100 ">
+													<Badge class="flex w-fit items-center gap-1.5 bg-rose-700 text-rose-100 ">
 														<XCircleIcon class="h-3 w-3" />
 														已禁用
 													</Badge>
