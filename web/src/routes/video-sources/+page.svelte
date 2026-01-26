@@ -330,28 +330,34 @@
 										<Table.Row>
 											<Table.Cell class="font-medium">{source.name}</Table.Cell>
 											<Table.Cell>
-												<code
-													class="bg-muted text-muted-foreground inline-flex h-8 items-center rounded px-3 py-1 text-sm"
+												<div
+													class="bg-muted/50 hover:bg-muted flex w-fit cursor-text items-center gap-2 rounded-md px-2.5 py-1.5 transition-colors"
 												>
-													{source.path || '未设置'}
-												</code>
+													<FolderIcon class="text-foreground/70 h-3.5 w-3.5 shrink-0" />
+													<span class="text-foreground/70 font-mono text-xs select-text">
+														{source.path || '未设置'}
+													</span>
+												</div>
 											</Table.Cell>
 											<Table.Cell>
 												{#if source.rule && source.rule.length > 0}
-													<div class="flex items-center gap-1">
-														<Tooltip.Root>
-															<Tooltip.Trigger>
-																<span class="text-muted-foreground text-sm"
-																	>{source.rule.length} 条规则</span
-																>
-															</Tooltip.Trigger>
-															<Tooltip.Content>
-																<p class="text-xs">{source.ruleDisplay}</p>
-															</Tooltip.Content>
-														</Tooltip.Root>
-													</div>
+													<Tooltip.Root disableHoverableContent={true}>
+														<Tooltip.Trigger asChild>
+															<Badge
+																variant="default"
+																class="flex w-fit cursor-help items-center gap-1.5"
+															>
+																{source.rule.length} 条规则
+															</Badge>
+														</Tooltip.Trigger>
+														<Tooltip.Content>
+															<p class="text-xs">{source.ruleDisplay}</p>
+														</Tooltip.Content>
+													</Tooltip.Root>
 												{:else}
-													<span class="text-muted-foreground text-sm">-</span>
+													<Badge variant="secondary" class="flex w-fit items-center gap-1.5">
+														无
+													</Badge>
 												{/if}
 											</Table.Cell>
 											<Table.Cell>
@@ -386,34 +392,52 @@
 											{/if}
 
 											<Table.Cell class="text-right">
-												<Button
-													size="sm"
-													variant="outline"
-													onclick={() => openEditDialog(key, source, index)}
-													class="h-8 w-8 p-0"
-													title="编辑"
-												>
-													<EditIcon class="h-3 w-3" />
-												</Button>
-												<Button
-													size="sm"
-													variant="outline"
-													onclick={() => openEvaluateRules(key, source)}
-													class="h-8 w-8 p-0"
-													title="重新评估规则"
-												>
-													<ListRestartIcon class="h-3 w-3" />
-												</Button>
+												<Tooltip.Root disableHoverableContent={true}>
+													<Tooltip.Trigger asChild>
+														<Button
+															size="sm"
+															variant="outline"
+															onclick={() => openEditDialog(key, source, index)}
+															class="h-8 w-8 p-0"
+														>
+															<EditIcon class="h-3 w-3" />
+														</Button>
+													</Tooltip.Trigger>
+													<Tooltip.Content>
+														<p class="text-xs">编辑</p>
+													</Tooltip.Content>
+												</Tooltip.Root>
+												<Tooltip.Root disableHoverableContent={true}>
+													<Tooltip.Trigger asChild>
+														<Button
+															size="sm"
+															variant="outline"
+															onclick={() => openEvaluateRules(key, source)}
+															class="h-8 w-8 p-0"
+														>
+															<ListRestartIcon class="h-3 w-3" />
+														</Button>
+													</Tooltip.Trigger>
+													<Tooltip.Content>
+														<p class="text-xs">重新评估规则</p>
+													</Tooltip.Content>
+												</Tooltip.Root>
 												{#if activeTab !== 'watch_later'}
-													<Button
-														size="sm"
-														variant="outline"
-														onclick={() => openRemoveDialog(key, source, index)}
-														class="h-8 w-8 p-0"
-														title="删除"
-													>
-														<TrashIcon2 class="h-3 w-3" />
-													</Button>
+													<Tooltip.Root disableHoverableContent={true}>
+														<Tooltip.Trigger asChild>
+															<Button
+																size="sm"
+																variant="outline"
+																onclick={() => openRemoveDialog(key, source, index)}
+																class="h-8 w-8 p-0"
+															>
+																<TrashIcon2 class="h-3 w-3" />
+															</Button>
+														</Tooltip.Trigger>
+														<Tooltip.Content>
+															<p class="text-xs">删除</p>
+														</Tooltip.Content>
+													</Tooltip.Root>
 												{/if}
 											</Table.Cell>
 										</Table.Row>
