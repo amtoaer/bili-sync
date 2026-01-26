@@ -100,7 +100,7 @@ impl Default for FilterOption {
             video_min_quality: VideoQuality::Quality360p,
             audio_max_quality: AudioQuality::QualityHiRES,
             audio_min_quality: AudioQuality::Quality64k,
-            codecs: vec![VideoCodecs::AV1, VideoCodecs::HEV, VideoCodecs::AVC],
+            codecs: vec![VideoCodecs::AVC, VideoCodecs::HEV, VideoCodecs::AV1],
             no_dolby_video: false,
             no_dolby_audio: false,
             no_hdr: false,
