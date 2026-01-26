@@ -328,10 +328,12 @@
 											<Table.Cell class="font-medium">{source.name}</Table.Cell>
 											<Table.Cell>
 												<div
-													class="bg-muted/50 hover:bg-muted flex w-fit cursor-text items-center gap-2 rounded-md px-2.5 py-1.5 transition-colors"
+													class="bg-secondary hover:bg-secondary/80 flex w-fit cursor-text items-center gap-2 rounded-md px-2.5 py-1.5 transition-colors"
 												>
 													<FolderIcon class="text-foreground/70 h-3.5 w-3.5 shrink-0" />
-													<span class="text-foreground/70 font-mono text-xs select-text">
+													<span
+														class="text-foreground/70 font-mono text-xs font-medium select-text"
+													>
 														{source.path || '未设置'}
 													</span>
 												</div>
@@ -339,9 +341,9 @@
 											<Table.Cell>
 												{#if source.rule && source.rule.length > 0}
 													<Tooltip.Root disableHoverableContent={true}>
-														<Tooltip.Trigger asChild>
+														<Tooltip.Trigger>
 															<Badge
-																variant="default"
+																variant="secondary"
 																class="flex w-fit cursor-help items-center gap-1.5"
 															>
 																{source.rule.length} 条规则
@@ -353,7 +355,7 @@
 													</Tooltip.Root>
 												{:else}
 													<Badge variant="secondary" class="flex w-fit items-center gap-1.5">
-														无
+														-
 													</Badge>
 												{/if}
 											</Table.Cell>
@@ -364,7 +366,7 @@
 													>
 														<CheckCircleIcon class="h-3 w-3" />
 														已启用{#if key === 'submissions' && source.useDynamicApi !== null}{source.useDynamicApi
-																? '（使用动态 API）'
+																? '（动态 API）'
 																: ''}{/if}
 													</Badge>
 												{:else}
