@@ -4,6 +4,7 @@
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
@@ -15,6 +16,8 @@
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import InfoIcon from '@lucide/svelte/icons/info';
 	import TrashIcon2 from '@lucide/svelte/icons/trash-2';
+	import CheckCircleIcon from '@lucide/svelte/icons/check-circle';
+	import XCircleIcon from '@lucide/svelte/icons/x-circle';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { toast } from 'svelte-sonner';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
@@ -315,10 +318,7 @@
 										<Table.Head class="w-[20%]">名称</Table.Head>
 										<Table.Head class="w-[30%]">下载路径</Table.Head>
 										<Table.Head class="w-[15%]">过滤规则</Table.Head>
-										<Table.Head class="w-[10%]">启用状态</Table.Head>
-										{#if key === 'submissions'}
-											<Table.Head class="w-[10%]">使用动态 API</Table.Head>
-										{/if}
+										<Table.Head class="w-[15%]">启用状态</Table.Head>
 										<Table.Head class="w-[10%] text-right">操作</Table.Head>
 									</Table.Row>
 								</Table.Header>
@@ -327,73 +327,103 @@
 										<Table.Row>
 											<Table.Cell class="font-medium">{source.name}</Table.Cell>
 											<Table.Cell>
-												<code
-													class="bg-muted text-muted-foreground inline-flex h-8 items-center rounded px-3 py-1 text-sm"
+												<div
+													class="bg-secondary hover:bg-secondary/80 flex w-fit cursor-text items-center gap-2 rounded-md px-2.5 py-1.5 transition-colors"
 												>
-													{source.path || '未设置'}
-												</code>
+													<FolderIcon class="text-foreground/70 h-3.5 w-3.5 shrink-0" />
+													<span
+														class="text-foreground/70 font-mono text-xs font-medium select-text"
+													>
+														{source.path || '未设置'}
+													</span>
+												</div>
 											</Table.Cell>
 											<Table.Cell>
 												{#if source.rule && source.rule.length > 0}
-													<div class="flex items-center gap-1">
-														<Tooltip.Root>
-															<Tooltip.Trigger>
-																<span class="text-muted-foreground text-sm"
-																	>{source.rule.length} 条规则</span
-																>
-															</Tooltip.Trigger>
-															<Tooltip.Content>
-																<p class="text-xs">{source.ruleDisplay}</p>
-															</Tooltip.Content>
-														</Tooltip.Root>
-													</div>
+													<Tooltip.Root disableHoverableContent={true}>
+														<Tooltip.Trigger>
+															<Badge
+																variant="secondary"
+																class="flex w-fit cursor-help items-center gap-1.5"
+															>
+																{source.rule.length} 条规则
+															</Badge>
+														</Tooltip.Trigger>
+														<Tooltip.Content>
+															<p class="text-xs">{source.ruleDisplay}</p>
+														</Tooltip.Content>
+													</Tooltip.Root>
 												{:else}
-													<span class="text-muted-foreground text-sm">-</span>
+													<Badge variant="secondary" class="flex w-fit items-center gap-1.5">
+														-
+													</Badge>
 												{/if}
 											</Table.Cell>
 											<Table.Cell>
-												<div class="flex h-8 items-center gap-2">
-													<Switch checked={source.enabled} disabled />
-												</div>
-											</Table.Cell>
-											{#if key === 'submissions'}
-												<Table.Cell>
-													<div class="flex h-8 items-center gap-2">
-														{#if source.useDynamicApi !== null}
-															<Switch checked={source.useDynamicApi} disabled />
-														{/if}
-													</div>
-												</Table.Cell>
-											{/if}
-											<Table.Cell class="text-right">
-												<Button
-													size="sm"
-													variant="outline"
-													onclick={() => openEditDialog(key, source, index)}
-													class="h-8 w-8 p-0"
-													title="编辑"
-												>
-													<EditIcon class="h-3 w-3" />
-												</Button>
-												<Button
-													size="sm"
-													variant="outline"
-													onclick={() => openEvaluateRules(key, source)}
-													class="h-8 w-8 p-0"
-													title="重新评估规则"
-												>
-													<ListRestartIcon class="h-3 w-3" />
-												</Button>
-												{#if activeTab !== 'watch_later'}
-													<Button
-														size="sm"
-														variant="outline"
-														onclick={() => openRemoveDialog(key, source, index)}
-														class="h-8 w-8 p-0"
-														title="删除"
+												{#if source.enabled}
+													<Badge
+														class="flex w-fit items-center gap-1.5 bg-emerald-700 text-emerald-100"
 													>
-														<TrashIcon2 class="h-3 w-3" />
-													</Button>
+														<CheckCircleIcon class="h-3 w-3" />
+														已启用{#if key === 'submissions' && source.useDynamicApi !== null}{source.useDynamicApi
+																? '（动态 API）'
+																: ''}{/if}
+													</Badge>
+												{:else}
+													<Badge class="flex w-fit items-center gap-1.5 bg-rose-700 text-rose-100 ">
+														<XCircleIcon class="h-3 w-3" />
+														已禁用
+													</Badge>
+												{/if}
+											</Table.Cell>
+
+											<Table.Cell class="text-right">
+												<Tooltip.Root disableHoverableContent={true}>
+													<Tooltip.Trigger>
+														<Button
+															size="sm"
+															variant="outline"
+															onclick={() => openEditDialog(key, source, index)}
+															class="h-8 w-8 p-0"
+														>
+															<EditIcon class="h-3 w-3" />
+														</Button>
+													</Tooltip.Trigger>
+													<Tooltip.Content>
+														<p class="text-xs">编辑</p>
+													</Tooltip.Content>
+												</Tooltip.Root>
+												<Tooltip.Root disableHoverableContent={true}>
+													<Tooltip.Trigger>
+														<Button
+															size="sm"
+															variant="outline"
+															onclick={() => openEvaluateRules(key, source)}
+															class="h-8 w-8 p-0"
+														>
+															<ListRestartIcon class="h-3 w-3" />
+														</Button>
+													</Tooltip.Trigger>
+													<Tooltip.Content>
+														<p class="text-xs">重新评估规则</p>
+													</Tooltip.Content>
+												</Tooltip.Root>
+												{#if activeTab !== 'watch_later'}
+													<Tooltip.Root disableHoverableContent={true}>
+														<Tooltip.Trigger>
+															<Button
+																size="sm"
+																variant="outline"
+																onclick={() => openRemoveDialog(key, source, index)}
+																class="h-8 w-8 p-0"
+															>
+																<TrashIcon2 class="h-3 w-3" />
+															</Button>
+														</Tooltip.Trigger>
+														<Tooltip.Content>
+															<p class="text-xs">删除</p>
+														</Tooltip.Content>
+													</Tooltip.Root>
 												{/if}
 											</Table.Cell>
 										</Table.Row>
@@ -438,7 +468,7 @@
 	<!-- 编辑对话框 -->
 	<Dialog.Root bind:open={showEditDialog}>
 		<Dialog.Content
-			class="no-scrollbar max-h-[85vh] !max-w-[90vw] overflow-y-auto lg:!max-w-[70vw]"
+			class="no-scrollbar max-h-[85vh] max-w-[90vw]! overflow-y-auto lg:max-w-[70vw]!"
 		>
 			<Dialog.Title class="text-lg font-semibold">
 				编辑视频源: {editingSource?.name || ''}
