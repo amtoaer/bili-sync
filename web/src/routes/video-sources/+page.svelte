@@ -318,10 +318,7 @@
 										<Table.Head class="w-[20%]">名称</Table.Head>
 										<Table.Head class="w-[30%]">下载路径</Table.Head>
 										<Table.Head class="w-[15%]">过滤规则</Table.Head>
-										<Table.Head class="w-[10%]">状态</Table.Head>
-										{#if key === 'submissions'}
-											<Table.Head class="w-[10%]">使用动态 API</Table.Head>
-										{/if}
+										<Table.Head class="w-[15%]">启用状态</Table.Head>
 										<Table.Head class="w-[10%] text-right">操作</Table.Head>
 									</Table.Row>
 								</Table.Header>
@@ -362,34 +359,19 @@
 											</Table.Cell>
 											<Table.Cell>
 												{#if source.enabled}
-													<Badge variant="default" class="flex w-fit items-center gap-1.5">
+													<Badge class="flex w-fit items-center gap-1.5 bg-green-600 text-white">
 														<CheckCircleIcon class="h-3 w-3" />
-														已启用
+														已启用{#if key === 'submissions' && source.useDynamicApi !== null}{source.useDynamicApi
+																? '（使用动态 API）'
+																: ''}{/if}
 													</Badge>
 												{:else}
-													<Badge variant="secondary" class="flex w-fit items-center gap-1.5">
+													<Badge class="flex w-fit items-center gap-1.5 bg-red-600 text-white ">
 														<XCircleIcon class="h-3 w-3" />
 														已禁用
 													</Badge>
 												{/if}
 											</Table.Cell>
-											{#if key === 'submissions'}
-												<Table.Cell>
-													{#if source.useDynamicApi !== null}
-														{#if source.useDynamicApi}
-															<Badge variant="default" class="flex w-fit items-center gap-1.5">
-																<CheckCircleIcon class="h-3 w-3" />
-																已启用
-															</Badge>
-														{:else}
-															<Badge variant="secondary" class="flex w-fit items-center gap-1.5">
-																<XCircleIcon class="h-3 w-3" />
-																已禁用
-															</Badge>
-														{/if}
-													{/if}
-												</Table.Cell>
-											{/if}
 
 											<Table.Cell class="text-right">
 												<Tooltip.Root disableHoverableContent={true}>
