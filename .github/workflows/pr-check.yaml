@@ -26,7 +26,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - run: rustup default stable && rustup component add clippy && rustup component add rustfmt --toolchain nightly
+      - run: rustup install && rustup component add rustfmt --toolchain nightly
 
       - name: Cache dependencies
         uses: swatinem/rust-cache@v2

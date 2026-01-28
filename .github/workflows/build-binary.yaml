@@ -75,17 +75,18 @@ jobs:
         with:
           name: web-build
           path: web/build
-      - name: Cache dependencies
-        uses: Swatinem/rust-cache@v2
-      - name: Install musl-tools
-        run: sudo apt-get update --yes && sudo apt-get install --yes musl-tools
-        if: contains(matrix.platform.target, 'musl')
+      - name: Read Toolchain Version
+        uses: SebRollen/toml-action@v1.2.0
+        id: read_rust_toolchain
+        with:
+          file: rust-toolchain.toml
+          field: toolchain.channel
       - name: Build binary
-        uses: houseabsolute/actions-rust-cross@v0
+        uses: houseabsolute/actions-rust-cross@v1
         with:
           command: build
           target: ${{ matrix.platform.target }}
-          toolchain: stable
+          toolchain: ${{ steps.read_rust_toolchain.outputs.value }}
           args: "--locked --release"
           strip: true
       - name: Package as archive
