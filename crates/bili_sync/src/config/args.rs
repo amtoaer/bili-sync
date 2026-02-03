@@ -18,7 +18,7 @@ pub struct Args {
     #[arg(short, long, env = "DISABLE_CREDENTIAL_REFRESH")]
     pub disable_credential_refresh: bool,
 
-    #[arg(long, env = "BILI_SYNC_CONFIG_DIR", help = "Configuration directory path")]
+    #[arg(short, long, env = "BILI_SYNC_CONFIG_DIR")]
     pub config_dir: Option<PathBuf>,
 }
 
