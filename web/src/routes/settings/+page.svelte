@@ -17,6 +17,8 @@
 	import api from '$lib/api';
 	import { toast } from 'svelte-sonner';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import type { Config, ApiError, Notifier, Credential } from '$lib/types';
 
 	let frontendToken = ''; // 前端认证token
@@ -115,7 +117,7 @@
 		}
 	}
 
-	async function authenticateFrontend() {
+	async function authenticateFrontend(redirectAfterSuccess = false) {
 		if (!frontendToken.trim()) {
 			toast.error('请输入前端认证Token');
 			return;
@@ -124,12 +126,22 @@
 		try {
 			api.setAuthToken(frontendToken.trim());
 			localStorage.setItem('authToken', frontendToken.trim());
-			loadConfig();
+			await loadConfig();
 			toast.success('前端认证成功');
+			
+			// 如果设置了重定向标志，认证成功后跳转到首页
+			if (redirectAfterSuccess) {
+				goto('/');
+			}
 		} catch (error) {
 			console.error('前端认证失败:', error);
 			toast.error('认证失败，请检查Token是否正确');
 		}
+	}
+
+	// 用于按钮点击的包装函数
+	function handleAuthenticateClick() {
+		authenticateFrontend(false);
 	}
 
 	async function saveConfig() {
@@ -192,6 +204,16 @@
 	onMount(() => {
 		setBreadcrumb([{ label: '设置' }]);
 
+		// 检查 URL 参数中是否有 token
+		const urlToken = $page.url.searchParams.get('token');
+		if (urlToken) {
+			// 如果 URL 中有 token，使用它进行认证
+			frontendToken = urlToken;
+			authenticateFrontend(true); // 认证成功后跳转到首页
+			return;
+		}
+
+		// 否则使用 localStorage 中的 token
 		const savedToken = localStorage.getItem('authToken');
 		if (savedToken) {
 			frontendToken = savedToken;
@@ -219,8 +241,8 @@
 			{#if !formData}
 				<div class="flex gap-3">
 					<PasswordInput bind:value={frontendToken} placeholder="输入认证Token" />
-					<Button onclick={authenticateFrontend} disabled={!frontendToken.trim()}>认证</Button>
-				</div>
+					<Button onclick={handleAuthenticateClick} disabled={!frontendToken.trim()}>认证</Button>
+				</div>	
 			{:else}
 				<div class="flex items-center gap-3">
 					<div class="flex items-center gap-2">
