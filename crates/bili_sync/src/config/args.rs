@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::path::PathBuf;
 use std::sync::LazyLock;
 
 use clap::Parser;
@@ -16,6 +17,9 @@ pub struct Args {
 
     #[arg(short, long, env = "DISABLE_CREDENTIAL_REFRESH")]
     pub disable_credential_refresh: bool,
+
+    #[arg(long, env = "BILI_SYNC_CONFIG_DIR", help = "Configuration directory path")]
+    pub config_dir: Option<PathBuf>,
 }
 
 mod built_info {

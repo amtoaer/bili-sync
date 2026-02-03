@@ -13,14 +13,14 @@ use crate::config::default::{
     default_time_format,
 };
 use crate::config::item::{ConcurrentLimit, NFOTimeType, SkipOption, Trigger};
+use super::args::ARGS;
 use crate::notifier::Notifier;
 use crate::utils::model::{load_db_config, save_db_config};
 
 pub static CONFIG_DIR: LazyLock<PathBuf> =
     LazyLock::new(|| {
-        std::env::var("BILI_SYNC_CONFIG_DIR")
-            .ok()
-            .and_then(|p| PathBuf::try_from(p).ok())
+        ARGS.config_dir
+            .clone()
             .unwrap_or_else(|| dirs::config_dir().expect("No config path found").join("bili-sync"))
     });
 
