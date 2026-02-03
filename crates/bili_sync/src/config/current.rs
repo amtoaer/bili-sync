@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use crate::bilibili::{Credential, DanmakuOption, FilterOption};
+use crate::config::args::ARGS;
 use crate::config::default::{
     default_auth_token, default_bind_address, default_collection_path, default_favorite_path, default_submission_path,
     default_time_format,
@@ -16,8 +17,12 @@ use crate::config::item::{ConcurrentLimit, NFOTimeType, SkipOption, Trigger};
 use crate::notifier::Notifier;
 use crate::utils::model::{load_db_config, save_db_config};
 
-pub static CONFIG_DIR: LazyLock<PathBuf> =
-    LazyLock::new(|| dirs::config_dir().expect("No config path found").join("bili-sync"));
+pub static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
+    ARGS.config_dir
+        .clone()
+        .or_else(|| dirs::config_dir().map(|dir| dir.join("bili-sync")))
+        .expect("No config path found")
+});
 
 #[derive(Serialize, Deserialize, Validate, Clone)]
 pub struct Config {
