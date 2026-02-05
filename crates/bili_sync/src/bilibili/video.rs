@@ -8,7 +8,7 @@ use crate::bilibili::analyzer::PageAnalyzer;
 use crate::bilibili::client::BiliClient;
 use crate::bilibili::danmaku::{DanmakuElem, DanmakuWriter, DmSegMobileReply};
 use crate::bilibili::subtitle::{SubTitle, SubTitleBody, SubTitleInfo, SubTitlesInfo};
-use crate::bilibili::{Credential, MIXIN_KEY, Validate, VideoInfo, WbiSign};
+use crate::bilibili::{Credential, ErrorForStatusExt, MIXIN_KEY, Validate, VideoInfo, WbiSign};
 
 pub struct Video<'a> {
     client: &'a BiliClient,
@@ -57,7 +57,7 @@ impl<'a> Video<'a> {
             .wbi_sign(MIXIN_KEY.load().as_deref())?
             .send()
             .await?
-            .error_for_status()?
+            .error_for_status_ext()?
             .json::<serde_json::Value>()
             .await?
             .validate()?;
@@ -77,7 +77,7 @@ impl<'a> Video<'a> {
             .query(&[("bvid", &self.bvid)])
             .send()
             .await?
-            .error_for_status()?
+            .error_for_status_ext()?
             .json::<serde_json::Value>()
             .await?
             .validate()?;
@@ -96,7 +96,7 @@ impl<'a> Video<'a> {
             .query(&[("bvid", &self.bvid)])
             .send()
             .await?
-            .error_for_status()?
+            .error_for_status_ext()?
             .json::<serde_json::Value>()
             .await?
             .validate()?;
@@ -132,7 +132,7 @@ impl<'a> Video<'a> {
             .wbi_sign(MIXIN_KEY.load().as_deref())?
             .send()
             .await?
-            .error_for_status()?;
+            .error_for_status_ext()?;
         let headers = std::mem::take(res.headers_mut());
         let content_type = headers.get("content-type");
         ensure!(
@@ -164,7 +164,7 @@ impl<'a> Video<'a> {
             .wbi_sign(MIXIN_KEY.load().as_deref())?
             .send()
             .await?
-            .error_for_status()?
+            .error_for_status_ext()?
             .json::<serde_json::Value>()
             .await?
             .validate()?;
@@ -181,7 +181,7 @@ impl<'a> Video<'a> {
             .wbi_sign(MIXIN_KEY.load().as_deref())?
             .send()
             .await?
-            .error_for_status()?
+            .error_for_status_ext()?
             .json::<serde_json::Value>()
             .await?
             .validate()?;
@@ -207,7 +207,7 @@ impl<'a> Video<'a> {
             .request(Method::GET, format!("https:{}", &info.subtitle_url).as_str(), None)
             .send()
             .await?
-            .error_for_status()?
+            .error_for_status_ext()?
             .json::<serde_json::Value>()
             .await?;
         let body: SubTitleBody = serde_json::from_value(res["body"].take())?;

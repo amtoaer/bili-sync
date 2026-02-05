@@ -5,7 +5,7 @@ use reqwest::Method;
 use serde_json::Value;
 
 use crate::bilibili::favorite_list::Upper;
-use crate::bilibili::{BiliClient, Credential, Dynamic, MIXIN_KEY, Validate, VideoInfo, WbiSign};
+use crate::bilibili::{BiliClient, Credential, Dynamic, ErrorForStatusExt, MIXIN_KEY, Validate, VideoInfo, WbiSign};
 pub struct Submission<'a> {
     client: &'a BiliClient,
     pub upper_id: String,
@@ -39,7 +39,7 @@ impl<'a> Submission<'a> {
             .query(&[("mid", self.upper_id.as_str())])
             .send()
             .await?
-            .error_for_status()?
+            .error_for_status_ext()?
             .json::<serde_json::Value>()
             .await?
             .validate()?;
@@ -66,7 +66,7 @@ impl<'a> Submission<'a> {
             .wbi_sign(MIXIN_KEY.load().as_deref())?
             .send()
             .await?
-            .error_for_status()?
+            .error_for_status_ext()?
             .json::<serde_json::Value>()
             .await?
             .validate()

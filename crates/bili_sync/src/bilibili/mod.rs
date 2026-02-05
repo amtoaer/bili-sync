@@ -16,7 +16,7 @@ pub use favorite_list::FavoriteList;
 use favorite_list::Upper;
 pub use me::Me;
 use once_cell::sync::Lazy;
-use reqwest::RequestBuilder;
+use reqwest::{RequestBuilder, StatusCode};
 pub use submission::Submission;
 pub use video::{Dimension, PageInfo, Video};
 pub use watch_later::WatchLater;
@@ -47,6 +47,12 @@ pub(crate) trait Validate {
     fn validate(self) -> Result<Self::Output>;
 }
 
+pub(crate) trait ErrorForStatusExt {
+    type Output;
+
+    fn error_for_status_ext(self) -> Result<Self::Output>;
+}
+
 impl Validate for serde_json::Value {
     type Output = serde_json::Value;
 
@@ -59,6 +65,23 @@ impl Validate for serde_json::Value {
         }
         ensure!(code == 0, BiliError::ErrorResponse(code, self.to_string()));
         Ok(self)
+    }
+}
+
+impl ErrorForStatusExt for reqwest::Response {
+    type Output = reqwest::Response;
+
+    fn error_for_status_ext(self) -> Result<Self::Output> {
+        let status = self.status();
+        // 412 是由于请求频率过高导致的，确定是风控问题
+        // 403 目前偶尔出现在下载视频音频流时，由于是偶尔出现且过一段时间消失，暂时也当成风控问题处理
+        if status == StatusCode::PRECONDITION_FAILED || status == StatusCode::FORBIDDEN {
+            bail!(BiliError::InvalidStatusCode(
+                status.as_u16(),
+                status.canonical_reason().unwrap_or("Unknown")
+            ));
+        }
+        Ok(self.error_for_status()?)
     }
 }
 

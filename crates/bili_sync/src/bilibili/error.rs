@@ -8,12 +8,17 @@ pub enum BiliError {
     ErrorResponse(i64, String),
     #[error("risk control triggered by server, full response: {0}")]
     RiskControlOccurred(String),
+    #[error("invalid HTTP response code {0}, reason: {1}")]
+    InvalidStatusCode(u16, &'static str),
     #[error("no video streams available (may indicate risk control)")]
     VideoStreamsEmpty,
 }
 
 impl BiliError {
     pub fn is_risk_control_related(&self) -> bool {
-        matches!(self, BiliError::RiskControlOccurred(_) | BiliError::VideoStreamsEmpty)
+        matches!(
+            self,
+            BiliError::RiskControlOccurred(_) | BiliError::VideoStreamsEmpty | BiliError::InvalidStatusCode(_, _)
+        )
     }
 }

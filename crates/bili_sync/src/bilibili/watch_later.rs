@@ -3,7 +3,7 @@ use async_stream::try_stream;
 use futures::Stream;
 use serde_json::Value;
 
-use crate::bilibili::{BiliClient, Credential, Validate, VideoInfo};
+use crate::bilibili::{BiliClient, Credential, ErrorForStatusExt, Validate, VideoInfo};
 pub struct WatchLater<'a> {
     client: &'a BiliClient,
     credential: &'a Credential,
@@ -24,7 +24,7 @@ impl<'a> WatchLater<'a> {
             .await
             .send()
             .await?
-            .error_for_status()?
+            .error_for_status_ext()?
             .json::<serde_json::Value>()
             .await?
             .validate()
