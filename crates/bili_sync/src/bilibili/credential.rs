@@ -9,7 +9,7 @@ use rsa::sha2::Sha256;
 use rsa::{Oaep, RsaPublicKey};
 use serde::{Deserialize, Serialize};
 
-use crate::bilibili::{BiliError, Client, Validate};
+use crate::bilibili::{BiliError, Client, ErrorForStatusExt, Validate};
 
 const MIXIN_KEY_ENC_TAB: [usize; 64] = [
     46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49, 33, 9, 42, 19, 29, 28, 14, 39, 12, 38,
@@ -78,7 +78,7 @@ impl Credential {
             .request(Method::GET, "https://api.bilibili.com/x/web-interface/nav", Some(self))
             .send()
             .await?
-            .error_for_status()?
+            .error_for_status_ext()?
             .json::<serde_json::Value>()
             .await?
             .validate()?;
@@ -94,7 +94,7 @@ impl Credential {
             )
             .send()
             .await?
-            .error_for_status()?
+            .error_for_status_ext()?
             .json::<serde_json::Value>()
             .await?
             .validate()?;
@@ -111,7 +111,7 @@ impl Credential {
             .query(&[("qrcode_key", qrcode_key)])
             .send()
             .await?
-            .error_for_status()?;
+            .error_for_status_ext()?;
         let headers = std::mem::take(resp.headers_mut());
         let json = resp.json::<serde_json::Value>().await?.validate()?;
         let code = json["data"]["code"].as_i64().context("missing 'code' field in data")?;
@@ -147,7 +147,7 @@ impl Credential {
             .request(Method::GET, "https://api.bilibili.com/x/web-frontend/getbuvid", None)
             .send()
             .await?
-            .error_for_status()?
+            .error_for_status_ext()?
             .json::<serde_json::Value>()
             .await?
             .validate()?;
@@ -167,7 +167,7 @@ impl Credential {
             )
             .send()
             .await?
-            .error_for_status()?
+            .error_for_status_ext()?
             .json::<serde_json::Value>()
             .await?
             .validate()?;
@@ -220,7 +220,7 @@ JNrRuoEUXpabUzGB8QIDAQAB
             .header(header::COOKIE, "Domain=.bilibili.com")
             .send()
             .await?
-            .error_for_status()?;
+            .error_for_status_ext()?;
         regex_find(r#"<div id="1-name">(.+?)</div>"#, res.text().await?.as_str())
     }
 
@@ -241,7 +241,7 @@ JNrRuoEUXpabUzGB8QIDAQAB
             ])
             .send()
             .await?
-            .error_for_status()?;
+            .error_for_status_ext()?;
         let headers = std::mem::take(resp.headers_mut());
         let json = resp.json::<serde_json::Value>().await?.validate()?;
         let mut credential = Self::extract(headers, json)?;
@@ -263,7 +263,7 @@ JNrRuoEUXpabUzGB8QIDAQAB
             ])
             .send()
             .await?
-            .error_for_status()?
+            .error_for_status_ext()?
             .json::<serde_json::Value>()
             .await?
             .validate()?;

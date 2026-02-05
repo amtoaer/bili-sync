@@ -1,7 +1,7 @@
 use anyhow::{Result, ensure};
 use reqwest::Method;
 
-use crate::bilibili::{BiliClient, Credential, Validate};
+use crate::bilibili::{BiliClient, Credential, ErrorForStatusExt, Validate};
 
 pub struct Me<'a> {
     client: &'a BiliClient,
@@ -29,7 +29,7 @@ impl<'a> Me<'a> {
             .query(&[("up_mid", &self.mid())])
             .send()
             .await?
-            .error_for_status()?
+            .error_for_status_ext()?
             .json::<serde_json::Value>()
             .await?
             .validate()?;
@@ -53,7 +53,7 @@ impl<'a> Me<'a> {
             .query(&[("pn", page_num), ("ps", page_size)])
             .send()
             .await?
-            .error_for_status()?
+            .error_for_status_ext()?
             .json::<serde_json::Value>()
             .await?
             .validate()?;
@@ -87,7 +87,7 @@ impl<'a> Me<'a> {
         let mut resp = request
             .send()
             .await?
-            .error_for_status()?
+            .error_for_status_ext()?
             .json::<serde_json::Value>()
             .await?
             .validate()?;

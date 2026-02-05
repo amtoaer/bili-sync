@@ -7,7 +7,7 @@ use reqwest::Method;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::bilibili::{BiliClient, Credential, Validate, VideoInfo};
+use crate::bilibili::{BiliClient, Credential, ErrorForStatusExt, Validate, VideoInfo};
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug, Default, Copy)]
 pub enum CollectionType {
@@ -136,7 +136,7 @@ impl<'a> Collection<'a> {
             .query(&[("series_id", self.collection.sid.as_str())])
             .send()
             .await?
-            .error_for_status()?
+            .error_for_status_ext()?
             .json::<Value>()
             .await?
             .validate()
@@ -176,7 +176,12 @@ impl<'a> Collection<'a> {
                     ("page_size", "30"),
                 ]),
         };
-        req.send().await?.error_for_status()?.json::<Value>().await?.validate()
+        req.send()
+            .await?
+            .error_for_status_ext()?
+            .json::<Value>()
+            .await?
+            .validate()
     }
 
     pub fn into_video_stream(self) -> impl Stream<Item = Result<VideoInfo>> + 'a {

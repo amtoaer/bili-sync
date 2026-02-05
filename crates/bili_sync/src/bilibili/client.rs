@@ -31,7 +31,7 @@ impl Client {
         );
         headers.insert(
             header::REFERER,
-            header::HeaderValue::from_static("https://www.bilibili.com"),
+            header::HeaderValue::from_static("https://www.bilibili.com/"),
         );
         Self(
             reqwest::Client::builder()

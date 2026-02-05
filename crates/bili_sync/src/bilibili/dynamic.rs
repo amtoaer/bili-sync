@@ -5,7 +5,7 @@ use futures::Stream;
 use reqwest::Method;
 use serde_json::Value;
 
-use crate::bilibili::{BiliClient, Credential, MIXIN_KEY, Validate, VideoInfo, WbiSign};
+use crate::bilibili::{BiliClient, Credential, ErrorForStatusExt, MIXIN_KEY, Validate, VideoInfo, WbiSign};
 
 pub struct Dynamic<'a> {
     client: &'a BiliClient,
@@ -38,7 +38,7 @@ impl<'a> Dynamic<'a> {
             .wbi_sign(MIXIN_KEY.load().as_deref())?
             .send()
             .await?
-            .error_for_status()?
+            .error_for_status_ext()?
             .json::<serde_json::Value>()
             .await?
             .validate()
