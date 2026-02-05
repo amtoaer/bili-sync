@@ -1,35 +1,35 @@
 import type {
-	ApiResponse,
-	VideoSourcesResponse,
-	VideosRequest,
-	VideosResponse,
-	VideoResponse,
-	ResetVideoResponse,
-	ClearAndResetVideoResponse,
-	ResetFilteredVideosResponse,
-	UpdateVideoStatusRequest,
-	UpdateVideoStatusResponse,
 	ApiError,
-	FavoritesResponse,
+	ApiResponse,
+	ClearAndResetVideoResponse,
 	CollectionsResponse,
-	UppersResponse,
-	InsertFavoriteRequest,
-	InsertCollectionRequest,
-	InsertSubmissionRequest,
-	VideoSourcesDetailsResponse,
-	UpdateVideoSourceRequest,
 	Config,
 	DashBoardResponse,
+	FavoritesResponse,
+	QrcodeGenerateResponse as GenerateQrcodeResponse,
+	InsertCollectionRequest,
+	InsertFavoriteRequest,
+	InsertSubmissionRequest,
+	Notifier,
+	QrcodePollResponse as PollQrcodeResponse,
+	ResetFilteredVideosResponse,
+	ResetFilteredVideoStatusRequest,
+	ResetVideoResponse,
+	ResetVideoStatusRequest,
 	SysInfo,
 	TaskStatus,
-	ResetVideoStatusRequest,
-	UpdateVideoSourceResponse,
-	Notifier,
 	UpdateFilteredVideoStatusRequest,
 	UpdateFilteredVideoStatusResponse,
-	ResetFilteredVideoStatusRequest,
-	QrcodeGenerateResponse as GenerateQrcodeResponse,
-	QrcodePollResponse as PollQrcodeResponse
+	UpdateVideoSourceRequest,
+	UpdateVideoSourceResponse,
+	UpdateVideoStatusRequest,
+	UpdateVideoStatusResponse,
+	UppersResponse,
+	VideoResponse,
+	VideoSourcesDetailsResponse,
+	VideoSourcesResponse,
+	VideosRequest,
+	VideosResponse
 } from './types';
 import { wsManager } from './ws';
 
@@ -61,6 +61,10 @@ class ApiClient {
 			delete this.defaultHeaders['Authorization'];
 			localStorage.removeItem('authToken');
 		}
+	}
+
+	getAuthToken(): string | null {
+		return this.defaultHeaders['Authorization'] || localStorage.getItem('authToken');
 	}
 
 	// 清除认证 token
@@ -340,6 +344,7 @@ const api = {
 		apiClient.subscribeToTasks(onMessage),
 
 	setAuthToken: (token: string) => apiClient.setAuthToken(token),
+	getAuthToken: () => apiClient.getAuthToken(),
 	clearAuthToken: () => apiClient.clearAuthToken()
 };
 
