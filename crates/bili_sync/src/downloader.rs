@@ -14,7 +14,7 @@ use tokio::task::JoinSet;
 use tokio_util::io::StreamReader;
 
 use crate::bilibili::Client;
-use crate::config::ConcurrentDownloadLimit;
+use crate::config::{ARGS, ConcurrentDownloadLimit};
 
 pub struct Downloader {
     client: Client,
@@ -70,7 +70,7 @@ impl Downloader {
             self.multi_fetch_internal(audio_urls, true, concurrent_download)
         )?;
         let final_temp_file = TempFile::new().await?;
-        let output = Command::new("ffmpeg")
+        let output = Command::new(ARGS.ffmpeg_path.as_deref().unwrap_or("ffmpeg"))
             .args([
                 "-i",
                 video_temp_file.file_path().to_string_lossy().as_ref(),

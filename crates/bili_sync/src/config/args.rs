@@ -20,6 +20,9 @@ pub struct Args {
 
     #[arg(short, long, env = "BILI_SYNC_CONFIG_DIR")]
     pub config_dir: Option<PathBuf>,
+
+    #[arg(short, long, env = "BILI_SYNC_FFMPEG_PATH")]
+    pub ffmpeg_path: Option<String>,
 }
 
 mod built_info {
