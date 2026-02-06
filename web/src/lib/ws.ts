@@ -1,4 +1,5 @@
 import { toast } from 'svelte-sonner';
+import api from './api';
 import type { SysInfo, TaskStatus } from './types';
 
 // 支持的事件类型
@@ -61,7 +62,7 @@ export class WebSocketManager {
 
 		this.connectionPromise = new Promise((resolve, reject) => {
 			this.connecting = true;
-			const token = localStorage.getItem('authToken') || '';
+			const token = api.getAuthToken() || '';
 
 			try {
 				const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';

@@ -110,6 +110,7 @@
 			toast.error('加载配置失败', {
 				description: (error as ApiError).message
 			});
+			throw error;
 		} finally {
 			loading = false;
 		}
@@ -123,12 +124,13 @@
 
 		try {
 			api.setAuthToken(frontendToken.trim());
-			localStorage.setItem('authToken', frontendToken.trim());
-			loadConfig();
+			await loadConfig();
 			toast.success('前端认证成功');
 		} catch (error) {
 			console.error('前端认证失败:', error);
-			toast.error('认证失败，请检查Token是否正确');
+			toast.error('认证失败，请检查Token是否正确', {
+				description: (error as ApiError).message
+			});
 		}
 	}
 
@@ -191,13 +193,7 @@
 
 	onMount(() => {
 		setBreadcrumb([{ label: '设置' }]);
-
-		const savedToken = localStorage.getItem('authToken');
-		if (savedToken) {
-			frontendToken = savedToken;
-			api.setAuthToken(savedToken);
-		}
-
+		frontendToken = api.getAuthToken() || '';
 		loadConfig();
 	});
 </script>
@@ -233,7 +229,6 @@
 						onclick={() => {
 							formData = null;
 							config = null;
-							localStorage.removeItem('authToken');
 							api.clearAuthToken();
 							frontendToken = '';
 						}}
