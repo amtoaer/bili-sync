@@ -1,9 +1,11 @@
 <script lang="ts">
-	import CheckCircleIcon from '@lucide/svelte/icons/check-circle';
-	import XCircleIcon from '@lucide/svelte/icons/x-circle';
-	import ClockIcon from '@lucide/svelte/icons/clock';
-	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
-	import TrashIcon from '@lucide/svelte/icons/trash';
+	import {
+		CheckCircleIcon,
+		XCircleIcon,
+		ClockIcon,
+		ChevronDownIcon,
+		TrashIcon
+	} from '@lucide/svelte/icons';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { type StatusFilterValue } from '$lib/stores/filter';

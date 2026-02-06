@@ -8,16 +8,18 @@
 	import * as Table from '$lib/components/ui/table/index.js';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
-	import EditIcon from '@lucide/svelte/icons/edit';
-	import FolderIcon from '@lucide/svelte/icons/folder';
-	import HeartIcon from '@lucide/svelte/icons/heart';
-	import UserIcon from '@lucide/svelte/icons/user';
-	import ClockIcon from '@lucide/svelte/icons/clock';
-	import PlusIcon from '@lucide/svelte/icons/plus';
-	import InfoIcon from '@lucide/svelte/icons/info';
-	import TrashIcon2 from '@lucide/svelte/icons/trash-2';
-	import CheckCircleIcon from '@lucide/svelte/icons/check-circle';
-	import XCircleIcon from '@lucide/svelte/icons/x-circle';
+	import {
+		EditIcon,
+		FolderIcon,
+		HeartIcon,
+		UserIcon,
+		ClockIcon,
+		PlusIcon,
+		InfoIcon,
+		Trash2Icon,
+		CheckCircleIcon,
+		XCircleIcon
+	} from '@lucide/svelte/icons';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { toast } from 'svelte-sonner';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
@@ -417,7 +419,7 @@
 																onclick={() => openRemoveDialog(key, source, index)}
 																class="h-8 w-8 p-0"
 															>
-																<TrashIcon2 class="h-3 w-3" />
+																<Trash2Icon class="h-3 w-3" />
 															</Button>
 														</Tooltip.Trigger>
 														<Tooltip.Content>

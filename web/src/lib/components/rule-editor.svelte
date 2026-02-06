@@ -5,9 +5,7 @@
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
-	import PlusIcon from '@lucide/svelte/icons/plus';
-	import MinusIcon from '@lucide/svelte/icons/minus';
-	import XIcon from '@lucide/svelte/icons/x';
+	import { PlusIcon, MinusIcon, XIcon } from '@lucide/svelte/icons';
 	import type { Rule, RuleTarget, Condition } from '$lib/types';
 	import { onMount } from 'svelte';
 

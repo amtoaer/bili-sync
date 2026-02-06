@@ -7,12 +7,14 @@
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import type { VideoInfo } from '$lib/types';
-	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
-	import InfoIcon from '@lucide/svelte/icons/info';
-	import BrushCleaningIcon from '@lucide/svelte/icons/brush-cleaning';
-	import UserIcon from '@lucide/svelte/icons/user';
-	import SquareArrowOutUpRightIcon from '@lucide/svelte/icons/square-arrow-out-up-right';
-	import MoreHorizontalIcon from '@lucide/svelte/icons/more-horizontal';
+	import {
+		RotateCcwIcon,
+		InfoIcon,
+		BrushCleaningIcon,
+		UserIcon,
+		SquareArrowOutUpRightIcon,
+		MoreHorizontalIcon
+	} from '@lucide/svelte/icons';
 	import { goto } from '$app/navigation';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 

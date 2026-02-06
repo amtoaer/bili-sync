@@ -13,19 +13,21 @@
 	import CloudDownloadIcon from '@lucide/svelte/icons/cloud-download';
 	import api from '$lib/api';
 	import type { DashBoardResponse, SysInfo, ApiError, TaskStatus } from '$lib/types';
-	import DatabaseIcon from '@lucide/svelte/icons/database';
-	import HeartIcon from '@lucide/svelte/icons/heart';
-	import FolderIcon from '@lucide/svelte/icons/folder';
-	import UserIcon from '@lucide/svelte/icons/user';
-	import ClockIcon from '@lucide/svelte/icons/clock';
-	import VideoIcon from '@lucide/svelte/icons/video';
-	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
-	import CpuIcon from '@lucide/svelte/icons/cpu';
-	import MemoryStickIcon from '@lucide/svelte/icons/memory-stick';
-	import PlayIcon from '@lucide/svelte/icons/play';
-	import CheckCircleIcon from '@lucide/svelte/icons/check-circle';
-	import CalendarIcon from '@lucide/svelte/icons/calendar';
-	import DownloadIcon from '@lucide/svelte/icons/download';
+	import {
+		DatabaseIcon,
+		HeartIcon,
+		FolderIcon,
+		UserIcon,
+		ClockIcon,
+		VideoIcon,
+		HardDriveIcon,
+		CpuIcon,
+		MemoryStickIcon,
+		PlayIcon,
+		CheckCircleIcon,
+		CalendarIcon,
+		DownloadIcon
+	} from '@lucide/svelte/icons';
 
 	let dashboardData: DashBoardResponse | null = null;
 	let sysInfo: SysInfo | null = null;
