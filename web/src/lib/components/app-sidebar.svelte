@@ -1,7 +1,7 @@
 <script lang="ts">
 	import {
 		DatabaseIcon,
-		FileVideoIcon,
+		FilePlayIcon,
 		BotIcon,
 		ChartPieIcon,
 		HeartIcon,
@@ -47,7 +47,7 @@
 				items: [
 					{
 						title: '视频',
-						icon: FileVideoIcon,
+						icon: FilePlayIcon,
 						href: '/videos'
 					},
 					{

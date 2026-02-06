@@ -24,7 +24,7 @@
 		CpuIcon,
 		MemoryStickIcon,
 		PlayIcon,
-		CheckCircleIcon,
+		CircleCheckBigIcon,
 		CalendarIcon,
 		DownloadIcon
 	} from '@lucide/svelte/icons';
@@ -339,7 +339,7 @@
 								</div>
 								<div class="flex items-center justify-between">
 									<div class="flex items-center gap-2">
-										<CheckCircleIcon class="text-muted-foreground h-4 w-4" />
+										<CircleCheckBigIcon class="text-muted-foreground h-4 w-4" />
 										<span class="text-sm">运行结束</span>
 									</div>
 									<span class="text-muted-foreground text-sm">

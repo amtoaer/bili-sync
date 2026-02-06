@@ -6,7 +6,7 @@
 	import api from '$lib/api';
 	import SquareArrowOutUpRightIcon from '@lucide/svelte/icons/square-arrow-out-up-right';
 	import type { ApiError, VideoResponse, UpdateVideoStatusRequest } from '$lib/types';
-	import { RotateCcwIcon, EditIcon, BrushCleaningIcon } from '@lucide/svelte/icons';
+	import { RotateCcwIcon, SquarePenIcon, BrushCleaningIcon } from '@lucide/svelte/icons';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
 	import { appStateStore, ToQuery } from '$lib/stores/filter';
 	import VideoCard from '$lib/components/video-card.svelte';
@@ -173,7 +173,7 @@
 					onclick={() => (statusEditorOpen = true)}
 					disabled={statusEditorLoading}
 				>
-					<EditIcon class="mr-2 h-4 w-4" />
+					<SquarePenIcon class="mr-2 h-4 w-4" />
 					编辑状态
 				</Button>
 				<Button

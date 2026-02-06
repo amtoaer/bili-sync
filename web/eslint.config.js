@@ -39,6 +39,9 @@ export default defineConfig(
 				parser: ts.parser,
 				svelteConfig
 			}
+		},
+		rules: {
+			'@typescript-eslint/no-deprecated': 'error'
 		}
 	}
 );

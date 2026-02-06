@@ -1,7 +1,7 @@
 <script lang="ts">
 	import {
-		CheckCircleIcon,
-		XCircleIcon,
+		CircleCheckBigIcon,
+		CircleXIcon,
 		ClockIcon,
 		ChevronDownIcon,
 		TrashIcon
@@ -29,12 +29,12 @@
 		{
 			value: 'failed' as const,
 			label: '仅失败',
-			icon: XCircleIcon
+			icon: CircleXIcon
 		},
 		{
 			value: 'succeeded' as const,
 			label: '仅成功',
-			icon: CheckCircleIcon
+			icon: CircleCheckBigIcon
 		},
 		{
 			value: 'waiting' as const,
@@ -75,7 +75,7 @@
 							{option.label}
 						</span>
 						{#if value === option.value}
-							<CheckCircleIcon class="ml-auto size-3" />
+							<CircleCheckBigIcon class="ml-auto size-3" />
 						{/if}
 					</DropdownMenu.Item>
 				{/each}

@@ -13,7 +13,7 @@
 		BrushCleaningIcon,
 		UserIcon,
 		SquareArrowOutUpRightIcon,
-		MoreHorizontalIcon
+		EllipsisIcon
 	} from '@lucide/svelte/icons';
 	import { goto } from '$app/navigation';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
@@ -206,7 +206,7 @@
 									variant="outline"
 									class="hover:bg-accent hover:text-accent-foreground h-8 shrink-0 cursor-pointer px-2"
 								>
-									<MoreHorizontalIcon class="h-3 w-3" />
+									<EllipsisIcon class="h-3 w-3" />
 								</Button>
 							{/snippet}
 						</DropdownMenu.Trigger>

@@ -9,7 +9,7 @@
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import {
-		EditIcon,
+		SquarePenIcon,
 		FolderIcon,
 		HeartIcon,
 		UserIcon,
@@ -17,8 +17,8 @@
 		PlusIcon,
 		InfoIcon,
 		Trash2Icon,
-		CheckCircleIcon,
-		XCircleIcon
+		CircleCheckBigIcon,
+		CircleXIcon
 	} from '@lucide/svelte/icons';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { toast } from 'svelte-sonner';
@@ -366,14 +366,14 @@
 													<Badge
 														class="flex w-fit items-center gap-1.5 bg-emerald-700 text-emerald-100"
 													>
-														<CheckCircleIcon class="h-3 w-3" />
+														<CircleCheckBigIcon class="h-3 w-3" />
 														已启用{#if key === 'submissions' && source.useDynamicApi !== null}{source.useDynamicApi
 																? '（动态 API）'
 																: ''}{/if}
 													</Badge>
 												{:else}
 													<Badge class="flex w-fit items-center gap-1.5 bg-rose-700 text-rose-100 ">
-														<XCircleIcon class="h-3 w-3" />
+														<CircleXIcon class="h-3 w-3" />
 														已禁用
 													</Badge>
 												{/if}
@@ -388,7 +388,7 @@
 															onclick={() => openEditDialog(key, source, index)}
 															class="h-8 w-8 p-0"
 														>
-															<EditIcon class="h-3 w-3" />
+															<SquarePenIcon class="h-3 w-3" />
 														</Button>
 													</Tooltip.Trigger>
 													<Tooltip.Content>
