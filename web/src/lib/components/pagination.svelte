@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button/index.js';
-	import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
-	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
-	import ChevronsLeftIcon from '@lucide/svelte/icons/chevrons-left';
-	import ChevronsRightIcon from '@lucide/svelte/icons/chevrons-right';
+	import {
+		ChevronLeftIcon,
+		ChevronRightIcon,
+		ChevronsLeftIcon,
+		ChevronsRightIcon
+	} from '@lucide/svelte/icons';
 
 	export let currentPage: number = 0;
 	export let totalPages: number = 0;

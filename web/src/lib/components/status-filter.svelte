@@ -1,9 +1,11 @@
 <script lang="ts">
-	import CheckCircleIcon from '@lucide/svelte/icons/check-circle';
-	import XCircleIcon from '@lucide/svelte/icons/x-circle';
-	import ClockIcon from '@lucide/svelte/icons/clock';
-	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
-	import TrashIcon from '@lucide/svelte/icons/trash';
+	import {
+		CircleCheckBigIcon,
+		CircleXIcon,
+		ClockIcon,
+		ChevronDownIcon,
+		TrashIcon
+	} from '@lucide/svelte/icons';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { type StatusFilterValue } from '$lib/stores/filter';
@@ -27,12 +29,12 @@
 		{
 			value: 'failed' as const,
 			label: '仅失败',
-			icon: XCircleIcon
+			icon: CircleXIcon
 		},
 		{
 			value: 'succeeded' as const,
 			label: '仅成功',
-			icon: CheckCircleIcon
+			icon: CircleCheckBigIcon
 		},
 		{
 			value: 'waiting' as const,
@@ -73,7 +75,7 @@
 							{option.label}
 						</span>
 						{#if value === option.value}
-							<CheckCircleIcon class="ml-auto size-3" />
+							<CircleCheckBigIcon class="ml-auto size-3" />
 						{/if}
 					</DropdownMenu.Item>
 				{/each}

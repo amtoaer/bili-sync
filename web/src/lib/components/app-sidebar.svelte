@@ -1,14 +1,16 @@
 <script lang="ts">
-	import DatabaseIcon from '@lucide/svelte/icons/database';
-	import FileVideoIcon from '@lucide/svelte/icons/file-video';
-	import BotIcon from '@lucide/svelte/icons/bot';
-	import ChartPieIcon from '@lucide/svelte/icons/chart-pie';
-	import HeartIcon from '@lucide/svelte/icons/heart';
-	import FoldersIcon from '@lucide/svelte/icons/folders';
-	import UserIcon from '@lucide/svelte/icons/user';
-	import Settings2Icon from '@lucide/svelte/icons/settings-2';
-	import SquareTerminalIcon from '@lucide/svelte/icons/square-terminal';
-	import PaletteIcon from '@lucide/svelte/icons/palette';
+	import {
+		DatabaseIcon,
+		FilePlayIcon,
+		BotIcon,
+		ChartPieIcon,
+		HeartIcon,
+		FoldersIcon,
+		UserIcon,
+		Settings2Icon,
+		SquareTerminalIcon,
+		PaletteIcon
+	} from '@lucide/svelte/icons';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { mode, toggleMode } from 'mode-watcher';
 	import type { ComponentProps } from 'svelte';
@@ -45,7 +47,7 @@
 				items: [
 					{
 						title: '视频',
-						icon: FileVideoIcon,
+						icon: FilePlayIcon,
 						href: '/videos'
 					},
 					{

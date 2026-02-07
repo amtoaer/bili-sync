@@ -1,5 +1,5 @@
 <script lang="ts">
-	import SearchIcon from '@lucide/svelte/icons/search';
+	import { SearchIcon } from '@lucide/svelte/icons';
 	import * as Input from '$lib/components/ui/input/index.js';
 
 	export let placeholder: string = '搜索视频..';

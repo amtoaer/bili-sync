@@ -12,8 +12,7 @@
 	import PasswordInput from '$lib/components/custom/password-input.svelte';
 	import QrLogin from '$lib/components/custom/qr-login.svelte';
 	import NotifierDialog from './NotifierDialog.svelte';
-	import InfoIcon from '@lucide/svelte/icons/info';
-	import QrCodeIcon from '@lucide/svelte/icons/qr-code';
+	import { InfoIcon, QrCodeIcon } from '@lucide/svelte/icons';
 	import api from '$lib/api';
 	import { toast } from 'svelte-sonner';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';

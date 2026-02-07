@@ -3,8 +3,7 @@
 	import Pagination from '$lib/components/pagination.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import EditIcon from '@lucide/svelte/icons/edit';
-	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
+	import { SquarePenIcon, RotateCcwIcon } from '@lucide/svelte/icons';
 	import api from '$lib/api';
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -368,7 +367,7 @@
 				onclick={() => (updateAllDialogOpen = true)}
 				disabled={updatingAll || loading}
 			>
-				<EditIcon class="mr-1.5 h-3 w-3" />
+				<SquarePenIcon class="mr-1.5 h-3 w-3" />
 				{hasFilters ? '编辑筛选' : '编辑全部'}
 			</Button>
 			<Button

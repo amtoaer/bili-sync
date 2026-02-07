@@ -3,13 +3,15 @@
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import SubscriptionDialog from './subscription-dialog.svelte';
-	import UserIcon from '@lucide/svelte/icons/user';
-	import VideoIcon from '@lucide/svelte/icons/video';
-	import FolderIcon from '@lucide/svelte/icons/folder';
-	import HeartIcon from '@lucide/svelte/icons/heart';
-	import CheckIcon from '@lucide/svelte/icons/check';
-	import PlusIcon from '@lucide/svelte/icons/plus';
-	import XIcon from '@lucide/svelte/icons/x';
+	import {
+		UserIcon,
+		VideoIcon,
+		FolderIcon,
+		HeartIcon,
+		CheckIcon,
+		PlusIcon,
+		XIcon
+	} from '@lucide/svelte/icons';
 	import type { Followed } from '$lib/types';
 
 	export let item: Followed;
