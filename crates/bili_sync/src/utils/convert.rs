@@ -10,6 +10,7 @@ impl VideoInfo {
         let default = bili_sync_entity::video::ActiveModel {
             id: NotSet,
             created_at: NotSet,
+            should_download: NotSet,
             // 此处不使用 ActiveModel::default() 是为了让其它字段有默认值
             ..bili_sync_entity::video::Model::default().into_active_model()
         };
@@ -49,7 +50,7 @@ impl VideoInfo {
                 pubtime: Set(pubtime.naive_utc()),
                 favtime: Set(fav_time.naive_utc()),
                 download_status: Set(0),
-                valid: Set(attr == 0),
+                valid: Set(attr == 0 || attr == 4),
                 upper_id: Set(upper.mid),
                 upper_name: Set(upper.name),
                 upper_face: Set(upper.face),

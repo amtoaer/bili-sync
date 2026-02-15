@@ -174,6 +174,7 @@ pub async fn clear_and_reset_video_status(
     let mut video_info = video_info.into_active_model();
     video_info.single_page = Set(None);
     video_info.download_status = Set(0);
+    video_info.valid = Set(true);
     let video_info = video_info.update(&txn).await?;
     page::Entity::delete_many()
         .filter(page::Column::VideoId.eq(id))
@@ -193,6 +194,7 @@ pub async fn clear_and_reset_video_status(
             bvid: video_info.bvid,
             name: video_info.name,
             upper_name: video_info.upper_name,
+            valid: video_info.valid,
             should_download: video_info.should_download,
             download_status: video_info.download_status,
         },
