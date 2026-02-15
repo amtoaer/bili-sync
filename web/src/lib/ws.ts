@@ -26,13 +26,11 @@ interface ClientEvent {
 type LogsCallback = (data: string) => void;
 type TasksCallback = (data: TaskStatus) => void;
 type SysInfoCallback = (data: SysInfo) => void;
-type ErrorCallback = (error: Event) => void;
 
 export class WebSocketManager {
 	private static instance: WebSocketManager;
 	private socket: WebSocket | null = null;
 	private connected = false;
-	private connecting = false;
 	private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 	private reconnectAttempts = 0;
 	private maxReconnectAttempts = 5;
@@ -41,7 +39,6 @@ export class WebSocketManager {
 	private logsSubscribers: Set<LogsCallback> = new Set();
 	private tasksSubscribers: Set<TasksCallback> = new Set();
 	private sysInfoSubscribers: Set<SysInfoCallback> = new Set();
-	private errorSubscribers: Set<ErrorCallback> = new Set();
 
 	private subscribedEvents: Set<EventType> = new Set();
 	private connectionPromise: Promise<void> | null = null;
@@ -61,7 +58,6 @@ export class WebSocketManager {
 		if (this.connectionPromise) return this.connectionPromise;
 
 		this.connectionPromise = new Promise((resolve, reject) => {
-			this.connecting = true;
 			const token = api.getAuthToken() || '';
 
 			try {
@@ -73,7 +69,6 @@ export class WebSocketManager {
 				);
 				this.socket.onopen = () => {
 					this.connected = true;
-					this.connecting = false;
 					this.reconnectAttempts = 0;
 					this.connectionPromise = null;
 					this.resubscribeEvents();
@@ -84,20 +79,17 @@ export class WebSocketManager {
 
 				this.socket.onclose = () => {
 					this.connected = false;
-					this.connecting = false;
 					this.connectionPromise = null;
 					this.scheduleReconnect();
 				};
 
 				this.socket.onerror = (error) => {
 					console.error('WebSocket error:', error);
-					this.connecting = false;
 					this.connectionPromise = null;
 					reject(error);
 					toast.error('WebSocket 连接发生错误，请检查网络或稍后重试');
 				};
 			} catch (error) {
-				this.connecting = false;
 				this.connectionPromise = null;
 				reject(error);
 				console.error('Failed to create WebSocket:', error);
@@ -273,7 +265,6 @@ export class WebSocketManager {
 		}
 
 		this.connected = false;
-		this.connecting = false;
 		this.connectionPromise = null;
 		this.subscribedEvents.clear();
 	}
