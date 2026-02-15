@@ -57,11 +57,16 @@
 
 	function getOverallStatus(
 		downloadStatus: number[],
-		shouldDownload: boolean
+		shouldDownload: boolean,
+		valid: boolean
 	): {
 		text: string;
 		style: string;
 	} {
+		if (!valid) {
+			// 视频属性表明已失效，或由于各种条件判断（充电视频等）判定为无效的情况
+			return { text: '无效', style: 'bg-gray-100 text-gray-700' };
+		}
 		if (!shouldDownload) {
 			// 被过滤规则排除，显示为“跳过”
 			return { text: '跳过', style: 'bg-gray-100 text-gray-700' };
@@ -90,7 +95,7 @@
 		return defaultTaskNames[index] || `任务${index + 1}`;
 	}
 
-	$: overallStatus = getOverallStatus(video.download_status, video.should_download);
+	$: overallStatus = getOverallStatus(video.download_status, video.should_download, video.valid);
 	$: completed = video.download_status.filter((status) => status === 7).length;
 	$: total = video.download_status.length;
 
