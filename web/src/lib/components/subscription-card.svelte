@@ -148,7 +148,7 @@
 		? 'opacity-60'
 		: ''}"
 >
-	<CardHeader class="flex-shrink-0">
+	<CardHeader class="shrink-0">
 		<div class="flex items-start gap-3">
 			<!-- 头像或图标 - 简化设计 -->
 			<div

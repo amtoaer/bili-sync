@@ -24,7 +24,7 @@
 	let statusEditorLoading = false;
 
 	async function loadVideoDetail() {
-		const videoId = parseInt($page.params.id);
+		const videoId = parseInt($page.params.id!);
 		if (isNaN(videoId)) {
 			error = '无效的视频 ID';
 			toast.error('无效的视频 ID');
@@ -212,14 +212,7 @@
 
 		<div style="margin-bottom: 1rem;">
 			<VideoCard
-				video={{
-					id: videoData.video.id,
-					bvid: videoData.video.bvid,
-					name: videoData.video.name,
-					upper_name: videoData.video.upper_name,
-					download_status: videoData.video.download_status,
-					should_download: videoData.video.should_download
-				}}
+				video={videoData.video}
 				mode="detail"
 				showActions={false}
 				taskNames={['视频封面', '视频信息', 'UP 主头像', 'UP 主信息', '分页下载']}
@@ -254,7 +247,8 @@
 								name: `P${pageInfo.pid}: ${pageInfo.name}`,
 								upper_name: '',
 								download_status: pageInfo.download_status,
-								should_download: videoData.video.should_download
+								should_download: videoData.video.should_download,
+								valid: videoData.video.valid
 							}}
 							mode="page"
 							showActions={false}
