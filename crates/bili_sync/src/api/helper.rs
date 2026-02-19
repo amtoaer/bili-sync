@@ -116,10 +116,7 @@ async fn execute_page_update_batch(
     txn: &DatabaseTransaction,
     pages: impl Iterator<Item = (i32, u32)>,
 ) -> Result<(), sea_orm::DbErr> {
-    let values = pages
-        .map(|p| format!("({}, {})", p.0, p.1))
-        .collect::<Vec<_>>()
-        .join(", ");
+    let values = pages.map(|p| format!("({}, {})", p.0, p.1)).join(", ");
     if values.is_empty() {
         return Ok(());
     }
