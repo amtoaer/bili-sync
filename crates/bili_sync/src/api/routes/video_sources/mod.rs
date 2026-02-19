@@ -7,6 +7,7 @@ use axum::routing::{get, post, put};
 use bili_sync_entity::rule::Rule;
 use bili_sync_entity::*;
 use bili_sync_migration::Expr;
+use itertools::Itertools;
 use sea_orm::ActiveValue::Set;
 use sea_orm::entity::prelude::*;
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QuerySelect, QueryTrait, TransactionTrait};
@@ -347,11 +348,7 @@ pub async fn evaluate_video_source(
             SET should_download = tempdata.should_download \
             FROM tempdata \
             WHERE video.id = tempdata.id",
-            chunk
-                .iter()
-                .map(|item| format!("({}, {})", item.0, item.1))
-                .collect::<Vec<_>>()
-                .join(", ")
+            chunk.iter().map(|item| format!("({}, {})", item.0, item.1)).join(", ")
         );
         txn.execute_unprepared(&sql).await?;
     }

@@ -3,6 +3,7 @@ use std::sync::{Arc, LazyLock};
 
 use anyhow::{Result, bail};
 use croner::parser::CronParser;
+use itertools::Itertools;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
@@ -103,13 +104,7 @@ impl Config {
             }
         };
         if !errors.is_empty() {
-            bail!(
-                errors
-                    .into_iter()
-                    .map(|e| format!("- {}", e))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            );
+            bail!(errors.into_iter().map(|e| format!("- {}", e)).join("\n"));
         }
         Ok(())
     }
