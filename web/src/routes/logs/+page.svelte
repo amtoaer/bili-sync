@@ -1,22 +1,24 @@
 <script lang="ts">
 	import api from '$lib/api';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { Badge } from '$lib/components/ui/badge';
 
 	let unsubscribeLog: (() => void) | null = null;
 	let logs: Array<{ timestamp: string; level: string; message: string }> = [];
 	let shouldAutoScroll = true;
 	let main: HTMLElement | null = null;
+	let scrollTimer: ReturnType<typeof setTimeout> | null = null;
 
 	function checkScrollPosition() {
 		if (main) {
 			const { scrollTop, scrollHeight, clientHeight } = main;
-			shouldAutoScroll = scrollTop + clientHeight >= scrollHeight - 5;
+			shouldAutoScroll = scrollTop + clientHeight >= scrollHeight - 50;
 		}
 	}
 
-	function scrollToBottom() {
+	async function scrollToBottom() {
+		await tick();
 		if (shouldAutoScroll && main) {
 			main.scrollTop = main.scrollHeight;
 		}
@@ -28,9 +30,11 @@
 		main?.addEventListener('scroll', checkScrollPosition);
 		unsubscribeLog = api.subscribeToLogs((data: string) => {
 			logs = [...logs.slice(-499), JSON.parse(data)];
-			setTimeout(scrollToBottom, 0);
+			if (scrollTimer) clearTimeout(scrollTimer);
+			scrollTimer = setTimeout(scrollToBottom, 20);
 		});
 		return () => {
+			if (scrollTimer) clearTimeout(scrollTimer);
 			main?.removeEventListener('scroll', checkScrollPosition);
 			if (unsubscribeLog) {
 				unsubscribeLog();
