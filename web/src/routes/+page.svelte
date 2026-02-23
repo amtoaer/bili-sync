@@ -95,6 +95,7 @@
 
 		unsubscribeSysInfo = api.subscribeToSysInfo((data) => {
 			sysInfo = data;
+			pushSysInfo(data);
 		});
 		unsubscribeTasks = api.subscribeToTasks((data: TaskStatus) => {
 			taskStatus = data;
@@ -145,21 +146,21 @@
 	let memoryHistory: Array<{ time: number; used: number; process: number }> = [];
 	let cpuHistory: Array<{ time: number; used: number; process: number }> = [];
 
-	$: if (sysInfo) {
+	function pushSysInfo(data: SysInfo) {
 		memoryHistory = [
 			...memoryHistory.slice(-14),
 			{
-				time: sysInfo.timestamp,
-				used: sysInfo.used_memory,
-				process: sysInfo.process_memory
+				time: data.timestamp,
+				used: data.used_memory,
+				process: data.process_memory
 			}
 		];
 		cpuHistory = [
 			...cpuHistory.slice(-14),
 			{
-				time: sysInfo.timestamp,
-				used: sysInfo.used_cpu,
-				process: sysInfo.process_cpu
+				time: data.timestamp,
+				used: data.used_cpu,
+				process: data.process_cpu
 			}
 		];
 	}
