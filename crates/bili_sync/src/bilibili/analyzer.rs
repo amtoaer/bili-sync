@@ -263,10 +263,10 @@ impl PageAnalyzer {
             }
         }
         if !filter_option.no_hires
-            && let Some(flac) = self.info.pointer_mut("/dash/flac/audio")
+            && let Some(flac) = self.info.pointer_mut("/dash/flac/audio").and_then(|f| f.as_object_mut())
         {
             let (Some(url), Some(quality)) = (flac["baseUrl"].as_str(), flac["id"].as_u64()) else {
-                bail!("invalid flac stream, flac content: {}", flac);
+                bail!("invalid flac stream, flac content: {:?}", flac);
             };
             let quality = AudioQuality::from_repr(quality as usize).context("invalid flac stream quality")?;
             if quality >= filter_option.audio_min_quality && quality <= filter_option.audio_max_quality {
