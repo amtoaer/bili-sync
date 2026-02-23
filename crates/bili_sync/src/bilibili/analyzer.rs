@@ -263,7 +263,10 @@ impl PageAnalyzer {
             }
         }
         if !filter_option.no_hires
-            && let Some(flac) = self.info.pointer_mut("/dash/flac/audio").and_then(|f| f.as_object_mut())
+            && let Some(flac) = self
+                .info
+                .pointer_mut("/dash/flac/audio")
+                .and_then(|f| f.as_object_mut())
         {
             let (Some(url), Some(quality)) = (flac["baseUrl"].as_str(), flac["id"].as_u64()) else {
                 bail!("invalid flac stream, flac content: {:?}", flac);
