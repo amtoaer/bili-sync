@@ -29,11 +29,13 @@
 		DownloadIcon
 	} from '@lucide/svelte/icons';
 
-	let dashboardData: DashBoardResponse | null = null;
-	let sysInfo: SysInfo | null = null;
-	let taskStatus: TaskStatus | null = null;
-	let loading = false;
-	let triggering = false;
+	let dashboardData = $state<DashBoardResponse | null>(null);
+	let sysInfo = $state<SysInfo | null>(null);
+	let taskStatus = $state<TaskStatus | null>(null);
+	let loading = $state(false);
+	let triggering = $state(false);
+	let memoryHistory = $state<Array<{ time: number; used: number; process: number }>>([]);
+	let cpuHistory = $state<Array<{ time: number; used: number; process: number }>>([]);
 	let unsubscribeSysInfo: (() => void) | null = null;
 	let unsubscribeTasks: (() => void) | null = null;
 
@@ -90,30 +92,6 @@
 		}
 	}
 
-	onMount(() => {
-		setBreadcrumb([{ label: '仪表盘' }]);
-
-		unsubscribeSysInfo = api.subscribeToSysInfo((data) => {
-			sysInfo = data;
-			pushSysInfo(data);
-		});
-		unsubscribeTasks = api.subscribeToTasks((data: TaskStatus) => {
-			taskStatus = data;
-		});
-		loadDashboard();
-		return () => {
-			if (unsubscribeSysInfo) {
-				unsubscribeSysInfo();
-				unsubscribeSysInfo = null;
-			}
-			if (unsubscribeTasks) {
-				unsubscribeTasks();
-				unsubscribeTasks = null;
-			}
-		};
-	});
-
-	// 图表配置
 	const videoChartConfig = {
 		videos: {
 			label: '视频数量',
@@ -143,9 +121,6 @@
 		}
 	} satisfies Chart.ChartConfig;
 
-	let memoryHistory: Array<{ time: number; used: number; process: number }> = [];
-	let cpuHistory: Array<{ time: number; used: number; process: number }> = [];
-
 	function pushSysInfo(data: SysInfo) {
 		memoryHistory = [
 			...memoryHistory.slice(-14),
@@ -165,10 +140,32 @@
 		];
 	}
 
-	// 计算磁盘使用率
-	$: diskUsagePercent = sysInfo
-		? ((sysInfo.total_disk - sysInfo.available_disk) / sysInfo.total_disk) * 100
-		: 0;
+	const diskUsagePercent = $derived(
+		sysInfo ? ((sysInfo.total_disk - sysInfo.available_disk) / sysInfo.total_disk) * 100 : 0
+	);
+
+	onMount(() => {
+		setBreadcrumb([{ label: '仪表盘' }]);
+
+		unsubscribeSysInfo = api.subscribeToSysInfo((data) => {
+			sysInfo = data;
+			pushSysInfo(data);
+		});
+		unsubscribeTasks = api.subscribeToTasks((data: TaskStatus) => {
+			taskStatus = data;
+		});
+		loadDashboard();
+		return () => {
+			if (unsubscribeSysInfo) {
+				unsubscribeSysInfo();
+				unsubscribeSysInfo = null;
+			}
+			if (unsubscribeTasks) {
+				unsubscribeTasks();
+				unsubscribeTasks = null;
+			}
+		};
+	});
 </script>
 
 <svelte:head>
