@@ -24,6 +24,7 @@ cookie = { workspace = true }
 croner = { workspace = true }
 dashmap = { workspace = true }
 dirs = { workspace = true }
+dunce = { workspace = true }
 enum_dispatch = { workspace = true }
 float-ord = { workspace = true }
 futures = { workspace = true }

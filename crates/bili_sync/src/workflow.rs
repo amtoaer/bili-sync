@@ -236,14 +236,8 @@ pub async fn download_video_pages(
                 .path_safe_render("video", &video_format_args(&video_model, &cx.config.time_format))?,
         )
     };
-
-    #[cfg(target_family = "windows")]
-    // windows 系统不允许文件和文件夹以空格结尾，文件有拓展名不会出错，但文件夹可能以空格结尾，需要处理下
-    // 此处如果不做修改，创建文件夹操作可以成功，系统会自动创建一个无结尾空格的版本
-    // 但由于该路径还用于后续的路径拼接，如果不处理，其它文件路径拼接时使用的还是带结尾空格的版本
-    // 导致拼接完的路径不合法，后续的文件操作失败，提示“系统找不到指定的路径”
-    let base_path = PathBuf::from(base_path.to_string_lossy().trim_end());
-
+    fs::create_dir_all(&base_path).await?;
+    let base_path = dunce::canonicalize(base_path).context("canonicalize video path failed")?;
     let upper_id = video_model.upper_id.to_string();
     let base_upper_path = cx
         .config
@@ -424,6 +418,7 @@ pub async fn download_page(
             )?,
         )
     };
+    let base_path = dunce::canonicalize(base_path).context("canonicalize base path failed")?;
     let (poster_path, video_path, nfo_path, danmaku_path, fanart_path, subtitle_path) = if is_single_page {
         (
             base_path.join(format!("{}-poster.jpg", &base_name)),
