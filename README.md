@@ -3,14 +3,14 @@
 ## 简介
 
 > [!NOTE]
-> [点击此处](https://bili-sync.allwens.work/)查看文档
+> [查看文档](https://bili-sync.amto.cc/) ｜ [加入 Telegram 交流群](https://t.me/+nuYrt8q6uEo4MWI1)
 
 bili-sync 是一款专为 NAS 用户编写的哔哩哔哩同步工具，由 Rust & Tokio 驱动。
 
 ## 效果演示
 
 ### 管理页
-![管理页](/assets/webui.webp)
+![管理页](./assets/webui.webp)
 ### 媒体库概览
 ![媒体库概览](./assets/overview.webp)
 ### 媒体库详情
