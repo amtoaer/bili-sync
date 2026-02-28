@@ -120,7 +120,12 @@ impl VideoInfo {
 
     /// 填充视频详情时调用，该方法会将视频详情附加到原有的 Model 上
     /// 特殊地，如果在检测视频更新时记录了 favtime，那么 favtime 会维持原样，否则会使用 pubtime 填充
-    pub fn into_detail_model(self, base_model: bili_sync_entity::video::Model) -> bili_sync_entity::video::ActiveModel {
+    /// 如果开启 try_upower_anyway，标记视频状态时不再检测是否充电，一律进入后面的下载环节
+    pub fn into_detail_model(
+        self,
+        base_model: bili_sync_entity::video::Model,
+        try_upower_anyway: bool,
+    ) -> bili_sync_entity::video::ActiveModel {
         match self {
             VideoInfo::Detail {
                 title,
@@ -154,7 +159,9 @@ impl VideoInfo {
                 //  2. 都为 false，表示视频是非充电视频
                 // redirect_url 仅在视频为番剧、影视、纪录片等特殊视频时才会有值，如果为空说明是普通视频
                 // 仅在三种条件都满足时，才认为视频是可下载的
-                valid: Set(state == 0 && (is_upower_exclusive == is_upower_play) && redirect_url.is_none()),
+                valid: Set(state == 0
+                    && (try_upower_anyway || (is_upower_exclusive == is_upower_play))
+                    && redirect_url.is_none()),
                 upper_id: Set(upper.mid),
                 upper_name: Set(upper.name),
                 upper_face: Set(upper.face),
