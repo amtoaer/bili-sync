@@ -359,6 +359,24 @@
 							<Switch id="cdn-sorting" bind:checked={formData.cdn_sorting} />
 							<Label for="cdn-sorting">启用CDN排序</Label>
 						</div>
+						<div class="flex items-center space-x-2">
+							<Switch id="try-upower-anyway" bind:checked={formData.try_upower_anyway} />
+							<div class="flex items-center gap-1">
+								<Label for="try-upower-anyway">尝试下载未充电视频</Label>
+								<Tooltip.Root>
+									<Tooltip.Trigger>
+										<InfoIcon class="text-muted-foreground h-3.5 w-3.5" />
+									</Tooltip.Trigger>
+									<Tooltip.Content>
+										<p class="text-xs">
+											当关闭该开关时，程序仅会下载已充电的视频，未充电的视频直接跳过；开启后不再检查充电状态，一律尝试下载。<br
+											/>
+											这可以帮助下载未充电视频的封面等元数据，也应该可以下载未充电视频的试看部分（如果存在的话）。
+										</p>
+									</Tooltip.Content>
+								</Tooltip.Root>
+							</div>
+						</div>
 					</div>
 				</Tabs.Content>
 

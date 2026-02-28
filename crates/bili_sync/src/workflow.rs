@@ -150,7 +150,7 @@ pub async fn fetch_video_details(
                         .map(|p| p.into_active_model(video_model.id))
                         .collect::<Vec<page::ActiveModel>>();
                     // 更新 video model 的各项有关属性
-                    let mut video_active_model = view_info.into_detail_model(video_model);
+                    let mut video_active_model = view_info.into_detail_model(video_model, config.try_upower_anyway);
                     video_source.set_relation_id(&mut video_active_model);
                     video_active_model.single_page = Set(Some(pages.len() == 1));
                     video_active_model.tags = Set(Some(tags.into()));

@@ -322,6 +322,7 @@ export interface Config {
 	concurrent_limit: ConcurrentLimit;
 	time_format: string;
 	cdn_sorting: boolean;
+	try_upower_anyway: boolean;
 	version: number;
 }
 
