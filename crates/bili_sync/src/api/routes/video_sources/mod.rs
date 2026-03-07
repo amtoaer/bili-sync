@@ -122,7 +122,10 @@ pub async fn get_video_sources_details(
                 submission::Column::Path,
                 submission::Column::Enabled,
                 submission::Column::Rule,
-                submission::Column::UseDynamicApi
+                submission::Column::UseDynamicApi,
+                submission::Column::SelectiveRefreshEnabled,
+                submission::Column::RefreshTtlP5,
+                submission::Column::LastRefreshedAt,
             ])
             .into_model::<VideoSourceDetail>()
             .all(&db),
@@ -146,6 +149,9 @@ pub async fn get_video_sources_details(
             rule: None,
             rule_display: None,
             use_dynamic_api: None,
+            selective_refresh_enabled: None,
+            refresh_ttl_p5: None,
+            last_refreshed_at: None,
             enabled: false,
         })
     }
@@ -209,6 +215,9 @@ pub async fn update_video_source(
             active_model.rule = Set(request.rule);
             if let Some(use_dynamic_api) = request.use_dynamic_api {
                 active_model.use_dynamic_api = Set(use_dynamic_api);
+            }
+            if let Some(selective_refresh_enabled) = request.selective_refresh_enabled {
+                active_model.selective_refresh_enabled = Set(selective_refresh_enabled);
             }
             _ActiveModel::Submission(active_model)
         }),

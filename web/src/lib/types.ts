@@ -209,6 +209,9 @@ export interface VideoSourceDetail {
 	rule: Rule | null;
 	ruleDisplay: string | null;
 	useDynamicApi: boolean | null;
+	selectiveRefreshEnabled: boolean | null;
+	refreshTtlP5: number | null;
+	lastRefreshedAt: string | null;
 	enabled: boolean;
 }
 
@@ -224,6 +227,7 @@ export interface UpdateVideoSourceRequest {
 	enabled: boolean;
 	rule?: Rule | null;
 	useDynamicApi?: boolean | null;
+	selectiveRefreshEnabled?: boolean | null;
 }
 
 export interface Credential {

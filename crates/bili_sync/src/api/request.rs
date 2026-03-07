@@ -128,6 +128,7 @@ pub struct UpdateVideoSourceRequest {
     pub enabled: bool,
     pub rule: Option<Rule>,
     pub use_dynamic_api: Option<bool>,
+    pub selective_refresh_enabled: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize)]

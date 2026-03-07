@@ -1,5 +1,6 @@
 use bili_sync_entity::rule::Rule;
 use bili_sync_entity::*;
+use sea_orm::entity::prelude::DateTime;
 use sea_orm::{DerivePartialModel, FromQueryResult};
 use serde::Serialize;
 
@@ -213,6 +214,12 @@ pub struct VideoSourceDetail {
     pub rule_display: Option<String>,
     #[serde(default)]
     pub use_dynamic_api: Option<bool>,
+    #[serde(default)]
+    pub selective_refresh_enabled: Option<bool>,
+    #[serde(default)]
+    pub refresh_ttl_p5: Option<i64>,
+    #[serde(default)]
+    pub last_refreshed_at: Option<DateTime>,
     pub enabled: bool,
 }
 

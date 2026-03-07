@@ -4,11 +4,11 @@ use std::pin::Pin;
 
 use anyhow::{Context, Result, anyhow, bail};
 use bili_sync_entity::*;
+use chrono::NaiveDateTime;
 use futures::stream::FuturesUnordered;
 use futures::{Stream, StreamExt, TryStreamExt};
-use sea_orm::ActiveValue::Set;
-use sea_orm::TransactionTrait;
 use sea_orm::entity::prelude::*;
+use sea_orm::{ActiveValue::Set, ActiveValue::Unchanged, ColumnTrait, EntityTrait, QueryFilter, QueryOrder, QuerySelect, TransactionTrait};
 use tokio::fs;
 use tokio::sync::Semaphore;
 
@@ -37,12 +37,43 @@ pub async fn process_video_source(
 ) -> Result<()> {
     // 预创建视频源目录，提前检测目录是否可写
     video_source.create_dir_all().await?;
-    // 从参数中获取视频列表的 Model 与视频流
-    let (video_source, video_streams) = video_source
-        .refresh(bili_client, &config.credential, connection)
-        .await?;
-    // 从视频流中获取新视频的简要信息，写入数据库
-    refresh_video_source(&video_source, video_streams, connection).await?;
+    let video_source = match video_source {
+        VideoSourceEnum::Submission(submission_model) => {
+            let now = chrono::Utc::now().naive_utc();
+            if should_skip_submission_refresh(&submission_model, now) {
+                let ttl = submission_refresh_ttl_seconds(&submission_model).unwrap_or_default();
+                let elapsed = submission_model
+                    .last_refreshed_at
+                    .map(|last| (now - last).num_seconds().max(0))
+                    .unwrap_or_default();
+                info!(
+                    "跳过投稿「{}」本轮扫描（TTL 未到：已过 {} 秒 / TTL {} 秒）",
+                    submission_model.upper_name, elapsed, ttl
+                );
+                VideoSourceEnum::Submission(submission_model)
+            } else {
+                // 从参数中获取视频列表的 Model 与视频流
+                let (video_source, video_streams) = VideoSourceEnum::Submission(submission_model)
+                    .refresh(bili_client, &config.credential, connection)
+                    .await?;
+                // 从视频流中获取新视频的简要信息，写入数据库
+                refresh_video_source(&video_source, video_streams, connection).await?;
+                if let VideoSourceEnum::Submission(submission_model) = &video_source {
+                    update_submission_refresh_metadata(submission_model.id, now, connection).await?;
+                }
+                video_source
+            }
+        }
+        _ => {
+            // 从参数中获取视频列表的 Model 与视频流
+            let (video_source, video_streams) = video_source
+                .refresh(bili_client, &config.credential, connection)
+                .await?;
+            // 从视频流中获取新视频的简要信息，写入数据库
+            refresh_video_source(&video_source, video_streams, connection).await?;
+            video_source
+        }
+    };
     // 单独请求视频详情接口，获取视频的详情信息与所有的分页，写入数据库
     fetch_video_details(bili_client, &video_source, connection, config).await?;
     if ARGS.scan_only {
@@ -51,6 +82,66 @@ pub async fn process_video_source(
         // 从数据库中查找所有未下载的视频与分页，下载并处理
         download_unprocessed_videos(bili_client, &video_source, connection, template, config).await?;
     }
+    Ok(())
+}
+
+fn submission_refresh_ttl_seconds(submission: &submission::Model) -> Option<i64> {
+    submission.refresh_ttl_p5.filter(|ttl| *ttl > 0)
+}
+
+fn should_skip_submission_refresh(submission: &submission::Model, now: NaiveDateTime) -> bool {
+    if !submission.selective_refresh_enabled {
+        return false;
+    }
+    let (Some(last_refreshed_at), Some(ttl)) = (submission.last_refreshed_at, submission_refresh_ttl_seconds(submission))
+    else {
+        return false;
+    };
+    (now - last_refreshed_at).num_seconds() < ttl
+}
+
+async fn update_submission_refresh_metadata(
+    submission_id: i32,
+    refreshed_at: NaiveDateTime,
+    connection: &DatabaseConnection,
+) -> Result<()> {
+    let publish_times = video::Entity::find()
+        .select_only()
+        .column(video::Column::Ctime)
+        .filter(video::Column::SubmissionId.eq(submission_id))
+        .order_by_asc(video::Column::Ctime)
+        .into_tuple::<NaiveDateTime>()
+        .all(connection)
+        .await?;
+
+    let mut intervals = Vec::with_capacity(publish_times.len().saturating_sub(1));
+    for pair in publish_times.windows(2) {
+        let delta = (pair[1] - pair[0]).num_seconds();
+        if delta > 0 {
+            intervals.push(delta);
+        }
+    }
+
+    let refresh_ttl_p5 = if intervals.is_empty() {
+        None
+    } else {
+        // P5（下 5 分位）：约有 5% 的历史间隔值低于该值。
+        let mut sorted = intervals;
+        sorted.sort_unstable();
+        let p5_index = ((sorted.len() as f64 * 0.05).ceil() as usize).saturating_sub(1);
+        let p5 = sorted[p5_index];
+        Some(p5.max(1))
+    };
+
+    submission::ActiveModel {
+        id: Unchanged(submission_id),
+        refresh_ttl_p5: Set(refresh_ttl_p5),
+        last_refreshed_at: Set(Some(refreshed_at)),
+        ..Default::default()
+    }
+    .save(connection)
+    .await?;
+
     Ok(())
 }
 

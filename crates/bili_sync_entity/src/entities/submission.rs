@@ -17,6 +17,9 @@ pub struct Model {
     pub latest_row_at: DateTime,
     pub rule: Option<Rule>,
     pub enabled: bool,
+    pub selective_refresh_enabled: bool,
+    pub refresh_ttl_p5: Option<i64>,
+    pub last_refreshed_at: Option<DateTime>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
