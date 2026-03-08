@@ -212,6 +212,7 @@ export interface VideoSourceDetail {
 	selectiveRefreshEnabled: boolean | null;
 	refreshTtlP5: number | null;
 	lastRefreshedAt: string | null;
+	inactive: boolean | null;
 	enabled: boolean;
 }
 

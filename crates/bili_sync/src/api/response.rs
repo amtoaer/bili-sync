@@ -220,6 +220,8 @@ pub struct VideoSourceDetail {
     pub refresh_ttl_p5: Option<i64>,
     #[serde(default)]
     pub last_refreshed_at: Option<DateTime>,
+    #[serde(default)]
+    pub inactive: Option<bool>,
     pub enabled: bool,
 }
 

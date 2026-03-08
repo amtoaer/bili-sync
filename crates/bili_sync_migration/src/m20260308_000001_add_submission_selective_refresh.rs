@@ -12,7 +12,21 @@ impl MigrationTrait for Migration {
                 Table::alter()
                     .table(Submission::Table)
                     .add_column(boolean(Submission::SelectiveRefreshEnabled).not_null().default(false))
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .alter_table(
+                Table::alter()
+                    .table(Submission::Table)
                     .add_column(big_unsigned_null(Submission::RefreshTtlP5))
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .alter_table(
+                Table::alter()
+                    .table(Submission::Table)
                     .add_column(timestamp_null(Submission::LastRefreshedAt))
                     .to_owned(),
             )
@@ -24,9 +38,23 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(Submission::Table)
-                    .drop_column(Submission::SelectiveRefreshEnabled)
                     .drop_column(Submission::RefreshTtlP5)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .alter_table(
+                Table::alter()
+                    .table(Submission::Table)
                     .drop_column(Submission::LastRefreshedAt)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .alter_table(
+                Table::alter()
+                    .table(Submission::Table)
+                    .drop_column(Submission::SelectiveRefreshEnabled)
                     .to_owned(),
             )
             .await

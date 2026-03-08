@@ -20,6 +20,7 @@ pub struct Model {
     pub selective_refresh_enabled: bool,
     pub refresh_ttl_p5: Option<i64>,
     pub last_refreshed_at: Option<DateTime>,
+    pub inactive: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
