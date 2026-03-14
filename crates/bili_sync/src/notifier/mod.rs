@@ -1,11 +1,10 @@
 mod info;
 mod message;
 
-pub use info::DownloadInfo;
-pub use message::Message;
-
 use anyhow::Result;
 use futures::future;
+pub use info::DownloadInfo;
+pub use message::Message;
 use reqwest::header;
 use serde::{Deserialize, Serialize};
 
