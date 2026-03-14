@@ -51,9 +51,9 @@ pub async fn process_video_source(
         warn!("已开启仅扫描模式，跳过视频下载..");
     } else {
         // 从数据库中查找所有未下载的视频与分页，下载并处理
-        let download_info =
+        let download_notify_info =
             download_unprocessed_videos(bili_client, &video_source, connection, template, config).await?;
-        notify(config, bili_client, download_info);
+        notify(config, bili_client, download_notify_info);
     }
     Ok(())
 }
@@ -211,16 +211,16 @@ pub async fn download_unprocessed_videos(
         .filter_map(|res| futures::future::ready(res.ok()))
         // 将成功返回的 Model 按十个一组合并
         .chunks(10);
-    let mut download_info = DownloadNotifyInfo::new(video_source.display_name().into());
+    let mut download_notify_info = DownloadNotifyInfo::new(video_source.display_name().into());
     while let Some(models) = stream.next().await {
-        download_info.record(&models);
+        download_notify_info.record(&models);
         update_videos_model(models, connection).await?;
     }
     if let Some(e) = risk_control_related_error {
         bail!(e);
     }
     video_source.log_download_video_end();
-    Ok(download_info)
+    Ok(download_notify_info)
 }
 
 pub async fn download_video_pages(
