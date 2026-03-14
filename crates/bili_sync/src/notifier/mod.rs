@@ -3,7 +3,7 @@ mod message;
 
 use anyhow::Result;
 use futures::future;
-pub use info::DownloadInfo;
+pub use info::DownloadNotifyInfo;
 pub use message::Message;
 use reqwest::header;
 use serde::{Deserialize, Serialize};

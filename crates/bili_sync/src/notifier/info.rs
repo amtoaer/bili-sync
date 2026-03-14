@@ -2,22 +2,22 @@ use bili_sync_entity::video;
 
 use crate::utils::status::{STATUS_OK, VideoStatus};
 
-pub enum DownloadInfo {
-    Several {
+pub enum DownloadNotifyInfo {
+    List {
         source: String,
         img_url: Option<String>,
         titles: Vec<String>,
     },
-    Many {
+    Summary {
         source: String,
         img_url: Option<String>,
         count: usize,
     },
 }
 
-impl DownloadInfo {
+impl DownloadNotifyInfo {
     pub fn new(source: String) -> Self {
-        Self::Several {
+        Self::List {
             source,
             img_url: None,
             titles: Vec::with_capacity(10),
@@ -33,14 +33,14 @@ impl DownloadInfo {
             })
             .collect::<Vec<_>>();
         match self {
-            Self::Several {
+            Self::List {
                 source,
                 img_url,
                 titles,
             } => {
                 let count = success_models.len() + titles.len();
                 if count > 10 {
-                    *self = Self::Many {
+                    *self = Self::Summary {
                         source: source.clone(),
                         img_url: std::mem::take(img_url),
                         count,
@@ -52,7 +52,7 @@ impl DownloadInfo {
                     titles.extend(success_models.into_iter().map(|m| m.name.as_ref().clone()));
                 }
             }
-            Self::Many { count, .. } => *count += success_models.len(),
+            Self::Summary { count, .. } => *count += success_models.len(),
         }
     }
 }

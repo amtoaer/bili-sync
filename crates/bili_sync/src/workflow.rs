@@ -17,7 +17,7 @@ use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, PageInfo, Vi
 use crate::config::{ARGS, Config, PathSafeTemplate};
 use crate::downloader::Downloader;
 use crate::error::ExecutionStatus;
-use crate::notifier::DownloadInfo;
+use crate::notifier::DownloadNotifyInfo;
 use crate::utils::download_context::DownloadContext;
 use crate::utils::format_arg::{page_format_args, video_format_args};
 use crate::utils::model::{
@@ -180,7 +180,7 @@ pub async fn download_unprocessed_videos(
     connection: &DatabaseConnection,
     template: &handlebars::Handlebars<'_>,
     config: &Config,
-) -> Result<DownloadInfo> {
+) -> Result<DownloadNotifyInfo> {
     video_source.log_download_video_start();
     let semaphore = Semaphore::new(config.concurrent_limit.video);
     let downloader = Downloader::new(bili_client.client.clone());
@@ -211,7 +211,7 @@ pub async fn download_unprocessed_videos(
         .filter_map(|res| futures::future::ready(res.ok()))
         // 将成功返回的 Model 按十个一组合并
         .chunks(10);
-    let mut download_info = DownloadInfo::new(video_source.display_name().into());
+    let mut download_info = DownloadNotifyInfo::new(video_source.display_name().into());
     while let Some(models) = stream.next().await {
         download_info.record(&models);
         update_videos_model(models, connection).await?;

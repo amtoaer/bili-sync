@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use itertools::Itertools;
 use serde::Serialize;
 
-use crate::notifier::DownloadInfo;
+use crate::notifier::DownloadNotifyInfo;
 
 #[derive(Serialize)]
 pub struct Message<'a> {
@@ -29,10 +29,10 @@ impl From<String> for Message<'_> {
     }
 }
 
-impl From<DownloadInfo> for Message<'_> {
-    fn from(info: DownloadInfo) -> Self {
+impl From<DownloadNotifyInfo> for Message<'_> {
+    fn from(info: DownloadNotifyInfo) -> Self {
         match info {
-            DownloadInfo::Several {
+            DownloadNotifyInfo::List {
                 source,
                 img_url,
                 titles,
@@ -46,7 +46,7 @@ impl From<DownloadInfo> for Message<'_> {
                 .into(),
                 image_url: img_url,
             },
-            DownloadInfo::Many { source, img_url, count } => Self {
+            DownloadNotifyInfo::Summary { source, img_url, count } => Self {
                 message: format!("「{}」的 {} 条新视频已入库，快去看看吧！", source, count).into(),
                 image_url: img_url,
             },
