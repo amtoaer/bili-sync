@@ -41,7 +41,11 @@ impl From<DownloadNotifyInfo> for Message<'_> {
                     "{}的 {} 条新视频已入库：\n{}",
                     source,
                     titles.len(),
-                    titles.into_iter().join("\n"),
+                    titles
+                        .into_iter()
+                        .enumerate()
+                        .map(|(i, title)| format!("{}. {title}", i + 1))
+                        .join("\n")
                 )
                 .into(),
                 image_url: img_url,
