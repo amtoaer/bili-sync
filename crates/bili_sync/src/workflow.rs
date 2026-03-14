@@ -53,7 +53,9 @@ pub async fn process_video_source(
         // 从数据库中查找所有未下载的视频与分页，下载并处理
         let download_notify_info =
             download_unprocessed_videos(bili_client, &video_source, connection, template, config).await?;
-        notify(config, bili_client, download_notify_info);
+        if download_notify_info.should_notify() {
+            notify(config, bili_client, download_notify_info);
+        }
     }
     Ok(())
 }

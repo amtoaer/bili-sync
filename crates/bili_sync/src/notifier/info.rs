@@ -55,4 +55,11 @@ impl DownloadNotifyInfo {
             Self::Summary { count, .. } => *count += success_models.len(),
         }
     }
+
+    pub fn should_notify(&self) -> bool {
+        if let Self::List{titles, ..} = self && titles.is_empty() {
+            return false;
+        }
+        true
+    }
 }
