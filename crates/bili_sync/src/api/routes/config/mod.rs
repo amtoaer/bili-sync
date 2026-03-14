@@ -41,7 +41,10 @@ pub async fn ping_notifiers(
         *ignore_cache = Some(());
     }
     notifier
-        .notify(bili_client.inner_client(), "This is a test notification from BiliSync.")
+        .notify(
+            bili_client.inner_client(),
+            &"This is a test notification from BiliSync.".into(),
+        )
         .await?;
     Ok(ApiResponse::ok(()))
 }
