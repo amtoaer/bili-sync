@@ -38,7 +38,7 @@ impl From<DownloadNotifyInfo> for Message<'_> {
                 titles,
             } => Self {
                 message: format!(
-                    "「{}」的 {} 条新视频已入库：\n{}",
+                    "{}的 {} 条新视频已入库：\n{}",
                     source,
                     titles.len(),
                     titles.into_iter().join("\n"),
@@ -47,7 +47,7 @@ impl From<DownloadNotifyInfo> for Message<'_> {
                 image_url: img_url,
             },
             DownloadNotifyInfo::Summary { source, img_url, count } => Self {
-                message: format!("「{}」的 {} 条新视频已入库，快去看看吧！", source, count).into(),
+                message: format!("{}的 {} 条新视频已入库，快去看看吧！", source, count).into(),
                 image_url: img_url,
             },
         }
