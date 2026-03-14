@@ -39,18 +39,23 @@ pub fn webhook_template_content(template: &Option<String>) -> &str {
 }
 
 pub trait NotifierAllExt {
-    async fn notify_all(&self, client: &reqwest::Client, message: &Message<'_>) -> Result<()>;
+    async fn notify_all<'a>(&self, client: &reqwest::Client, message: impl Into<Message<'a>>) -> Result<()>;
 }
 
 impl NotifierAllExt for Vec<Notifier> {
-    async fn notify_all(&self, client: &reqwest::Client, message: &Message<'_>) -> Result<()> {
-        future::join_all(self.iter().map(|notifier| notifier.notify(client, message))).await;
+    async fn notify_all<'a>(&self, client: &reqwest::Client, message: impl Into<Message<'a>>) -> Result<()> {
+        let message = message.into();
+        future::join_all(self.iter().map(|notifier| notifier.notify_internal(client, &message))).await;
         Ok(())
     }
 }
 
 impl Notifier {
-    pub async fn notify(&self, client: &reqwest::Client, message: &Message<'_>) -> Result<()> {
+    pub async fn notify<'a>(&self, client: &reqwest::Client, message: impl Into<Message<'a>>) -> Result<()> {
+        self.notify_internal(client, &message.into()).await
+    }
+
+    async fn notify_internal<'a>(&self, client: &reqwest::Client, message: &Message<'a>) -> Result<()> {
         match self {
             Notifier::Telegram { bot_token, chat_id } => {
                 if let Some(img_url) = &message.image_url {
@@ -75,8 +80,8 @@ impl Notifier {
                 let key = webhook_template_key(url);
                 let handlebar = TEMPLATE.read();
                 let payload = match ignore_cache {
-                    Some(_) => handlebar.render_template(webhook_template_content(template), message)?,
-                    None => handlebar.render(&key, message)?,
+                    Some(_) => handlebar.render_template(webhook_template_content(template), &message)?,
+                    None => handlebar.render(&key, &message)?,
                 };
                 client
                     .post(url)

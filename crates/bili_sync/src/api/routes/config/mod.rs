@@ -43,7 +43,7 @@ pub async fn ping_notifiers(
     notifier
         .notify(
             bili_client.inner_client(),
-            &"This is a test notification from BiliSync.".into(),
+            "This is a test notification from BiliSync.",
         )
         .await?;
     Ok(ApiResponse::ok(()))

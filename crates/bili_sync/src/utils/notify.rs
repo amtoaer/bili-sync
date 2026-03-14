@@ -8,7 +8,7 @@ pub fn notify(config: &Config, bili_client: &BiliClient, msg: impl Into<Message<
     {
         let (notifiers, inner_client) = (notifiers.clone(), bili_client.inner_client().clone());
         let msg = msg.into();
-        tokio::spawn(async move { notifiers.notify_all(&inner_client, &msg).await });
+        tokio::spawn(async move { notifiers.notify_all(&inner_client, msg).await });
     }
 }
 
@@ -18,6 +18,6 @@ pub fn error_and_notify(config: &Config, bili_client: &BiliClient, msg: String) 
         && !notifiers.is_empty()
     {
         let (notifiers, inner_client) = (notifiers.clone(), bili_client.inner_client().clone());
-        tokio::spawn(async move { notifiers.notify_all(&inner_client, &msg.into()).await });
+        tokio::spawn(async move { notifiers.notify_all(&inner_client, msg).await });
     }
 }
