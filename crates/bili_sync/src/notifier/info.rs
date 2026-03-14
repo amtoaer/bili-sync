@@ -41,7 +41,7 @@ impl DownloadNotifyInfo {
                 let count = success_models.len() + titles.len();
                 if count > 10 {
                     *self = Self::Summary {
-                        source: source.clone(),
+                        source: std::mem::take(source),
                         img_url: std::mem::take(img_url),
                         count,
                     };
