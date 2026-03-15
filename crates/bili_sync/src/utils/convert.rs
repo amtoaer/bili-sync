@@ -182,6 +182,17 @@ impl VideoInfo {
             VideoInfo::Detail { .. } => unreachable!(),
         }
     }
+
+    pub fn bvid_owned(self) -> String {
+        match self {
+            VideoInfo::Collection { bvid, .. }
+            | VideoInfo::Favorite { bvid, .. }
+            | VideoInfo::WatchLater { bvid, .. }
+            | VideoInfo::Submission { bvid, .. }
+            | VideoInfo::Dynamic { bvid, .. }
+            | VideoInfo::Detail { bvid, .. } => bvid,
+        }
+    }
 }
 
 impl PageInfo {

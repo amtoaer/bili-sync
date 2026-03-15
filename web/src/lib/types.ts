@@ -89,7 +89,16 @@ export interface UpdateFilteredVideoStatusResponse {
 
 export interface ApiError {
 	message: string;
-	status?: number;
+	status: number;
+}
+
+export interface FullSyncVideoSourceRequest {
+	delete_local: boolean;
+}
+
+export interface FullSyncVideoSourceResponse {
+	removed_count: number;
+	warnings?: string[];
 }
 
 export interface StatusUpdate {

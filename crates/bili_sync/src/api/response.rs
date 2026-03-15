@@ -229,3 +229,9 @@ pub struct UpdateVideoSourceResponse {
 pub type GenerateQrcodeResponse = Qrcode;
 
 pub type PollQrcodeResponse = PollStatus;
+
+#[derive(Serialize)]
+pub struct FullSyncVideoSourceResponse {
+    pub removed_count: usize,
+    pub warnings: Option<Vec<String>>,
+}
