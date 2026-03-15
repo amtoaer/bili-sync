@@ -65,20 +65,8 @@ pub async fn get_videos(
     if let Some(status_filter) = params.status_filter {
         query = query.filter(status_filter.to_video_query());
     }
-    if let Some(validation_status_filter) = params.validation_filter {
-        query = match validation_status_filter {
-            ValidationFilter::Invalid => query.filter(video::Column::Valid.eq(false)),
-            ValidationFilter::Skipped => query.filter(
-                video::Column::Valid
-                    .eq(true)
-                    .and(video::Column::ShouldDownload.eq(false)),
-            ),
-            ValidationFilter::Normal => query.filter(
-                video::Column::Valid
-                    .eq(true)
-                    .and(video::Column::ShouldDownload.eq(true)),
-            ),
-        };
+    if let Some(validation_filter) = params.validation_filter {
+        query = query.filter(validation_filter.to_video_query());
     }
     let total_count = query.clone().count(&db).await?;
     let (page, page_size) = if let (Some(page), Some(page_size)) = (params.page, params.page_size) {
@@ -241,6 +229,9 @@ pub async fn reset_filtered_video_status(
     if let Some(status_filter) = request.status_filter {
         query = query.filter(status_filter.to_video_query());
     }
+    if let Some(validation_filter) = request.validation_filter {
+        query = query.filter(validation_filter.to_video_query());
+    }
     let all_videos = query.into_partial_model::<SimpleVideoInfo>().all(&db).await?;
     let all_pages = page::Entity::find()
         .filter(page::Column::VideoId.is_in(all_videos.iter().map(|v| v.id)))
@@ -376,6 +367,9 @@ pub async fn update_filtered_video_status(
     }
     if let Some(status_filter) = request.status_filter {
         query = query.filter(status_filter.to_video_query());
+    }
+    if let Some(validation_filter) = request.validation_filter {
+        query = query.filter(validation_filter.to_video_query());
     }
     let mut all_videos = query.into_partial_model::<SimpleVideoInfo>().all(&db).await?;
     let mut all_pages = page::Entity::find()

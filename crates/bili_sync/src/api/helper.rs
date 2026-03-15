@@ -1,9 +1,11 @@
 use std::borrow::Borrow;
 
+use bili_sync_entity::video;
+use bili_sync_migration::{IntoCondition, SimpleExpr};
 use itertools::Itertools;
-use sea_orm::{Condition, ConnectionTrait, DatabaseTransaction};
+use sea_orm::{ColumnTrait, Condition, ConnectionTrait, DatabaseTransaction};
 
-use crate::api::request::StatusFilter;
+use crate::api::request::{StatusFilter, ValidationFilter};
 use crate::api::response::{PageInfo, SimplePageInfo, SimpleVideoInfo, VideoInfo};
 use crate::utils::status::VideoStatus;
 
@@ -14,6 +16,20 @@ impl StatusFilter {
             Self::Failed => query_builder.failed(),
             Self::Succeeded => query_builder.succeeded(),
             Self::Waiting => query_builder.waiting(),
+        }
+    }
+}
+
+impl ValidationFilter {
+    pub fn to_video_query(&self) -> SimpleExpr {
+        match self {
+            ValidationFilter::Invalid => video::Column::Valid.eq(false),
+            ValidationFilter::Skipped => video::Column::Valid
+                .eq(true)
+                .and(video::Column::ShouldDownload.eq(false)),
+            ValidationFilter::Normal => video::Column::Valid
+                .eq(true)
+                .and(video::Column::ShouldDownload.eq(true)),
         }
     }
 }
