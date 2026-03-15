@@ -12,7 +12,8 @@
 		VideoSourcesResponse,
 		ApiError,
 		VideoSource,
-		UpdateFilteredVideoStatusRequest
+		UpdateFilteredVideoStatusRequest,
+		VideoInfo
 	} from '$lib/types';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
@@ -39,6 +40,7 @@
 	import FilteredStatusEditor from '$lib/components/filtered-status-editor.svelte';
 	import StatusFilter from '$lib/components/status-filter.svelte';
 	import ValidationFilter from '$lib/components/validation-filter.svelte';
+	import { SvelteMap } from 'svelte/reactivity';
 
 	const pageSize = 20;
 
@@ -56,7 +58,9 @@
 	let updatingAll = false;
 
 	let videoSources: VideoSourcesResponse | null = null;
+	let videoSourcesLoaded = false;
 	let filters: Record<string, Filter> | null = null;
+	let sourceMap: SvelteMap<string, { type: string; name: string }> = new SvelteMap();
 
 	function getApiParams(searchParams: URLSearchParams) {
 		let videoSource = null;
@@ -246,6 +250,22 @@
 		}
 	}
 
+	function getVideoSource(video: VideoInfo): { type: string; name: string } | null {
+		if (video.collection_id != null) {
+			return sourceMap.get(`collection:${video.collection_id}`) || null;
+		}
+		if (video.favorite_id != null) {
+			return sourceMap.get(`favorite:${video.favorite_id}`) || null;
+		}
+		if (video.submission_id != null) {
+			return sourceMap.get(`submission:${video.submission_id}`) || null;
+		}
+		if (video.watch_later_id != null) {
+			return sourceMap.get(`watch_later:${video.watch_later_id}`) || null;
+		}
+		return null;
+	}
+
 	// 获取筛选条件的显示数组
 	function getFilterDescriptionParts(): string[] {
 		const state = $appStateStore;
@@ -284,7 +304,7 @@
 		return parts;
 	}
 
-	$: if ($page.url.search !== lastSearch) {
+	$: if (videoSourcesLoaded && $page.url.search !== lastSearch) {
 		lastSearch = $page.url.search;
 		handleSearchParamsChange($page.url.searchParams);
 	}
@@ -304,8 +324,19 @@
 				}
 			])
 		);
+		sourceMap.clear();
+		for (const source of Object.values(VIDEO_SOURCES)) {
+			const sourceList = videoSources[source.type as keyof VideoSourcesResponse] as VideoSource[];
+			for (const item of sourceList) {
+				sourceMap.set(`${source.type}:${item.id}`, {
+					type: source.type,
+					name: item.name
+				});
+			}
+		}
 	} else {
 		filters = null;
+		sourceMap.clear();
 	}
 
 	onMount(async () => {
@@ -315,6 +346,7 @@
 			}
 		]);
 		videoSources = (await api.getVideoSources()).data;
+		videoSourcesLoaded = true;
 	});
 
 	$: totalPages = videosData ? Math.ceil(videosData.total_count / pageSize) : 0;
@@ -435,6 +467,7 @@
 		{#each videosData.videos as video (video.id)}
 			<VideoCard
 				{video}
+				source={getVideoSource(video)}
 				onReset={async (forceReset: boolean) => {
 					await handleResetVideo(video.id, forceReset);
 				}}

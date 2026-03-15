@@ -200,6 +200,10 @@ pub async fn clear_and_reset_video_status(
             valid: video_info.valid,
             should_download: video_info.should_download,
             download_status: video_info.download_status,
+            collection_id: video_info.collection_id,
+            favorite_id: video_info.favorite_id,
+            submission_id: video_info.submission_id,
+            watch_later_id: video_info.watch_later_id,
         },
     }))
 }
