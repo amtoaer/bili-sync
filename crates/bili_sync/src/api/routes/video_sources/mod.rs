@@ -2,9 +2,9 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use axum::Router;
 use axum::extract::{Extension, Path, Query};
 use axum::routing::{get, post, put};
+use axum::{Json, Router};
 use bili_sync_entity::rule::Rule;
 use bili_sync_entity::*;
 use bili_sync_migration::Expr;
@@ -365,7 +365,7 @@ pub async fn full_sync_video_source(
     Path((source_type, id)): Path<(String, i32)>,
     Extension(db): Extension<DatabaseConnection>,
     Extension(bili_client): Extension<Arc<BiliClient>>,
-    ValidatedJson(request): ValidatedJson<FullSyncVideoSourceRequest>,
+    Json(request): Json<FullSyncVideoSourceRequest>,
 ) -> Result<ApiResponse<FullSyncVideoSourceResponse>, ApiError> {
     let video_source: Option<VideoSourceEnum> = match source_type.as_str() {
         "collections" => collection::Entity::find_by_id(id).one(&db).await?.map(Into::into),
@@ -374,12 +374,12 @@ pub async fn full_sync_video_source(
         "watch_later" => watch_later::Entity::find_by_id(id).one(&db).await?.map(Into::into),
         _ => return Err(InnerApiError::BadRequest("Invalid video source type".to_string()).into()),
     };
-    let Some(mut video_source) = video_source else {
+    let Some(video_source) = video_source else {
         return Err(InnerApiError::NotFound(id).into());
     };
     let credential = &VersionedConfig::get().read().credential;
     let filter_expr = video_source.filter_expr();
-    let (_, mut video_streams) = video_source.refresh(&bili_client, credential, &db).await?;
+    let (_, video_streams) = video_source.refresh(&bili_client, credential, &db).await?;
     let all_videos = video_streams
         .try_collect::<Vec<_>>()
         .await

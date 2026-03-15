@@ -6,6 +6,8 @@ import type {
 	Config,
 	DashBoardResponse,
 	FavoritesResponse,
+	FullSyncVideoSourceRequest,
+	FullSyncVideoSourceResponse,
 	QrcodeGenerateResponse as GenerateQrcodeResponse,
 	InsertCollectionRequest,
 	InsertFavoriteRequest,
@@ -29,9 +31,7 @@ import type {
 	VideoSourcesDetailsResponse,
 	VideoSourcesResponse,
 	VideosRequest,
-	VideosResponse,
-	FullSyncVideoSourceRequest,
-	FullSyncVideoSourceResponse
+	VideosResponse
 } from './types';
 import { wsManager } from './ws';
 
@@ -255,7 +255,11 @@ class ApiClient {
 		return this.post<boolean>(`/video-sources/${type}/${id}/evaluate`, null);
 	}
 
-	async fullSyncVideoSource(type: string, id: number, data: FullSyncVideoSourceRequest): Promise<ApiResponse<FullSyncVideoSourceResponse>> {
+	async fullSyncVideoSource(
+		type: string,
+		id: number,
+		data: FullSyncVideoSourceRequest
+	): Promise<ApiResponse<FullSyncVideoSourceResponse>> {
 		return this.post<FullSyncVideoSourceResponse>(`/video-sources/${type}/${id}/full-sync`, data);
 	}
 
