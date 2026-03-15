@@ -1,7 +1,7 @@
 <script lang="ts">
 	import {
 		CircleCheckBigIcon,
-		AlertTriangleIcon,
+		TriangleAlertIcon,
 		SkipForwardIcon,
 		ChevronDownIcon,
 		TrashIcon
@@ -39,7 +39,7 @@
 		{
 			value: 'invalid' as const,
 			label: '失效',
-			icon: AlertTriangleIcon
+			icon: TriangleAlertIcon
 		}
 	];
 
