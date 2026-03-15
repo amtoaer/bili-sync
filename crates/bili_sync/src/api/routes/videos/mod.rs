@@ -15,7 +15,7 @@ use crate::api::error::InnerApiError;
 use crate::api::helper::{update_page_download_status, update_video_download_status};
 use crate::api::request::{
     ResetFilteredVideoStatusRequest, ResetVideoStatusRequest, UpdateFilteredVideoStatusRequest,
-    UpdateVideoStatusRequest, VideosRequest,
+    UpdateVideoStatusRequest, ValidationFilter, VideosRequest,
 };
 use crate::api::response::{
     ClearAndResetVideoStatusResponse, PageInfo, ResetFilteredVideosResponse, ResetVideoResponse, SimplePageInfo,
@@ -64,6 +64,21 @@ pub async fn get_videos(
     }
     if let Some(status_filter) = params.status_filter {
         query = query.filter(status_filter.to_video_query());
+    }
+    if let Some(validation_status_filter) = params.validation_filter {
+        query = match validation_status_filter {
+            ValidationFilter::Invalid => query.filter(video::Column::Valid.eq(false)),
+            ValidationFilter::Skipped => query.filter(
+                video::Column::Valid
+                    .eq(true)
+                    .and(video::Column::ShouldDownload.eq(false)),
+            ),
+            ValidationFilter::Normal => query.filter(
+                video::Column::Valid
+                    .eq(true)
+                    .and(video::Column::ShouldDownload.eq(true)),
+            ),
+        };
     }
     let total_count = query.clone().count(&db).await?;
     let (page, page_size) = if let (Some(page), Some(page_size)) = (params.page, params.page_size) {
