@@ -196,6 +196,9 @@ impl<'a> Collection<'a> {
                 })?;
                 let archives = &mut videos["data"]["archives"];
                 if archives.as_array().is_none_or(|v| v.is_empty()) {
+                    if page == 1 {
+                        break;
+                    }
                     Err(anyhow!(
                         "no videos found in collection {:?} page {}",
                         self.collection,

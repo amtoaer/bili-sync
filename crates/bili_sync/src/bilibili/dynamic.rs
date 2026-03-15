@@ -52,7 +52,15 @@ impl<'a> Dynamic<'a> {
                     .get_dynamics(offset.take())
                     .await
                     .with_context(|| "failed to get dynamics")?;
-                let items = res["data"]["items"].as_array_mut().context("items not exist")?;
+                let items = match res["data"]["items"].as_array_mut() {
+                    Some(items) if !items.is_empty() => items,
+                    _ => {
+                        if offset.is_none() {
+                            break;
+                        }
+                        Err(anyhow!("no dynamics found in offset {:?}", offset))?
+                    }
+                };
                 for item in items.iter_mut() {
                     if item["type"].as_str().is_none_or(|t| t != "DYNAMIC_TYPE_AV") {
                         continue;

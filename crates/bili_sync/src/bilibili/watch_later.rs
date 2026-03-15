@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 use async_stream::try_stream;
 use futures::Stream;
 use serde_json::Value;
@@ -38,7 +38,7 @@ impl<'a> WatchLater<'a> {
                 .with_context(|| "Failed to get watch later list")?;
             let list = &mut videos["data"]["list"];
             if list.as_array().is_none_or(|v| v.is_empty()) {
-                Err(anyhow!("No videos found in watch later list"))?;
+                return;
             }
             let videos_info: Vec<VideoInfo> =
                 serde_json::from_value(list.take()).with_context(|| "Failed to parse watch later list")?;

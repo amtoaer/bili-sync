@@ -82,6 +82,9 @@ impl<'a> Submission<'a> {
                     .with_context(|| format!("failed to get videos of upper {} page {}", self.upper_id, page))?;
                 let vlist = &mut videos["data"]["list"]["vlist"];
                 if vlist.as_array().is_none_or(|v| v.is_empty()) {
+                    if page == 1 {
+                        break;
+                    }
                     Err(anyhow!("no medias found in upper {} page {}", self.upper_id, page))?;
                 }
                 let videos_info: Vec<VideoInfo> = serde_json::from_value(vlist.take())
