@@ -9,7 +9,8 @@ export interface VideosRequest {
 	submission?: number;
 	watch_later?: number;
 	query?: string;
-	failed_only?: boolean;
+	status_filter?: 'failed' | 'succeeded' | 'waiting';
+	validation_filter?: 'skipped' | 'invalid' | 'normal';
 	page?: number;
 	page_size?: number;
 }
@@ -108,8 +109,8 @@ export interface UpdateFilteredVideoStatusRequest {
 	submission?: number;
 	watch_later?: number;
 	query?: string;
-	// 仅更新下载失败
-	failed_only?: boolean;
+	status_filter?: 'failed' | 'succeeded' | 'waiting';
+	validation_filter?: 'skipped' | 'invalid' | 'normal';
 	video_updates?: StatusUpdate[];
 	page_updates?: StatusUpdate[];
 }
@@ -124,8 +125,8 @@ export interface ResetFilteredVideoStatusRequest {
 	submission?: number;
 	watch_later?: number;
 	query?: string;
-	// 仅重置下载失败
-	failed_only?: boolean;
+	status_filter?: 'failed' | 'succeeded' | 'waiting';
+	validation_filter?: 'skipped' | 'invalid' | 'normal';
 	force: boolean;
 }
 
