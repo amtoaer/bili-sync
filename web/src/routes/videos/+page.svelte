@@ -40,6 +40,7 @@
 	import FilteredStatusEditor from '$lib/components/filtered-status-editor.svelte';
 	import StatusFilter from '$lib/components/status-filter.svelte';
 	import ValidationFilter from '$lib/components/validation-filter.svelte';
+	import { SvelteMap } from 'svelte/reactivity';
 
 	const pageSize = 20;
 
@@ -57,8 +58,9 @@
 	let updatingAll = false;
 
 	let videoSources: VideoSourcesResponse | null = null;
+	let videoSourcesLoaded = false;
 	let filters: Record<string, Filter> | null = null;
-	let sourceMap: Map<string, { type: string; name: string }> = new Map();
+	let sourceMap: SvelteMap<string, { type: string; name: string }> = new SvelteMap();
 
 	function getApiParams(searchParams: URLSearchParams) {
 		let videoSource = null;
@@ -302,7 +304,7 @@
 		return parts;
 	}
 
-	$: if ($page.url.search !== lastSearch) {
+	$: if (videoSourcesLoaded && $page.url.search !== lastSearch) {
 		lastSearch = $page.url.search;
 		handleSearchParamsChange($page.url.searchParams);
 	}
@@ -344,6 +346,7 @@
 			}
 		]);
 		videoSources = (await api.getVideoSources()).data;
+		videoSourcesLoaded = true;
 	});
 
 	$: totalPages = videosData ? Math.ceil(videosData.total_count / pageSize) : 0;
