@@ -6,6 +6,8 @@ import type {
 	Config,
 	DashBoardResponse,
 	FavoritesResponse,
+	FullSyncVideoSourceRequest,
+	FullSyncVideoSourceResponse,
 	QrcodeGenerateResponse as GenerateQrcodeResponse,
 	InsertCollectionRequest,
 	InsertFavoriteRequest,
@@ -253,6 +255,14 @@ class ApiClient {
 		return this.post<boolean>(`/video-sources/${type}/${id}/evaluate`, null);
 	}
 
+	async fullSyncVideoSource(
+		type: string,
+		id: number,
+		data: FullSyncVideoSourceRequest
+	): Promise<ApiResponse<FullSyncVideoSourceResponse>> {
+		return this.post<FullSyncVideoSourceResponse>(`/video-sources/${type}/${id}/full-sync`, data);
+	}
+
 	async getDefaultPath(type: string, name: string): Promise<ApiResponse<string>> {
 		return this.get<string>(`/video-sources/${type}/default-path`, { name });
 	}
@@ -327,6 +337,8 @@ const api = {
 	removeVideoSource: (type: string, id: number) => apiClient.removeVideoSource(type, id),
 	evaluateVideoSourceRules: (type: string, id: number) =>
 		apiClient.evaluateVideoSourceRules(type, id),
+	fullSyncVideoSource: (type: string, id: number, data: { delete_local: boolean }) =>
+		apiClient.fullSyncVideoSource(type, id, data),
 	getDefaultPath: (type: string, name: string) => apiClient.getDefaultPath(type, name),
 	testNotifier: (notifier: Notifier) => apiClient.testNotifier(notifier),
 	getConfig: () => apiClient.getConfig(),

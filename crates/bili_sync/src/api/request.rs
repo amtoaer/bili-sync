@@ -150,3 +150,8 @@ pub struct DefaultPathRequest {
 pub struct PollQrcodeRequest {
     pub qrcode_key: String,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct FullSyncVideoSourceRequest {
+    pub delete_local: bool,
+}

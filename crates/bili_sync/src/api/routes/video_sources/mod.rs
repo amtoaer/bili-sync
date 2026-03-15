@@ -1,12 +1,15 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
-use anyhow::Result;
-use axum::Router;
+use anyhow::{Context, Result};
 use axum::extract::{Extension, Path, Query};
 use axum::routing::{get, post, put};
+use axum::{Json, Router};
 use bili_sync_entity::rule::Rule;
 use bili_sync_entity::*;
 use bili_sync_migration::Expr;
+use futures::stream::FuturesUnordered;
+use futures::{StreamExt, TryStreamExt};
 use itertools::Itertools;
 use sea_orm::ActiveValue::Set;
 use sea_orm::entity::prelude::*;
@@ -15,11 +18,12 @@ use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QuerySelect, QueryTr
 use crate::adapter::{_ActiveModel, VideoSource as _, VideoSourceEnum};
 use crate::api::error::InnerApiError;
 use crate::api::request::{
-    DefaultPathRequest, InsertCollectionRequest, InsertFavoriteRequest, InsertSubmissionRequest,
-    UpdateVideoSourceRequest,
+    DefaultPathRequest, FullSyncVideoSourceRequest, InsertCollectionRequest, InsertFavoriteRequest,
+    InsertSubmissionRequest, UpdateVideoSourceRequest,
 };
 use crate::api::response::{
-    UpdateVideoSourceResponse, VideoSource, VideoSourceDetail, VideoSourcesDetailsResponse, VideoSourcesResponse,
+    FullSyncVideoSourceResponse, UpdateVideoSourceResponse, VideoSource, VideoSourceDetail,
+    VideoSourcesDetailsResponse, VideoSourcesResponse,
 };
 use crate::api::wrapper::{ApiError, ApiResponse, ValidatedJson};
 use crate::bilibili::{BiliClient, Collection, CollectionItem, FavoriteList, Submission};
@@ -39,6 +43,7 @@ pub(super) fn router() -> Router {
             put(update_video_source).delete(remove_video_source),
         )
         .route("/video-sources/{type}/{id}/evaluate", post(evaluate_video_source))
+        .route("/video-sources/{type}/{id}/full-sync", post(full_sync_video_source))
         .route("/video-sources/favorites", post(insert_favorite))
         .route("/video-sources/collections", post(insert_collection))
         .route("/video-sources/submissions", post(insert_submission))
@@ -354,6 +359,80 @@ pub async fn evaluate_video_source(
     }
     txn.commit().await?;
     Ok(ApiResponse::ok(true))
+}
+
+pub async fn full_sync_video_source(
+    Path((source_type, id)): Path<(String, i32)>,
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(bili_client): Extension<Arc<BiliClient>>,
+    Json(request): Json<FullSyncVideoSourceRequest>,
+) -> Result<ApiResponse<FullSyncVideoSourceResponse>, ApiError> {
+    let video_source: Option<VideoSourceEnum> = match source_type.as_str() {
+        "collections" => collection::Entity::find_by_id(id).one(&db).await?.map(Into::into),
+        "favorites" => favorite::Entity::find_by_id(id).one(&db).await?.map(Into::into),
+        "submissions" => submission::Entity::find_by_id(id).one(&db).await?.map(Into::into),
+        "watch_later" => watch_later::Entity::find_by_id(id).one(&db).await?.map(Into::into),
+        _ => return Err(InnerApiError::BadRequest("Invalid video source type".to_string()).into()),
+    };
+    let Some(video_source) = video_source else {
+        return Err(InnerApiError::NotFound(id).into());
+    };
+    let credential = &VersionedConfig::get().read().credential;
+    let filter_expr = video_source.filter_expr();
+    let (_, video_streams) = video_source.refresh(&bili_client, credential, &db).await?;
+    let all_videos = video_streams
+        .try_collect::<Vec<_>>()
+        .await
+        .context("failed to read all videos from video stream")?;
+    let all_bvids = all_videos.into_iter().map(|v| v.bvid_owned()).collect::<HashSet<_>>();
+    let videos_to_remove = video::Entity::find()
+        .filter(video::Column::Bvid.is_not_in(all_bvids).and(filter_expr))
+        .select_only()
+        .columns([video::Column::Id, video::Column::Path])
+        .into_tuple::<(i32, String)>()
+        .all(&db)
+        .await?;
+    if videos_to_remove.is_empty() {
+        return Ok(ApiResponse::ok(FullSyncVideoSourceResponse {
+            removed_count: 0,
+            warnings: None,
+        }));
+    }
+    let remove_count = videos_to_remove.len();
+    let (video_ids, video_paths): (Vec<i32>, Vec<String>) = videos_to_remove.into_iter().unzip();
+    let txn = db.begin().await?;
+    page::Entity::delete_many()
+        .filter(page::Column::VideoId.is_in(video_ids.iter().copied()))
+        .exec(&txn)
+        .await?;
+    video::Entity::delete_many()
+        .filter(video::Column::Id.is_in(video_ids))
+        .exec(&txn)
+        .await?;
+    txn.commit().await?;
+    let warnings = if request.delete_local {
+        let tasks = video_paths
+            .into_iter()
+            .map(|path| async move {
+                tokio::fs::remove_dir_all(&path)
+                    .await
+                    .with_context(|| format!("failed to remove {path}"))?;
+                Result::<_, anyhow::Error>::Ok(())
+            })
+            .collect::<FuturesUnordered<_>>();
+        Some(
+            tasks
+                .filter_map(|res| futures::future::ready(res.err().map(|e| format!("{:#}", e))))
+                .collect::<Vec<_>>()
+                .await,
+        )
+    } else {
+        None
+    };
+    Ok(ApiResponse::ok(FullSyncVideoSourceResponse {
+        removed_count: remove_count,
+        warnings,
+    }))
 }
 
 /// 新增收藏夹订阅
