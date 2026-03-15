@@ -137,7 +137,7 @@
 
 <Card class={cardClasses}>
 	<CardHeader class="shrink-0 pb-1">
-		<div class="flex min-w-0 items-start justify-between gap-3 {source ? 'min-h-12' : ''}">
+		<div class="flex min-w-0 items-start justify-between gap-3">
 			<CardTitle
 				class="line-clamp-2 min-w-0 flex-1 cursor-default {mode === 'default'
 					? 'text-sm'
