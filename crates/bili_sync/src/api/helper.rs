@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 
 use bili_sync_entity::video;
-use bili_sync_migration::{IntoCondition, SimpleExpr};
+use bili_sync_migration::SimpleExpr;
 use itertools::Itertools;
 use sea_orm::{ColumnTrait, Condition, ConnectionTrait, DatabaseTransaction};
 
