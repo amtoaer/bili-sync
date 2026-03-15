@@ -77,6 +77,10 @@ pub struct VideoInfo {
     pub should_download: bool,
     #[serde(serialize_with = "serde_video_download_status")]
     pub download_status: u32,
+    pub collection_id: Option<i32>,
+    pub favorite_id: Option<i32>,
+    pub submission_id: Option<i32>,
+    pub watch_later_id: Option<i32>,
 }
 
 #[derive(Serialize, DerivePartialModel, FromQueryResult)]

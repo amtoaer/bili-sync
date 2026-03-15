@@ -35,6 +35,10 @@ export interface VideoInfo {
 	valid: boolean;
 	should_download: boolean;
 	download_status: [number, number, number, number, number];
+	collection_id?: number;
+	favorite_id?: number;
+	submission_id?: number;
+	watch_later_id?: number;
 }
 
 export interface VideosResponse {
