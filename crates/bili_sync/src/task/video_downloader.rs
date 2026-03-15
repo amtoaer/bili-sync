@@ -17,6 +17,12 @@ use crate::workflow::process_video_source;
 
 static INSTANCE: OnceCell<DownloadTaskManager> = OnceCell::const_new();
 
+/// 运行一次下载任务并退出（不启动调度器 / Web UI）
+pub async fn download_once(connection: DatabaseConnection, bili_client: Arc<BiliClient>) -> Result<()> {
+    let mut config = VersionedConfig::get().snapshot();
+    download_video(&connection, &bili_client, &mut config).await
+}
+
 /// 启动周期下载视频的任务
 pub async fn video_downloader(connection: DatabaseConnection, bili_client: Arc<BiliClient>) -> Result<()> {
     let task_manager = DownloadTaskManager::init(connection, bili_client).await?;

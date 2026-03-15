@@ -649,6 +649,10 @@
 							<Label for="skip-video-nfo">跳过视频 NFO</Label>
 						</div>
 						<div class="flex items-center space-x-2">
+							<Switch id="skip-video" bind:checked={formData.skip_option.no_video} />
+							<Label for="skip-video">跳过下载视频文件</Label>
+						</div>
+						<div class="flex items-center space-x-2">
 							<Switch id="skip-upper-info" bind:checked={formData.skip_option.no_upper} />
 							<Label for="skip-upper-info">跳过 Up 主头像、信息</Label>
 						</div>

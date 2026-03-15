@@ -64,6 +64,8 @@ impl Default for ConcurrentLimit {
 pub struct SkipOption {
     pub no_poster: bool,
     pub no_video_nfo: bool,
+    #[serde(default)]
+    pub no_video: bool,
     pub no_upper: bool,
     pub no_danmaku: bool,
     pub no_subtitle: bool,

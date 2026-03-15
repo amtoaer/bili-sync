@@ -482,7 +482,13 @@ pub async fn download_page(
             cx
         ),
         // 下载分页视频
-        fetch_page_video(separate_status[1], video_model, &page_info, &video_path, cx),
+        fetch_page_video(
+            separate_status[1] && !cx.config.skip_option.no_video,
+            video_model,
+            &page_info,
+            &video_path,
+            cx,
+        ),
         // 生成分页视频信息的 nfo
         generate_page_nfo(
             separate_status[2] && !cx.config.skip_option.no_video_nfo,

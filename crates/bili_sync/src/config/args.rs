@@ -9,6 +9,9 @@ pub static ARGS: LazyLock<Args> = LazyLock::new(Args::parse);
 #[derive(Parser)]
 #[command(name = "Bili-Sync", version = detail_version(), about, long_about = None)]
 pub struct Args {
+    #[arg(short, long, env = "RUN_ONCE")]
+    pub run_once: bool,
+
     #[arg(short, long, env = "SCAN_ONLY")]
     pub scan_only: bool,
 

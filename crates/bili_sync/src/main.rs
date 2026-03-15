@@ -22,7 +22,7 @@ use anyhow::{Context, Result, bail};
 use bilibili::BiliClient;
 use parking_lot::RwLock;
 use sea_orm::DatabaseConnection;
-use task::{http_server, video_downloader};
+use task::{download_once, http_server, video_downloader};
 use tokio::process::Command;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
@@ -42,6 +42,24 @@ async fn main() {
             return;
         }
     };
+
+    if ARGS.run_once {
+        if let Err(e) = download_once(connection.clone(), bili_client.clone()).await {
+            error!("运行一次下载任务失败：{:#}", e);
+        }
+        // 运行一次模式：等待用户按键后退出，避免双击时窗口立即关闭
+        info!("已完成一次运行。按回车键退出...");
+        // 在 tokio 运行时中执行阻塞式 stdin 读取
+        let _ = tokio::task::spawn_blocking(|| {
+            use std::io::{self, Read};
+            let mut stdin = io::stdin();
+            // 尝试读取一行，若失败则直接返回
+            let mut _buf = String::new();
+            let _ = stdin.read_line(&mut _buf);
+        })
+        .await;
+        return;
+    }
 
     let token = CancellationToken::new();
     let tracker = TaskTracker::new();
