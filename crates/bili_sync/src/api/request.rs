@@ -13,6 +13,14 @@ pub enum StatusFilter {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ValidationFilter {
+    Skipped,
+    Invalid,
+    Normal,
+}
+
+#[derive(Deserialize)]
 pub struct VideosRequest {
     pub collection: Option<i32>,
     pub favorite: Option<i32>,
@@ -20,6 +28,7 @@ pub struct VideosRequest {
     pub watch_later: Option<i32>,
     pub query: Option<String>,
     pub status_filter: Option<StatusFilter>,
+    pub validation_filter: Option<ValidationFilter>,
     pub page: Option<u64>,
     pub page_size: Option<u64>,
 }
@@ -38,6 +47,7 @@ pub struct ResetFilteredVideoStatusRequest {
     pub watch_later: Option<i32>,
     pub query: Option<String>,
     pub status_filter: Option<StatusFilter>,
+    pub validation_filter: Option<ValidationFilter>,
     #[serde(default)]
     pub force: bool,
 }
@@ -75,6 +85,7 @@ pub struct UpdateFilteredVideoStatusRequest {
     pub watch_later: Option<i32>,
     pub query: Option<String>,
     pub status_filter: Option<StatusFilter>,
+    pub validation_filter: Option<ValidationFilter>,
     #[serde(default)]
     #[validate(nested)]
     pub video_updates: Vec<StatusUpdate>,

@@ -65,7 +65,7 @@
 	} {
 		if (!valid) {
 			// 视频属性表明已失效，或由于各种条件判断（充电视频等）判定为无效的情况
-			return { text: '无效', style: 'bg-gray-100 text-gray-700' };
+			return { text: '失效', style: 'bg-gray-100 text-gray-700' };
 		}
 		if (!shouldDownload) {
 			// 被过滤规则排除，显示为“跳过”
