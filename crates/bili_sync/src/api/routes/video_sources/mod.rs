@@ -416,7 +416,7 @@ pub async fn full_sync_video_source(
             .map(|path| async move {
                 tokio::fs::remove_dir_all(&path)
                     .await
-                    .with_context(|| format!("failed to remove local video directory {}", path))?;
+                    .with_context(|| format!("failed to remove {path}"))?;
                 Result::<_, anyhow::Error>::Ok(())
             })
             .collect::<FuturesUnordered<_>>();

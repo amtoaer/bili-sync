@@ -150,7 +150,8 @@
 				if (response.data.warnings && response.data.warnings.length > 0) {
 					toast.warning('部分本地文件夹删除失败', {
 						description: response.data.warnings.join('\n'),
-						duration: 10000
+						duration: 10000,
+						descriptionClass: 'whitespace-pre-line'
 					});
 				}
 			} else {
