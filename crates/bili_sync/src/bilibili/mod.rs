@@ -4,6 +4,7 @@ use std::sync::Arc;
 pub use analyzer::{BestStream, FilterOption};
 use anyhow::{Context, Result, bail, ensure};
 use arc_swap::ArcSwapOption;
+use bili_sync_entity::upper_vec::Upper;
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
 pub use client::{BiliClient, Client};
@@ -13,7 +14,6 @@ pub use danmaku::DanmakuOption;
 pub use dynamic::Dynamic;
 pub use error::BiliError;
 pub use favorite_list::FavoriteList;
-use favorite_list::Upper;
 pub use me::Me;
 use once_cell::sync::Lazy;
 use reqwest::{RequestBuilder, StatusCode};
@@ -134,6 +134,8 @@ pub enum VideoInfo {
         cover: String,
         #[serde(rename = "owner")]
         upper: Upper<i64>,
+        #[serde(default)]
+        staff: Option<Vec<Upper<i64>>>,
         #[serde(with = "ts_seconds")]
         ctime: DateTime<Utc>,
         #[serde(rename = "pubdate", with = "ts_seconds")]

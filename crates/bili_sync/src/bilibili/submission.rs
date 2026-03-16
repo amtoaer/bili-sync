@@ -1,10 +1,10 @@
 use anyhow::{Context, Result, anyhow};
 use async_stream::try_stream;
+use bili_sync_entity::upper_vec::Upper;
 use futures::Stream;
 use reqwest::Method;
 use serde_json::Value;
 
-use crate::bilibili::favorite_list::Upper;
 use crate::bilibili::{BiliClient, Credential, Dynamic, ErrorForStatusExt, MIXIN_KEY, Validate, VideoInfo, WbiSign};
 pub struct Submission<'a> {
     client: &'a BiliClient,

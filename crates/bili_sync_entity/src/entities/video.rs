@@ -2,7 +2,7 @@
 
 use sea_orm::entity::prelude::*;
 
-use crate::string_vec::StringVec;
+use crate::{string_vec::StringVec, upper_vec::UpperVec};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Default)]
 #[sea_orm(table_name = "video")]
@@ -16,6 +16,7 @@ pub struct Model {
     pub upper_id: i64,
     pub upper_name: String,
     pub upper_face: String,
+    pub staff: Option<UpperVec>,
     pub name: String,
     pub path: String,
     pub category: i32,
