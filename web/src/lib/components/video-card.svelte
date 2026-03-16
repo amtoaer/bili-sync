@@ -163,7 +163,7 @@
 		{/if}
 		{#if source}
 			<div class="text-muted-foreground mt-2 flex min-w-0 items-center justify-end gap-1 text-sm">
-				<Badge variant="outline" class="shrink-0 px-1.5 py-0.5">
+				<Badge variant="outline" class="shrink max-w-full px-1.5 py-0.5">
 					{#if source.type === 'favorite'}
 						<HeartIcon class="h-3.5 w-3.5 shrink-0" />
 					{:else if source.type === 'collection'}
