@@ -651,16 +651,25 @@
 					该操作会拉取该视频源下所有当前存在的视频，移除数据库中已不存在于该源的视频及其分页数据，<span
 						class="text-destructive font-medium">无法撤销</span
 					>。<br />
+					请谨慎对“稍后再看”执行全量更新操作，因为其视频源本身就具有较强的时效性，执行全量更新可能导致大量视频被移除。<br
+					/>
 				</AlertDialog.Description>
 			</AlertDialog.Header>
-			<div class="flex items-center space-x-2 py-2">
-				<input
-					type="checkbox"
-					id="delete-local"
-					bind:checked={fullSyncDeleteLocal}
-					class="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300"
-				/>
-				<label for="delete-local" class="text-sm font-medium"> 同时删除本地视频文件夹 </label>
+			<div class="rounded-lg border border-orange-200 bg-orange-50 p-3">
+				<div class="mb-2 flex items-center space-x-2">
+					<input
+						type="checkbox"
+						id="delete-local"
+						bind:checked={fullSyncDeleteLocal}
+						class="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300"
+					/>
+					<label for="delete-local" class="text-sm font-medium text-orange-700">
+						⚠️ 同时删除本地视频文件夹
+					</label>
+				</div>
+				<p class="text-xs leading-relaxed text-orange-700">
+					删除多余视频时同时删除视频对应的本地文件夹，请谨慎勾选
+				</p>
 			</div>
 			<AlertDialog.Footer>
 				<AlertDialog.Cancel
