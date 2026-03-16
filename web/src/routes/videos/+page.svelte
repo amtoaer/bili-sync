@@ -293,7 +293,7 @@
 			};
 			parts.push(`状态：${statusLabels[state.statusFilter]}`);
 		}
-		if (state.validationFilter && state.validationFilter !== 'normal') {
+		if (state.validationFilter) {
 			const validationLabels = {
 				skipped: '跳过',
 				invalid: '失效',
@@ -369,6 +369,22 @@
 		}}
 	></SearchBar>
 	<div class="flex items-center gap-3">
+		<div class="flex items-center gap-1">
+			<span class="text-muted-foreground text-xs">有效性:</span>
+			<ValidationFilter
+				value={$appStateStore.validationFilter}
+				onSelect={(value) => {
+					setValidationFilter(value);
+					resetCurrentPage();
+					goto(`/${ToQuery($appStateStore)}`);
+				}}
+				onRemove={() => {
+					setValidationFilter(null);
+					resetCurrentPage();
+					goto(`/${ToQuery($appStateStore)}`);
+				}}
+			/>
+		</div>
 		<!-- 状态筛选 -->
 		<div class="flex items-center gap-1">
 			<span class="text-muted-foreground text-xs">状态:</span>
@@ -381,22 +397,6 @@
 				}}
 				onRemove={() => {
 					setStatusFilter(null);
-					resetCurrentPage();
-					goto(`/${ToQuery($appStateStore)}`);
-				}}
-			/>
-		</div>
-		<div class="flex items-center gap-1">
-			<span class="text-muted-foreground text-xs">有效性:</span>
-			<ValidationFilter
-				value={$appStateStore.validationFilter}
-				onSelect={(value) => {
-					setValidationFilter(value);
-					resetCurrentPage();
-					goto(`/${ToQuery($appStateStore)}`);
-				}}
-				onRemove={() => {
-					setValidationFilter(null);
 					resetCurrentPage();
 					goto(`/${ToQuery($appStateStore)}`);
 				}}

@@ -137,7 +137,7 @@
 
 <Card class={cardClasses}>
 	<CardHeader class="shrink-0 pb-1">
-		<div class="flex min-w-0 items-start justify-between gap-3 {source ? 'min-h-12' : ''}">
+		<div class="flex min-w-0 items-start justify-between gap-3">
 			<CardTitle
 				class="line-clamp-2 min-w-0 flex-1 cursor-default {mode === 'default'
 					? 'text-sm'
@@ -163,7 +163,7 @@
 		{/if}
 		{#if source}
 			<div class="text-muted-foreground mt-2 flex min-w-0 items-center justify-end gap-1 text-sm">
-				<Badge variant="outline" class="shrink-0 px-1.5 py-0.5">
+				<Badge variant="outline" class="max-w-full shrink px-1.5 py-0.5">
 					{#if source.type === 'favorite'}
 						<HeartIcon class="h-3.5 w-3.5 shrink-0" />
 					{:else if source.type === 'collection'}

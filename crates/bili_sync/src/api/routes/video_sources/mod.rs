@@ -413,11 +413,17 @@ pub async fn full_sync_video_source(
     let warnings = if request.delete_local {
         let tasks = video_paths
             .into_iter()
-            .map(|path| async move {
-                tokio::fs::remove_dir_all(&path)
-                    .await
-                    .with_context(|| format!("failed to remove {path}"))?;
-                Result::<_, anyhow::Error>::Ok(())
+            .filter_map(|path| {
+                if path.is_empty() {
+                    None
+                } else {
+                    Some(async move {
+                        tokio::fs::remove_dir_all(&path)
+                            .await
+                            .with_context(|| format!("failed to remove {path}"))?;
+                        Result::<_, anyhow::Error>::Ok(())
+                    })
+                }
             })
             .collect::<FuturesUnordered<_>>();
         Some(
