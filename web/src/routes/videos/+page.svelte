@@ -293,7 +293,7 @@
 			};
 			parts.push(`状态：${statusLabels[state.statusFilter]}`);
 		}
-		if (state.validationFilter && state.validationFilter !== 'normal') {
+		if (state.validationFilter) {
 			const validationLabels = {
 				skipped: '跳过',
 				invalid: '失效',
