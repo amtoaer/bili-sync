@@ -34,6 +34,21 @@ pub struct Model {
     pub created_at: String,
 }
 
+impl Model {
+    pub fn uppers(&self) -> Vec<(i64, &str, &str)> {
+        self.staff
+            .as_ref()
+            .map(|staff| {
+                staff
+                    .0
+                    .iter()
+                    .map(|u| (u.mid, u.name.as_str(), u.face.as_str()))
+                    .collect()
+            })
+            .unwrap_or_else(|| vec![(self.upper_id, self.upper_name.as_str(), self.upper_face.as_str())])
+    }
+}
+
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(has_many = "super::page::Entity")]
