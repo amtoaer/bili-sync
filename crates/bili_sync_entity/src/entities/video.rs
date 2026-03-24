@@ -3,10 +3,8 @@
 use either::Either;
 use sea_orm::entity::prelude::*;
 
-use crate::{
-    string_vec::StringVec,
-    upper_vec::{Upper, UpperVec},
-};
+use crate::string_vec::StringVec;
+use crate::upper_vec::{Upper, UpperVec};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Default)]
 #[sea_orm(table_name = "video")]
