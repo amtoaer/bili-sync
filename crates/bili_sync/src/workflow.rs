@@ -171,7 +171,7 @@ pub async fn fetch_video_details(
             Ok::<_, anyhow::Error>(())
         })
         .collect::<FuturesUnordered<_>>();
-    tasks.try_collect::<Vec<_>>().await?;
+    tasks.try_collect::<()>().await?;
     video_source.log_fetch_video_end();
     Ok(())
 }
@@ -688,7 +688,7 @@ pub async fn fetch_page_subtitle(
             tokio::fs::write(path, subtitle.body.to_string()).await
         })
         .collect::<FuturesUnordered<_>>();
-    tasks.try_collect::<Vec<()>>().await?;
+    tasks.try_collect::<()>().await?;
     Ok(ExecutionStatus::Succeeded)
 }
 
@@ -750,7 +750,7 @@ pub async fn fetch_upper_face(
             Ok::<(), anyhow::Error>(())
         })
         .collect::<FuturesUnordered<_>>();
-    tasks.try_collect::<Vec<()>>().await?;
+    tasks.try_collect::<()>().await?;
     Ok(ExecutionStatus::Succeeded)
 }
 
@@ -772,7 +772,7 @@ pub async fn generate_upper_nfo(
             )
         })
         .collect::<FuturesUnordered<_>>();
-    tasks.try_collect::<Vec<()>>().await?;
+    tasks.try_collect::<()>().await?;
     Ok(ExecutionStatus::Succeeded)
 }
 
