@@ -133,9 +133,9 @@ pub enum VideoInfo {
         #[serde(rename = "pic")]
         cover: String,
         #[serde(rename = "owner")]
-        upper: Upper<i64>,
+        upper: Upper<i64, String>,
         #[serde(default)]
-        staff: Option<Vec<Upper<i64>>>,
+        staff: Option<Vec<Upper<i64, String>>>,
         #[serde(with = "ts_seconds")]
         ctime: DateTime<Utc>,
         #[serde(rename = "pubdate", with = "ts_seconds")]
@@ -154,7 +154,7 @@ pub enum VideoInfo {
         bvid: String,
         intro: String,
         cover: String,
-        upper: Upper<i64>,
+        upper: Upper<i64, String>,
         #[serde(with = "ts_seconds")]
         ctime: DateTime<Utc>,
         #[serde(with = "ts_seconds")]
@@ -172,7 +172,7 @@ pub enum VideoInfo {
         #[serde(rename = "pic")]
         cover: String,
         #[serde(rename = "owner")]
-        upper: Upper<i64>,
+        upper: Upper<i64, String>,
         #[serde(with = "ts_seconds")]
         ctime: DateTime<Utc>,
         #[serde(rename = "add_at", with = "ts_seconds")]

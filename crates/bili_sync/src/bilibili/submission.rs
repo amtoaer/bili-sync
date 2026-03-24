@@ -27,7 +27,7 @@ impl<'a> Submission<'a> {
         }
     }
 
-    pub async fn get_info(&self) -> Result<Upper<String>> {
+    pub async fn get_info(&self) -> Result<Upper<String, String>> {
         let mut res = self
             .client
             .request(
