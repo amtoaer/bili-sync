@@ -193,6 +193,8 @@ pub async fn download_unprocessed_videos(
     let tasks = unhandled_videos_pages
         .into_iter()
         .map(|(video_model, pages_model)| {
+            // 这里按理说是可以直接拿到 assigned_uppers 的，但rust 会错误地认为它引用了 local variable
+            // 导致编译出错，暂时先这样单独提取出一个 owned 的 upper id 列表，再在任务内部筛选
             let task_uids = video_model
                 .uppers()
                 .map(|u| u.mid)

@@ -39,9 +39,7 @@ pub struct Model {
 }
 
 impl Model {
-    pub fn uppers<'a>(
-        &'a self,
-    ) -> Either<impl Iterator<Item = Upper<i64, &'a str>> + 'a, impl Iterator<Item = Upper<i64, &'a str>> + 'a> {
+    pub fn uppers(&self) -> Either<impl Iterator<Item = Upper<i64, &str>>, impl Iterator<Item = Upper<i64, &str>>> {
         if let Some(staff) = self.staff.as_ref() {
             Either::Left(staff.0.iter().map(|u| u.as_ref()))
         } else {
