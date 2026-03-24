@@ -30,6 +30,8 @@ pub enum RuleTarget {
     FavTime(Condition<DateTime>),
     PubTime(Condition<DateTime>),
     PageCount(Condition<usize>),
+    SumVideoLength(Condition<usize>),
+    MultiUpper(Condition<bool>),
     Not(Box<RuleTarget>),
 }
 
@@ -63,6 +65,8 @@ impl Display for RuleTarget {
                 RuleTarget::FavTime(_) => "收藏时间",
                 RuleTarget::PubTime(_) => "发布时间",
                 RuleTarget::PageCount(_) => "视频分页数量",
+                RuleTarget::SumVideoLength(_) => "视频总时长",
+                RuleTarget::MultiUpper(_) => "联合投稿",
                 RuleTarget::Not(inner) => {
                     if depth == 0 {
                         get_field_name(inner, depth + 1)
@@ -79,14 +83,16 @@ impl Display for RuleTarget {
                 RuleTarget::FavTime(cond) | RuleTarget::PubTime(cond) => {
                     write!(f, "{}不{}", field_name, cond)
                 }
-                RuleTarget::PageCount(cond) => write!(f, "{}不{}", field_name, cond),
+                RuleTarget::PageCount(cond) | RuleTarget::SumVideoLength(cond) => write!(f, "{}不{}", field_name, cond),
+                RuleTarget::MultiUpper(cond) => write!(f, "{}不{}", field_name, cond),
                 RuleTarget::Not(_) => write!(f, "格式化失败"),
             },
             RuleTarget::Title(cond) | RuleTarget::Tags(cond) => write!(f, "{}{}", field_name, cond),
             RuleTarget::FavTime(cond) | RuleTarget::PubTime(cond) => {
                 write!(f, "{}{}", field_name, cond)
             }
-            RuleTarget::PageCount(cond) => write!(f, "{}{}", field_name, cond),
+            RuleTarget::PageCount(cond) | RuleTarget::SumVideoLength(cond) => write!(f, "{}{}", field_name, cond),
+            RuleTarget::MultiUpper(cond) => write!(f, "{}{}", field_name, cond),
         }
     }
 }

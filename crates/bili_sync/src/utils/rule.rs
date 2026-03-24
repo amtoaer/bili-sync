@@ -37,13 +37,22 @@ impl Evaluatable<usize> for Condition<usize> {
     }
 }
 
-impl Evaluatable<&NaiveDateTime> for Condition<NaiveDateTime> {
-    fn evaluate(&self, value: &NaiveDateTime) -> bool {
+impl Evaluatable<NaiveDateTime> for Condition<NaiveDateTime> {
+    fn evaluate(&self, value: NaiveDateTime) -> bool {
         match self {
-            Condition::Equals(expected) => expected == value,
-            Condition::GreaterThan(threshold) => value > threshold,
-            Condition::LessThan(threshold) => value < threshold,
-            Condition::Between(start, end) => value > start && value < end,
+            Condition::Equals(expected) => *expected == value,
+            Condition::GreaterThan(threshold) => value > *threshold,
+            Condition::LessThan(threshold) => value < *threshold,
+            Condition::Between(start, end) => value > *start && value < *end,
+            _ => false,
+        }
+    }
+}
+
+impl Evaluatable<bool> for Condition<bool> {
+    fn evaluate(&self, value: bool) -> bool {
+        match self {
+            Condition::Equals(expected) => *expected == value,
             _ => false,
         }
     }
@@ -65,13 +74,20 @@ impl FieldEvaluatable for RuleTarget {
                 .favtime
                 .try_as_ref()
                 .map(|fav_time| fav_time.and_utc().with_timezone(&Local).naive_local()) // 数据库中保存的一律是 utc 时间，转换为 local 时间再比较
-                .is_some_and(|fav_time| cond.evaluate(&fav_time)),
+                .is_some_and(|fav_time| cond.evaluate(fav_time)),
             RuleTarget::PubTime(cond) => video
                 .pubtime
                 .try_as_ref()
                 .map(|pub_time| pub_time.and_utc().with_timezone(&Local).naive_local())
-                .is_some_and(|pub_time| cond.evaluate(&pub_time)),
+                .is_some_and(|pub_time| cond.evaluate(pub_time)),
             RuleTarget::PageCount(cond) => cond.evaluate(pages.len()),
+            RuleTarget::SumVideoLength(cond) => pages
+                .iter()
+                .try_fold(0usize, |acc, page| {
+                    page.duration.try_as_ref().map(|d| acc + *d as usize).ok_or(())
+                })
+                .is_ok_and(|total_length| cond.evaluate(total_length)),
+            RuleTarget::MultiUpper(cond) => cond.evaluate(video.staff.as_ref().is_some()),
             RuleTarget::Not(inner) => !inner.evaluate(video, pages),
         }
     }
@@ -86,9 +102,13 @@ impl FieldEvaluatable for RuleTarget {
                 .tags
                 .as_ref()
                 .is_some_and(|tags| tags.0.iter().any(|tag| cond.evaluate(tag))),
-            RuleTarget::FavTime(cond) => cond.evaluate(&video.favtime.and_utc().with_timezone(&Local).naive_local()),
-            RuleTarget::PubTime(cond) => cond.evaluate(&video.pubtime.and_utc().with_timezone(&Local).naive_local()),
+            RuleTarget::FavTime(cond) => cond.evaluate(video.favtime.and_utc().with_timezone(&Local).naive_local()),
+            RuleTarget::PubTime(cond) => cond.evaluate(video.pubtime.and_utc().with_timezone(&Local).naive_local()),
             RuleTarget::PageCount(cond) => cond.evaluate(pages.len()),
+            RuleTarget::SumVideoLength(cond) => {
+                cond.evaluate(pages.iter().fold(0usize, |acc, page| acc + page.duration as usize))
+            }
+            RuleTarget::MultiUpper(cond) => cond.evaluate(video.staff.is_some()),
             RuleTarget::Not(inner) => !inner.evaluate_model(video, pages),
         }
     }

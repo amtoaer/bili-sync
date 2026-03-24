@@ -213,7 +213,7 @@ export interface RuleTarget<T> {
 	rule: Condition<T> | RuleTarget<T>;
 }
 
-export type AndGroup = RuleTarget<string | number | Date>[];
+export type AndGroup = RuleTarget<string | number | boolean | Date>[];
 export type Rule = AndGroup[];
 
 export interface VideoSourceDetail {
