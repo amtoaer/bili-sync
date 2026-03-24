@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use sea_orm::FromJsonQueryResult;
 use serde::{Deserialize, Serialize};
 
@@ -31,6 +33,16 @@ impl<T: Copy> Upper<T, String> {
             name: self.name.as_str(),
             face: self.face.as_str(),
             title: self.title.as_deref(),
+        }
+    }
+}
+
+impl<T, S: AsRef<str>> Upper<T, S> {
+    pub fn role(&self) -> Cow<'_, str> {
+        if let Some(title) = &self.title {
+            Cow::Owned(format!("{}「{}」", self.name.as_ref(), title.as_ref()))
+        } else {
+            Cow::Borrowed(self.name.as_ref())
         }
     }
 }

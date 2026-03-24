@@ -94,7 +94,7 @@ impl NFO<'_> {
                                 .await?;
                             writer
                                 .create_element("role")
-                                .write_text_content_async(BytesText::new(upper.name))
+                                .write_text_content_async(BytesText::new(upper.role().as_ref()))
                                 .await?;
                             writer
                                 .create_element("thumb")
@@ -154,7 +154,7 @@ impl NFO<'_> {
                                 .await?;
                             writer
                                 .create_element("role")
-                                .write_text_content_async(BytesText::new(upper.name))
+                                .write_text_content_async(BytesText::new(upper.role().as_ref()))
                                 .await?;
                             writer
                                 .create_element("thumb")
