@@ -321,7 +321,7 @@ mod tests {
 </tvshow>"#,
         );
         assert_eq!(
-            NFO::Upper((&video).to_nfo(NFOTimeType::FavTime))
+            NFO::Upper(((&video, &video.uppers().next().unwrap())).to_nfo(NFOTimeType::FavTime))
                 .generate_nfo()
                 .await
                 .unwrap(),
@@ -389,15 +389,6 @@ impl<'a> ToNFO<'a, TVShow<'a>> for &'a video::Model {
                 NFOTimeType::PubTime => self.pubtime,
             },
             tags: self.tags.as_ref().map(|tags| tags.clone().into()),
-        }
-    }
-}
-
-impl<'a> ToNFO<'a, Upper> for &'a video::Model {
-    fn to_nfo(&'a self, _nfo_time_type: NFOTimeType) -> Upper {
-        Upper {
-            upper_id: self.upper_id.to_string(),
-            pubtime: self.pubtime,
         }
     }
 }
