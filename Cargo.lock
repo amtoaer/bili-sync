@@ -416,6 +416,7 @@ name = "bili_sync_entity"
 version = "2.10.4"
 dependencies = [
  "derivative",
+ "either",
  "regex",
  "sea-orm",
  "serde",

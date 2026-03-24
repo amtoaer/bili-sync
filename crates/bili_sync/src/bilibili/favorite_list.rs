@@ -16,12 +16,6 @@ pub struct FavoriteListInfo {
     pub title: String,
 }
 
-#[derive(Debug, serde::Deserialize)]
-pub struct Upper<T> {
-    pub mid: T,
-    pub name: String,
-    pub face: String,
-}
 impl<'a> FavoriteList<'a> {
     pub fn new(client: &'a BiliClient, fid: String, credential: &'a Credential) -> Self {
         Self {

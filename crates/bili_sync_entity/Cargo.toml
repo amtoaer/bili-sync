@@ -6,6 +6,7 @@ publish = { workspace = true }
 
 [dependencies]
 derivative = { workspace = true }
+either = { workspace = true }
 regex = { workspace = true }
 sea-orm = { workspace = true }
 serde = { workspace = true }
