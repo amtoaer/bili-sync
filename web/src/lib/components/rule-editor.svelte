@@ -348,7 +348,8 @@
 											{#if condition.field === 'pageCount' || condition.field === 'sumVideoLength'}
 												<Input
 													type="number"
-													placeholder="最小值"
+													placeholder={'最小值' +
+														(condition.field === 'sumVideoLength' ? '（单位：秒）' : '')}
 													class="h-9"
 													value={condition.value}
 													oninput={(e) =>
@@ -361,7 +362,8 @@
 												/>
 												<Input
 													type="number"
-													placeholder="最大值"
+													placeholder={'最大值' +
+														(condition.field === 'sumVideoLength' ? '（单位：秒）' : '')}
 													class="h-9"
 													value={condition.value2 || ''}
 													oninput={(e) =>
@@ -431,7 +433,8 @@
 									{:else if condition.field === 'pageCount' || condition.field === 'sumVideoLength'}
 										<Input
 											type="number"
-											placeholder="输入数值"
+											placeholder={'输入数值' +
+												(condition.field === 'sumVideoLength' ? '（单位：秒）' : '')}
 											class="h-9"
 											value={condition.value}
 											oninput={(e) =>
