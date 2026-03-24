@@ -5,6 +5,7 @@
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import * as Select from '$lib/components/ui/select/index.js';
 	import { PlusIcon, MinusIcon, XIcon } from '@lucide/svelte/icons';
 	import type { Rule, RuleTarget, Condition } from '$lib/types';
 	import { onMount } from 'svelte';
@@ -100,10 +101,10 @@
 		let value = '';
 		let value2 = '';
 		if (Array.isArray(condition.value)) {
-			value = String(condition.value[0] || '');
-			value2 = String(condition.value[1] || '');
+			value = String(condition.value[0] ?? '');
+			value2 = String(condition.value[1] ?? '');
 		} else {
-			value = String(condition.value || '');
+			value = String(condition.value ?? '');
 		}
 		return {
 			field: target.field,
@@ -196,7 +197,7 @@
 			condition.field = value;
 			const operators = getOperatorOptions(value);
 			condition.operator = operators[0]?.value || 'equals';
-			condition.value = '';
+			condition.value = value === 'multiUpper' ? 'false' : '';
 			condition.value2 = '';
 		} else if (field === 'operator') {
 			condition.operator = value;
@@ -299,36 +300,43 @@
 									<!-- 字段选择 -->
 									<div>
 										<Label class="text-muted-foreground text-xs">字段</Label>
-										<select
-											class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+										<Select.Root
+											type="single"
 											value={condition.field}
-											onchange={(e) =>
-												updateCondition(groupIndex, conditionIndex, 'field', e.currentTarget.value)}
+											onValueChange={(v) => updateCondition(groupIndex, conditionIndex, 'field', v)}
 										>
-											{#each FIELD_OPTIONS as option (option.value)}
-												<option value={option.value}>{option.label}</option>
-											{/each}
-										</select>
+											<Select.Trigger class="w-full">
+												{FIELD_OPTIONS.find((o) => o.value === condition.field)?.label ??
+													condition.field}
+											</Select.Trigger>
+											<Select.Content>
+												{#each FIELD_OPTIONS as option (option.value)}
+													<Select.Item value={option.value} label={option.label} />
+												{/each}
+											</Select.Content>
+										</Select.Root>
 									</div>
 
 									<!-- 操作符选择 -->
 									<div>
 										<Label class="text-muted-foreground text-xs">操作符</Label>
-										<select
-											class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+										<Select.Root
+											type="single"
 											value={condition.operator}
-											onchange={(e) =>
-												updateCondition(
-													groupIndex,
-													conditionIndex,
-													'operator',
-													e.currentTarget.value
-												)}
+											onValueChange={(v) =>
+												updateCondition(groupIndex, conditionIndex, 'operator', v)}
 										>
-											{#each getOperatorOptions(condition.field) as option (option.value)}
-												<option value={option.value}>{option.label}</option>
-											{/each}
-										</select>
+											<Select.Trigger class="w-full">
+												{getOperatorOptions(condition.field).find(
+													(o) => o.value === condition.operator
+												)?.label ?? condition.operator}
+											</Select.Trigger>
+											<Select.Content>
+												{#each getOperatorOptions(condition.field) as option (option.value)}
+													<Select.Item value={option.value} label={option.label} />
+												{/each}
+											</Select.Content>
+										</Select.Root>
 									</div>
 								</div>
 
@@ -444,15 +452,19 @@
 												)}
 										/>
 									{:else if condition.field === 'multiUpper'}
-										<select
-											class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+										<Select.Root
+											type="single"
 											value={condition.value}
-											onchange={(e) =>
-												updateCondition(groupIndex, conditionIndex, 'value', e.currentTarget.value)}
+											onValueChange={(v) => updateCondition(groupIndex, conditionIndex, 'value', v)}
 										>
-											<option value="true">true</option>
-											<option value="false">false</option>
-										</select>
+											<Select.Trigger class="w-full">
+												{condition.value === 'true' ? 'true' : 'false'}
+											</Select.Trigger>
+											<Select.Content>
+												<Select.Item value="true" label="true" />
+												<Select.Item value="false" label="false" />
+											</Select.Content>
+										</Select.Root>
 									{:else}
 										<Input
 											type="text"
