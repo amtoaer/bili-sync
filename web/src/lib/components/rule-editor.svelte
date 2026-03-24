@@ -21,7 +21,9 @@
 		{ value: 'tags', label: '标签' },
 		{ value: 'favTime', label: '收藏时间' },
 		{ value: 'pubTime', label: '发布时间' },
-		{ value: 'pageCount', label: '视频分页数量' }
+		{ value: 'pageCount', label: '视频分页数量' },
+		{ value: 'sumVideoLength', label: '视频总时长' },
+		{ value: 'multiUpper', label: '联合投稿' }
 	];
 
 	const getOperatorOptions = (field: string) => {
@@ -37,6 +39,7 @@
 					{ value: 'matchesRegex', label: '匹配正则' }
 				];
 			case 'pageCount':
+			case 'sumVideoLength':
 				return [
 					{ value: 'equals', label: '等于' },
 					{ value: 'greaterThan', label: '大于' },
@@ -51,6 +54,8 @@
 					{ value: 'lessThan', label: '早于' },
 					{ value: 'between', label: '时间范围' }
 				];
+			case 'multiUpper':
+				return [{ value: 'equals', label: '等于' }];
 			default:
 				return [];
 		}
@@ -80,7 +85,9 @@
 		}
 	});
 
-	function convertRuleTargetToLocal(target: RuleTarget<string | number | Date>): LocalCondition {
+	function convertRuleTargetToLocal(
+		target: RuleTarget<string | number | boolean | Date>
+	): LocalCondition {
 		if (typeof target.rule === 'object' && 'field' in target.rule) {
 			// 嵌套的 not
 			const innerCondition = convertRuleTargetToLocal(target.rule);
@@ -111,8 +118,8 @@
 		if (localRule.length === 0) return null;
 		return localRule.map((andGroup) =>
 			andGroup.conditions.map((condition) => {
-				let value: string | number | Date | (string | number | Date)[];
-				if (condition.field === 'pageCount') {
+				let value: string | number | boolean | Date | (string | number | boolean | Date)[];
+				if (condition.field === 'pageCount' || condition.field === 'sumVideoLength') {
 					if (condition.operator === 'between') {
 						value = [parseInt(condition.value) || 0, parseInt(condition.value2 || '0') || 0];
 					} else {
@@ -124,6 +131,8 @@
 					} else {
 						value = condition.value;
 					}
+				} else if (condition.field === 'multiUpper') {
+					value = condition.value === 'true';
 				} else {
 					if (condition.operator === 'between') {
 						value = [condition.value, condition.value2 || ''];
@@ -131,12 +140,12 @@
 						value = condition.value;
 					}
 				}
-				const conditionObj: Condition<string | number | Date> = {
+				const conditionObj: Condition<string | number | boolean | Date> = {
 					operator: condition.operator,
 					value
 				};
 
-				let target: RuleTarget<string | number | Date> = {
+				let target: RuleTarget<string | number | boolean | Date> = {
 					field: condition.field,
 					rule: conditionObj
 				};
@@ -328,7 +337,7 @@
 									<Label class="text-muted-foreground text-xs">值</Label>
 									{#if condition.operator === 'between'}
 										<div class="grid grid-cols-2 gap-2">
-											{#if condition.field === 'pageCount'}
+											{#if condition.field === 'pageCount' || condition.field === 'sumVideoLength'}
 												<Input
 													type="number"
 													placeholder="最小值"
@@ -411,7 +420,7 @@
 												/>
 											{/if}
 										</div>
-									{:else if condition.field === 'pageCount'}
+									{:else if condition.field === 'pageCount' || condition.field === 'sumVideoLength'}
 										<Input
 											type="number"
 											placeholder="输入数值"
@@ -434,6 +443,16 @@
 													e.currentTarget.value + ':00'
 												)}
 										/>
+									{:else if condition.field === 'multiUpper'}
+										<select
+											class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+											value={condition.value}
+											onchange={(e) =>
+												updateCondition(groupIndex, conditionIndex, 'value', e.currentTarget.value)}
+										>
+											<option value="true">true</option>
+											<option value="false">false</option>
+										</select>
 									{:else}
 										<Input
 											type="text"
