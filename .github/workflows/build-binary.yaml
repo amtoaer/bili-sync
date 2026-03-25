@@ -12,7 +12,7 @@ jobs:
         working-directory: web
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Setup bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
       - name: Cache dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('docs/bun.lockb') }}
@@ -29,7 +29,7 @@ jobs:
       - name: Build Frontend
         run: bun run build
       - name: Upload Web Build Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: web-build
           path: web/build
@@ -72,20 +72,19 @@ jobs:
             name: bili-sync-rs-Windows-x86_64.zip
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Download Web Build Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: web-build
           path: web/build
       - name: Read Toolchain Version
-        uses: SebRollen/toml-action@v1.2.0
         id: read_rust_toolchain
-        with:
-          file: rust-toolchain.toml
-          field: toolchain.channel
+        run: |
+          channel=$(grep '^channel' rust-toolchain.toml | sed 's/.*= *"\(.*\)"/\1/')
+          echo "value=$channel" >> $GITHUB_OUTPUT
       - name: Build binary
         uses: houseabsolute/actions-rust-cross@v1
         with:
@@ -104,7 +103,7 @@ jobs:
             tar czvf ../../../${{ matrix.platform.name }} ${{ matrix.platform.bin }}
           fi
       - name: Upload release artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: bili-sync-rs-${{ matrix.platform.release_for }}
           path: |
