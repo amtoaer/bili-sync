@@ -3,6 +3,7 @@ use futures::TryStreamExt;
 use futures::stream::FuturesUnordered;
 use prost::Message;
 use reqwest::Method;
+use serde_json::Value;
 
 use crate::bilibili::analyzer::PageAnalyzer;
 use crate::bilibili::client::BiliClient;
@@ -12,7 +13,7 @@ use crate::bilibili::{Credential, ErrorForStatusExt, MIXIN_KEY, Validate, VideoI
 
 pub struct Video<'a> {
     client: &'a BiliClient,
-    pub bvid: String,
+    pub bvid: &'a str,
     credential: &'a Credential,
 }
 
@@ -35,7 +36,7 @@ pub struct Dimension {
 }
 
 impl<'a> Video<'a> {
-    pub fn new(client: &'a BiliClient, bvid: String, credential: &'a Credential) -> Self {
+    pub fn new(client: &'a BiliClient, bvid: &'a str, credential: &'a Credential) -> Self {
         Self {
             client,
             bvid,
@@ -85,7 +86,7 @@ impl<'a> Video<'a> {
     }
 
     pub async fn get_tags(&self) -> Result<Vec<String>> {
-        let res = self
+        let mut res = self
             .client
             .request(
                 Method::GET,
@@ -101,10 +102,10 @@ impl<'a> Video<'a> {
             .await?
             .validate()?;
         Ok(res["data"]
-            .as_array()
+            .as_array_mut()
             .context("tags is not an array")?
-            .iter()
-            .filter_map(|v| v["tag_name"].as_str().map(String::from))
+            .iter_mut()
+            .filter_map(|v| if let Value::String(s) = v.take() { Some(s) } else { None })
             .collect())
     }
 
@@ -154,7 +155,7 @@ impl<'a> Video<'a> {
             )
             .await
             .query(&[
-                ("bvid", self.bvid.as_str()),
+                ("bvid", self.bvid),
                 ("qn", "127"),
                 ("otype", "json"),
                 ("fnval", "4048"),
@@ -176,7 +177,7 @@ impl<'a> Video<'a> {
             .client
             .request(Method::GET, "https://api.bilibili.com/x/player/wbi/v2", self.credential)
             .await
-            .query(&[("bvid", self.bvid.as_str())])
+            .query(&[("bvid", self.bvid)])
             .query(&[("cid", page.cid)])
             .wbi_sign(MIXIN_KEY.load().as_deref())?
             .send()

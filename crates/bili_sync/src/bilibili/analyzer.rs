@@ -429,7 +429,7 @@ mod tests {
         let config = VersionedConfig::get().read();
         for (bvid, video_quality, video_codec, audio_quality) in testcases.into_iter() {
             let client = BiliClient::new();
-            let video = Video::new(&client, bvid.to_owned(), &config.credential);
+            let video = Video::new(&client, bvid, &config.credential);
             let pages = video.get_pages().await.expect("failed to get pages");
             let first_page = pages.into_iter().next().expect("no page found");
             let best_stream = video

@@ -313,7 +313,7 @@ mod tests {
             .into_mixin_key()
             .context("no mixin key")?;
         set_global_mixin_key(mixin_key);
-        let video = Video::new(&bili_client, "BV1gLfnY8E6D".to_string(), &credential);
+        let video = Video::new(&bili_client, "BV1gLfnY8E6D", &credential);
         let pages = video.get_pages().await?;
         println!("pages: {:?}", pages);
         let subtitles = video.get_subtitles(&pages[0]).await?;
@@ -344,7 +344,7 @@ mod tests {
             ("BV16w41187fx", (true, true)),   // 充电专享但有权观看
             ("BV1n34jzPEYq", (false, false)), // 普通视频
         ] {
-            let video = Video::new(&bili_client, bvid.to_string(), credential);
+            let video = Video::new(&bili_client, bvid, credential);
             let info = video.get_view_info().await?;
             let VideoInfo::Detail {
                 is_upower_exclusive,
@@ -377,7 +377,7 @@ mod tests {
             ("BV13xtnzPEye", false), // 番剧
             ("BV1kT4NzTEZj", true),  // 普通视频
         ] {
-            let video = Video::new(&bili_client, bvid.to_string(), credential);
+            let video = Video::new(&bili_client, bvid, credential);
             let info = video.get_view_info().await?;
             let VideoInfo::Detail { redirect_url, .. } = info else {
                 unreachable!();
