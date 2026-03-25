@@ -1,4 +1,5 @@
 use anyhow::Result;
+use bili_sync_entity::upper_vec::Upper as EntityUpper;
 use bili_sync_entity::*;
 use chrono::NaiveDateTime;
 use quick_xml::Error;
@@ -20,9 +21,7 @@ pub struct Movie<'a> {
     pub name: &'a str,
     pub intro: &'a str,
     pub bvid: &'a str,
-    pub upper_id: i64,
-    pub upper_name: &'a str,
-    pub upper_thumb: &'a str,
+    pub uppers: Vec<EntityUpper<i64, &'a str>>,
     pub premiered: NaiveDateTime,
     pub tags: Option<Vec<String>>,
 }
@@ -31,9 +30,7 @@ pub struct TVShow<'a> {
     pub name: &'a str,
     pub intro: &'a str,
     pub bvid: &'a str,
-    pub upper_id: i64,
-    pub upper_name: &'a str,
-    pub upper_thumb: &'a str,
+    pub uppers: Vec<EntityUpper<i64, &'a str>>,
     pub premiered: NaiveDateTime,
     pub tags: Option<Vec<String>>,
 }
@@ -87,24 +84,26 @@ impl NFO<'_> {
                     .create_element("title")
                     .write_text_content_async(BytesText::new(movie.name))
                     .await?;
-                writer
-                    .create_element("actor")
-                    .write_inner_content_async::<_, _, Error>(|writer| async move {
-                        writer
-                            .create_element("name")
-                            .write_text_content_async(BytesText::new(&movie.upper_id.to_string()))
-                            .await?;
-                        writer
-                            .create_element("role")
-                            .write_text_content_async(BytesText::new(movie.upper_name))
-                            .await?;
-                        writer
-                            .create_element("thumb")
-                            .write_text_content_async(BytesText::new(movie.upper_thumb))
-                            .await?;
-                        Ok(writer)
-                    })
-                    .await?;
+                for upper in movie.uppers {
+                    writer
+                        .create_element("actor")
+                        .write_inner_content_async::<_, _, Error>(|writer| async move {
+                            writer
+                                .create_element("name")
+                                .write_text_content_async(BytesText::new(&upper.mid.to_string()))
+                                .await?;
+                            writer
+                                .create_element("role")
+                                .write_text_content_async(BytesText::new(upper.role().as_ref()))
+                                .await?;
+                            writer
+                                .create_element("thumb")
+                                .write_text_content_async(BytesText::new(upper.face))
+                                .await?;
+                            Ok(writer)
+                        })
+                        .await?;
+                }
                 writer
                     .create_element("year")
                     .write_text_content_async(BytesText::new(&movie.premiered.format("%Y").to_string()))
@@ -145,24 +144,26 @@ impl NFO<'_> {
                     .create_element("title")
                     .write_text_content_async(BytesText::new(tvshow.name))
                     .await?;
-                writer
-                    .create_element("actor")
-                    .write_inner_content_async::<_, _, Error>(|writer| async move {
-                        writer
-                            .create_element("name")
-                            .write_text_content_async(BytesText::new(&tvshow.upper_id.to_string()))
-                            .await?;
-                        writer
-                            .create_element("role")
-                            .write_text_content_async(BytesText::new(tvshow.upper_name))
-                            .await?;
-                        writer
-                            .create_element("thumb")
-                            .write_text_content_async(BytesText::new(tvshow.upper_thumb))
-                            .await?;
-                        Ok(writer)
-                    })
-                    .await?;
+                for upper in tvshow.uppers {
+                    writer
+                        .create_element("actor")
+                        .write_inner_content_async::<_, _, Error>(|writer| async move {
+                            writer
+                                .create_element("name")
+                                .write_text_content_async(BytesText::new(&upper.mid.to_string()))
+                                .await?;
+                            writer
+                                .create_element("role")
+                                .write_text_content_async(BytesText::new(upper.role().as_ref()))
+                                .await?;
+                            writer
+                                .create_element("thumb")
+                                .write_text_content_async(BytesText::new(upper.face))
+                                .await?;
+                            Ok(writer)
+                        })
+                        .await?;
+                }
                 writer
                     .create_element("year")
                     .write_text_content_async(BytesText::new(&tvshow.premiered.format("%Y").to_string()))
@@ -320,7 +321,7 @@ mod tests {
 </tvshow>"#,
         );
         assert_eq!(
-            NFO::Upper((&video).to_nfo(NFOTimeType::FavTime))
+            NFO::Upper(((&video, &video.uppers().next().unwrap())).to_nfo(NFOTimeType::FavTime))
                 .generate_nfo()
                 .await
                 .unwrap(),
@@ -366,9 +367,7 @@ impl<'a> ToNFO<'a, Movie<'a>> for &'a video::Model {
             name: &self.name,
             intro: &self.intro,
             bvid: &self.bvid,
-            upper_id: self.upper_id,
-            upper_name: &self.upper_name,
-            upper_thumb: &self.upper_face,
+            uppers: self.uppers().collect(),
             premiered: match nfo_time_type {
                 NFOTimeType::FavTime => self.favtime,
                 NFOTimeType::PubTime => self.pubtime,
@@ -384,9 +383,7 @@ impl<'a> ToNFO<'a, TVShow<'a>> for &'a video::Model {
             name: &self.name,
             intro: &self.intro,
             bvid: &self.bvid,
-            upper_id: self.upper_id,
-            upper_name: &self.upper_name,
-            upper_thumb: &self.upper_face,
+            uppers: self.uppers().collect(),
             premiered: match nfo_time_type {
                 NFOTimeType::FavTime => self.favtime,
                 NFOTimeType::PubTime => self.pubtime,
@@ -396,11 +393,11 @@ impl<'a> ToNFO<'a, TVShow<'a>> for &'a video::Model {
     }
 }
 
-impl<'a> ToNFO<'a, Upper> for &'a video::Model {
+impl<'a> ToNFO<'a, Upper> for (&video::Model, &EntityUpper<i64, &str>) {
     fn to_nfo(&'a self, _nfo_time_type: NFOTimeType) -> Upper {
         Upper {
-            upper_id: self.upper_id.to_string(),
-            pubtime: self.pubtime,
+            upper_id: self.1.mid.to_string(),
+            pubtime: self.0.pubtime,
         }
     }
 }

@@ -5,6 +5,7 @@
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import * as Select from '$lib/components/ui/select/index.js';
 	import { PlusIcon, MinusIcon, XIcon } from '@lucide/svelte/icons';
 	import type { Rule, RuleTarget, Condition } from '$lib/types';
 	import { onMount } from 'svelte';
@@ -21,7 +22,9 @@
 		{ value: 'tags', label: '标签' },
 		{ value: 'favTime', label: '收藏时间' },
 		{ value: 'pubTime', label: '发布时间' },
-		{ value: 'pageCount', label: '视频分页数量' }
+		{ value: 'pageCount', label: '视频分页数量' },
+		{ value: 'sumVideoLength', label: '视频总时长' },
+		{ value: 'multiUpper', label: '联合投稿' }
 	];
 
 	const getOperatorOptions = (field: string) => {
@@ -37,6 +40,7 @@
 					{ value: 'matchesRegex', label: '匹配正则' }
 				];
 			case 'pageCount':
+			case 'sumVideoLength':
 				return [
 					{ value: 'equals', label: '等于' },
 					{ value: 'greaterThan', label: '大于' },
@@ -51,6 +55,8 @@
 					{ value: 'lessThan', label: '早于' },
 					{ value: 'between', label: '时间范围' }
 				];
+			case 'multiUpper':
+				return [{ value: 'equals', label: '等于' }];
 			default:
 				return [];
 		}
@@ -80,7 +86,9 @@
 		}
 	});
 
-	function convertRuleTargetToLocal(target: RuleTarget<string | number | Date>): LocalCondition {
+	function convertRuleTargetToLocal(
+		target: RuleTarget<string | number | boolean | Date>
+	): LocalCondition {
 		if (typeof target.rule === 'object' && 'field' in target.rule) {
 			// 嵌套的 not
 			const innerCondition = convertRuleTargetToLocal(target.rule);
@@ -93,10 +101,10 @@
 		let value = '';
 		let value2 = '';
 		if (Array.isArray(condition.value)) {
-			value = String(condition.value[0] || '');
-			value2 = String(condition.value[1] || '');
+			value = String(condition.value[0] ?? '');
+			value2 = String(condition.value[1] ?? '');
 		} else {
-			value = String(condition.value || '');
+			value = String(condition.value ?? '');
 		}
 		return {
 			field: target.field,
@@ -111,8 +119,8 @@
 		if (localRule.length === 0) return null;
 		return localRule.map((andGroup) =>
 			andGroup.conditions.map((condition) => {
-				let value: string | number | Date | (string | number | Date)[];
-				if (condition.field === 'pageCount') {
+				let value: string | number | boolean | Date | (string | number | boolean | Date)[];
+				if (condition.field === 'pageCount' || condition.field === 'sumVideoLength') {
 					if (condition.operator === 'between') {
 						value = [parseInt(condition.value) || 0, parseInt(condition.value2 || '0') || 0];
 					} else {
@@ -124,6 +132,8 @@
 					} else {
 						value = condition.value;
 					}
+				} else if (condition.field === 'multiUpper') {
+					value = condition.value === 'true';
 				} else {
 					if (condition.operator === 'between') {
 						value = [condition.value, condition.value2 || ''];
@@ -131,12 +141,12 @@
 						value = condition.value;
 					}
 				}
-				const conditionObj: Condition<string | number | Date> = {
+				const conditionObj: Condition<string | number | boolean | Date> = {
 					operator: condition.operator,
 					value
 				};
 
-				let target: RuleTarget<string | number | Date> = {
+				let target: RuleTarget<string | number | boolean | Date> = {
 					field: condition.field,
 					rule: conditionObj
 				};
@@ -187,7 +197,7 @@
 			condition.field = value;
 			const operators = getOperatorOptions(value);
 			condition.operator = operators[0]?.value || 'equals';
-			condition.value = '';
+			condition.value = value === 'multiUpper' ? 'false' : '';
 			condition.value2 = '';
 		} else if (field === 'operator') {
 			condition.operator = value;
@@ -290,36 +300,43 @@
 									<!-- 字段选择 -->
 									<div>
 										<Label class="text-muted-foreground text-xs">字段</Label>
-										<select
-											class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+										<Select.Root
+											type="single"
 											value={condition.field}
-											onchange={(e) =>
-												updateCondition(groupIndex, conditionIndex, 'field', e.currentTarget.value)}
+											onValueChange={(v) => updateCondition(groupIndex, conditionIndex, 'field', v)}
 										>
-											{#each FIELD_OPTIONS as option (option.value)}
-												<option value={option.value}>{option.label}</option>
-											{/each}
-										</select>
+											<Select.Trigger class="w-full">
+												{FIELD_OPTIONS.find((o) => o.value === condition.field)?.label ??
+													condition.field}
+											</Select.Trigger>
+											<Select.Content>
+												{#each FIELD_OPTIONS as option (option.value)}
+													<Select.Item value={option.value} label={option.label} />
+												{/each}
+											</Select.Content>
+										</Select.Root>
 									</div>
 
 									<!-- 操作符选择 -->
 									<div>
 										<Label class="text-muted-foreground text-xs">操作符</Label>
-										<select
-											class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+										<Select.Root
+											type="single"
 											value={condition.operator}
-											onchange={(e) =>
-												updateCondition(
-													groupIndex,
-													conditionIndex,
-													'operator',
-													e.currentTarget.value
-												)}
+											onValueChange={(v) =>
+												updateCondition(groupIndex, conditionIndex, 'operator', v)}
 										>
-											{#each getOperatorOptions(condition.field) as option (option.value)}
-												<option value={option.value}>{option.label}</option>
-											{/each}
-										</select>
+											<Select.Trigger class="w-full">
+												{getOperatorOptions(condition.field).find(
+													(o) => o.value === condition.operator
+												)?.label ?? condition.operator}
+											</Select.Trigger>
+											<Select.Content>
+												{#each getOperatorOptions(condition.field) as option (option.value)}
+													<Select.Item value={option.value} label={option.label} />
+												{/each}
+											</Select.Content>
+										</Select.Root>
 									</div>
 								</div>
 
@@ -328,10 +345,11 @@
 									<Label class="text-muted-foreground text-xs">值</Label>
 									{#if condition.operator === 'between'}
 										<div class="grid grid-cols-2 gap-2">
-											{#if condition.field === 'pageCount'}
+											{#if condition.field === 'pageCount' || condition.field === 'sumVideoLength'}
 												<Input
 													type="number"
-													placeholder="最小值"
+													placeholder={'最小值' +
+														(condition.field === 'sumVideoLength' ? '（单位：秒）' : '')}
 													class="h-9"
 													value={condition.value}
 													oninput={(e) =>
@@ -344,7 +362,8 @@
 												/>
 												<Input
 													type="number"
-													placeholder="最大值"
+													placeholder={'最大值' +
+														(condition.field === 'sumVideoLength' ? '（单位：秒）' : '')}
 													class="h-9"
 													value={condition.value2 || ''}
 													oninput={(e) =>
@@ -411,10 +430,11 @@
 												/>
 											{/if}
 										</div>
-									{:else if condition.field === 'pageCount'}
+									{:else if condition.field === 'pageCount' || condition.field === 'sumVideoLength'}
 										<Input
 											type="number"
-											placeholder="输入数值"
+											placeholder={'输入数值' +
+												(condition.field === 'sumVideoLength' ? '（单位：秒）' : '')}
 											class="h-9"
 											value={condition.value}
 											oninput={(e) =>
@@ -434,6 +454,20 @@
 													e.currentTarget.value + ':00'
 												)}
 										/>
+									{:else if condition.field === 'multiUpper'}
+										<Select.Root
+											type="single"
+											value={condition.value}
+											onValueChange={(v) => updateCondition(groupIndex, conditionIndex, 'value', v)}
+										>
+											<Select.Trigger class="w-full">
+												{condition.value === 'true' ? 'true' : 'false'}
+											</Select.Trigger>
+											<Select.Content>
+												<Select.Item value="true" label="true" />
+												<Select.Item value="false" label="false" />
+											</Select.Content>
+										</Select.Root>
 									{:else}
 										<Input
 											type="text"

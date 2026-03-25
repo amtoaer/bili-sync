@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::pin::Pin;
 
 use anyhow::{Context, Result, anyhow, bail};
+use bili_sync_entity::upper_vec::Upper;
 use bili_sync_entity::*;
 use futures::stream::FuturesUnordered;
 use futures::{Stream, StreamExt, TryStreamExt};
@@ -170,7 +171,7 @@ pub async fn fetch_video_details(
             Ok::<_, anyhow::Error>(())
         })
         .collect::<FuturesUnordered<_>>();
-    tasks.try_collect::<Vec<_>>().await?;
+    tasks.try_collect::<()>().await?;
     video_source.log_fetch_video_end();
     Ok(())
 }
@@ -188,13 +189,18 @@ pub async fn download_unprocessed_videos(
     let downloader = Downloader::new(bili_client.client.clone());
     let cx = DownloadContext::new(bili_client, video_source, template, connection, &downloader, config);
     let unhandled_videos_pages = filter_unhandled_video_pages(video_source.filter_expr(), connection).await?;
-    let mut assigned_upper = HashSet::new();
+    let mut assigned_upper_ids = HashSet::new();
     let tasks = unhandled_videos_pages
         .into_iter()
         .map(|(video_model, pages_model)| {
-            let should_download_upper = !assigned_upper.contains(&video_model.upper_id);
-            assigned_upper.insert(video_model.upper_id);
-            download_video_pages(video_model, pages_model, &semaphore, should_download_upper, cx)
+            // 这里按理说是可以直接拿到 assigned_uppers 的，但rust 会错误地认为它引用了 local variable
+            // 导致编译出错，暂时先这样单独提取出一个 owned 的 upper id 列表，再在任务内部筛选
+            let task_uids = video_model
+                .uppers()
+                .map(|u| u.mid)
+                .filter(|uid| assigned_upper_ids.insert(*uid))
+                .collect::<Vec<_>>();
+            download_video_pages(video_model, pages_model, &semaphore, task_uids, cx)
         })
         .collect::<FuturesUnordered<_>>();
     let mut risk_control_related_error = None;
@@ -229,7 +235,7 @@ pub async fn download_video_pages(
     video_model: video::Model,
     page_models: Vec<page::Model>,
     semaphore: &Semaphore,
-    should_download_upper: bool,
+    upper_uids: Vec<i64>,
     cx: DownloadContext<'_>,
 ) -> Result<video::ActiveModel> {
     let _permit = semaphore.acquire().await.context("acquire semaphore failed")?;
@@ -245,14 +251,26 @@ pub async fn download_video_pages(
         )
     };
     fs::create_dir_all(&base_path).await?;
+
     let base_path = dunce::canonicalize(base_path).context("canonicalize video path failed")?;
-    let upper_id = video_model.upper_id.to_string();
-    let base_upper_path = cx
-        .config
-        .upper_path
-        .join(upper_id.chars().next().context("upper_id is empty")?.to_string())
-        .join(upper_id);
     let is_single_page = video_model.single_page.context("single_page is null")?;
+    let uppers_with_path = video_model
+        .uppers()
+        .filter_map(|u| {
+            if !upper_uids.contains(&u.mid) {
+                None
+            } else {
+                let id_string = u.mid.to_string();
+                Some((
+                    u,
+                    cx.config
+                        .upper_path
+                        .join(id_string.chars().next()?.to_string())
+                        .join(id_string),
+                ))
+            }
+        })
+        .collect::<Vec<_>>();
     // 对于单页视频，page 的下载已经足够
     // 对于多页视频，page 下载仅包含了分集内容，需要额外补上视频的 poster 的 tvshow.nfo
     let (res_1, res_2, res_3, res_4, res_5) = tokio::join!(
@@ -273,16 +291,15 @@ pub async fn download_video_pages(
         ),
         // 下载 Up 主头像
         fetch_upper_face(
-            separate_status[2] && should_download_upper && !cx.config.skip_option.no_upper,
-            &video_model,
-            base_upper_path.join("folder.jpg"),
+            separate_status[2] && !cx.config.skip_option.no_upper,
+            &uppers_with_path,
             cx
         ),
         // 生成 Up 主信息的 nfo
         generate_upper_nfo(
-            separate_status[3] && should_download_upper && !cx.config.skip_option.no_upper,
+            separate_status[3] && !cx.config.skip_option.no_upper,
             &video_model,
-            base_upper_path.join("person.nfo"),
+            &uppers_with_path,
             cx,
         ),
         // 分发并执行分页下载的任务
@@ -671,7 +688,7 @@ pub async fn fetch_page_subtitle(
             tokio::fs::write(path, subtitle.body.to_string()).await
         })
         .collect::<FuturesUnordered<_>>();
-    tasks.try_collect::<Vec<()>>().await?;
+    tasks.try_collect::<()>().await?;
     Ok(ExecutionStatus::Succeeded)
 }
 
@@ -714,33 +731,48 @@ pub async fn fetch_video_poster(
 
 pub async fn fetch_upper_face(
     should_run: bool,
-    video_model: &video::Model,
-    upper_face_path: PathBuf,
+    uppers_with_path: &[(Upper<i64, &str>, PathBuf)],
     cx: DownloadContext<'_>,
 ) -> Result<ExecutionStatus> {
-    if !should_run {
+    if !should_run || uppers_with_path.is_empty() {
         return Ok(ExecutionStatus::Skipped);
     }
-    cx.downloader
-        .fetch(
-            &video_model.upper_face,
-            &upper_face_path,
-            &cx.config.concurrent_limit.download,
-        )
-        .await?;
+    let tasks = uppers_with_path
+        .iter()
+        .map(|(upper, base_path)| async move {
+            cx.downloader
+                .fetch(
+                    upper.face,
+                    &base_path.join("folder.jpg"),
+                    &cx.config.concurrent_limit.download,
+                )
+                .await?;
+            Ok::<(), anyhow::Error>(())
+        })
+        .collect::<FuturesUnordered<_>>();
+    tasks.try_collect::<()>().await?;
     Ok(ExecutionStatus::Succeeded)
 }
 
 pub async fn generate_upper_nfo(
     should_run: bool,
     video_model: &video::Model,
-    nfo_path: PathBuf,
+    uppers_with_path: &[(Upper<i64, &str>, PathBuf)],
     cx: DownloadContext<'_>,
 ) -> Result<ExecutionStatus> {
     if !should_run {
         return Ok(ExecutionStatus::Skipped);
     }
-    generate_nfo(NFO::Upper(video_model.to_nfo(cx.config.nfo_time_type)), nfo_path).await?;
+    let tasks = uppers_with_path
+        .iter()
+        .map(|(upper, base_path)| {
+            generate_nfo(
+                NFO::Upper((video_model, upper).to_nfo(cx.config.nfo_time_type)),
+                base_path.join("person.nfo"),
+            )
+        })
+        .collect::<FuturesUnordered<_>>();
+    tasks.try_collect::<()>().await?;
     Ok(ExecutionStatus::Succeeded)
 }
 
