@@ -132,7 +132,7 @@ pub async fn fetch_video_details(
         .into_iter()
         .map(|video_model| async move {
             let _permit = semaphore_ref.acquire().await.context("acquire semaphore failed")?;
-            let video = Video::new(bili_client, video_model.bvid.clone(), &config.credential);
+            let video = Video::new(bili_client, video_model.bvid.as_str(), &config.credential);
             let info: Result<_> = async { Ok((video.get_tags().await?, video.get_view_info().await?)) }.await;
             match info {
                 Err(e) => {
@@ -606,7 +606,7 @@ pub async fn fetch_page_video(
     if !should_run {
         return Ok(ExecutionStatus::Skipped);
     }
-    let bili_video = Video::new(cx.bili_client, video_model.bvid.clone(), &cx.config.credential);
+    let bili_video = Video::new(cx.bili_client, video_model.bvid.as_str(), &cx.config.credential);
     let streams = bili_video
         .get_page_analyzer(page_info)
         .await?
@@ -660,7 +660,7 @@ pub async fn fetch_page_danmaku(
     if !should_run {
         return Ok(ExecutionStatus::Skipped);
     }
-    let bili_video = Video::new(cx.bili_client, video_model.bvid.clone(), &cx.config.credential);
+    let bili_video = Video::new(cx.bili_client, video_model.bvid.as_str(), &cx.config.credential);
     bili_video
         .get_danmaku_writer(page_info)
         .await?
@@ -679,7 +679,7 @@ pub async fn fetch_page_subtitle(
     if !should_run {
         return Ok(ExecutionStatus::Skipped);
     }
-    let bili_video = Video::new(cx.bili_client, video_model.bvid.clone(), &cx.config.credential);
+    let bili_video = Video::new(cx.bili_client, video_model.bvid.as_str(), &cx.config.credential);
     let subtitles = bili_video.get_subtitles(page_info).await?;
     let tasks = subtitles
         .into_iter()
