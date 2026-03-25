@@ -106,7 +106,7 @@ impl<'a> Video<'a> {
             .context("tags is not an array")?
             .iter_mut()
             .filter_map(|v| if let Value::String(s) = v.take() { Some(s) } else { None })
-            .collect::<Vec<_>>())
+            .collect())
     }
 
     pub async fn get_danmaku_writer(&self, page: &'a PageInfo) -> Result<DanmakuWriter<'a>> {
