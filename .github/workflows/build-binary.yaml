@@ -82,6 +82,7 @@ jobs:
           path: web/build
       - name: Read Toolchain Version
         id: read_rust_toolchain
+        shell: bash
         run: |
           channel=$(grep '^channel' rust-toolchain.toml | sed 's/.*= *"\(.*\)"/\1/')
           echo "value=$channel" >> $GITHUB_OUTPUT
