@@ -13,8 +13,8 @@ COPY ./bili-sync-rs-Linux-*.tar.gz  ./targets/
 
 RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
     tar xzvf ./targets/bili-sync-rs-Linux-x86_64-musl.tar.gz  -C ./; \
-    elif [ "$TARGETPLATFORM" = "linux/armv7l" ]; then \
-    tar xzvf ./targets/bili-sync-rs-Linux-armv7l.tar.gz  -C ./; \
+    elif [ "$TARGETPLATFORM" = "linux/armv7" ]; then \
+    tar xzvf ./targets/bili-sync-rs-Linux-armv7-musl.tar.gz  -C ./; \
     else \
     tar xzvf ./targets/bili-sync-rs-Linux-aarch64-musl.tar.gz  -C ./; \
     fi
