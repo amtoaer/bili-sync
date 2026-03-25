@@ -65,7 +65,7 @@ jobs:
           platforms: |
             linux/amd64
             linux/arm64
-            linux/armv7l
+            linux/armv7
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
