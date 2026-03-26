@@ -353,7 +353,7 @@ dependencies = [
 
 [[package]]
 name = "bili_sync"
-version = "2.10.4"
+version = "2.11.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -413,7 +413,7 @@ dependencies = [
 
 [[package]]
 name = "bili_sync_entity"
-version = "2.10.4"
+version = "2.11.0"
 dependencies = [
  "derivative",
  "either",
@@ -425,7 +425,7 @@ dependencies = [
 
 [[package]]
 name = "bili_sync_migration"
-version = "2.10.4"
+version = "2.11.0"
 dependencies = [
  "sea-orm-migration",
 ]
