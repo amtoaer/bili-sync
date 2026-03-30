@@ -1,6 +1,8 @@
 mod info;
 mod message;
 
+use std::collections::HashMap;
+
 use anyhow::Result;
 use futures::future;
 pub use info::DownloadNotifyInfo;
@@ -20,6 +22,8 @@ pub enum Notifier {
     Webhook {
         url: String,
         template: Option<String>,
+        #[serde(default)]
+        headers: Option<HashMap<String, String>>,
         #[serde(skip)]
         // 一个内部辅助字段，用于决定是否强制渲染当前模板，在测试时使用
         ignore_cache: Option<()>,
@@ -74,6 +78,7 @@ impl Notifier {
             Notifier::Webhook {
                 url,
                 template,
+                headers,
                 ignore_cache,
             } => {
                 let key = webhook_template_key(url);
@@ -82,12 +87,20 @@ impl Notifier {
                     Some(_) => handlebar.render_template(webhook_template_content(template), &message)?,
                     None => handlebar.render(&key, &message)?,
                 };
-                client
-                    .post(url)
-                    .header(header::CONTENT_TYPE, "application/json")
-                    .body(payload)
-                    .send()
-                    .await?;
+                let mut headers_map = header::HeaderMap::new();
+                headers_map.insert(header::CONTENT_TYPE, "application/json".try_into()?);
+
+                if let Some(custom_headers) = headers {
+                    for (key, value) in custom_headers {
+                        if let (Ok(key), Ok(value)) =
+                            (header::HeaderName::try_from(key), header::HeaderValue::try_from(value))
+                        {
+                            headers_map.insert(key, value);
+                        }
+                    }
+                }
+
+                client.post(url).headers(headers_map).body(payload).send().await?;
             }
         }
         Ok(())
