@@ -2,6 +2,7 @@ mod info;
 mod message;
 
 use std::collections::HashMap;
+
 use anyhow::Result;
 use futures::future;
 pub use info::DownloadNotifyInfo;
@@ -88,21 +89,18 @@ impl Notifier {
                 };
                 let mut headers_map = header::HeaderMap::new();
                 headers_map.insert(header::CONTENT_TYPE, "application/json".try_into()?);
-                
+
                 if let Some(custom_headers) = headers {
                     for (key, value) in custom_headers {
-                        if let (Ok(key), Ok(value)) = (header::HeaderName::try_from(key), header::HeaderValue::try_from(value)) {
+                        if let (Ok(key), Ok(value)) =
+                            (header::HeaderName::try_from(key), header::HeaderValue::try_from(value))
+                        {
                             headers_map.insert(key, value);
                         }
                     }
                 }
-                
-                client
-                    .post(url)
-                    .headers(headers_map)
-                    .body(payload)
-                    .send()
-                    .await?;
+
+                client.post(url).headers(headers_map).body(payload).send().await?;
             }
         }
         Ok(())
