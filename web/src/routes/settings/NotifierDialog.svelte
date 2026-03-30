@@ -5,8 +5,6 @@
 	import { toast } from 'svelte-sonner';
 	import type { Notifier } from '$lib/types';
 
-
-
 	export let notifier: Notifier | null = null;
 	export let onSave: (notifier: Notifier) => void;
 	export let onCancel: () => void;
@@ -83,7 +81,7 @@
 					headers[trimmedKey] = trimmedValue;
 				}
 			}
-			
+
 			const newNotifier: Notifier = {
 				type: 'webhook',
 				url: webhookUrl.trim(),
@@ -127,7 +125,6 @@
 		<div class="space-y-2">
 			<Label for="webhook-url">Webhook URL</Label>
 			<Input id="webhook-url" placeholder="请输入 Webhook 地址" bind:value={webhookUrl} />
-
 		</div>
 		<div class="space-y-2">
 			<Label for="webhook-template">模板（可选）</Label>
@@ -139,19 +136,25 @@
 			></textarea>
 			<p class="text-muted-foreground text-xs">
 				用于渲染 Webhook 的 Handlebars 模板。如果不填写，将使用默认模板。<br />
-				可用变量：<code class="text-xs">message</code>（通知内容）、<code class="text-xs">image_url</code>（封面图片地址，无图时为 null）
+				可用变量：<code class="text-xs">message</code>（通知内容）、<code class="text-xs"
+					>image_url</code
+				>（封面图片地址，无图时为 null）
 			</p>
 		</div>
 
 		<div class="space-y-2">
 			<div class="flex items-center justify-between">
 				<Label>自定义请求头（可选）</Label>
-				<Button variant="ghost" size="sm" onclick={() => webhookHeaders = [...webhookHeaders, { key: '', value: '' }]}>
+				<Button
+					variant="ghost"
+					size="sm"
+					onclick={() => (webhookHeaders = [...webhookHeaders, { key: '', value: '' }])}
+				>
 					+ 添加请求头
 				</Button>
 			</div>
-			{#each webhookHeaders as header, index}
-				<div class="flex gap-2 items-center">
+			{#each webhookHeaders as header, index (index)}
+				<div class="flex items-center gap-2">
 					<Input
 						placeholder="Header 名称（例如 Authorization）"
 						bind:value={header.key}
@@ -166,7 +169,7 @@
 					<Button
 						variant="ghost"
 						size="sm"
-						onclick={() => webhookHeaders = webhookHeaders.filter((_, i) => i !== index)}
+						onclick={() => (webhookHeaders = webhookHeaders.filter((_, i) => i !== index))}
 						class="h-10 px-2"
 					>
 						×
