@@ -311,6 +311,7 @@ export interface WebhookNotifier {
 	type: 'webhook';
 	url: string;
 	template?: string | null;
+	headers?: Record<string, string> | null;
 }
 
 export type Notifier = TelegramNotifier | WebhookNotifier;
