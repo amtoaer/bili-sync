@@ -345,7 +345,9 @@ class ApiClient {
 		return this.post<boolean>('/youtube/sources/channels', request);
 	}
 
-	async insertYoutubePlaylist(request: InsertYoutubePlaylistRequest): Promise<ApiResponse<boolean>> {
+	async insertYoutubePlaylist(
+		request: InsertYoutubePlaylistRequest
+	): Promise<ApiResponse<boolean>> {
 		return this.post<boolean>('/youtube/sources/playlists', request);
 	}
 

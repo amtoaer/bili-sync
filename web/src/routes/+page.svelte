@@ -577,7 +577,8 @@
 		<Dialog.Header>
 			<Dialog.Title>手动提交视频下载</Dialog.Title>
 			<Dialog.Description>
-				支持粘贴视频链接或直接输入 BV 号。可选指定下载目录，不填则使用默认路径；在容器中默认保存到 /download。
+				支持粘贴视频链接或直接输入 BV 号。可选指定下载目录，不填则使用默认路径；在容器中默认保存到
+				/download。
 			</Dialog.Description>
 		</Dialog.Header>
 		<div class="space-y-4 py-2">
@@ -601,8 +602,10 @@
 			</div>
 		</div>
 		<Dialog.Footer>
-			<Button variant="outline" onclick={() => (manualDialogOpen = false)} disabled={manualSubmitting}
-				>取消</Button
+			<Button
+				variant="outline"
+				onclick={() => (manualDialogOpen = false)}
+				disabled={manualSubmitting}>取消</Button
 			>
 			<Button onclick={handleManualDownload} disabled={manualSubmitting}>
 				{manualSubmitting ? '提交中...' : '提交任务'}

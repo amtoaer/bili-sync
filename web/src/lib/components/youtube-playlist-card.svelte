@@ -20,9 +20,16 @@
 <Card class="border-border/50 group flex h-full flex-col transition-all hover:shadow-lg">
 	<CardHeader class="shrink-0">
 		<div class="flex items-start gap-3">
-			<div class="bg-accent/50 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl">
+			<div
+				class="bg-accent/50 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl"
+			>
 				{#if item.thumbnail}
-					<img src={item.thumbnail} alt={item.name} class="h-full w-full object-cover" loading="lazy" />
+					<img
+						src={item.thumbnail}
+						alt={item.name}
+						class="h-full w-full object-cover"
+						loading="lazy"
+					/>
 				{:else}
 					<ListVideoIcon class="text-muted-foreground h-5 w-5" />
 				{/if}
@@ -42,7 +49,7 @@
 				{#if item.videoCount}
 					<p class="text-muted-foreground line-clamp-1 text-xs">视频数：{item.videoCount}</p>
 				{/if}
-				<p class="text-muted-foreground line-clamp-2 break-all text-xs">{item.url}</p>
+				<p class="text-muted-foreground line-clamp-2 text-xs break-all">{item.url}</p>
 			</div>
 		</div>
 	</CardHeader>

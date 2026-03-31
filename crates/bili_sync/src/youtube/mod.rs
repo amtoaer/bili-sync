@@ -6,6 +6,7 @@ use std::sync::LazyLock;
 
 use anyhow::{Context, Result, bail};
 use bili_sync_entity::{youtube_channel, youtube_video};
+pub use helper::{Playlist, ResolvedSource, ResolvedSourceKind, Subscription};
 use sea_orm::ActiveValue::Set;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::OnConflict;
@@ -13,8 +14,6 @@ use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOr
 
 use crate::config::{CONFIG_DIR, Config, VersionedConfig, default_manual_download_root};
 use crate::utils::status::{STATUS_COMPLETED, STATUS_MAX_RETRY, STATUS_OK, YoutubeVideoStatus};
-
-pub use helper::{Playlist, ResolvedSource, ResolvedSourceKind, Subscription};
 
 pub const SOURCE_TYPE_CHANNEL: &str = "channel";
 pub const SOURCE_TYPE_PLAYLIST: &str = "playlist";

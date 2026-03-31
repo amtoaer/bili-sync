@@ -50,10 +50,7 @@
 
 <div>
 	<div class="mb-4 flex items-center justify-between">
-		<SearchBar
-			placeholder="搜索 YouTube 频道.."
-			value={searchQuery}
-			onSearch={handleSearch}
+		<SearchBar placeholder="搜索 YouTube 频道.." value={searchQuery} onSearch={handleSearch}
 		></SearchBar>
 	</div>
 
@@ -67,7 +64,10 @@
 		>
 			{#each filteredChannels as channel (channel.channelId)}
 				<div style="max-width: 450px; width: 100%;">
-					<YoutubeSubscriptionCard item={channel} onSubscriptionSuccess={handleSubscriptionSuccess} />
+					<YoutubeSubscriptionCard
+						item={channel}
+						onSubscriptionSuccess={handleSubscriptionSuccess}
+					/>
 				</div>
 			{/each}
 		</div>

@@ -2,10 +2,9 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Result;
-use axum::Json;
-use axum::Router;
 use axum::extract::Extension;
 use axum::routing::post;
+use axum::{Json, Router};
 use sea_orm::DatabaseConnection;
 
 use crate::api::error::InnerApiError;

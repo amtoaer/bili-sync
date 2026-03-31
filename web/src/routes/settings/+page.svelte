@@ -558,7 +558,7 @@
 									<div class="font-medium">
 										{youtubeStatus?.cookieConfigured ? '已配置 Cookie' : '未配置 Cookie'}
 									</div>
-									<p class="text-muted-foreground break-all text-xs">
+									<p class="text-muted-foreground text-xs break-all">
 										{youtubeStatus?.cookiePath || '尚未保存 YouTube Cookie'}
 									</p>
 								</div>
@@ -590,7 +590,10 @@
 						<Label>YouTube 处理跳过选项</Label>
 						<p class="text-muted-foreground text-sm">这些选项仅影响 YouTube 下载链路</p>
 						<div class="flex items-center space-x-2">
-							<Switch id="youtube-skip-poster" bind:checked={formData.youtube.skip_option.no_poster} />
+							<Switch
+								id="youtube-skip-poster"
+								bind:checked={formData.youtube.skip_option.no_poster}
+							/>
 							<Label for="youtube-skip-poster">跳过视频封面</Label>
 						</div>
 						<div class="flex items-center space-x-2">

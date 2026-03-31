@@ -54,10 +54,7 @@
 
 <div>
 	<div class="mb-4 flex items-center justify-between">
-		<SearchBar
-			placeholder="搜索 YouTube 播放列表.."
-			value={searchQuery}
-			onSearch={handleSearch}
+		<SearchBar placeholder="搜索 YouTube 播放列表.." value={searchQuery} onSearch={handleSearch}
 		></SearchBar>
 	</div>
 
