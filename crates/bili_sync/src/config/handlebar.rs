@@ -18,6 +18,10 @@ fn create_template(config: &Config) -> Result<handlebars::Handlebars<'static>> {
     handlebars.path_safe_register("favorite_default_path", config.favorite_default_path.clone())?;
     handlebars.path_safe_register("collection_default_path", config.collection_default_path.clone())?;
     handlebars.path_safe_register("submission_default_path", config.submission_default_path.clone())?;
+    handlebars.path_safe_register(
+        "youtube_channel_default_path",
+        config.youtube.channel_default_path.clone(),
+    )?;
     if let Some(notifiers) = &config.notifiers {
         for notifier in notifiers.iter() {
             if let Notifier::Webhook { url, template, .. } = notifier {

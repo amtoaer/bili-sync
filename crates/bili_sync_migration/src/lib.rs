@@ -11,6 +11,8 @@ mod m20250712_080013_add_video_created_at_index;
 mod m20250903_094454_add_rule_and_should_download;
 mod m20251009_123713_add_use_dynamic_api;
 mod m20260324_055217_add_staff;
+mod m20260329_080000_add_youtube_support;
+mod m20260329_153000_extend_youtube_sources;
 
 pub struct Migrator;
 
@@ -29,6 +31,8 @@ impl MigratorTrait for Migrator {
             Box::new(m20250903_094454_add_rule_and_should_download::Migration),
             Box::new(m20251009_123713_add_use_dynamic_api::Migration),
             Box::new(m20260324_055217_add_staff::Migration),
+            Box::new(m20260329_080000_add_youtube_support::Migration),
+            Box::new(m20260329_153000_extend_youtube_sources::Migration),
         ]
     }
 }

@@ -9,6 +9,7 @@ use ua_generator::ua;
 
 use crate::bilibili::Credential;
 use crate::bilibili::credential::WbiImg;
+use crate::bilibili::dns::FallbackDnsResolver;
 use crate::config::{RateLimit, VersionedCache};
 
 // 一个对 reqwest::Client 的简单封装，用于 Bilibili 请求
@@ -36,6 +37,7 @@ impl Client {
         Self(
             reqwest::Client::builder()
                 .default_headers(headers)
+                .dns_resolver(FallbackDnsResolver::default())
                 .gzip(true)
                 .connect_timeout(std::time::Duration::from_secs(10))
                 .read_timeout(std::time::Duration::from_secs(10))

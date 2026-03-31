@@ -12,12 +12,16 @@ import type {
 	InsertCollectionRequest,
 	InsertFavoriteRequest,
 	InsertSubmissionRequest,
+	InsertYoutubeChannelRequest,
+	InsertYoutubePlaylistRequest,
+	ManualDownloadRequest,
 	Notifier,
 	QrcodePollResponse as PollQrcodeResponse,
 	ResetFilteredVideosResponse,
 	ResetFilteredVideoStatusRequest,
 	ResetVideoResponse,
 	ResetVideoStatusRequest,
+	SaveYoutubeCookieRequest,
 	SysInfo,
 	TaskStatus,
 	UpdateFilteredVideoStatusRequest,
@@ -26,12 +30,20 @@ import type {
 	UpdateVideoSourceResponse,
 	UpdateVideoStatusRequest,
 	UpdateVideoStatusResponse,
+	UpdateYoutubeChannelRequest,
 	UppersResponse,
 	VideoResponse,
 	VideoSourcesDetailsResponse,
 	VideoSourcesResponse,
 	VideosRequest,
-	VideosResponse
+	VideosResponse,
+	YoutubeCookieSaveResponse,
+	YoutubeManualSubmitRequest,
+	YoutubeManualSubmitResponse,
+	YoutubePlaylistsResponse,
+	YoutubeSourcesResponse,
+	YoutubeStatusResponse,
+	YoutubeSubscriptionsResponse
 } from './types';
 import { wsManager } from './ws';
 
@@ -287,12 +299,71 @@ class ApiClient {
 		return this.post<boolean>('/task/download');
 	}
 
+	async manualDownloadVideo(request: ManualDownloadRequest): Promise<ApiResponse<boolean>> {
+		return this.post<boolean>('/task/manual-download', request);
+	}
+
 	async generateQrcode(): Promise<ApiResponse<GenerateQrcodeResponse>> {
 		return this.post<GenerateQrcodeResponse>('/login/qrcode/generate');
 	}
 
 	async pollQrcode(qrcodeKey: string): Promise<ApiResponse<PollQrcodeResponse>> {
 		return this.get<PollQrcodeResponse>('/login/qrcode/poll', { qrcode_key: qrcodeKey });
+	}
+
+	async getYoutubeStatus(): Promise<ApiResponse<YoutubeStatusResponse>> {
+		return this.get<YoutubeStatusResponse>('/youtube/status');
+	}
+
+	async saveYoutubeCookie(
+		request: SaveYoutubeCookieRequest
+	): Promise<ApiResponse<YoutubeCookieSaveResponse>> {
+		return this.post<YoutubeCookieSaveResponse>('/youtube/cookie', request);
+	}
+
+	async deleteYoutubeCookie(): Promise<ApiResponse<boolean>> {
+		return this.request<boolean>('/youtube/cookie', 'DELETE');
+	}
+
+	async getYoutubeChannels(): Promise<ApiResponse<YoutubeSubscriptionsResponse>> {
+		return this.get<YoutubeSubscriptionsResponse>('/youtube/channels');
+	}
+
+	async getYoutubePlaylists(): Promise<ApiResponse<YoutubePlaylistsResponse>> {
+		return this.get<YoutubePlaylistsResponse>('/youtube/playlists');
+	}
+
+	async getYoutubeSources(): Promise<ApiResponse<YoutubeSourcesResponse>> {
+		return this.get<YoutubeSourcesResponse>('/youtube/sources');
+	}
+
+	async getYoutubeDefaultPath(name: string): Promise<ApiResponse<string>> {
+		return this.get<string>('/youtube/sources/default-path', { name });
+	}
+
+	async insertYoutubeChannel(request: InsertYoutubeChannelRequest): Promise<ApiResponse<boolean>> {
+		return this.post<boolean>('/youtube/sources/channels', request);
+	}
+
+	async insertYoutubePlaylist(request: InsertYoutubePlaylistRequest): Promise<ApiResponse<boolean>> {
+		return this.post<boolean>('/youtube/sources/playlists', request);
+	}
+
+	async updateYoutubeChannel(
+		id: number,
+		request: UpdateYoutubeChannelRequest
+	): Promise<ApiResponse<boolean>> {
+		return this.put<boolean>(`/youtube/sources/channels/${id}`, request);
+	}
+
+	async removeYoutubeChannel(id: number): Promise<ApiResponse<boolean>> {
+		return this.request<boolean>(`/youtube/sources/channels/${id}`, 'DELETE');
+	}
+
+	async manualSubmitYoutubeLink(
+		request: YoutubeManualSubmitRequest
+	): Promise<ApiResponse<YoutubeManualSubmitResponse>> {
+		return this.post<YoutubeManualSubmitResponse>('/youtube/manual-submit', request);
 	}
 
 	subscribeToLogs(onMessage: (data: string) => void) {
@@ -345,8 +416,25 @@ const api = {
 	updateConfig: (config: Config) => apiClient.updateConfig(config),
 	getDashboard: () => apiClient.getDashboard(),
 	triggerDownloadTask: () => apiClient.triggerDownloadTask(),
+	manualDownloadVideo: (request: ManualDownloadRequest) => apiClient.manualDownloadVideo(request),
 	generateQrcode: () => apiClient.generateQrcode(),
 	pollQrcode: (qrcodeKey: string) => apiClient.pollQrcode(qrcodeKey),
+	getYoutubeStatus: () => apiClient.getYoutubeStatus(),
+	saveYoutubeCookie: (request: SaveYoutubeCookieRequest) => apiClient.saveYoutubeCookie(request),
+	deleteYoutubeCookie: () => apiClient.deleteYoutubeCookie(),
+	getYoutubeChannels: () => apiClient.getYoutubeChannels(),
+	getYoutubePlaylists: () => apiClient.getYoutubePlaylists(),
+	getYoutubeSources: () => apiClient.getYoutubeSources(),
+	getYoutubeDefaultPath: (name: string) => apiClient.getYoutubeDefaultPath(name),
+	insertYoutubeChannel: (request: InsertYoutubeChannelRequest) =>
+		apiClient.insertYoutubeChannel(request),
+	insertYoutubePlaylist: (request: InsertYoutubePlaylistRequest) =>
+		apiClient.insertYoutubePlaylist(request),
+	updateYoutubeChannel: (id: number, request: UpdateYoutubeChannelRequest) =>
+		apiClient.updateYoutubeChannel(id, request),
+	removeYoutubeChannel: (id: number) => apiClient.removeYoutubeChannel(id),
+	manualSubmitYoutubeLink: (request: YoutubeManualSubmitRequest) =>
+		apiClient.manualSubmitYoutubeLink(request),
 	subscribeToSysInfo: (onMessage: (data: SysInfo) => void) =>
 		apiClient.subscribeToSysInfo(onMessage),
 

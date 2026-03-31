@@ -14,6 +14,7 @@ use crate::config::{ARGS, Config, TEMPLATE, Trigger, VersionedConfig};
 use crate::utils::model::get_enabled_video_sources;
 use crate::utils::notify::error_and_notify;
 use crate::workflow::process_video_source;
+use crate::youtube;
 
 static INSTANCE: OnceCell<DownloadTaskManager> = OnceCell::const_new();
 
@@ -313,6 +314,10 @@ async fn check_and_refresh_credential(
     bili_client: &BiliClient,
     config: &Config,
 ) -> Result<()> {
+    if get_enabled_video_sources(connection).await?.is_empty() {
+        info!("当前未启用任何 B 站视频源，跳过凭据检查与刷新任务");
+        return Ok(());
+    }
     match bili_client
         .check_refresh(&config.credential)
         .await
@@ -337,6 +342,40 @@ async fn download_video(
     bili_client: &BiliClient,
     config: &mut Arc<Config>,
 ) -> Result<()> {
+    let video_sources = get_enabled_video_sources(connection)
+        .await
+        .context("获取视频源列表失败")?;
+    let has_youtube_sources = youtube::has_enabled_sources(connection).await?;
+
+    if video_sources.is_empty() && !has_youtube_sources {
+        bail!("没有可用的视频源");
+    }
+
+    let mut errors = Vec::new();
+
+    if !video_sources.is_empty() {
+        if let Err(error) = download_bilibili_sources(connection, bili_client, config.as_ref(), video_sources).await {
+            errors.push(format!("B 站视频源：{:#}", error));
+        }
+    }
+
+    if has_youtube_sources && let Err(error) = youtube::process_enabled_sources(connection, config.as_ref()).await {
+        errors.push(format!("YouTube 频道：{:#}", error));
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        bail!(errors.join("\n"))
+    }
+}
+
+async fn download_bilibili_sources(
+    connection: &DatabaseConnection,
+    bili_client: &BiliClient,
+    config: &Config,
+    video_sources: Vec<crate::adapter::VideoSourceEnum>,
+) -> Result<()> {
     config.check().context("配置检查失败")?;
     let mixin_key = bili_client
         .wbi_img(&config.credential)
@@ -347,12 +386,7 @@ async fn download_video(
     bilibili::set_global_mixin_key(mixin_key);
     let template = TEMPLATE.snapshot();
     let bili_client = bili_client.snapshot()?;
-    let video_sources = get_enabled_video_sources(connection)
-        .await
-        .context("获取视频源列表失败")?;
-    if video_sources.is_empty() {
-        bail!("没有可用的视频源");
-    }
+
     for video_source in video_sources {
         let display_name = video_source.display_name();
         if let Err(e) = process_video_source(video_source, &bili_client, connection, &template, config).await {
@@ -364,10 +398,11 @@ async fn download_video(
             if let Ok(e) = e.downcast::<BiliError>()
                 && e.is_risk_control_related()
             {
-                warn!("检测到风控，终止此轮视频下载任务..");
+                warn!("检测到风控，终止此轮 B 站视频下载任务..");
                 break;
             }
         }
     }
+
     Ok(())
 }

@@ -28,3 +28,7 @@ pub fn default_collection_path() -> String {
 pub fn default_submission_path() -> String {
     "投稿/{{name}}".to_owned()
 }
+
+pub fn default_youtube_channel_path() -> String {
+    "YouTube/{{name}}".to_owned()
+}

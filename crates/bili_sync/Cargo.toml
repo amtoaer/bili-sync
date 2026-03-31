@@ -30,6 +30,7 @@ float-ord = { workspace = true }
 futures = { workspace = true }
 handlebars = { workspace = true }
 hex = { workspace = true }
+hickory-resolver = { workspace = true }
 itertools = { workspace = true }
 leaky-bucket = { workspace = true }
 md5 = { workspace = true }

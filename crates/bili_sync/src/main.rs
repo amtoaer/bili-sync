@@ -12,6 +12,7 @@ mod notifier;
 mod task;
 mod utils;
 mod workflow;
+mod youtube;
 
 use std::collections::VecDeque;
 use std::fmt::Debug;

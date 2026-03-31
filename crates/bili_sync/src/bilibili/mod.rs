@@ -26,6 +26,7 @@ mod client;
 mod collection;
 mod credential;
 mod danmaku;
+mod dns;
 mod dynamic;
 mod error;
 mod favorite_list;

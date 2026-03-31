@@ -4,6 +4,9 @@
 	import { Progress } from '$lib/components/ui/progress/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Chart from '$lib/components/ui/chart/index.js';
 	import MyChartTooltip from '$lib/components/custom/my-chart-tooltip.svelte';
 	import { curveNatural } from 'd3-shape';
@@ -34,6 +37,10 @@
 	let taskStatus = $state<TaskStatus | null>(null);
 	let loading = $state(false);
 	let triggering = $state(false);
+	let manualDialogOpen = $state(false);
+	let manualSubmitting = $state(false);
+	let manualVideoUrl = $state('');
+	let manualDownloadPath = $state('');
 	let memoryHistory = $state<Array<{ time: number; used: number; process: number }>>([]);
 	let cpuHistory = $state<Array<{ time: number; used: number; process: number }>>([]);
 	let unsubscribeSysInfo: (() => void) | null = null;
@@ -89,6 +96,33 @@
 			});
 		} finally {
 			triggering = false;
+		}
+	}
+
+	async function handleManualDownload() {
+		if (!manualVideoUrl.trim()) {
+			toast.error('请输入视频链接或 BV 号');
+			return;
+		}
+		manualSubmitting = true;
+		try {
+			await api.manualDownloadVideo({
+				video_url: manualVideoUrl.trim(),
+				download_path: manualDownloadPath.trim() || undefined
+			});
+			toast.success('已提交手动下载任务', {
+				description: '任务已进入后台执行，请在日志页面查看进度'
+			});
+			manualVideoUrl = '';
+			manualDownloadPath = '';
+			manualDialogOpen = false;
+		} catch (error) {
+			console.error('提交手动下载任务失败：', error);
+			toast.error('提交手动下载任务失败', {
+				description: (error as ApiError).message
+			});
+		} finally {
+			manualSubmitting = false;
 		}
 	}
 
@@ -373,19 +407,30 @@
 								</div>
 							</div>
 							<div class="mt-6 border-t pt-4">
-								<Button
-									class="w-full"
-									size="sm"
-									onclick={handleTriggerDownload}
-									disabled={triggering || (taskStatus?.is_running ?? false)}
-								>
-									<DownloadIcon class="h-4 w-4" />
-									{triggering
-										? '触发中...'
-										: taskStatus?.is_running
-											? '任务运行中'
-											: '立即执行下载任务'}
-								</Button>
+								<div class="space-y-2">
+									<Button
+										class="w-full"
+										size="sm"
+										onclick={handleTriggerDownload}
+										disabled={triggering || (taskStatus?.is_running ?? false)}
+									>
+										<DownloadIcon class="h-4 w-4" />
+										{triggering
+											? '触发中...'
+											: taskStatus?.is_running
+												? '任务运行中'
+												: '立即执行下载任务'}
+									</Button>
+									<Button
+										class="w-full"
+										size="sm"
+										variant="outline"
+										onclick={() => (manualDialogOpen = true)}
+										disabled={manualSubmitting}
+									>
+										手动提交视频下载
+									</Button>
+								</div>
 							</div>
 						</div>
 					{:else}
@@ -526,3 +571,42 @@
 		</div>
 	{/if}
 </div>
+
+<Dialog.Root bind:open={manualDialogOpen}>
+	<Dialog.Content class="sm:max-w-[520px]">
+		<Dialog.Header>
+			<Dialog.Title>手动提交视频下载</Dialog.Title>
+			<Dialog.Description>
+				支持粘贴视频链接或直接输入 BV 号。可选指定下载目录，不填则使用默认路径；在容器中默认保存到 /download。
+			</Dialog.Description>
+		</Dialog.Header>
+		<div class="space-y-4 py-2">
+			<div class="space-y-2">
+				<Label for="manual-video-url">视频链接 / BV 号</Label>
+				<Input
+					id="manual-video-url"
+					placeholder="例如：https://www.bilibili.com/video/BV1xx411c7mD 或 BV1xx411c7mD"
+					bind:value={manualVideoUrl}
+					disabled={manualSubmitting}
+				/>
+			</div>
+			<div class="space-y-2">
+				<Label for="manual-download-path">下载路径（可选，需绝对路径）</Label>
+				<Input
+					id="manual-download-path"
+					placeholder="例如：/download 或 /data/bili/manual 或 C:\\Videos\\BiliManual"
+					bind:value={manualDownloadPath}
+					disabled={manualSubmitting}
+				/>
+			</div>
+		</div>
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (manualDialogOpen = false)} disabled={manualSubmitting}
+				>取消</Button
+			>
+			<Button onclick={handleManualDownload} disabled={manualSubmitting}>
+				{manualSubmitting ? '提交中...' : '提交任务'}
+			</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>

@@ -18,6 +18,7 @@ mod task;
 mod video_sources;
 mod videos;
 mod ws;
+mod youtube;
 
 pub use ws::{LogHelper, MAX_HISTORY_LOGS};
 
@@ -32,6 +33,7 @@ pub fn router() -> Router {
             .merge(dashboard::router())
             .merge(ws::router())
             .merge(task::router())
+            .merge(youtube::router())
             .layer(middleware::from_fn(auth)),
     )
 }

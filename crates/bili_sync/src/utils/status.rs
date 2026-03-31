@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use bili_sync_entity::{page, video};
+use bili_sync_entity::{page, video, youtube_video};
 use bili_sync_migration::{ExprTrait, IntoCondition};
 use sea_orm::sea_query::Expr;
 use sea_orm::{ColumnTrait, Condition};
@@ -8,7 +8,7 @@ use sea_orm::{ColumnTrait, Condition};
 use crate::error::ExecutionStatus;
 
 pub static STATUS_NOT_STARTED: u32 = 0b000;
-pub(super) static STATUS_MAX_RETRY: u32 = 0b100;
+pub static STATUS_MAX_RETRY: u32 = 0b100;
 pub static STATUS_OK: u32 = 0b111;
 pub static STATUS_COMPLETED: u32 = 1 << 31;
 
@@ -201,6 +201,15 @@ pub type PageStatus = Status<5, page::Column>;
 impl PageStatus {
     pub fn query_builder() -> StatusQueryBuilder<{ Self::LEN }, page::Column> {
         StatusQueryBuilder::new(page::Column::DownloadStatus)
+    }
+}
+
+/// 包含四个子任务，从前到后分别是：视频封面、视频内容、视频信息、视频字幕
+pub type YoutubeVideoStatus = Status<4, youtube_video::Column>;
+
+impl YoutubeVideoStatus {
+    pub fn query_builder() -> StatusQueryBuilder<{ Self::LEN }, youtube_video::Column> {
+        StatusQueryBuilder::new(youtube_video::Column::DownloadStatus)
     }
 }
 

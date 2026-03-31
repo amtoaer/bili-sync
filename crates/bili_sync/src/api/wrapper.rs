@@ -73,6 +73,7 @@ impl<T: Serialize> IntoResponse for ApiResponse<T> {
     }
 }
 
+#[derive(Debug)]
 pub struct ApiError(Error);
 
 impl<E> From<E> for ApiError

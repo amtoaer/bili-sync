@@ -1,5 +1,6 @@
 use bili_sync_entity::rule::Rule;
 use bili_sync_entity::*;
+use sea_orm::entity::prelude::DateTime;
 use sea_orm::{DerivePartialModel, FromQueryResult};
 use serde::Serialize;
 
@@ -234,4 +235,79 @@ pub type PollQrcodeResponse = PollStatus;
 pub struct FullSyncVideoSourceResponse {
     pub removed_count: usize,
     pub warnings: Option<Vec<String>>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct YoutubeStatusResponse {
+    pub cookie_configured: bool,
+    pub cookie_path: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct YoutubeSubscription {
+    pub channel_id: String,
+    pub name: String,
+    pub url: String,
+    pub thumbnail: Option<String>,
+    pub subscribed: bool,
+}
+
+#[derive(Serialize)]
+pub struct YoutubeSubscriptionsResponse {
+    pub channels: Vec<YoutubeSubscription>,
+    pub total: usize,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct YoutubeSourcesResponse {
+    pub sources: Vec<YoutubeSourceDetail>,
+}
+
+#[derive(Serialize)]
+pub struct YoutubePlaylistsResponse {
+    pub playlists: Vec<YoutubePlaylist>,
+    pub total: usize,
+}
+
+#[derive(Serialize, FromQueryResult)]
+#[serde(rename_all = "camelCase")]
+pub struct YoutubeSourceDetail {
+    pub id: i32,
+    pub source_type: String,
+    pub channel_id: String,
+    pub name: String,
+    pub url: String,
+    pub thumbnail: Option<String>,
+    pub path: String,
+    pub latest_published_at: Option<DateTime>,
+    pub enabled: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct YoutubePlaylist {
+    pub playlist_id: String,
+    pub name: String,
+    pub url: String,
+    pub thumbnail: Option<String>,
+    pub owner_name: Option<String>,
+    pub video_count: Option<usize>,
+    pub added: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct YoutubeCookieSaveResponse {
+    pub saved: bool,
+    pub path: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct YoutubeManualSubmitResponse {
+    pub queued: bool,
+    pub url: String,
 }
