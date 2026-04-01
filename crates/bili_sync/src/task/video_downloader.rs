@@ -353,10 +353,8 @@ async fn download_video(
 
     let mut errors = Vec::new();
 
-    if !video_sources.is_empty() {
-        if let Err(error) = download_bilibili_sources(connection, bili_client, config.as_ref(), video_sources).await {
-            errors.push(format!("B 站视频源：{:#}", error));
-        }
+    if !video_sources.is_empty() && let Err(error) = download_bilibili_sources(connection, bili_client, config.as_ref(), video_sources).await {
+        errors.push(format!("B 站视频源：{:#}", error));
     }
 
     if has_youtube_sources && let Err(error) = youtube::process_enabled_sources(connection, config.as_ref()).await {
