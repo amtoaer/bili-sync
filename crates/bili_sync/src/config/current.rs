@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
 
 use anyhow::{Result, bail};
@@ -14,7 +14,7 @@ use crate::config::default::{
     default_auth_token, default_bind_address, default_collection_path, default_favorite_path, default_submission_path,
     default_time_format,
 };
-use crate::config::item::{ConcurrentLimit, NFOTimeType, SkipOption, Trigger};
+use crate::config::item::{ConcurrentLimit, NFOTimeType, SkipOption, Trigger, YoutubeOption};
 use crate::notifier::Notifier;
 use crate::utils::model::{load_db_config, save_db_config};
 
@@ -25,6 +25,20 @@ pub static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
         .expect("No config path found")
 });
 
+pub fn is_container_runtime() -> bool {
+    std::env::var_os("BILI_SYNC_IN_CONTAINER").is_some()
+        || std::env::var_os("container").is_some()
+        || Path::new("/.dockerenv").exists()
+}
+
+pub fn default_manual_download_root() -> PathBuf {
+    if is_container_runtime() {
+        PathBuf::from("/download")
+    } else {
+        CONFIG_DIR.join("manual_downloads")
+    }
+}
+
 #[derive(Serialize, Deserialize, Validate, Clone)]
 pub struct Config {
     pub auth_token: String,
@@ -34,6 +48,8 @@ pub struct Config {
     pub danmaku_option: DanmakuOption,
     #[serde(default)]
     pub skip_option: SkipOption,
+    #[serde(default)]
+    pub youtube: YoutubeOption,
     pub video_name: String,
     pub page_name: String,
     #[serde(default)]
@@ -74,6 +90,9 @@ impl Config {
         }
         if self.page_name.is_empty() {
             errors.push("未设置 page_name 模板");
+        }
+        if self.youtube.channel_default_path.is_empty() {
+            errors.push("未设置 YouTube 频道默认路径模板");
         }
         let credential = &self.credential;
         if credential.sessdata.is_empty()
@@ -121,6 +140,7 @@ impl Default for Config {
             filter_option: FilterOption::default(),
             danmaku_option: DanmakuOption::default(),
             skip_option: SkipOption::default(),
+            youtube: YoutubeOption::default(),
             video_name: "{{title}}".to_owned(),
             page_name: "{{bvid}}".to_owned(),
             notifiers: None,

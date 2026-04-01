@@ -155,3 +155,54 @@ pub struct PollQrcodeRequest {
 pub struct FullSyncVideoSourceRequest {
     pub delete_local: bool,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct ManualDownloadRequest {
+    pub video_url: String,
+    pub download_path: Option<String>,
+}
+
+#[derive(Deserialize, Validate)]
+#[serde(rename_all = "camelCase")]
+pub struct InsertYoutubeChannelRequest {
+    pub channel_id: String,
+    pub name: String,
+    pub url: String,
+    pub thumbnail: Option<String>,
+    #[validate(length(min = 1))]
+    pub path: String,
+}
+
+#[derive(Deserialize, Validate)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateYoutubeChannelRequest {
+    #[validate(length(min = 1))]
+    pub path: String,
+    pub enabled: bool,
+}
+
+#[derive(Deserialize, Validate)]
+#[serde(rename_all = "camelCase")]
+pub struct InsertYoutubePlaylistRequest {
+    pub playlist_id: String,
+    pub name: String,
+    pub url: String,
+    pub thumbnail: Option<String>,
+    #[validate(length(min = 1))]
+    pub path: String,
+}
+
+#[derive(Deserialize, Validate)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveYoutubeCookieRequest {
+    #[validate(length(min = 1))]
+    pub content: String,
+}
+
+#[derive(Deserialize, Validate)]
+#[serde(rename_all = "camelCase")]
+pub struct YoutubeManualSubmitRequest {
+    #[validate(length(min = 1))]
+    pub url: String,
+    pub path: Option<String>,
+}

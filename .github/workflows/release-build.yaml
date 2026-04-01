@@ -4,10 +4,14 @@ on:
   push:
     tags:
       - v*
+  workflow_dispatch:
+
+env:
+  DOCKERHUB_REPOSITORY: ${{ vars.DOCKERHUB_REPOSITORY != '' && vars.DOCKERHUB_REPOSITORY || 'bili-yt-sync-rs' }}
 
 jobs:
   build-binary:
-    uses: amtoaer/bili-sync/.github/workflows/build-binary.yaml@main
+    uses: ./.github/workflows/build-binary.yaml
   github-release:
     name: Create GitHub Release
     needs: build-binary
@@ -40,14 +44,33 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           merge-multiple: true
+      - name: Resolve Docker tag
+        id: docker_tag
+        shell: bash
+        run: |
+          ref_name="${GITHUB_REF_NAME}"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${ref_name}" =~ ^v(.+)$ ]]; then
+            docker_tag="${BASH_REMATCH[1]}"
+          else
+            docker_tag="${ref_name}"
+          fi
+          echo "value=${docker_tag}" >> "${GITHUB_OUTPUT}"
+      - name: Resolve Docker image tags
+        id: docker_tags
+        shell: bash
+        run: |
+          repo="${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_REPOSITORY }}"
+          {
+            echo "value<<EOF"
+            echo "${repo}:latest"
+            echo "${repo}:${{ steps.docker_tag.outputs.value }}"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
       - name: Docker Meta
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/bili-sync-rs
-          tags: |
-            type=raw,value=latest
-            type=raw,value=${{ github.ref_name }}
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_REPOSITORY }}
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
@@ -67,13 +90,14 @@ jobs:
             linux/arm64
             linux/arm/v7
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.docker_tags.outputs.value }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha, scope=${{ github.workflow }}
           cache-to: type=gha, scope=${{ github.workflow }}
       - name: Update DockerHub description
+        continue-on-error: true
         uses: peter-evans/dockerhub-description@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: ${{ secrets.DOCKERHUB_USERNAME }}/bili-sync-rs
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_REPOSITORY }}

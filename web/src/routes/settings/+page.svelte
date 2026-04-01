@@ -16,13 +16,17 @@
 	import api from '$lib/api';
 	import { toast } from 'svelte-sonner';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
-	import type { Config, ApiError, Notifier, Credential } from '$lib/types';
+	import type { Config, ApiError, Notifier, Credential, YoutubeStatusResponse } from '$lib/types';
 
 	let frontendToken = ''; // 前端认证token
 	let config: Config | null = null;
 	let formData: Config | null = null;
 	let saving = false;
 	let loading = false;
+	let youtubeStatus: YoutubeStatusResponse | null = null;
+	let youtubeSaving = false;
+	let youtubeDeleting = false;
+	let youtubeCookieText = '';
 
 	let intervalInput: string = '1200';
 
@@ -97,6 +101,7 @@
 			const response = await api.getConfig();
 			config = response.data;
 			formData = { ...config };
+			await loadYoutubeStatus();
 
 			// 根据 interval 的类型初始化输入框
 			if (typeof formData.interval === 'number') {
@@ -112,6 +117,16 @@
 			throw error;
 		} finally {
 			loading = false;
+		}
+	}
+
+	async function loadYoutubeStatus() {
+		try {
+			const response = await api.getYoutubeStatus();
+			youtubeStatus = response.data;
+		} catch (error) {
+			console.error('加载 YouTube 状态失败:', error);
+			youtubeStatus = null;
 		}
 	}
 
@@ -190,6 +205,45 @@
 		showQrLoginDialog = false;
 	}
 
+	async function handleSaveYoutubeCookie() {
+		if (!youtubeCookieText.trim()) {
+			toast.error('请先粘贴 YouTube Cookie 内容');
+			return;
+		}
+
+		youtubeSaving = true;
+		try {
+			await api.saveYoutubeCookie({ content: youtubeCookieText });
+			await loadYoutubeStatus();
+			youtubeCookieText = '';
+			toast.success('YouTube Cookie 保存成功');
+		} catch (error) {
+			console.error('保存 YouTube Cookie 失败:', error);
+			toast.error('保存 YouTube Cookie 失败', {
+				description: (error as ApiError).message
+			});
+		} finally {
+			youtubeSaving = false;
+		}
+	}
+
+	async function handleDeleteYoutubeCookie() {
+		youtubeDeleting = true;
+		try {
+			await api.deleteYoutubeCookie();
+			await loadYoutubeStatus();
+			youtubeCookieText = '';
+			toast.success('YouTube Cookie 已删除');
+		} catch (error) {
+			console.error('删除 YouTube Cookie 失败:', error);
+			toast.error('删除 YouTube Cookie 失败', {
+				description: (error as ApiError).message
+			});
+		} finally {
+			youtubeDeleting = false;
+		}
+	}
+
 	onMount(() => {
 		setBreadcrumb([{ label: '设置' }]);
 		frontendToken = api.getAuthToken() || '';
@@ -228,6 +282,7 @@
 						onclick={() => {
 							formData = null;
 							config = null;
+							youtubeStatus = null;
 							api.clearAuthToken();
 							frontendToken = '';
 						}}
@@ -252,9 +307,10 @@
 	{:else if formData}
 		<div class="space-y-6">
 			<Tabs.Root value="basic" class="w-full">
-				<Tabs.List class="grid w-full grid-cols-6">
+				<Tabs.List class="grid w-full grid-cols-7">
 					<Tabs.Trigger value="basic">基本设置</Tabs.Trigger>
 					<Tabs.Trigger value="auth">B站认证</Tabs.Trigger>
+					<Tabs.Trigger value="youtube">YouTube</Tabs.Trigger>
 					<Tabs.Trigger value="filter">视频处理</Tabs.Trigger>
 					<Tabs.Trigger value="danmaku">弹幕渲染</Tabs.Trigger>
 					<Tabs.Trigger value="notifiers">通知设置</Tabs.Trigger>
@@ -443,6 +499,116 @@
 								placeholder="请输入ac_time_value"
 								bind:value={formData.credential.ac_time_value}
 							/>
+						</div>
+					</div>
+				</Tabs.Content>
+
+				<!-- YouTube 设置 -->
+				<Tabs.Content value="youtube" class="mt-6 space-y-6">
+					<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+						<div class="space-y-2">
+							<Label for="youtube-channel-default-path">频道默认保存路径模板</Label>
+							<Input
+								id="youtube-channel-default-path"
+								bind:value={formData.youtube.channel_default_path}
+							/>
+						</div>
+						<div class="space-y-2">
+							<Label for="youtube-video-format">YouTube 视频格式</Label>
+							<select
+								id="youtube-video-format"
+								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+								bind:value={formData.youtube.video_format}
+							>
+								<option value="mp4">mp4</option>
+								<option value="mkv">mkv</option>
+								<option value="webm">webm</option>
+							</select>
+							<p class="text-muted-foreground text-xs">
+								新提交的 YouTube 下载任务会优先输出为这里选定的容器格式。
+							</p>
+						</div>
+					</div>
+
+					<Separator />
+
+					<div class="space-y-4">
+						<div class="space-y-1">
+							<Label class="text-base font-semibold">YouTube Cookie</Label>
+							<p class="text-muted-foreground text-sm">
+								直接粘贴 `cookies.txt` 内容后保存，可读取已订阅频道并下载需要登录的视频。
+							</p>
+						</div>
+
+						<div class="space-y-3">
+							<textarea
+								class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring min-h-56 w-full rounded-md border px-3 py-2 font-mono text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+								bind:value={youtubeCookieText}
+								placeholder="# Netscape HTTP Cookie File&#10;.youtube.com	TRUE	/	TRUE	0	SID	..."
+								spellcheck="false"
+							></textarea>
+							<p class="text-muted-foreground text-xs">
+								支持直接粘贴导出的 `cookies.txt` 内容。保存后不会在页面回显 Cookie 明文。
+							</p>
+						</div>
+
+						<div class="bg-card rounded-lg border p-4">
+							<div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+								<div class="space-y-1">
+									<div class="font-medium">
+										{youtubeStatus?.cookieConfigured ? '已配置 Cookie' : '未配置 Cookie'}
+									</div>
+									<p class="text-muted-foreground text-xs break-all">
+										{youtubeStatus?.cookiePath || '尚未保存 YouTube Cookie'}
+									</p>
+								</div>
+								<div class="flex gap-3">
+									<Button
+										type="button"
+										variant="outline"
+										onclick={handleSaveYoutubeCookie}
+										disabled={youtubeSaving || !youtubeCookieText.trim()}
+									>
+										{youtubeSaving ? '保存中...' : '保存 Cookie'}
+									</Button>
+									<Button
+										type="button"
+										variant="destructive"
+										onclick={handleDeleteYoutubeCookie}
+										disabled={youtubeDeleting || !youtubeStatus?.cookieConfigured}
+									>
+										{youtubeDeleting ? '删除中...' : '删除 Cookie'}
+									</Button>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<Separator />
+
+					<div class="space-y-4">
+						<Label>YouTube 处理跳过选项</Label>
+						<p class="text-muted-foreground text-sm">这些选项仅影响 YouTube 下载链路</p>
+						<div class="flex items-center space-x-2">
+							<Switch
+								id="youtube-skip-poster"
+								bind:checked={formData.youtube.skip_option.no_poster}
+							/>
+							<Label for="youtube-skip-poster">跳过视频封面</Label>
+						</div>
+						<div class="flex items-center space-x-2">
+							<Switch
+								id="youtube-skip-video-nfo"
+								bind:checked={formData.youtube.skip_option.no_video_nfo}
+							/>
+							<Label for="youtube-skip-video-nfo">跳过视频 NFO</Label>
+						</div>
+						<div class="flex items-center space-x-2">
+							<Switch
+								id="youtube-skip-subtitle"
+								bind:checked={formData.youtube.skip_option.no_subtitle}
+							/>
+							<Label for="youtube-skip-subtitle">跳过字幕</Label>
 						</div>
 					</div>
 				</Tabs.Content>

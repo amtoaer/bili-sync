@@ -9,7 +9,9 @@
 		UserIcon,
 		Settings2Icon,
 		SquareTerminalIcon,
-		PaletteIcon
+		PaletteIcon,
+		ListVideoIcon,
+		LinkIcon
 	} from '@lucide/svelte/icons';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { mode, toggleMode } from 'mode-watcher';
@@ -74,6 +76,31 @@
 						title: '我关注的 UP 主',
 						icon: UserIcon,
 						href: '/me/uppers'
+					}
+				]
+			},
+			{
+				category: 'YouTube',
+				items: [
+					{
+						title: '订阅频道',
+						icon: FilePlayIcon,
+						href: '/youtube/channels'
+					},
+					{
+						title: '我的播放列表',
+						icon: ListVideoIcon,
+						href: '/youtube/playlists'
+					},
+					{
+						title: 'YouTube 视频源',
+						icon: DatabaseIcon,
+						href: '/youtube/sources'
+					},
+					{
+						title: '手动提交链接',
+						icon: LinkIcon,
+						href: '/youtube/manual'
 					}
 				]
 			}

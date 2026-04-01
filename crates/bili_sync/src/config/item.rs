@@ -1,6 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
+use crate::config::default::default_youtube_channel_path;
 use crate::utils::filenamify::filenamify;
 
 /// NFO 文件使用的时间类型
@@ -67,6 +68,52 @@ pub struct SkipOption {
     pub no_upper: bool,
     pub no_danmaku: bool,
     pub no_subtitle: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub struct YoutubeSkipOption {
+    pub no_poster: bool,
+    pub no_video_nfo: bool,
+    pub no_subtitle: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum YoutubeVideoFormat {
+    #[default]
+    Mp4,
+    Mkv,
+    Webm,
+}
+
+impl YoutubeVideoFormat {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Mp4 => "mp4",
+            Self::Mkv => "mkv",
+            Self::Webm => "webm",
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct YoutubeOption {
+    #[serde(default = "default_youtube_channel_path")]
+    pub channel_default_path: String,
+    #[serde(default)]
+    pub video_format: YoutubeVideoFormat,
+    #[serde(default)]
+    pub skip_option: YoutubeSkipOption,
+}
+
+impl Default for YoutubeOption {
+    fn default() -> Self {
+        Self {
+            channel_default_path: default_youtube_channel_path(),
+            video_format: YoutubeVideoFormat::default(),
+            skip_option: YoutubeSkipOption::default(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
