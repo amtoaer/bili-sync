@@ -71,9 +71,11 @@ class ApiClient {
 		if (token) {
 			this.defaultHeaders['Authorization'] = token;
 			localStorage.setItem('authToken', token);
+			wsManager.onAuthTokenChanged();
 		} else {
 			delete this.defaultHeaders['Authorization'];
 			localStorage.removeItem('authToken');
+			wsManager.markAuthInvalid();
 		}
 	}
 
@@ -124,6 +126,9 @@ class ApiClient {
 			const response = await fetch(fullUrl, config);
 
 			if (!response.ok) {
+				if (response.status === 401) {
+					wsManager.markAuthInvalid();
+				}
 				const errorText = await response.text();
 				let errorMessage: string;
 				try {
@@ -138,6 +143,7 @@ class ApiClient {
 				} as ApiError;
 			}
 
+			wsManager.markAuthVerified();
 			return await response.json();
 		} catch (error) {
 			if (error && typeof error === 'object' && 'status' in error) {

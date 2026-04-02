@@ -4,21 +4,17 @@ clean:
 build-frontend:
     cd ./web && bun run build && cd ..
 
-build: build-frontend
-    cargo build --target x86_64-unknown-linux-musl --release
+build platform="auto": build-frontend
+    ./scripts/build_local.sh binary release "{{platform}}"
 
-build-debug: build-frontend
-    cargo build --target x86_64-unknown-linux-musl
+build-debug platform="auto": build-frontend
+    ./scripts/build_local.sh binary debug "{{platform}}"
 
-build-docker: build
-    tar czvf ./bili-sync-rs-Linux-x86_64-musl.tar.gz -C ./target/x86_64-unknown-linux-musl/release/ ./bili-sync-rs
-    docker build . -t bili-sync-rs-local --build-arg="TARGETPLATFORM=linux/amd64"
-    just clean
+build-docker platform="auto" tag="bili-sync-rs-local": build-frontend
+    ./scripts/build_local.sh docker release "{{platform}}" "{{tag}}"
 
-build-docker-debug: build-debug
-    tar czvf ./bili-sync-rs-Linux-x86_64-musl.tar.gz -C ./target/x86_64-unknown-linux-musl/debug/ ./bili-sync-rs
-    docker build . -t bili-sync-rs-local --build-arg="TARGETPLATFORM=linux/amd64"
-    just clean
+build-docker-debug platform="auto" tag="bili-sync-rs-local": build-frontend
+    ./scripts/build_local.sh docker debug "{{platform}}" "{{tag}}"
 
 debug: build-frontend
     cargo run
