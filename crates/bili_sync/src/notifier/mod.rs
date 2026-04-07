@@ -18,6 +18,8 @@ pub enum Notifier {
     Telegram {
         bot_token: String,
         chat_id: String,
+        #[serde(default)]
+        skip_image: bool,
     },
     Webhook {
         url: String,
@@ -60,8 +62,14 @@ impl Notifier {
 
     async fn notify_internal<'a>(&self, client: &reqwest::Client, message: &Message<'a>) -> Result<()> {
         match self {
-            Notifier::Telegram { bot_token, chat_id } => {
-                if let Some(img_url) = &message.image_url {
+            Notifier::Telegram {
+                bot_token,
+                chat_id,
+                skip_image,
+            } => {
+                if let Some(img_url) = &message.image_url
+                    && !*skip_image
+                {
                     let url = format!("https://api.telegram.org/bot{}/sendPhoto", bot_token);
                     let params = [
                         ("chat_id", chat_id.as_str()),

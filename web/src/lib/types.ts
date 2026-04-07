@@ -306,6 +306,7 @@ export interface TelegramNotifier {
 	type: 'telegram';
 	bot_token: string;
 	chat_id: string;
+	skip_image: boolean;
 }
 
 export interface WebhookNotifier {
