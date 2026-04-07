@@ -366,8 +366,8 @@
 									<Table.Row>
 										<Table.Head class="w-[15%]">名称</Table.Head>
 										<Table.Head class="w-[30%]">下载路径</Table.Head>
-										<Table.Head class="w-[15%]">过滤规则</Table.Head>
 										<Table.Head class="w-[20%]">最新视频时间</Table.Head>
+										<Table.Head class="w-[15%]">过滤规则</Table.Head>
 										<Table.Head class="w-[15%]">启用状态</Table.Head>
 										<Table.Head class="w-[10%] text-right">操作</Table.Head>
 									</Table.Row>
@@ -389,6 +389,17 @@
 												</div>
 											</Table.Cell>
 											<Table.Cell>
+												{#if source.latestRowAt}
+													<Badge variant="secondary" class="flex w-fit items-center gap-1.5">
+														{new Date(source.latestRowAt).toLocaleString('zh-CN')}
+													</Badge>
+												{:else}
+													<Badge variant="secondary" class="flex w-fit items-center gap-1.5">
+														-
+													</Badge>
+												{/if}
+											</Table.Cell>
+											<Table.Cell>
 												{#if source.rule && source.rule.length > 0}
 													<Tooltip.Root disableHoverableContent={true}>
 														<Tooltip.Trigger>
@@ -403,17 +414,6 @@
 															<p class="text-xs">{source.ruleDisplay}</p>
 														</Tooltip.Content>
 													</Tooltip.Root>
-												{:else}
-													<Badge variant="secondary" class="flex w-fit items-center gap-1.5">
-														-
-													</Badge>
-												{/if}
-											</Table.Cell>
-											<Table.Cell>
-												{#if source.latestRowAt}
-													<Badge variant="secondary" class="flex w-fit items-center gap-1.5">
-														{new Date(source.latestRowAt).toLocaleString('zh-CN')}
-													</Badge>
 												{:else}
 													<Badge variant="secondary" class="flex w-fit items-center gap-1.5">
 														-
