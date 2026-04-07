@@ -224,6 +224,7 @@ export interface VideoSourceDetail {
 	ruleDisplay: string | null;
 	useDynamicApi: boolean | null;
 	enabled: boolean;
+	latestRowAt: string | null;
 }
 
 export interface VideoSourcesDetailsResponse {
