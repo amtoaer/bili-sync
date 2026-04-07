@@ -104,7 +104,8 @@ pub async fn get_video_sources_details(
                 collection::Column::Name,
                 collection::Column::Path,
                 collection::Column::Rule,
-                collection::Column::Enabled
+                collection::Column::Enabled,
+                collection::Column::LatestRowAt
             ])
             .into_model::<VideoSourceDetail>()
             .all(&db),
@@ -115,7 +116,8 @@ pub async fn get_video_sources_details(
                 favorite::Column::Name,
                 favorite::Column::Path,
                 favorite::Column::Rule,
-                favorite::Column::Enabled
+                favorite::Column::Enabled,
+                favorite::Column::LatestRowAt
             ])
             .into_model::<VideoSourceDetail>()
             .all(&db),
@@ -127,7 +129,8 @@ pub async fn get_video_sources_details(
                 submission::Column::Path,
                 submission::Column::Enabled,
                 submission::Column::Rule,
-                submission::Column::UseDynamicApi
+                submission::Column::UseDynamicApi,
+                submission::Column::LatestRowAt
             ])
             .into_model::<VideoSourceDetail>()
             .all(&db),
@@ -138,7 +141,8 @@ pub async fn get_video_sources_details(
                 watch_later::Column::Id,
                 watch_later::Column::Path,
                 watch_later::Column::Enabled,
-                watch_later::Column::Rule
+                watch_later::Column::Rule,
+                watch_later::Column::LatestRowAt
             ])
             .into_model::<VideoSourceDetail>()
             .all(&db)
@@ -152,6 +156,7 @@ pub async fn get_video_sources_details(
             rule_display: None,
             use_dynamic_api: None,
             enabled: false,
+            latest_row_at: None,
         })
     }
     for sources in [&mut collections, &mut favorites, &mut submissions, &mut watch_later] {
@@ -159,6 +164,7 @@ pub async fn get_video_sources_details(
             if let Some(rule) = &item.rule {
                 item.rule_display = Some(rule.to_string());
             }
+            item.latest_row_at = item.latest_row_at.filter(|dt| dt.and_utc().timestamp() != 0);
         });
     }
     Ok(ApiResponse::ok(VideoSourcesDetailsResponse {
