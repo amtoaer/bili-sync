@@ -364,11 +364,11 @@
 							<Table.Root>
 								<Table.Header>
 									<Table.Row>
-										<Table.Head class="w-[15%]">名称</Table.Head>
+										<Table.Head class="w-[20%]">名称</Table.Head>
 										<Table.Head class="w-[30%]">下载路径</Table.Head>
-										<Table.Head class="w-[20%]">最新视频时间</Table.Head>
+										<Table.Head class="w-[15%]">最新视频时间</Table.Head>
 										<Table.Head class="w-[15%]">过滤规则</Table.Head>
-										<Table.Head class="w-[15%]">启用状态</Table.Head>
+										<Table.Head class="w-[10%]">启用状态</Table.Head>
 										<Table.Head class="w-[10%] text-right">操作</Table.Head>
 									</Table.Row>
 								</Table.Header>
