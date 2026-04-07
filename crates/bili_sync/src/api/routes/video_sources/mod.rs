@@ -164,6 +164,7 @@ pub async fn get_video_sources_details(
             if let Some(rule) = &item.rule {
                 item.rule_display = Some(rule.to_string());
             }
+            item.latest_row_at = item.latest_row_at.filter(|dt| dt.and_utc().timestamp() != 0);
         });
     }
     Ok(ApiResponse::ok(VideoSourcesDetailsResponse {
