@@ -25,12 +25,27 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           merge-multiple: true
-      - name: Publish GitHub release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: bili-sync-rs*
-          tag_name: ${{ github.ref_name }}
-          draft: true
+      - name: Create or update GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          assets=(bili-sync-rs*)
+          if (( ${#assets[@]} == 0 )); then
+            echo "::error::No release assets matched bili-sync-rs*"
+            exit 1
+          fi
+
+          repo="${GITHUB_REPOSITORY}"
+          tag="${GITHUB_REF_NAME}"
+
+          if gh release view "${tag}" --repo "${repo}" >/dev/null 2>&1; then
+            gh release edit "${tag}" --repo "${repo}" --draft --title "${tag}"
+            gh release upload "${tag}" "${assets[@]}" --repo "${repo}" --clobber
+          else
+            gh release create "${tag}" "${assets[@]}" --repo "${repo}" --draft --title "${tag}" --verify-tag
+          fi
   docker-release:
     name: Create Docker Image
     needs: build-binary
@@ -66,22 +81,23 @@ jobs:
             echo "${repo}:${{ steps.docker_tag.outputs.value }}"
             echo "EOF"
           } >> "${GITHUB_OUTPUT}"
+      # Pin temporary Node 24-compatible commits until Docker publishes stable tags with the new runtime.
       - name: Docker Meta
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@c3b064c6d7c32446d6bc214ea075f1caad2de35a
         with:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_REPOSITORY }}
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@f4e8deed0c3c26542279f4042c0e1d059cbf012d
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@21162887f0d6e25b4e8eafb0cf44cf9bf7f6acd3
       - name: Login to DockerHub
-        uses: docker/login-action@v3
+        uses: docker/login-action@bb555fc48dca4deb5f227b07c7304c673b5708f0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@83bfd93ab480705a7b99a2ed02765137f5ab55ba
         with:
           context: .
           file: Dockerfile
@@ -94,10 +110,3 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha, scope=${{ github.workflow }}
           cache-to: type=gha, scope=${{ github.workflow }}
-      - name: Update DockerHub description
-        continue-on-error: true
-        uses: peter-evans/dockerhub-description@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_REPOSITORY }}
