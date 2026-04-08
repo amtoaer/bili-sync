@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { toast } from 'svelte-sonner';
@@ -12,6 +13,7 @@
 	let type: 'telegram' | 'webhook' = 'telegram';
 	let botToken = '';
 	let chatId = '';
+	let skipImage = false;
 	let webhookUrl = '';
 	let webhookTemplate = '';
 	let webhookHeaders: { key: string; value: string }[] = [];
@@ -23,6 +25,7 @@
 				type = 'telegram';
 				botToken = notifier.bot_token;
 				chatId = notifier.chat_id;
+				skipImage = notifier.skip_image;
 			} else {
 				type = 'webhook';
 				webhookUrl = notifier.url;
@@ -37,6 +40,7 @@
 			type = 'telegram';
 			botToken = '';
 			chatId = '';
+			skipImage = false;
 			webhookUrl = '';
 			webhookTemplate = '';
 			webhookHeaders = [];
@@ -57,7 +61,8 @@
 			const newNotifier: Notifier = {
 				type: 'telegram',
 				bot_token: botToken.trim(),
-				chat_id: chatId.trim()
+				chat_id: chatId.trim(),
+				skip_image: skipImage
 			};
 			onSave(newNotifier);
 		} else {
@@ -120,6 +125,10 @@
 			<Label for="chat-id">Chat ID</Label>
 			<Input id="chat-id" placeholder="-1001234567890" bind:value={chatId} />
 			<p class="text-muted-foreground text-xs">目标聊天室的 ID（个人用户、群组或频道）</p>
+		</div>
+		<div class="flex items-center gap-2">
+			<Checkbox id="skip-image" bind:checked={skipImage} />
+			<Label for="skip-image" class="text-sm font-normal">仅发送文字</Label>
 		</div>
 	{:else if type === 'webhook'}
 		<div class="space-y-2">

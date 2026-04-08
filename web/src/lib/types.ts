@@ -224,6 +224,7 @@ export interface VideoSourceDetail {
 	ruleDisplay: string | null;
 	useDynamicApi: boolean | null;
 	enabled: boolean;
+	latestRowAt: string | null;
 }
 
 export interface VideoSourcesDetailsResponse {
@@ -319,6 +320,7 @@ export interface TelegramNotifier {
 	type: 'telegram';
 	bot_token: string;
 	chat_id: string;
+	skip_image: boolean;
 }
 
 export interface WebhookNotifier {
