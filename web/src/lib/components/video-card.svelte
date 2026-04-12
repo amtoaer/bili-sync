@@ -6,11 +6,11 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
-	import type { VideoInfo } from '$lib/types';
 	import {
 		RotateCcwIcon,
 		InfoIcon,
 		BrushCleaningIcon,
+		Trash2Icon,
 		UserIcon,
 		SquareArrowOutUpRightIcon,
 		EllipsisIcon,
@@ -21,8 +21,17 @@
 	import { goto } from '$app/navigation';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
-	// 将 bvid 设置为可选属性，但保留 VideoInfo 的其它所有属性
-	export let video: Omit<VideoInfo, 'bvid'> & { bvid?: string };
+	export let video: {
+		id: number | string;
+		name: string;
+		upper_name: string;
+		valid: boolean;
+		should_download: boolean;
+		download_status: number[];
+		bvid?: string | null;
+		platform?: 'bilibili' | 'youtube';
+		external_url?: string | null;
+	};
 	export let source: { type: string; name: string } | null = null; // 视频源信息
 	export let showActions: boolean = true; // 控制是否显示操作按钮
 	export let mode: 'default' | 'detail' | 'page' = 'default'; // 卡片模式
@@ -32,10 +41,13 @@
 	export let showProgress: boolean = true; // 是否显示进度信息
 	export let onReset: ((forceReset: boolean) => Promise<void>) | null = null; // 自定义重置函数
 	export let onClearAndReset: (() => Promise<void>) | null = null; // 自定义清空重置函数
+	export let onDelete: (() => Promise<void>) | null = null;
 	export let resetDialogOpen = false; // 导出对话框状态，让父组件可以控制
 	export let clearAndResetDialogOpen = false; // 导出清空重置对话框状态
+	export let deleteDialogOpen = false;
 	export let resetting = false;
 	export let clearAndResetting = false;
+	export let deleting = false;
 
 	let forceReset = false;
 
@@ -122,8 +134,21 @@
 		clearAndResetDialogOpen = false;
 	}
 
+	async function handleDelete() {
+		deleting = true;
+		if (onDelete) {
+			await onDelete();
+		}
+		deleting = false;
+		deleteDialogOpen = false;
+	}
+
 	function handleViewDetail() {
-		goto(`/video/${video.id}`);
+		if (video.platform === 'youtube') {
+			goto(`/video/youtube-${video.id}`);
+		} else {
+			goto(`/video/${video.id}`);
+		}
 	}
 
 	// 根据模式确定显示的标题和副标题
@@ -224,41 +249,57 @@
 						<span class="truncate">详情</span>
 					</Button>
 
-					<DropdownMenu.Root>
-						<DropdownMenu.Trigger>
-							{#snippet child({ props })}
-								<Button
-									{...props}
-									size="sm"
-									variant="outline"
-									class="hover:bg-accent hover:text-accent-foreground h-8 shrink-0 cursor-pointer px-2"
+					{#if video.platform === 'youtube' && onDelete}
+						<Button
+							size="sm"
+							variant="outline"
+							class="h-8 shrink-0 cursor-pointer px-2 text-rose-500 hover:bg-rose-500/10 hover:text-rose-400"
+							onclick={() => (deleteDialogOpen = true)}
+						>
+							<Trash2Icon class="h-3 w-3" />
+						</Button>
+					{:else}
+						<DropdownMenu.Root>
+							<DropdownMenu.Trigger>
+								{#snippet child({ props })}
+									<Button
+										{...props}
+										size="sm"
+										variant="outline"
+										class="hover:bg-accent hover:text-accent-foreground h-8 shrink-0 cursor-pointer px-2"
+									>
+										<EllipsisIcon class="h-3 w-3" />
+									</Button>
+								{/snippet}
+							</DropdownMenu.Trigger>
+							<DropdownMenu.Content align="start" class="w-48">
+								<DropdownMenu.Item class="cursor-pointer" onclick={() => (resetDialogOpen = true)}>
+									<RotateCcwIcon class="mr-2 h-4 w-4" />
+									重置
+								</DropdownMenu.Item>
+								<DropdownMenu.Item
+									class="cursor-pointer"
+									onclick={() => (clearAndResetDialogOpen = true)}
 								>
-									<EllipsisIcon class="h-3 w-3" />
-								</Button>
-							{/snippet}
-						</DropdownMenu.Trigger>
-						<DropdownMenu.Content align="start" class="w-48">
-							<DropdownMenu.Item class="cursor-pointer" onclick={() => (resetDialogOpen = true)}>
-								<RotateCcwIcon class="mr-2 h-4 w-4" />
-								重置
-							</DropdownMenu.Item>
-							<DropdownMenu.Item
-								class="cursor-pointer"
-								onclick={() => (clearAndResetDialogOpen = true)}
-							>
-								<BrushCleaningIcon class="mr-2 h-4 w-4" />
-								清空重置
-							</DropdownMenu.Item>
-							<DropdownMenu.Item
-								class="cursor-pointer"
-								onclick={() =>
-									window.open(`https://www.bilibili.com/video/${video.bvid}/`, '_blank')}
-							>
-								<SquareArrowOutUpRightIcon class="mr-2 h-4 w-4" />
-								在 B 站打开
-							</DropdownMenu.Item>
-						</DropdownMenu.Content>
-					</DropdownMenu.Root>
+									<BrushCleaningIcon class="mr-2 h-4 w-4" />
+									清空重置
+								</DropdownMenu.Item>
+								<DropdownMenu.Item
+									class="cursor-pointer"
+									onclick={() =>
+										window.open(
+											video.platform === 'youtube' && video.external_url
+												? video.external_url
+												: `https://www.bilibili.com/video/${video.bvid}/`,
+											'_blank'
+										)}
+								>
+									<SquareArrowOutUpRightIcon class="mr-2 h-4 w-4" />
+									在 {video.platform === 'youtube' ? 'YouTube' : 'B 站'} 打开
+								</DropdownMenu.Item>
+							</DropdownMenu.Content>
+						</DropdownMenu.Root>
+					{/if}
 				</div>
 			{/if}
 		</div>
@@ -306,6 +347,30 @@
 				class={forceReset ? 'bg-orange-600 hover:bg-orange-700' : ''}
 			>
 				{resetting ? '重置中...' : forceReset ? '确认强制重置' : '确认重置'}
+			</AlertDialog.Action>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>
+
+<AlertDialog.Root bind:open={deleteDialogOpen}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>删除任务</AlertDialog.Title>
+			<AlertDialog.Description>
+				确定要删除任务 <strong>"{displayTitle}"</strong> 吗？
+				<br />
+				此操作会将该任务从列表中移除，<span class="text-destructive font-medium">无法撤销</span>。
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>取消</AlertDialog.Cancel>
+			<AlertDialog.Action
+				onclick={handleDelete}
+				disabled={deleting}
+				class="bg-destructive hover:bg-destructive/90"
+			>
+				{deleting ? '删除中...' : '确认删除'}
 			</AlertDialog.Action>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>

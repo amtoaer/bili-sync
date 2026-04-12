@@ -5,10 +5,12 @@ use anyhow::Context;
 use axum::Router;
 use axum::extract::{Extension, Path, Query};
 use axum::routing::{get, post, put};
-use bili_sync_entity::youtube_channel;
+use bili_sync_entity::{youtube_channel, youtube_video};
 use sea_orm::ActiveValue::Set;
-use sea_orm::entity::prelude::*;
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
+    QuerySelect, TransactionTrait,
+};
 
 use crate::api::error::InnerApiError;
 use crate::api::request::{
@@ -16,12 +18,13 @@ use crate::api::request::{
     UpdateYoutubeChannelRequest, YoutubeManualSubmitRequest,
 };
 use crate::api::response::{
-    YoutubeCookieSaveResponse, YoutubeManualSubmitResponse, YoutubePlaylist, YoutubePlaylistsResponse,
-    YoutubeSourceDetail, YoutubeSourcesResponse, YoutubeStatusResponse, YoutubeSubscription,
-    YoutubeSubscriptionsResponse,
+    ContentVideoInfo, YoutubeCookieSaveResponse, YoutubeManualSubmitResponse, YoutubePlaylist,
+    YoutubePlaylistsResponse, YoutubeSourceDetail, YoutubeSourcesResponse, YoutubeStatusResponse, YoutubeSubscription,
+    YoutubeSubscriptionsResponse, YoutubeTaskResponse,
 };
 use crate::api::wrapper::{ApiError, ApiResponse, ValidatedJson};
-use crate::config::{PathSafeTemplate, TEMPLATE};
+use crate::config::{PathSafeTemplate, TEMPLATE, VersionedConfig, default_manual_download_root};
+use crate::utils::status::YoutubeVideoStatus;
 use crate::youtube;
 
 pub(super) fn router() -> Router {
@@ -38,6 +41,10 @@ pub(super) fn router() -> Router {
         .route("/youtube/sources/channels", post(insert_youtube_channel))
         .route("/youtube/sources/playlists", post(insert_youtube_playlist))
         .route("/youtube/manual-submit", post(manual_submit_youtube_link))
+        .route(
+            "/youtube/tasks/{id}",
+            get(get_manual_youtube_task).delete(remove_manual_youtube_task),
+        )
         .route(
             "/youtube/sources/channels/{id}",
             put(update_youtube_channel).delete(remove_youtube_channel),
@@ -162,6 +169,11 @@ async fn get_youtube_sources(
     Extension(db): Extension<DatabaseConnection>,
 ) -> Result<ApiResponse<YoutubeSourcesResponse>, ApiError> {
     let sources = youtube_channel::Entity::find()
+        .filter(
+            youtube_channel::Column::SourceType
+                .eq(youtube::SOURCE_TYPE_CHANNEL)
+                .or(youtube_channel::Column::SourceType.eq(youtube::SOURCE_TYPE_PLAYLIST)),
+        )
         .select_only()
         .columns([
             youtube_channel::Column::Id,
@@ -245,6 +257,58 @@ async fn manual_submit_youtube_link(
         queued: true,
         url: url.to_owned(),
     }))
+}
+
+async fn get_manual_youtube_task(
+    Path(id): Path<i32>,
+    Extension(db): Extension<DatabaseConnection>,
+) -> Result<ApiResponse<YoutubeTaskResponse>, ApiError> {
+    let (video, source) = youtube_video::Entity::find_by_id(id)
+        .find_also_related(youtube_channel::Entity)
+        .one(&db)
+        .await?
+        .ok_or_else(|| InnerApiError::NotFound(id))?;
+    let Some(source) = source else {
+        return Err(InnerApiError::NotFound(id).into());
+    };
+    if source.source_type != youtube::SOURCE_TYPE_MANUAL {
+        return Err(InnerApiError::NotFound(id).into());
+    }
+    Ok(ApiResponse::ok(YoutubeTaskResponse {
+        video: build_manual_youtube_content_video(video, source),
+    }))
+}
+
+async fn remove_manual_youtube_task(
+    Path(id): Path<i32>,
+    Extension(db): Extension<DatabaseConnection>,
+) -> Result<ApiResponse<bool>, ApiError> {
+    let Some(video) = youtube_video::Entity::find_by_id(id).one(&db).await? else {
+        return Err(InnerApiError::NotFound(id).into());
+    };
+
+    let Some(source) = youtube_channel::Entity::find_by_id(video.youtube_channel_id)
+        .one(&db)
+        .await?
+    else {
+        return Err(InnerApiError::NotFound(id).into());
+    };
+    if source.source_type != youtube::SOURCE_TYPE_MANUAL {
+        return Err(InnerApiError::NotFound(id).into());
+    }
+
+    let txn = db.begin().await?;
+    youtube_video::Entity::delete_by_id(id).exec(&txn).await?;
+    let remaining_videos = youtube_video::Entity::find()
+        .filter(youtube_video::Column::YoutubeChannelId.eq(source.id))
+        .count(&txn)
+        .await?;
+    if remaining_videos == 0 {
+        youtube_channel::Entity::delete_by_id(source.id).exec(&txn).await?;
+    }
+    txn.commit().await?;
+
+    Ok(ApiResponse::ok(true))
 }
 
 async fn update_youtube_channel(
@@ -365,15 +429,134 @@ async fn process_manual_submit(
                 if !path.is_absolute() {
                     return Err(InnerApiError::BadRequest("YouTube 手动下载路径必须是绝对路径".to_owned()).into());
                 }
-                Some(path)
+                path
             } else {
-                None
+                default_manual_download_root()
             };
-            youtube::download_video_by_url(&resolved.url, download_path.as_deref())
+            let config = VersionedConfig::get().snapshot();
+            let source = upsert_manual_source(&db, &resolved, &download_path).await?;
+            let video = upsert_manual_video(&db, source.id, &resolved).await?;
+            youtube::process_video(&source, &video, &db, &config)
                 .await
                 .map_err(|error| InnerApiError::BadRequest(format!("{:#}", error)))?;
         }
     }
 
     Ok(())
+}
+
+async fn upsert_manual_source(
+    db: &DatabaseConnection,
+    resolved: &youtube::ResolvedSource,
+    download_path: &PathBuf,
+) -> Result<youtube_channel::Model, ApiError> {
+    let existing = youtube_channel::Entity::find()
+        .filter(youtube_channel::Column::SourceType.eq(youtube::SOURCE_TYPE_MANUAL))
+        .filter(youtube_channel::Column::ChannelId.eq(&resolved.source_id))
+        .one(db)
+        .await?;
+
+    let path = download_path.to_string_lossy().to_string();
+    match existing {
+        Some(model) => {
+            let mut active_model: youtube_channel::ActiveModel = model.clone().into();
+            active_model.name = Set("YouTube 手动提交".to_owned());
+            active_model.url = Set(resolved.url.clone());
+            active_model.thumbnail = Set(resolved.thumbnail.clone());
+            active_model.path = Set(path);
+            active_model.enabled = Set(false);
+            Ok(active_model.update(db).await?)
+        }
+        None => {
+            let insert_result = youtube_channel::Entity::insert(youtube_channel::ActiveModel {
+                source_type: Set(youtube::SOURCE_TYPE_MANUAL.to_owned()),
+                channel_id: Set(resolved.source_id.clone()),
+                name: Set("YouTube 手动提交".to_owned()),
+                url: Set(resolved.url.clone()),
+                thumbnail: Set(resolved.thumbnail.clone()),
+                path: Set(path),
+                enabled: Set(false),
+                latest_published_at: Set(None),
+                ..Default::default()
+            })
+            .exec(db)
+            .await?;
+            youtube_channel::Entity::find_by_id(insert_result.last_insert_id)
+                .one(db)
+                .await?
+                .ok_or_else(|| InnerApiError::BadRequest("创建 YouTube 手动任务来源失败".to_owned()).into())
+        }
+    }
+}
+
+async fn upsert_manual_video(
+    db: &DatabaseConnection,
+    youtube_channel_id: i32,
+    resolved: &youtube::ResolvedSource,
+) -> Result<youtube_video::Model, ApiError> {
+    let existing = youtube_video::Entity::find()
+        .filter(youtube_video::Column::YoutubeChannelId.eq(youtube_channel_id))
+        .filter(youtube_video::Column::VideoId.eq(&resolved.source_id))
+        .one(db)
+        .await?;
+
+    match existing {
+        Some(model) => {
+            let mut active_model: youtube_video::ActiveModel = model.clone().into();
+            active_model.title = Set(resolved.name.clone());
+            active_model.url = Set(resolved.url.clone());
+            active_model.uploader = Set(resolved.owner_name.clone().unwrap_or_else(|| "YouTube".to_owned()));
+            active_model.thumbnail = Set(resolved.thumbnail.clone());
+            active_model.valid = Set(true);
+            active_model.should_download = Set(true);
+            Ok(active_model.update(db).await?)
+        }
+        None => {
+            let insert_result = youtube_video::Entity::insert(youtube_video::ActiveModel {
+                youtube_channel_id: Set(youtube_channel_id),
+                video_id: Set(resolved.source_id.clone()),
+                title: Set(resolved.name.clone()),
+                url: Set(resolved.url.clone()),
+                description: Set(String::new()),
+                uploader: Set(resolved.owner_name.clone().unwrap_or_else(|| "YouTube".to_owned())),
+                thumbnail: Set(resolved.thumbnail.clone()),
+                published_at: Set(chrono::Utc::now().naive_utc()),
+                download_status: Set(u32::from(YoutubeVideoStatus::default())),
+                valid: Set(true),
+                should_download: Set(true),
+                path: Set(None),
+                ..Default::default()
+            })
+            .exec(db)
+            .await?;
+            youtube_video::Entity::find_by_id(insert_result.last_insert_id)
+                .one(db)
+                .await?
+                .ok_or_else(|| InnerApiError::BadRequest("创建 YouTube 手动任务失败".to_owned()).into())
+        }
+    }
+}
+
+pub(crate) fn build_manual_youtube_content_video(
+    video: youtube_video::Model,
+    source: youtube_channel::Model,
+) -> ContentVideoInfo {
+    ContentVideoInfo {
+        key: format!("youtube:{}", video.id),
+        id: video.id,
+        platform: "youtube".to_owned(),
+        bvid: None,
+        name: video.title,
+        upper_name: video.uploader,
+        valid: video.valid,
+        should_download: video.should_download,
+        download_status: <[u32; 4]>::from(YoutubeVideoStatus::from(video.download_status)).to_vec(),
+        collection_id: None,
+        favorite_id: None,
+        submission_id: None,
+        watch_later_id: None,
+        source_type: Some("youtube_manual".to_owned()),
+        source_name: Some(source.name),
+        external_url: Some(video.url),
+    }
 }

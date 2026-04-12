@@ -13,7 +13,7 @@
 		ApiError,
 		VideoSource,
 		UpdateFilteredVideoStatusRequest,
-		VideoInfo
+		ContentVideoInfo
 	} from '$lib/types';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
@@ -250,7 +250,13 @@
 		}
 	}
 
-	function getVideoSource(video: VideoInfo): { type: string; name: string } | null {
+	function getVideoSource(video: ContentVideoInfo): { type: string; name: string } | null {
+		if (video.source_name) {
+			return {
+				type: video.source_type || video.platform,
+				name: video.source_name
+			};
+		}
 		if (video.collection_id != null) {
 			return sourceMap.get(`collection:${video.collection_id}`) || null;
 		}
@@ -360,7 +366,7 @@
 
 <div class="mb-4 flex items-center justify-between">
 	<SearchBar
-		placeholder="搜索视频标题或 BV 号.."
+		placeholder="搜索视频标题、BV 号或 YouTube ID.."
 		value={$appStateStore.query}
 		onSearch={(value) => {
 			setQuery(value);
@@ -464,16 +470,33 @@
 	<div
 		class="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
 	>
-		{#each videosData.videos as video (video.id)}
+		{#each videosData.videos as video (video.key)}
 			<VideoCard
 				{video}
 				source={getVideoSource(video)}
+				showActions={video.platform === 'bilibili' || video.platform === 'youtube'}
 				onReset={async (forceReset: boolean) => {
 					await handleResetVideo(video.id, forceReset);
 				}}
 				onClearAndReset={async () => {
 					await handleClearAndResetVideo(video.id);
 				}}
+				onDelete={video.platform === 'youtube'
+					? async () => {
+							try {
+								await api.deleteYoutubeTask(video.id);
+								toast.success('删除任务成功');
+								const { query, currentPage, videoSource, statusFilter, validationFilter } =
+									$appStateStore;
+								await loadVideos(query, currentPage, videoSource, statusFilter, validationFilter);
+							} catch (error) {
+								console.error('删除 YouTube 任务失败：', error);
+								toast.error('删除任务失败', {
+									description: (error as ApiError).message
+								});
+							}
+						}
+					: null}
 			/>
 		{/each}
 	</div>

@@ -10,13 +10,14 @@
 	export let onSave: (notifier: Notifier) => void;
 	export let onCancel: () => void;
 
-	let type: 'telegram' | 'webhook' = 'telegram';
+	let type: 'telegram' | 'webhook' | 'serverChan3' = 'telegram';
 	let botToken = '';
 	let chatId = '';
 	let skipImage = false;
 	let webhookUrl = '';
 	let webhookTemplate = '';
 	let webhookHeaders: { key: string; value: string }[] = [];
+	let serverChan3Sendkey = '';
 
 	// 初始化表单
 	$: {
@@ -26,8 +27,15 @@
 				botToken = notifier.bot_token;
 				chatId = notifier.chat_id;
 				skipImage = notifier.skip_image;
-			} else {
+				webhookUrl = '';
+				webhookTemplate = '';
+				webhookHeaders = [];
+				serverChan3Sendkey = '';
+			} else if (notifier.type === 'webhook') {
 				type = 'webhook';
+				botToken = '';
+				chatId = '';
+				skipImage = false;
 				webhookUrl = notifier.url;
 				webhookTemplate = notifier.template || '';
 				if (notifier.headers) {
@@ -35,6 +43,16 @@
 				} else {
 					webhookHeaders = [];
 				}
+				serverChan3Sendkey = '';
+			} else {
+				type = 'serverChan3';
+				botToken = '';
+				chatId = '';
+				skipImage = false;
+				webhookUrl = '';
+				webhookTemplate = '';
+				webhookHeaders = [];
+				serverChan3Sendkey = notifier.sendkey;
 			}
 		} else {
 			type = 'telegram';
@@ -44,6 +62,7 @@
 			webhookUrl = '';
 			webhookTemplate = '';
 			webhookHeaders = [];
+			serverChan3Sendkey = '';
 		}
 	}
 
@@ -65,7 +84,7 @@
 				skip_image: skipImage
 			};
 			onSave(newNotifier);
-		} else {
+		} else if (type === 'webhook') {
 			if (!webhookUrl.trim()) {
 				toast.error('请输入 Webhook URL');
 				return;
@@ -94,6 +113,27 @@
 				headers: Object.keys(headers).length > 0 ? headers : null
 			};
 			onSave(newNotifier);
+		} else {
+			const rawValue = serverChan3Sendkey.trim();
+			if (!rawValue) {
+				toast.error('请输入 Server酱³ SendKey');
+				return;
+			}
+
+			const sendkeyMatch =
+				rawValue.match(/^(sctp\d+t[0-9a-z]+)$/i) ||
+				rawValue.match(/\/send\/(sctp\d+t[0-9a-z]+)\.send(?:$|[?#])/i) ||
+				rawValue.match(/^https:\/\/(sctp\d+t[0-9a-z]+)\.push\.ft07\.com\/send(?:$|[/?#])/i);
+			if (!sendkeyMatch) {
+				toast.error('请输入有效的 Server酱³ SendKey');
+				return;
+			}
+
+			const newNotifier: Notifier = {
+				type: 'serverChan3',
+				sendkey: sendkeyMatch[1]
+			};
+			onSave(newNotifier);
 		}
 	}
 </script>
@@ -107,6 +147,7 @@
 			bind:value={type}
 		>
 			<option value="telegram">Telegram Bot</option>
+			<option value="serverChan3">Server酱³</option>
 			<option value="webhook">Webhook</option>
 		</select>
 	</div>
@@ -129,6 +170,19 @@
 		<div class="flex items-center gap-2">
 			<Checkbox id="skip-image" bind:checked={skipImage} />
 			<Label for="skip-image" class="text-sm font-normal">仅发送文字</Label>
+		</div>
+	{:else if type === 'serverChan3'}
+		<div class="space-y-2">
+			<Label for="serverchan3-sendkey">SendKey</Label>
+			<Input
+				id="serverchan3-sendkey"
+				placeholder="sctp123456txxxxxxxxxxxxxxxxxxxx"
+				bind:value={serverChan3Sendkey}
+			/>
+			<p class="text-muted-foreground text-xs">
+				只需要填写 Server酱³ 的 <code class="text-xs">SendKey</code>。 如果你误粘贴了完整发送
+				URL，也会自动提取其中的 SendKey。
+			</p>
 		</div>
 	{:else if type === 'webhook'}
 		<div class="space-y-2">

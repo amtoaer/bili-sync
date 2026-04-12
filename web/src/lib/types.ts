@@ -41,9 +41,32 @@ export interface VideoInfo {
 	watch_later_id?: number;
 }
 
+export interface ContentVideoInfo {
+	key: string;
+	id: number;
+	platform: 'bilibili' | 'youtube';
+	bvid?: string | null;
+	name: string;
+	upper_name: string;
+	valid: boolean;
+	should_download: boolean;
+	download_status: number[];
+	collection_id?: number | null;
+	favorite_id?: number | null;
+	submission_id?: number | null;
+	watch_later_id?: number | null;
+	source_type?: string | null;
+	source_name?: string | null;
+	external_url?: string | null;
+}
+
 export interface VideosResponse {
-	videos: VideoInfo[];
+	videos: ContentVideoInfo[];
 	total_count: number;
+}
+
+export interface YoutubeTaskResponse {
+	video: ContentVideoInfo;
 }
 
 export interface PageInfo {
@@ -330,7 +353,12 @@ export interface WebhookNotifier {
 	headers?: Record<string, string> | null;
 }
 
-export type Notifier = TelegramNotifier | WebhookNotifier;
+export interface ServerChan3Notifier {
+	type: 'serverChan3';
+	sendkey: string;
+}
+
+export type Notifier = TelegramNotifier | WebhookNotifier | ServerChan3Notifier;
 
 export type Trigger = number | string;
 

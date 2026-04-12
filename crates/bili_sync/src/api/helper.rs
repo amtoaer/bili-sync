@@ -1,17 +1,26 @@
 use std::borrow::Borrow;
 
-use bili_sync_entity::video;
+use bili_sync_entity::{video, youtube_video};
 use bili_sync_migration::SimpleExpr;
 use itertools::Itertools;
 use sea_orm::{ColumnTrait, Condition, ConnectionTrait, DatabaseTransaction};
 
 use crate::api::request::{StatusFilter, ValidationFilter};
 use crate::api::response::{PageInfo, SimplePageInfo, SimpleVideoInfo, VideoInfo};
-use crate::utils::status::VideoStatus;
+use crate::utils::status::{VideoStatus, YoutubeVideoStatus};
 
 impl StatusFilter {
     pub fn to_video_query(&self) -> Condition {
         let query_builder = VideoStatus::query_builder();
+        match self {
+            Self::Failed => query_builder.failed(),
+            Self::Succeeded => query_builder.succeeded(),
+            Self::Waiting => query_builder.waiting(),
+        }
+    }
+
+    pub fn to_youtube_video_query(&self) -> Condition {
+        let query_builder = YoutubeVideoStatus::query_builder();
         match self {
             Self::Failed => query_builder.failed(),
             Self::Succeeded => query_builder.succeeded(),
@@ -30,6 +39,18 @@ impl ValidationFilter {
             ValidationFilter::Normal => video::Column::Valid
                 .eq(true)
                 .and(video::Column::ShouldDownload.eq(true)),
+        }
+    }
+
+    pub fn to_youtube_video_query(&self) -> SimpleExpr {
+        match self {
+            ValidationFilter::Invalid => youtube_video::Column::Valid.eq(false),
+            ValidationFilter::Skipped => youtube_video::Column::Valid
+                .eq(true)
+                .and(youtube_video::Column::ShouldDownload.eq(false)),
+            ValidationFilter::Normal => youtube_video::Column::Valid
+                .eq(true)
+                .and(youtube_video::Column::ShouldDownload.eq(true)),
         }
     }
 }

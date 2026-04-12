@@ -43,7 +43,8 @@ import type {
 	YoutubePlaylistsResponse,
 	YoutubeSourcesResponse,
 	YoutubeStatusResponse,
-	YoutubeSubscriptionsResponse
+	YoutubeSubscriptionsResponse,
+	YoutubeTaskResponse
 } from './types';
 import { wsManager } from './ws';
 
@@ -181,6 +182,10 @@ class ApiClient {
 
 	async getVideo(id: number): Promise<ApiResponse<VideoResponse>> {
 		return this.get<VideoResponse>(`/videos/${id}`);
+	}
+
+	async getYoutubeTask(id: number): Promise<ApiResponse<YoutubeTaskResponse>> {
+		return this.get<YoutubeTaskResponse>(`/youtube/tasks/${id}`);
 	}
 
 	async resetVideoStatus(
@@ -343,6 +348,10 @@ class ApiClient {
 		return this.get<YoutubeSourcesResponse>('/youtube/sources');
 	}
 
+	async deleteYoutubeTask(id: number): Promise<ApiResponse<boolean>> {
+		return this.request<boolean>(`/youtube/tasks/${id}`, 'DELETE');
+	}
+
 	async getYoutubeDefaultPath(name: string): Promise<ApiResponse<string>> {
 		return this.get<string>('/youtube/sources/default-path', { name });
 	}
@@ -393,6 +402,7 @@ const api = {
 	getVideoSources: () => apiClient.getVideoSources(),
 	getVideos: (params?: VideosRequest) => apiClient.getVideos(params),
 	getVideo: (id: number) => apiClient.getVideo(id),
+	getYoutubeTask: (id: number) => apiClient.getYoutubeTask(id),
 	resetVideoStatus: (id: number, request: ResetVideoStatusRequest) =>
 		apiClient.resetVideoStatus(id, request),
 	clearAndResetVideoStatus: (id: number) => apiClient.clearAndResetVideoStatus(id),
@@ -441,6 +451,7 @@ const api = {
 	updateYoutubeChannel: (id: number, request: UpdateYoutubeChannelRequest) =>
 		apiClient.updateYoutubeChannel(id, request),
 	removeYoutubeChannel: (id: number) => apiClient.removeYoutubeChannel(id),
+	deleteYoutubeTask: (id: number) => apiClient.deleteYoutubeTask(id),
 	manualSubmitYoutubeLink: (request: YoutubeManualSubmitRequest) =>
 		apiClient.manualSubmitYoutubeLink(request),
 	subscribeToSysInfo: (onMessage: (data: SysInfo) => void) =>

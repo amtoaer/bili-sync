@@ -7,8 +7,8 @@ use axum::{Json, Router};
 use bili_sync_entity::*;
 use sea_orm::ActiveValue::Set;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, PaginatorTrait, QueryFilter,
-    QueryOrder, TransactionTrait, TryIntoModel,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, DerivePartialModel, EntityTrait, FromQueryResult,
+    IntoActiveModel, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, TransactionTrait, TryIntoModel,
 };
 
 use crate::api::error::InnerApiError;
@@ -18,12 +18,31 @@ use crate::api::request::{
     UpdateVideoStatusRequest, VideosRequest,
 };
 use crate::api::response::{
-    ClearAndResetVideoStatusResponse, PageInfo, ResetFilteredVideosResponse, ResetVideoResponse, SimplePageInfo,
-    SimpleVideoInfo, UpdateFilteredVideoStatusResponse, UpdateVideoStatusResponse, VideoInfo, VideoResponse,
-    VideosResponse,
+    ClearAndResetVideoStatusResponse, ContentVideoInfo, PageInfo, ResetFilteredVideosResponse, ResetVideoResponse,
+    SimplePageInfo, SimpleVideoInfo, UpdateFilteredVideoStatusResponse, UpdateVideoStatusResponse, VideoInfo,
+    VideoResponse, VideosResponse,
 };
+use crate::api::routes::youtube::build_manual_youtube_content_video;
 use crate::api::wrapper::{ApiError, ApiResponse, ValidatedJson};
 use crate::utils::status::{PageStatus, VideoStatus};
+use crate::youtube;
+
+#[derive(DerivePartialModel, FromQueryResult)]
+#[sea_orm(entity = "video::Entity")]
+struct ListedBiliVideo {
+    id: i32,
+    bvid: String,
+    name: String,
+    upper_name: String,
+    valid: bool,
+    should_download: bool,
+    download_status: u32,
+    collection_id: Option<i32>,
+    favorite_id: Option<i32>,
+    submission_id: Option<i32>,
+    watch_later_id: Option<i32>,
+    created_at: String,
+}
 
 pub(super) fn router() -> Router {
     Router::new()
@@ -55,34 +74,126 @@ pub async fn get_videos(
             query = query.filter(column.eq(id));
         }
     }
-    if let Some(query_word) = params.query {
+    if let Some(ref query_word) = params.query {
         query = query.filter(
             video::Column::Name
-                .contains(&query_word)
-                .or(video::Column::Bvid.contains(query_word)),
+                .contains(query_word.as_str())
+                .or(video::Column::Bvid.contains(query_word.as_str())),
         );
     }
-    if let Some(status_filter) = params.status_filter {
+    if let Some(ref status_filter) = params.status_filter {
         query = query.filter(status_filter.to_video_query());
     }
-    if let Some(validation_filter) = params.validation_filter {
+    if let Some(ref validation_filter) = params.validation_filter {
         query = query.filter(validation_filter.to_video_query());
     }
-    let total_count = query.clone().count(&db).await?;
     let (page, page_size) = if let (Some(page), Some(page_size)) = (params.page, params.page_size) {
         (page, page_size)
     } else {
         (0, 10)
     };
+    let bili_total_count = query.clone().count(&db).await?;
+    let has_bili_source_filter = params.collection.is_some()
+        || params.favorite.is_some()
+        || params.submission.is_some()
+        || params.watch_later.is_some();
+    let manual_youtube_videos = if has_bili_source_filter {
+        Vec::new()
+    } else {
+        load_manual_youtube_videos(&db, &params).await?
+    };
+    let manual_total_count = manual_youtube_videos.len() as u64;
+    let fetch_limit = ((page + 1) * page_size) as usize + manual_youtube_videos.len();
+    let mut mixed_videos = query
+        .order_by_desc(video::Column::CreatedAt)
+        .limit(fetch_limit as u64)
+        .into_partial_model::<ListedBiliVideo>()
+        .all(&db)
+        .await?
+        .into_iter()
+        .map(|video| ListedContentVideo {
+            created_at: video.created_at.clone(),
+            video: ContentVideoInfo {
+                key: format!("bilibili:{}", video.id),
+                id: video.id,
+                platform: "bilibili".to_owned(),
+                bvid: Some(video.bvid),
+                name: video.name,
+                upper_name: video.upper_name,
+                valid: video.valid,
+                should_download: video.should_download,
+                download_status: <[u32; 5]>::from(VideoStatus::from(video.download_status)).to_vec(),
+                collection_id: video.collection_id,
+                favorite_id: video.favorite_id,
+                submission_id: video.submission_id,
+                watch_later_id: video.watch_later_id,
+                source_type: None,
+                source_name: None,
+                external_url: None,
+            },
+        })
+        .collect::<Vec<_>>();
+    mixed_videos.extend(manual_youtube_videos);
+    mixed_videos.sort_by(|a, b| {
+        b.created_at
+            .cmp(&a.created_at)
+            .then_with(|| a.video.key.cmp(&b.video.key))
+    });
+    let start = (page * page_size) as usize;
     Ok(ApiResponse::ok(VideosResponse {
-        videos: query
-            .order_by_desc(video::Column::Id)
-            .into_partial_model::<VideoInfo>()
-            .paginate(&db, page_size)
-            .fetch_page(page)
-            .await?,
-        total_count,
+        videos: mixed_videos
+            .into_iter()
+            .skip(start)
+            .take(page_size as usize)
+            .map(|item| item.video)
+            .collect(),
+        total_count: bili_total_count + manual_total_count,
     }))
+}
+
+struct ListedContentVideo {
+    created_at: String,
+    video: ContentVideoInfo,
+}
+
+async fn load_manual_youtube_videos(
+    db: &DatabaseConnection,
+    params: &VideosRequest,
+) -> Result<Vec<ListedContentVideo>, ApiError> {
+    let mut query = youtube_video::Entity::find()
+        .find_also_related(youtube_channel::Entity)
+        .filter(youtube_channel::Column::SourceType.eq(youtube::SOURCE_TYPE_MANUAL));
+    if let Some(query_word) = &params.query {
+        query = query.filter(
+            youtube_video::Column::Title
+                .contains(query_word)
+                .or(youtube_video::Column::VideoId.contains(query_word)),
+        );
+    }
+    if let Some(status_filter) = &params.status_filter {
+        query = query.filter(status_filter.to_youtube_video_query());
+    }
+    if let Some(validation_filter) = &params.validation_filter {
+        query = query.filter(validation_filter.to_youtube_video_query());
+    }
+
+    Ok(query
+        .order_by_desc(youtube_video::Column::CreatedAt)
+        .all(db)
+        .await?
+        .into_iter()
+        .map(|(video, source)| ListedContentVideo {
+            created_at: video.created_at.clone(),
+            video: build_manual_youtube_content_video(
+                video,
+                source.unwrap_or_else(|| youtube_channel::Model {
+                    source_type: youtube::SOURCE_TYPE_MANUAL.to_owned(),
+                    name: "YouTube 手动提交".to_owned(),
+                    ..Default::default()
+                }),
+            ),
+        })
+        .collect())
 }
 
 pub async fn get_video(

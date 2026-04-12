@@ -17,8 +17,33 @@ pub struct VideoSourcesResponse {
 
 #[derive(Serialize)]
 pub struct VideosResponse {
-    pub videos: Vec<VideoInfo>,
+    pub videos: Vec<ContentVideoInfo>,
     pub total_count: u64,
+}
+
+#[derive(Serialize)]
+pub struct YoutubeTaskResponse {
+    pub video: ContentVideoInfo,
+}
+
+#[derive(Serialize)]
+pub struct ContentVideoInfo {
+    pub key: String,
+    pub id: i32,
+    pub platform: String,
+    pub bvid: Option<String>,
+    pub name: String,
+    pub upper_name: String,
+    pub valid: bool,
+    pub should_download: bool,
+    pub download_status: Vec<u32>,
+    pub collection_id: Option<i32>,
+    pub favorite_id: Option<i32>,
+    pub submission_id: Option<i32>,
+    pub watch_later_id: Option<i32>,
+    pub source_type: Option<String>,
+    pub source_name: Option<String>,
+    pub external_url: Option<String>,
 }
 
 #[derive(Serialize)]

@@ -987,12 +987,17 @@
 														Chat ID: {notifier.chat_id}
 													</span>
 												</div>
+											{:else if notifier.type === 'serverChan3'}
+												<div class="flex items-center gap-2">
+													<Badge variant="secondary">Server酱³</Badge>
+													<span class="text-muted-foreground text-sm">
+														{notifier.sendkey}
+													</span>
+												</div>
 											{:else if notifier.type === 'webhook'}
 												<div class="flex items-center gap-2">
 													<Badge variant="secondary">Webhook</Badge>
-													<span class="text-muted-foreground text-sm">
-														{notifier.url}
-													</span>
+													<span class="text-muted-foreground text-sm">{notifier.url}</span>
 												</div>
 											{/if}
 										</div>

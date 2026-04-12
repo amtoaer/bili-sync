@@ -5,7 +5,12 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import api from '$lib/api';
 	import SquareArrowOutUpRightIcon from '@lucide/svelte/icons/square-arrow-out-up-right';
-	import type { ApiError, VideoResponse, UpdateVideoStatusRequest } from '$lib/types';
+	import type {
+		ApiError,
+		ContentVideoInfo,
+		VideoResponse,
+		UpdateVideoStatusRequest
+	} from '$lib/types';
 	import { RotateCcwIcon, SquarePenIcon, BrushCleaningIcon } from '@lucide/svelte/icons';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
 	import { appStateStore, ToQuery } from '$lib/stores/filter';
@@ -14,6 +19,7 @@
 	import { toast } from 'svelte-sonner';
 
 	let videoData: VideoResponse | null = null;
+	let youtubeTaskData: ContentVideoInfo | null = null;
 	let loading = false;
 	let error: string | null = null;
 	let resetDialogOpen = false;
@@ -24,15 +30,24 @@
 	let statusEditorLoading = false;
 
 	async function loadVideoDetail() {
-		const videoId = parseInt($page.params.id!);
-		if (isNaN(videoId)) {
-			error = '无效的视频 ID';
-			toast.error('无效的视频 ID');
-			return;
-		}
 		loading = true;
 		error = null;
+		videoData = null;
+		youtubeTaskData = null;
 		try {
+			const youtubeMatch = $page.params.id?.match(/^youtube-(\d+)$/);
+			if (youtubeMatch) {
+				const result = await api.getYoutubeTask(parseInt(youtubeMatch[1]));
+				youtubeTaskData = result.data.video;
+				return;
+			}
+
+			const videoId = parseInt($page.params.id!);
+			if (isNaN(videoId)) {
+				error = '无效的视频 ID';
+				toast.error('无效的视频 ID');
+				return;
+			}
 			const result = await api.getVideo(videoId);
 			videoData = result.data;
 		} catch (error) {
@@ -141,7 +156,7 @@
 </script>
 
 <svelte:head>
-	<title>{videoData?.video.name || '视频详情'} - Bili Sync</title>
+	<title>{videoData?.video.name || youtubeTaskData?.name || '视频详情'} - Bili Sync</title>
 </svelte:head>
 
 {#if loading}
@@ -160,62 +175,70 @@
 			</button>
 		</div>
 	</div>
-{:else if videoData}
+{:else if videoData || youtubeTaskData}
 	<!-- 视频信息区域 -->
 	<section>
 		<div class="mb-4 flex items-center justify-between">
 			<h2 class="text-xl font-semibold">视频信息</h2>
 			<div class="flex gap-2">
-				<Button
-					size="sm"
-					variant="outline"
-					class="shrink-0 cursor-pointer "
-					onclick={() => (statusEditorOpen = true)}
-					disabled={statusEditorLoading}
-				>
-					<SquarePenIcon class="mr-2 h-4 w-4" />
-					编辑状态
-				</Button>
-				<Button
-					size="sm"
-					variant="outline"
-					class="shrink-0 cursor-pointer "
-					onclick={() => (resetDialogOpen = true)}
-					disabled={resetting || clearAndResetting}
-				>
-					<RotateCcwIcon class="mr-2 h-4 w-4 {resetting ? 'animate-spin' : ''}" />
-					重置
-				</Button>
-				<Button
-					size="sm"
-					variant="outline"
-					class="shrink-0 cursor-pointer "
-					onclick={() => (clearAndResetDialogOpen = true)}
-					disabled={resetting || clearAndResetting}
-				>
-					<BrushCleaningIcon class="mr-2 h-4 w-4 {clearAndResetting ? 'animate-spin' : ''}" />
-					清空重置
-				</Button>
+				{#if videoData}
+					<Button
+						size="sm"
+						variant="outline"
+						class="shrink-0 cursor-pointer "
+						onclick={() => (statusEditorOpen = true)}
+						disabled={statusEditorLoading}
+					>
+						<SquarePenIcon class="mr-2 h-4 w-4" />
+						编辑状态
+					</Button>
+					<Button
+						size="sm"
+						variant="outline"
+						class="shrink-0 cursor-pointer "
+						onclick={() => (resetDialogOpen = true)}
+						disabled={resetting || clearAndResetting}
+					>
+						<RotateCcwIcon class="mr-2 h-4 w-4 {resetting ? 'animate-spin' : ''}" />
+						重置
+					</Button>
+					<Button
+						size="sm"
+						variant="outline"
+						class="shrink-0 cursor-pointer "
+						onclick={() => (clearAndResetDialogOpen = true)}
+						disabled={resetting || clearAndResetting}
+					>
+						<BrushCleaningIcon class="mr-2 h-4 w-4 {clearAndResetting ? 'animate-spin' : ''}" />
+						清空重置
+					</Button>
+				{/if}
 				<Button
 					size="sm"
 					variant="outline"
 					class="shrink-0 cursor-pointer "
 					onclick={() =>
-						window.open(`https://www.bilibili.com/video/${videoData?.video.bvid}/`, '_blank')}
+						window.open(
+							youtubeTaskData?.external_url ||
+								`https://www.bilibili.com/video/${videoData?.video.bvid}/`,
+							'_blank'
+						)}
 					disabled={statusEditorLoading}
 				>
 					<SquareArrowOutUpRightIcon class="mr-2 h-4 w-4" />
-					在 B 站打开
+					在 {youtubeTaskData ? 'YouTube' : 'B 站'} 打开
 				</Button>
 			</div>
 		</div>
 
 		<div style="margin-bottom: 1rem;">
 			<VideoCard
-				video={videoData.video}
+				video={youtubeTaskData || videoData!.video}
 				mode="detail"
 				showActions={false}
-				taskNames={['视频封面', '视频信息', 'UP 主头像', 'UP 主信息', '分页下载']}
+				taskNames={youtubeTaskData
+					? ['视频封面', '视频内容', '视频信息', '视频字幕']
+					: ['视频封面', '视频信息', 'UP 主头像', 'UP 主信息', '分页下载']}
 				bind:resetDialogOpen
 				bind:resetting
 				bind:clearAndResetDialogOpen
@@ -226,47 +249,49 @@
 		</div>
 	</section>
 
-	<section>
-		{#if videoData.pages && videoData.pages.length > 0}
-			<div>
-				<div class="mb-4 flex items-center justify-between">
-					<h2 class="text-xl font-semibold">分页列表</h2>
-					<div class="text-muted-foreground text-sm">
-						共 {videoData.pages.length} 个分页
+	{#if videoData}
+		<section>
+			{#if videoData.pages && videoData.pages.length > 0}
+				<div>
+					<div class="mb-4 flex items-center justify-between">
+						<h2 class="text-xl font-semibold">分页列表</h2>
+						<div class="text-muted-foreground text-sm">
+							共 {videoData.pages.length} 个分页
+						</div>
+					</div>
+
+					<div
+						class="grid gap-4"
+						style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));"
+					>
+						{#each videoData.pages as pageInfo (pageInfo.id)}
+							<VideoCard
+								video={{
+									id: pageInfo.id,
+									name: `P${pageInfo.pid}: ${pageInfo.name}`,
+									upper_name: '',
+									download_status: pageInfo.download_status,
+									should_download: videoData.video.should_download,
+									valid: videoData.video.valid
+								}}
+								mode="page"
+								showActions={false}
+								customTitle="P{pageInfo.pid}: {pageInfo.name}"
+								customSubtitle=""
+								taskNames={['视频封面', '视频内容', '视频信息', '视频弹幕', '视频字幕']}
+							/>
+						{/each}
 					</div>
 				</div>
-
-				<div
-					class="grid gap-4"
-					style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));"
-				>
-					{#each videoData.pages as pageInfo (pageInfo.id)}
-						<VideoCard
-							video={{
-								id: pageInfo.id,
-								name: `P${pageInfo.pid}: ${pageInfo.name}`,
-								upper_name: '',
-								download_status: pageInfo.download_status,
-								should_download: videoData.video.should_download,
-								valid: videoData.video.valid
-							}}
-							mode="page"
-							showActions={false}
-							customTitle="P{pageInfo.pid}: {pageInfo.name}"
-							customSubtitle=""
-							taskNames={['视频封面', '视频内容', '视频信息', '视频弹幕', '视频字幕']}
-						/>
-					{/each}
+			{:else}
+				<div class="py-12 text-center">
+					<div class="space-y-2">
+						<p class="text-muted-foreground">暂无分 P 数据</p>
+					</div>
 				</div>
-			</div>
-		{:else}
-			<div class="py-12 text-center">
-				<div class="space-y-2">
-					<p class="text-muted-foreground">暂无分 P 数据</p>
-				</div>
-			</div>
-		{/if}
-	</section>
+			{/if}
+		</section>
+	{/if}
 
 	<!-- 状态编辑器 -->
 	{#if videoData}
