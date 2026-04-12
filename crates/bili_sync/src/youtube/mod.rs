@@ -2,9 +2,8 @@ mod helper;
 mod rss;
 
 use std::path::{Path, PathBuf};
-use std::sync::LazyLock;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use bili_sync_entity::{youtube_channel, youtube_video};
 pub use helper::{Playlist, ResolvedSource, ResolvedSourceKind, Subscription};
 use sea_orm::ActiveValue::Set;
@@ -12,13 +11,13 @@ use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::OnConflict;
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder};
 
-use crate::config::{CONFIG_DIR, Config, VersionedConfig, default_manual_download_root};
+use crate::config::{CONFIG_DIR, Config};
+use crate::utils::compact_log_text;
 use crate::utils::status::{STATUS_COMPLETED, STATUS_MAX_RETRY, STATUS_OK, YoutubeVideoStatus};
 
 pub const SOURCE_TYPE_CHANNEL: &str = "channel";
 pub const SOURCE_TYPE_PLAYLIST: &str = "playlist";
-static MANUAL_DOWNLOADS_IN_PROGRESS: LazyLock<tokio::sync::Mutex<std::collections::HashSet<String>>> =
-    LazyLock::new(|| tokio::sync::Mutex::new(std::collections::HashSet::new()));
+pub const SOURCE_TYPE_MANUAL: &str = "manual";
 
 pub fn cookie_file_path() -> PathBuf {
     CONFIG_DIR.join("youtube").join("cookies.txt")
@@ -244,15 +243,16 @@ async fn process_pending_videos(
     Ok(())
 }
 
-async fn process_video(
+pub(crate) async fn process_video(
     source: &youtube_channel::Model,
     video: &youtube_video::Model,
     connection: &DatabaseConnection,
     config: &Config,
 ) -> Result<()> {
     let cookie_path = optional_cookie_path();
+    let video_log_title = compact_log_text(&video.title, 48);
 
-    info!("开始处理 YouTube 视频「{}」", video.title);
+    info!("开始处理 YouTube 视频「{}」", video_log_title);
     match helper::download_video(
         &video.url,
         Path::new(&source.path),
@@ -278,7 +278,11 @@ async fn process_video(
                 .update(connection)
                 .await
                 .context("failed to persist youtube video status")?;
-            info!("YouTube 视频「{}」处理完成，文件：{}", video.title, result.video_file);
+            info!(
+                "YouTube 视频「{}」处理完成，文件：{}",
+                video_log_title,
+                helper::compact_download_file_log(&result.video_file)
+            );
         }
         Err(error) => {
             let mut raw_status: [u32; 4] = YoutubeVideoStatus::from(video.download_status).into();
@@ -299,53 +303,11 @@ async fn process_video(
                 .update(connection)
                 .await
                 .context("failed to persist failed youtube video status")?;
-            error!("处理 YouTube 视频「{}」失败：{:#}", video.title, error);
+            error!("处理 YouTube 视频「{}」失败：{:#}", video_log_title, error);
         }
     }
 
     Ok(())
-}
-
-pub async fn download_video_by_url(url: &str, download_path: Option<&Path>) -> Result<()> {
-    let config = VersionedConfig::get().snapshot();
-    let output_root = download_path
-        .map(Path::to_path_buf)
-        .unwrap_or_else(default_manual_download_root);
-    if !output_root.is_absolute() {
-        bail!("手动下载路径必须是绝对路径");
-    }
-
-    tokio::fs::create_dir_all(&output_root)
-        .await
-        .with_context(|| format!("failed to create {}", output_root.display()))?;
-
-    let task_key = format!("{}|{}", output_root.display(), url.trim());
-    {
-        let mut in_progress = MANUAL_DOWNLOADS_IN_PROGRESS.lock().await;
-        if !in_progress.insert(task_key.clone()) {
-            warn!("相同的 YouTube 手动下载任务正在执行，已跳过：{}", url);
-            return Ok(());
-        }
-    }
-
-    let cookie_path = optional_cookie_path();
-    let result = async {
-        info!("开始执行 YouTube 手动下载任务：{}", url);
-        let result = helper::download_video(
-            url,
-            &output_root,
-            cookie_path.as_deref(),
-            &config.youtube.skip_option,
-            config.youtube.video_format,
-        )
-        .await?;
-        info!("YouTube 手动下载任务完成：{}", result.video_file);
-        Result::<(), anyhow::Error>::Ok(())
-    }
-    .await;
-
-    MANUAL_DOWNLOADS_IN_PROGRESS.lock().await.remove(&task_key);
-    result
 }
 
 pub async fn has_enabled_sources(connection: &DatabaseConnection) -> Result<bool> {

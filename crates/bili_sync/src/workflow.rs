@@ -19,6 +19,7 @@ use crate::config::{ARGS, Config, PathSafeTemplate};
 use crate::downloader::Downloader;
 use crate::error::ExecutionStatus;
 use crate::notifier::DownloadNotifyInfo;
+use crate::utils::compact_log_text;
 use crate::utils::download_context::DownloadContext;
 use crate::utils::format_arg::{page_format_args, video_format_args};
 use crate::utils::model::{
@@ -239,6 +240,7 @@ pub async fn download_video_pages(
     cx: DownloadContext<'_>,
 ) -> Result<video::ActiveModel> {
     let _permit = semaphore.acquire().await.context("acquire semaphore failed")?;
+    let video_log_name = compact_log_text(&video_model.name, 48);
     let mut status = VideoStatus::from(video_model.download_status);
     let separate_status = status.should_run();
     // 未记录路径时填充，已经填充过路径时使用现有的
@@ -312,17 +314,15 @@ pub async fn download_video_pages(
         .take(4)
         .zip(["封面", "详情", "作者头像", "作者详情"])
         .for_each(|(res, task_name)| match res {
-            ExecutionStatus::Skipped => info!("处理视频「{}」{}已成功过，跳过", &video_model.name, task_name),
-            ExecutionStatus::Succeeded => info!("处理视频「{}」{}成功", &video_model.name, task_name),
+            ExecutionStatus::Skipped => info!("处理视频「{}」{}已成功过，跳过", video_log_name, task_name),
+            ExecutionStatus::Succeeded => info!("处理视频「{}」{}成功", video_log_name, task_name),
             ExecutionStatus::Ignored(e) => {
                 error!(
                     "处理视频「{}」{}出现常见错误，已忽略：{:#}",
-                    &video_model.name, task_name, e
+                    video_log_name, task_name, e
                 )
             }
-            ExecutionStatus::Failed(e) => {
-                error!("处理视频「{}」{}失败：{:#}", &video_model.name, task_name, e)
-            }
+            ExecutionStatus::Failed(e) => error!("处理视频「{}」{}失败：{:#}", video_log_name, task_name, e),
             ExecutionStatus::Fixed(_) => unreachable!(),
         });
     for result in results {
@@ -402,6 +402,7 @@ pub async fn download_page(
     cx: DownloadContext<'_>,
 ) -> Result<page::ActiveModel> {
     let _permit = semaphore.acquire().await.context("acquire semaphore failed")?;
+    let video_log_name = compact_log_text(&video_model.name, 48);
     let mut status = PageStatus::from(page_model.download_status);
     let separate_status = status.should_run();
     let is_single_page = video_model.single_page.context("single_page is null")?;
@@ -533,21 +534,21 @@ pub async fn download_page(
         .for_each(|(res, task_name)| match res {
             ExecutionStatus::Skipped => info!(
                 "处理视频「{}」第 {} 页{}已成功过，跳过",
-                &video_model.name, page_model.pid, task_name
+                video_log_name, page_model.pid, task_name
             ),
             ExecutionStatus::Succeeded => info!(
                 "处理视频「{}」第 {} 页{}成功",
-                &video_model.name, page_model.pid, task_name
+                video_log_name, page_model.pid, task_name
             ),
             ExecutionStatus::Ignored(e) => {
                 error!(
                     "处理视频「{}」第 {} 页{}出现常见错误，已忽略：{:#}",
-                    &video_model.name, page_model.pid, task_name, e
+                    video_log_name, page_model.pid, task_name, e
                 )
             }
             ExecutionStatus::Failed(e) => error!(
                 "处理视频「{}」第 {} 页{}失败：{:#}",
-                &video_model.name, page_model.pid, task_name, e
+                video_log_name, page_model.pid, task_name, e
             ),
             ExecutionStatus::Fixed(_) => unreachable!(),
         });

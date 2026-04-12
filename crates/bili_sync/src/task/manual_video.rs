@@ -16,6 +16,7 @@ use crate::bilibili::{BiliClient, BiliError, Video, VideoInfo};
 use crate::config::{PathSafeTemplate, TEMPLATE, VersionedConfig, default_manual_download_root};
 use crate::downloader::Downloader;
 use crate::error::ExecutionStatus;
+use crate::utils::compact_log_text;
 use crate::utils::download_context::DownloadContext;
 use crate::utils::format_arg::video_format_args;
 use crate::utils::status::{STATUS_OK, VideoStatus};
@@ -160,6 +161,7 @@ async fn download_single_video(
     config: &crate::config::Config,
 ) -> Result<()> {
     let status = VideoStatus::default();
+    let video_log_name = compact_log_text(&video_model.name, 48);
     let separate_status = status.should_run();
     let base_path = video_source
         .path()
@@ -215,17 +217,15 @@ async fn download_single_video(
         .take(4)
         .zip(["封面", "详情", "作者头像", "作者详情"])
         .for_each(|(res, task_name)| match res {
-            ExecutionStatus::Skipped => info!("手动下载视频「{}」{}已成功过，跳过", &video_model.name, task_name),
-            ExecutionStatus::Succeeded => info!("手动下载视频「{}」{}成功", &video_model.name, task_name),
+            ExecutionStatus::Skipped => info!("手动下载视频「{}」{}已成功过，跳过", video_log_name, task_name),
+            ExecutionStatus::Succeeded => info!("手动下载视频「{}」{}成功", video_log_name, task_name),
             ExecutionStatus::Ignored(e) => {
                 error!(
                     "手动下载视频「{}」{}出现常见错误，已忽略：{:#}",
-                    &video_model.name, task_name, e
+                    video_log_name, task_name, e
                 )
             }
-            ExecutionStatus::Failed(e) => {
-                error!("手动下载视频「{}」{}失败：{:#}", &video_model.name, task_name, e)
-            }
+            ExecutionStatus::Failed(e) => error!("手动下载视频「{}」{}失败：{:#}", video_log_name, task_name, e),
             ExecutionStatus::Fixed(_) => unreachable!(),
         });
     for result in results {

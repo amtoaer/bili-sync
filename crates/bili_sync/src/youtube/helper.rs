@@ -5,6 +5,7 @@ use serde::de::DeserializeOwned;
 use tokio::process::Command;
 
 use crate::config::{CONFIG_DIR, YoutubeSkipOption, YoutubeVideoFormat};
+use crate::utils::{compact_log_filename, compact_log_path, compact_log_text};
 
 const BRIDGE_PY: &str = include_str!("python/bridge.py");
 const CORE_PY: &str = include_str!("python/core.py");
@@ -157,7 +158,9 @@ where
         .with_context(|| format!("failed to run youtube helper with {}", python))?;
 
     for line in String::from_utf8_lossy(&output.stderr).lines() {
-        if !line.trim().is_empty() {
+        if !line.trim().is_empty()
+            && let Some(line) = compact_youtube_helper_log(line)
+        {
             info!("[YouTube Helper] {}", line);
         }
     }
@@ -209,4 +212,79 @@ async fn detect_python() -> Result<String> {
         }
     }
     bail!("python3/python not found, YouTube helper is unavailable")
+}
+
+pub fn compact_download_file_log(file: &str) -> String {
+    compact_log_filename(file, 48)
+}
+
+fn compact_youtube_helper_log(line: &str) -> Option<String> {
+    let line = line.trim();
+
+    if let Some((prefix, path)) = line.split_once("Destination: ") {
+        return Some(format!("{prefix}Destination: {}", compact_log_path(path, 48)));
+    }
+    if let Some((prefix, path)) = line.split_once("Merging formats into ") {
+        return Some(format!("{prefix}Merging formats into {}", compact_log_path(path, 48)));
+    }
+    if let Some((prefix, rest)) = line.split_once("Deleting original file ") {
+        let (path, suffix) = rest
+            .split_once(" (")
+            .map(|(path, suffix)| (path, format!(" ({suffix}")))
+            .unwrap_or((rest, String::new()));
+        return Some(format!(
+            "{prefix}Deleting original file {}{}",
+            compact_log_path(path, 48),
+            suffix
+        ));
+    }
+    if let Some((prefix, _)) = line.split_once(" has already been downloaded") {
+        if let Some((head, path)) = prefix.rsplit_once(' ') {
+            return Some(format!(
+                "{head} {} has already been downloaded",
+                compact_log_path(path, 48)
+            ));
+        }
+        return Some(format!("{} has already been downloaded", compact_log_path(prefix, 48)));
+    }
+    if line.starts_with("[download]")
+        || line.starts_with("WARNING: [youtube]")
+        || line.starts_with("WARNING: [generic]")
+    {
+        return None;
+    }
+
+    Some(compact_log_text(line, 120))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn compact_helper_destination_log_uses_short_filename() {
+        let line = "[download] Destination: /media/youtube/download/some/very/very/long/file-name-example.mp4";
+        let compacted = compact_youtube_helper_log(line);
+        assert!(
+            compacted
+                .as_ref()
+                .unwrap()
+                .contains("Destination: file-name-example.mp4")
+        );
+        assert!(!compacted.as_ref().unwrap().contains("/media/youtube/download"));
+    }
+
+    #[test]
+    fn compact_helper_filters_progress_lines() {
+        let line = "[download]  37.4% of  123.45MiB at    4.32MiB/s ETA 00:18";
+        assert!(compact_youtube_helper_log(line).is_none());
+    }
+
+    #[test]
+    fn compact_download_file_log_preserves_extension() {
+        let long_name = format!("{}示例文件.mp4", "这是非常长的文件名".repeat(10));
+        let compacted = compact_download_file_log(&long_name);
+        assert!(compacted.ends_with(".mp4"));
+        assert!(compacted.contains('…'));
+    }
 }
