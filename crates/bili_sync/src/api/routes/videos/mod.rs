@@ -1,10 +1,12 @@
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use axum::extract::{Extension, Path, Query};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use bili_sync_entity::*;
+use serde::Serialize;
 use sea_orm::ActiveValue::Set;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, PaginatorTrait, QueryFilter,
@@ -23,7 +25,10 @@ use crate::api::response::{
     VideosResponse,
 };
 use crate::api::wrapper::{ApiError, ApiResponse, ValidatedJson};
+use crate::bilibili::BiliClient;
+use crate::config::VersionedConfig;
 use crate::utils::status::{PageStatus, VideoStatus};
+use crate::workflow_danmaku::{refresh_danmaku_for_page, refresh_danmaku_for_video};
 
 pub(super) fn router() -> Router {
     Router::new()
@@ -37,6 +42,36 @@ pub(super) fn router() -> Router {
         .route("/videos/{id}/update-status", post(update_video_status))
         .route("/videos/reset-status", post(reset_filtered_video_status))
         .route("/videos/update-status", post(update_filtered_video_status))
+        .route("/videos/{id}/refresh-danmaku", post(refresh_video_danmaku))
+        .route("/pages/{id}/refresh-danmaku", post(refresh_page_danmaku))
+}
+
+#[derive(Serialize)]
+pub struct RefreshDanmakuResponse {
+    /// 本次实际刷新成功的 page 数量；page 级接口始终为 0 或 1。
+    pub refreshed: usize,
+}
+
+/// 手动触发：刷新某个视频所有 page 的弹幕。忽略策略，强制执行。
+pub async fn refresh_video_danmaku(
+    Path(id): Path<i32>,
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(bili_client): Extension<Arc<BiliClient>>,
+) -> Result<ApiResponse<RefreshDanmakuResponse>, ApiError> {
+    let config = VersionedConfig::get().snapshot();
+    let refreshed = refresh_danmaku_for_video(id, &bili_client, &db, &config).await?;
+    Ok(ApiResponse::ok(RefreshDanmakuResponse { refreshed }))
+}
+
+/// 手动触发：刷新单个 page 的弹幕。忽略策略，强制执行；走严格模式，任何错误都直接 4xx/5xx。
+pub async fn refresh_page_danmaku(
+    Path(id): Path<i32>,
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(bili_client): Extension<Arc<BiliClient>>,
+) -> Result<ApiResponse<RefreshDanmakuResponse>, ApiError> {
+    let config = VersionedConfig::get().snapshot();
+    let refreshed = refresh_danmaku_for_page(id, &bili_client, &db, &config).await?;
+    Ok(ApiResponse::ok(RefreshDanmakuResponse { refreshed }))
 }
 
 /// 列出视频的基本信息，支持根据视频来源筛选、名称查找和分页

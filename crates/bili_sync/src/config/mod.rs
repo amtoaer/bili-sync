@@ -2,7 +2,7 @@ mod args;
 mod current;
 mod default;
 mod handlebar;
-mod item;
+pub mod item;
 mod versioned_cache;
 mod versioned_config;
 

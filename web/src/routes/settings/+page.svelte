@@ -787,6 +787,103 @@
 							<Label for="danmaku-bold">粗体显示</Label>
 						</div>
 					</div>
+
+					<Separator />
+
+					<!-- 弹幕增量更新策略（三段式） -->
+					<div class="space-y-4">
+						<div class="flex items-start justify-between gap-4">
+							<div>
+								<h3 class="text-lg font-semibold">弹幕增量更新</h3>
+								<p class="text-muted-foreground text-sm">
+									视频下载完成后按策略周期性重抓弹幕。依据发布时长分为三段：新鲜期高频、成熟期中频、老化期低频；超过冷冻阈值后触发最后一次刷新并冻结，不再自动更新（可手动触发）。
+								</p>
+							</div>
+							<div class="flex items-center space-x-2">
+								<Switch
+									id="danmaku-update-enabled"
+									bind:checked={formData.danmaku_update_policy.enabled}
+								/>
+								<Label for="danmaku-update-enabled">启用</Label>
+							</div>
+						</div>
+
+						{#if formData.danmaku_update_policy.enabled}
+							<div class="space-y-4 rounded-lg border p-4">
+								<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+									<div class="space-y-2">
+										<Label for="danmaku-fresh-days">新鲜期天数</Label>
+										<Input
+											id="danmaku-fresh-days"
+											type="number"
+											min="0"
+											step="1"
+											bind:value={formData.danmaku_update_policy.fresh_days}
+										/>
+										<p class="text-muted-foreground text-xs">发布后这段时间内认为弹幕快速增长</p>
+									</div>
+									<div class="space-y-2">
+										<Label for="danmaku-fresh-interval">新鲜期间隔（小时）</Label>
+										<Input
+											id="danmaku-fresh-interval"
+											type="number"
+											min="1"
+											step="1"
+											bind:value={formData.danmaku_update_policy.fresh_interval_hours}
+										/>
+									</div>
+								</div>
+								<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+									<div class="space-y-2">
+										<Label for="danmaku-mature-days">成熟期天数</Label>
+										<Input
+											id="danmaku-mature-days"
+											type="number"
+											min="0"
+											step="1"
+											bind:value={formData.danmaku_update_policy.mature_days}
+										/>
+										<p class="text-muted-foreground text-xs">必须 ≥ 新鲜期天数</p>
+									</div>
+									<div class="space-y-2">
+										<Label for="danmaku-mature-interval">成熟期间隔（天）</Label>
+										<Input
+											id="danmaku-mature-interval"
+											type="number"
+											min="1"
+											step="1"
+											bind:value={formData.danmaku_update_policy.mature_interval_days}
+										/>
+									</div>
+								</div>
+								<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+									<div class="space-y-2">
+										<Label for="danmaku-cold-days">冷冻阈值（天）</Label>
+										<Input
+											id="danmaku-cold-days"
+											type="number"
+											min="0"
+											step="1"
+											bind:value={formData.danmaku_update_policy.cold_days}
+										/>
+										<p class="text-muted-foreground text-xs">
+											超过该阈值后触发最后一次刷新并冻结，必须 ≥ 成熟期天数
+										</p>
+									</div>
+									<div class="space-y-2">
+										<Label for="danmaku-cold-interval">老化期间隔（天）</Label>
+										<Input
+											id="danmaku-cold-interval"
+											type="number"
+											min="1"
+											step="1"
+											bind:value={formData.danmaku_update_policy.cold_interval_days}
+										/>
+									</div>
+								</div>
+							</div>
+						{/if}
+					</div>
 				</Tabs.Content>
 
 				<!-- 通知设置 -->

@@ -14,7 +14,7 @@ use crate::config::default::{
     default_auth_token, default_bind_address, default_collection_path, default_favorite_path, default_submission_path,
     default_time_format,
 };
-use crate::config::item::{ConcurrentLimit, NFOTimeType, SkipOption, Trigger};
+use crate::config::item::{ConcurrentLimit, DanmakuUpdatePolicy, NFOTimeType, SkipOption, Trigger};
 use crate::notifier::Notifier;
 use crate::utils::model::{load_db_config, save_db_config};
 
@@ -52,6 +52,8 @@ pub struct Config {
     pub cdn_sorting: bool,
     #[serde(default)]
     pub try_upower_anyway: bool,
+    #[serde(default)]
+    pub danmaku_update_policy: DanmakuUpdatePolicy,
     pub version: u64,
 }
 
@@ -105,6 +107,9 @@ impl Config {
                 }
             }
         };
+        if let Err(msg) = self.danmaku_update_policy.validate() {
+            errors.push(msg);
+        }
         if !errors.is_empty() {
             bail!(errors.into_iter().map(|e| format!("- {}", e)).join("\n"));
         }
@@ -134,6 +139,7 @@ impl Default for Config {
             time_format: default_time_format(),
             cdn_sorting: false,
             try_upower_anyway: false,
+            danmaku_update_policy: DanmakuUpdatePolicy::default(),
             version: 0,
         }
     }
