@@ -6,17 +6,11 @@
 	import api from '$lib/api';
 	import SquareArrowOutUpRightIcon from '@lucide/svelte/icons/square-arrow-out-up-right';
 	import type { ApiError, VideoResponse, UpdateVideoStatusRequest } from '$lib/types';
-	import {
-		RotateCcwIcon,
-		SquarePenIcon,
-		BrushCleaningIcon,
-		RefreshCwIcon
-	} from '@lucide/svelte/icons';
+	import { RotateCcwIcon, SquarePenIcon, BrushCleaningIcon } from '@lucide/svelte/icons';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
 	import { appStateStore, ToQuery } from '$lib/stores/filter';
 	import VideoCard from '$lib/components/video-card.svelte';
 	import StatusEditor from '$lib/components/status-editor.svelte';
-	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { toast } from 'svelte-sonner';
 
 	let videoData: VideoResponse | null = null;
@@ -247,23 +241,21 @@
 					style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));"
 				>
 					{#each videoData.pages as pageInfo (pageInfo.id)}
-						<div class="space-y-2">
-							<VideoCard
-								video={{
-									id: pageInfo.id,
-									name: `P${pageInfo.pid}: ${pageInfo.name}`,
-									upper_name: '',
-									download_status: pageInfo.download_status,
-									should_download: videoData.video.should_download,
-									valid: videoData.video.valid
-								}}
-								mode="page"
-								showActions={false}
-								customTitle="P{pageInfo.pid}: {pageInfo.name}"
-								customSubtitle=""
-								taskNames={['视频封面', '视频内容', '视频信息', '视频弹幕', '视频字幕']}
-							/>
-						</div>
+						<VideoCard
+							video={{
+								id: pageInfo.id,
+								name: `P${pageInfo.pid}: ${pageInfo.name}`,
+								upper_name: '',
+								download_status: pageInfo.download_status,
+								should_download: videoData.video.should_download,
+								valid: videoData.video.valid
+							}}
+							mode="page"
+							showActions={false}
+							customTitle="P{pageInfo.pid}: {pageInfo.name}"
+							customSubtitle=""
+							taskNames={['视频封面', '视频内容', '视频信息', '视频弹幕', '视频字幕']}
+						/>
 					{/each}
 				</div>
 			</div>
