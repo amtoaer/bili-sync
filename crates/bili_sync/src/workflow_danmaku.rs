@@ -50,10 +50,7 @@ pub async fn refresh_danmaku_incremental(
             .into_iter()
             .filter_map(|page| {
                 let pubtime = video_model.pubtime.and_utc();
-                let last_synced = page
-                    .danmaku_last_synced_at
-                    .as_deref()
-                    .and_then(parse_stored_datetime);
+                let last_synced = page.danmaku_last_synced_at.as_deref().and_then(parse_stored_datetime);
                 match should_sync_danmaku(
                     &config.danmaku_update_policy,
                     pubtime,
@@ -82,91 +79,8 @@ pub async fn refresh_danmaku_incremental(
             }
         }
     }
-    info!(
-        "弹幕增量更新结束：处理视频 {} 个，刷新分页 {} 个",
-        processed, refreshed
-    );
+    info!("弹幕增量更新结束：处理视频 {} 个，刷新分页 {} 个", processed, refreshed);
     Ok(())
-}
-
-/// 手动触发：刷新某个视频所有 page 的弹幕（忽略策略，强制执行）。
-pub async fn refresh_danmaku_for_video(
-    video_id: i32,
-    bili_client: &BiliClient,
-    connection: &DatabaseConnection,
-    config: &Config,
-) -> Result<usize> {
-    let video_model = video::Entity::find_by_id(video_id)
-        .one(connection)
-        .await?
-        .ok_or_else(|| anyhow!("video {} 不存在", video_id))?;
-    let pages = page::Entity::find()
-        .filter(page::Column::VideoId.eq(video_id))
-        .all(connection)
-        .await?;
-    if pages.is_empty() {
-        return Ok(0);
-    }
-    let now = Utc::now();
-    // 手动触发：next_stage 传 None，让 refresh_one_page 内部按 age 计算（且不会冻结）。
-    // 这样不会把 Mature/Cold 视频回退成 Fresh，也不会把活跃视频意外冻结。
-    let selected = pages.into_iter().map(|p| (p, None)).collect();
-    refresh_video_pages(bili_client, connection, config, &video_model, selected, now).await
-}
-
-/// 手动触发：刷新单个 page 的弹幕（忽略策略，强制执行）。
-///
-/// 与 [`refresh_danmaku_for_video`] 的 best-effort 模式不同，本接口走严格模式：
-/// 只要存在任何错误（page 不存在、view_info 拉取失败、新 view_info 中 pid 不再出现、
-/// 弹幕写入失败等）都直接 bail，确保 API 调用方不会收到"假成功"。
-///
-/// 成功时返回刷新成功的 page 数（恒为 1）。
-pub async fn refresh_danmaku_for_page(
-    page_id: i32,
-    bili_client: &BiliClient,
-    connection: &DatabaseConnection,
-    config: &Config,
-) -> Result<usize> {
-    let page_model = page::Entity::find_by_id(page_id)
-        .one(connection)
-        .await?
-        .ok_or_else(|| anyhow!("page {} 不存在", page_id))?;
-    let video_model = video::Entity::find_by_id(page_model.video_id)
-        .one(connection)
-        .await?
-        .ok_or_else(|| anyhow!("page {} 的宿主 video 不存在", page_id))?;
-    let now = Utc::now();
-    let bili_video = Video::new(bili_client, video_model.bvid.as_str(), &config.credential);
-    let view_info = bili_video
-        .get_view_info()
-        .await
-        .with_context(|| format!("获取视频 {} 的 view_info 失败", video_model.bvid))?;
-    let VideoInfo::Detail { pages: fresh_pages, .. } = view_info else {
-        bail!("view_info 返回了非 Detail 类型，无法刷新弹幕");
-    };
-    let fresh = fresh_pages
-        .iter()
-        .find(|p| p.page == page_model.pid)
-        .ok_or_else(|| {
-            anyhow!(
-                "视频「{}」({}) 的分页 pid={} 在最新的 view_info 中已不存在",
-                video_model.name,
-                video_model.bvid,
-                page_model.pid
-            )
-        })?;
-    refresh_one_page(
-        &bili_video,
-        connection,
-        config,
-        &video_model,
-        page_model,
-        fresh,
-        None,
-        now,
-    )
-    .await?;
-    Ok(1)
 }
 
 /// 候选视频：有效 + 有路径（至少下载过） + 至少存在一个 page 的 download_status 弹幕位已成功，
@@ -174,9 +88,7 @@ pub async fn refresh_danmaku_for_page(
 ///
 /// 与项目里其他流程保持一致：disabled 源被视为"用户主动暂停处理"，弹幕增量也不再触碰它的内容，
 /// 避免后台默默地继续请求 B 站接口和改写本地 ASS 文件。
-async fn load_candidate_videos(
-    connection: &DatabaseConnection,
-) -> Result<Vec<(video::Model, Vec<page::Model>)>> {
+async fn load_candidate_videos(connection: &DatabaseConnection) -> Result<Vec<(video::Model, Vec<page::Model>)>> {
     use sea_orm::{Condition, QuerySelect};
 
     // 一次性取齐四类启用源的 id 集合
@@ -214,11 +126,7 @@ async fn load_candidate_videos(
         .context("load enabled watch_later ids failed")?;
 
     // 至少一个外键命中启用集合，才纳入候选；全部为空时直接 early-return 避免无意义查询。
-    if favorite_ids.is_empty()
-        && collection_ids.is_empty()
-        && submission_ids.is_empty()
-        && watch_later_ids.is_empty()
-    {
+    if favorite_ids.is_empty() && collection_ids.is_empty() && submission_ids.is_empty() && watch_later_ids.is_empty() {
         return Ok(Vec::new());
     }
     let mut source_filter = Condition::any();
@@ -487,10 +395,7 @@ fn resolve_danmaku_path(video_model: &video::Model, page_model: &page::Model) ->
             .0;
         Ok(base_path
             .join("Season 1")
-            .join(format!(
-                "{} - S01E{:0>2}.zh-CN.default.ass",
-                base_name, page_model.pid
-            )))
+            .join(format!("{} - S01E{:0>2}.zh-CN.default.ass", base_name, page_model.pid)))
     }
 }
 
@@ -525,10 +430,7 @@ mod tests {
     #[test]
     fn reset_non_danmaku_subtasks_keeps_only_danmaku_ok() {
         // 五个子任务都 OK + 完成位
-        let all_ok_completed: u32 = (1u32 << 31)
-            | (0..5)
-                .map(|i| STATUS_OK << (i * 3))
-                .fold(0u32, |a, b| a | b);
+        let all_ok_completed: u32 = (1u32 << 31) | (0..5).map(|i| STATUS_OK << (i * 3)).fold(0u32, |a, b| a | b);
         let reset = reset_non_danmaku_subtasks(all_ok_completed);
         // 弹幕位保留
         assert_eq!((reset >> 9) & 0b111, STATUS_OK);
@@ -543,10 +445,7 @@ mod tests {
     #[test]
     fn reset_video_for_page_redownload_clears_subtask_4_and_completed_bit() {
         // 五个子任务都 OK + 完成位
-        let video_done: u32 = (1u32 << 31)
-            | (0..5)
-                .map(|i| STATUS_OK << (i * 3))
-                .fold(0u32, |a, b| a | b);
+        let video_done: u32 = (1u32 << 31) | (0..5).map(|i| STATUS_OK << (i * 3)).fold(0u32, |a, b| a | b);
         let reset = reset_video_for_page_redownload(video_done);
         // offset 4（分页下载子任务）被清零
         assert_eq!((reset >> 12) & 0b111, 0);
@@ -560,9 +459,7 @@ mod tests {
 
     #[test]
     fn parse_stored_datetime_roundtrip() {
-        let now = chrono::Utc
-            .with_ymd_and_hms(2026, 4, 13, 10, 20, 30)
-            .unwrap();
+        let now = chrono::Utc.with_ymd_and_hms(2026, 4, 13, 10, 20, 30).unwrap();
         let s = now.naive_utc().to_string();
         let parsed = parse_stored_datetime(&s).expect("parse ok");
         assert_eq!(parsed, now);

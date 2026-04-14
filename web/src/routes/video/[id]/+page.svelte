@@ -17,7 +17,6 @@
 	import VideoCard from '$lib/components/video-card.svelte';
 	import StatusEditor from '$lib/components/status-editor.svelte';
 	import { Badge } from '$lib/components/ui/badge/index.js';
-	import { DANMAKU_GENERATION_LABELS, formatRelativeTime } from '$lib/consts';
 	import { toast } from 'svelte-sonner';
 
 	let videoData: VideoResponse | null = null;
@@ -29,8 +28,6 @@
 	let clearAndResetting = false;
 	let statusEditorOpen = false;
 	let statusEditorLoading = false;
-	let refreshingDanmaku = false;
-	let refreshingPageDanmaku = new Set<number>();
 
 	async function loadVideoDetail() {
 		const videoId = parseInt($page.params.id!);
@@ -122,44 +119,6 @@
 		}
 	}
 
-	async function handleRefreshDanmaku() {
-		if (!videoData || refreshingDanmaku) return;
-		refreshingDanmaku = true;
-		try {
-			const result = await api.refreshDanmakuForVideo(videoData.video.id);
-			toast.success('弹幕刷新完成', {
-				description: `已成功刷新 ${result.data.refreshed} 个分页`
-			});
-			await loadVideoDetail();
-		} catch (error) {
-			console.error('弹幕刷新失败:', error);
-			toast.error('弹幕刷新失败', {
-				description: (error as ApiError).message
-			});
-		} finally {
-			refreshingDanmaku = false;
-		}
-	}
-
-	async function handleRefreshPageDanmaku(pageId: number) {
-		if (refreshingPageDanmaku.has(pageId)) return;
-		refreshingPageDanmaku = new Set([...refreshingPageDanmaku, pageId]);
-		try {
-			await api.refreshDanmakuForPage(pageId);
-			toast.success('弹幕刷新完成');
-			await loadVideoDetail();
-		} catch (error) {
-			console.error('弹幕刷新失败:', error);
-			toast.error('弹幕刷新失败', {
-				description: (error as ApiError).message
-			});
-		} finally {
-			const next = new Set(refreshingPageDanmaku);
-			next.delete(pageId);
-			refreshingPageDanmaku = next;
-		}
-	}
-
 	async function handleClearAndReset() {
 		if (!videoData) return;
 		try {
@@ -247,17 +206,6 @@
 					size="sm"
 					variant="outline"
 					class="shrink-0 cursor-pointer "
-					onclick={handleRefreshDanmaku}
-					disabled={refreshingDanmaku || resetting || clearAndResetting}
-					title="立即重新拉取所有分页的弹幕（忽略更新策略）"
-				>
-					<RefreshCwIcon class="mr-2 h-4 w-4 {refreshingDanmaku ? 'animate-spin' : ''}" />
-					刷新弹幕
-				</Button>
-				<Button
-					size="sm"
-					variant="outline"
-					class="shrink-0 cursor-pointer "
 					onclick={() =>
 						window.open(`https://www.bilibili.com/video/${videoData?.video.bvid}/`, '_blank')}
 					disabled={statusEditorLoading}
@@ -315,36 +263,6 @@
 								customSubtitle=""
 								taskNames={['视频封面', '视频内容', '视频信息', '视频弹幕', '视频字幕']}
 							/>
-							<div
-								class="text-muted-foreground flex items-center justify-between gap-2 px-2 text-xs"
-							>
-								<div class="flex items-center gap-2">
-									{#if pageInfo.danmaku_sync_generation > 0}
-										{@const label = DANMAKU_GENERATION_LABELS[pageInfo.danmaku_sync_generation]}
-										<Badge variant={label?.variant ?? 'outline'} class="text-[10px]">
-											弹幕 · {label?.text ?? '—'}
-										</Badge>
-									{/if}
-									<span title={pageInfo.danmaku_last_synced_at ?? ''}>
-										{formatRelativeTime(pageInfo.danmaku_last_synced_at)}
-									</span>
-								</div>
-								<Button
-									size="sm"
-									variant="ghost"
-									class="h-6 px-2"
-									disabled={refreshingPageDanmaku.has(pageInfo.id)}
-									onclick={() => handleRefreshPageDanmaku(pageInfo.id)}
-									title="仅刷新该分页的弹幕"
-								>
-									<RefreshCwIcon
-										class="mr-1 h-3 w-3 {refreshingPageDanmaku.has(pageInfo.id)
-											? 'animate-spin'
-											: ''}"
-									/>
-									刷新
-								</Button>
-							</div>
 						</div>
 					{/each}
 				</div>

@@ -14,7 +14,6 @@ import type {
 	InsertSubmissionRequest,
 	Notifier,
 	QrcodePollResponse as PollQrcodeResponse,
-	RefreshDanmakuResponse,
 	ResetFilteredVideosResponse,
 	ResetFilteredVideoStatusRequest,
 	ResetVideoResponse,
@@ -288,13 +287,6 @@ class ApiClient {
 		return this.post<boolean>('/task/download');
 	}
 
-	async refreshDanmakuForVideo(id: number): Promise<ApiResponse<RefreshDanmakuResponse>> {
-		return this.post<RefreshDanmakuResponse>(`/videos/${id}/refresh-danmaku`);
-	}
-
-	async refreshDanmakuForPage(id: number): Promise<ApiResponse<RefreshDanmakuResponse>> {
-		return this.post<RefreshDanmakuResponse>(`/pages/${id}/refresh-danmaku`);
-	}
 
 	async generateQrcode(): Promise<ApiResponse<GenerateQrcodeResponse>> {
 		return this.post<GenerateQrcodeResponse>('/login/qrcode/generate');
@@ -354,8 +346,6 @@ const api = {
 	updateConfig: (config: Config) => apiClient.updateConfig(config),
 	getDashboard: () => apiClient.getDashboard(),
 	triggerDownloadTask: () => apiClient.triggerDownloadTask(),
-	refreshDanmakuForVideo: (id: number) => apiClient.refreshDanmakuForVideo(id),
-	refreshDanmakuForPage: (id: number) => apiClient.refreshDanmakuForPage(id),
 	generateQrcode: () => apiClient.generateQrcode(),
 	pollQrcode: (qrcodeKey: string) => apiClient.pollQrcode(qrcodeKey),
 	subscribeToSysInfo: (onMessage: (data: SysInfo) => void) =>

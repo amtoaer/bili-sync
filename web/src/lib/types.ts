@@ -58,9 +58,6 @@ export interface PageInfo {
 	danmaku_cid_snapshot: number | null;
 }
 
-export interface RefreshDanmakuResponse {
-	refreshed: number;
-}
 
 export interface VideoResponse {
 	video: VideoInfo;
