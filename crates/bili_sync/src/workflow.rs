@@ -28,7 +28,7 @@ use crate::utils::model::{
 use crate::utils::nfo::{NFO, ToNFO};
 use crate::utils::notify::notify;
 use crate::utils::rule::FieldEvaluatable;
-use crate::utils::status::{PageStatus, STATUS_OK, VideoStatus};
+use crate::utils::status::{PageStatus, STATUS_COMPLETED, STATUS_NOT_STARTED, STATUS_OK, VideoStatus};
 
 /// 完整地处理某个视频来源
 pub async fn process_video_source(
@@ -185,10 +185,11 @@ pub async fn download_unprocessed_videos(
     config: &Config,
 ) -> Result<DownloadNotifyInfo> {
     video_source.log_download_video_start();
+    reconcile_local_download_status(video_source, connection, template, config).await?;
     let semaphore = Semaphore::new(config.concurrent_limit.video);
     let downloader = Downloader::new(bili_client.client.clone());
     let cx = DownloadContext::new(bili_client, video_source, template, connection, &downloader, config);
-    let unhandled_videos_pages = filter_unhandled_video_pages(video_source.filter_expr(), connection).await?;
+    let unhandled_videos_pages = filter_local_reconcile_video_pages(video_source.filter_expr(), connection).await?;
     let mut assigned_upper_ids = HashSet::new();
     let tasks = unhandled_videos_pages
         .into_iter()
@@ -229,6 +230,59 @@ pub async fn download_unprocessed_videos(
     }
     video_source.log_download_video_end();
     Ok(download_notify_info)
+}
+
+async fn reconcile_local_download_status(
+    video_source: &VideoSourceEnum,
+    connection: &DatabaseConnection,
+    template: &handlebars::Handlebars<'_>,
+    config: &Config,
+) -> Result<()> {
+    let unhandled_videos_pages = filter_unhandled_video_pages(video_source.filter_expr(), connection).await?;
+    let mut video_models = Vec::new();
+    let mut page_models = Vec::new();
+    for (video_model, pages_model) in unhandled_videos_pages {
+        let base_path = if !video_model.path.is_empty() {
+            PathBuf::from(&video_model.path)
+        } else {
+            video_source
+                .path()
+                .join(template.path_safe_render("video", &video_format_args(&video_model, &config.time_format))?)
+        };
+        fs::create_dir_all(&base_path).await?;
+        let (video_model, pages) =
+            reconcile_video_pages_status_from_local_files(video_model, pages_model, &base_path, template, config)
+                .await?;
+        video_models.push(video_model);
+        page_models.extend(pages);
+    }
+    for chunk in page_models.chunks(500) {
+        update_pages_model(chunk.to_vec(), connection).await?;
+    }
+    for chunk in video_models.chunks(500) {
+        update_videos_model(chunk.to_vec(), connection).await?;
+    }
+    Ok(())
+}
+
+async fn filter_local_reconcile_video_pages(
+    additional_expr: sea_orm::sea_query::SimpleExpr,
+    connection: &DatabaseConnection,
+) -> Result<Vec<(video::Model, Vec<page::Model>)>> {
+    video::Entity::find()
+        .filter(
+            video::Column::Valid
+                .eq(true)
+                .and(video::Column::DownloadStatus.lt(STATUS_COMPLETED))
+                .and(video::Column::Category.eq(2))
+                .and(video::Column::SinglePage.is_not_null())
+                .and(video::Column::ShouldDownload.eq(true))
+                .and(additional_expr),
+        )
+        .find_with_related(page::Entity)
+        .all(connection)
+        .await
+        .context("filter local reconcile video pages failed")
 }
 
 pub async fn download_video_pages(
@@ -565,6 +619,291 @@ pub async fn download_page(
     Ok(page_active_model)
 }
 
+struct PageLocalPaths {
+    poster_path: PathBuf,
+    video_path: PathBuf,
+    nfo_path: PathBuf,
+    danmaku_path: PathBuf,
+    fanart_path: Option<PathBuf>,
+    subtitle_path: PathBuf,
+}
+
+fn resolve_page_local_paths(
+    video_model: &video::Model,
+    page_model: &page::Model,
+    base_path: &Path,
+    template: &handlebars::Handlebars<'_>,
+    config: &Config,
+) -> Result<PageLocalPaths> {
+    let is_single_page = video_model.single_page.context("single_page is null")?;
+    let (base_path, base_name) = if let Some(old_video_path) = &page_model.path
+        && !old_video_path.is_empty()
+    {
+        let old_video_path = Path::new(old_video_path);
+        let old_video_filename = old_video_path
+            .file_name()
+            .context("invalid page path format")?
+            .to_string_lossy();
+        if is_single_page {
+            (
+                old_video_path.parent().context("invalid page path format")?,
+                old_video_filename.trim_end_matches(".mp4").to_string(),
+            )
+        } else {
+            (
+                old_video_path
+                    .parent()
+                    .and_then(|p| p.parent())
+                    .context("invalid page path format")?,
+                old_video_filename
+                    .rsplit_once(" - ")
+                    .context("invalid page path format")?
+                    .0
+                    .to_string(),
+            )
+        }
+    } else {
+        (
+            base_path,
+            template.path_safe_render("page", &page_format_args(video_model, page_model, &config.time_format))?,
+        )
+    };
+    let base_path = dunce::canonicalize(base_path).context("canonicalize base path failed")?;
+    Ok(if is_single_page {
+        PageLocalPaths {
+            poster_path: base_path.join(format!("{}-poster.jpg", &base_name)),
+            video_path: base_path.join(format!("{}.mp4", &base_name)),
+            nfo_path: base_path.join(format!("{}.nfo", &base_name)),
+            danmaku_path: base_path.join(format!("{}.zh-CN.default.ass", &base_name)),
+            fanart_path: Some(base_path.join(format!("{}-fanart.jpg", &base_name))),
+            subtitle_path: base_path.join(format!("{}.srt", &base_name)),
+        }
+    } else {
+        PageLocalPaths {
+            poster_path: base_path
+                .join("Season 1")
+                .join(format!("{} - S01E{:0>2}-thumb.jpg", &base_name, page_model.pid)),
+            video_path: base_path
+                .join("Season 1")
+                .join(format!("{} - S01E{:0>2}.mp4", &base_name, page_model.pid)),
+            nfo_path: base_path
+                .join("Season 1")
+                .join(format!("{} - S01E{:0>2}.nfo", &base_name, page_model.pid)),
+            danmaku_path: base_path
+                .join("Season 1")
+                .join(format!("{} - S01E{:0>2}.zh-CN.default.ass", &base_name, page_model.pid)),
+            fanart_path: None,
+            subtitle_path: base_path
+                .join("Season 1")
+                .join(format!("{} - S01E{:0>2}.srt", &base_name, page_model.pid)),
+        }
+    })
+}
+
+async fn local_regular_file_exists(path: &Path) -> bool {
+    tokio::fs::metadata(path)
+        .await
+        .is_ok_and(|metadata| metadata.is_file() && metadata.len() > 0)
+}
+
+async fn local_subtitle_exists(subtitle_path: &Path) -> bool {
+    if local_regular_file_exists(subtitle_path).await {
+        return true;
+    }
+    let Some(parent) = subtitle_path.parent() else {
+        return false;
+    };
+    let Some(stem) = subtitle_path.file_stem().and_then(|s| s.to_str()) else {
+        return false;
+    };
+    let Ok(mut entries) = tokio::fs::read_dir(parent).await else {
+        return false;
+    };
+    while let Ok(Some(entry)) = entries.next_entry().await {
+        let file_name = entry.file_name();
+        let Some(file_name) = file_name.to_str() else {
+            continue;
+        };
+        if file_name.starts_with(&format!("{stem}."))
+            && file_name.ends_with(".srt")
+            && let Ok(metadata) = entry.metadata().await
+            && metadata.is_file()
+            && metadata.len() > 0
+        {
+            return true;
+        }
+    }
+    false
+}
+
+fn reconcile_local_asset_status(previous_status: u32, should_skip: bool, local_file_exists: bool) -> u32 {
+    if should_skip || local_file_exists {
+        STATUS_OK
+    } else if previous_status == STATUS_OK {
+        STATUS_NOT_STARTED
+    } else {
+        previous_status
+    }
+}
+
+async fn reconcile_page_status_from_local_files(
+    video_model: &video::Model,
+    page_model: page::Model,
+    base_path: &Path,
+    template: &handlebars::Handlebars<'_>,
+    config: &Config,
+) -> Result<page::ActiveModel> {
+    let paths = resolve_page_local_paths(video_model, &page_model, base_path, template, config)?;
+    let mut status = PageStatus::from(page_model.download_status);
+    let previous_status: [u32; 5] = status.into();
+    let poster_exists = local_regular_file_exists(&paths.poster_path).await
+        && match &paths.fanart_path {
+            Some(path) => local_regular_file_exists(path).await,
+            None => true,
+        };
+    status.set(
+        0,
+        reconcile_local_asset_status(previous_status[0], config.skip_option.no_poster, poster_exists),
+    );
+    status.set(
+        1,
+        reconcile_local_asset_status(
+            previous_status[1],
+            false,
+            local_regular_file_exists(&paths.video_path).await,
+        ),
+    );
+    status.set(
+        2,
+        reconcile_local_asset_status(
+            previous_status[2],
+            config.skip_option.no_video_nfo,
+            local_regular_file_exists(&paths.nfo_path).await,
+        ),
+    );
+    status.set(
+        3,
+        reconcile_local_asset_status(
+            previous_status[3],
+            config.skip_option.no_danmaku,
+            local_regular_file_exists(&paths.danmaku_path).await,
+        ),
+    );
+    status.set(
+        4,
+        reconcile_local_asset_status(
+            previous_status[4],
+            config.skip_option.no_subtitle || previous_status[4] == STATUS_OK,
+            local_subtitle_exists(&paths.subtitle_path).await,
+        ),
+    );
+    let mut page_active_model: page::ActiveModel = page_model.into();
+    page_active_model.download_status = Set(status.into());
+    page_active_model.path = Set(Some(paths.video_path.to_string_lossy().to_string()));
+    Ok(page_active_model)
+}
+
+async fn reconcile_video_pages_status_from_local_files(
+    video_model: video::Model,
+    page_models: Vec<page::Model>,
+    base_path: &Path,
+    template: &handlebars::Handlebars<'_>,
+    config: &Config,
+) -> Result<(video::ActiveModel, Vec<page::ActiveModel>)> {
+    let base_path = dunce::canonicalize(base_path).context("canonicalize video path failed")?;
+    let is_single_page = video_model.single_page.context("single_page is null")?;
+    let mut status = VideoStatus::from(video_model.download_status);
+    let previous_status: [u32; 5] = status.into();
+    let poster_exists = local_regular_file_exists(&base_path.join("poster.jpg")).await
+        && local_regular_file_exists(&base_path.join("fanart.jpg")).await;
+    status.set(
+        0,
+        reconcile_local_asset_status(
+            previous_status[0],
+            is_single_page || config.skip_option.no_poster,
+            poster_exists,
+        ),
+    );
+    status.set(
+        1,
+        reconcile_local_asset_status(
+            previous_status[1],
+            is_single_page || config.skip_option.no_video_nfo,
+            local_regular_file_exists(&base_path.join("tvshow.nfo")).await,
+        ),
+    );
+
+    let upper_paths = video_model
+        .uppers()
+        .filter_map(|upper| {
+            let id_string = upper.mid.to_string();
+            Some(
+                config
+                    .upper_path
+                    .join(id_string.chars().next()?.to_string())
+                    .join(id_string),
+            )
+        })
+        .collect::<Vec<_>>();
+    let upper_face_paths = upper_paths
+        .iter()
+        .map(|path| path.join("folder.jpg"))
+        .collect::<Vec<_>>();
+    status.set(
+        2,
+        reconcile_local_asset_status(
+            previous_status[2],
+            config.skip_option.no_upper,
+            all_local_files_exist(upper_face_paths).await,
+        ),
+    );
+    let upper_nfo_paths = upper_paths
+        .iter()
+        .map(|path| path.join("person.nfo"))
+        .collect::<Vec<_>>();
+    status.set(
+        3,
+        reconcile_local_asset_status(
+            previous_status[3],
+            config.skip_option.no_upper,
+            all_local_files_exist(upper_nfo_paths).await,
+        ),
+    );
+
+    let mut pages = Vec::with_capacity(page_models.len());
+    let mut target_status = STATUS_OK;
+    for page_model in page_models {
+        let page =
+            reconcile_page_status_from_local_files(&video_model, page_model, &base_path, template, config).await?;
+        let page_status = page.download_status.try_as_ref().expect("download_status must be set");
+        let separate_status: [u32; 5] = PageStatus::from(*page_status).into();
+        for status in separate_status {
+            target_status = target_status.min(status);
+        }
+        pages.push(page);
+    }
+    if pages.is_empty() {
+        target_status = STATUS_NOT_STARTED;
+    }
+    status.set(4, target_status);
+
+    let mut video_active_model: video::ActiveModel = video_model.into();
+    video_active_model.download_status = Set(status.into());
+    video_active_model.path = Set(base_path.to_string_lossy().to_string());
+    Ok((video_active_model, pages))
+}
+
+async fn all_local_files_exist(paths: impl IntoIterator<Item = PathBuf>) -> bool {
+    let mut found_any = false;
+    for path in paths {
+        found_any = true;
+        if !local_regular_file_exists(&path).await {
+            return false;
+        }
+    }
+    found_any
+}
+
 pub async fn fetch_page_poster(
     should_run: bool,
     video_model: &video::Model,
@@ -605,6 +944,9 @@ pub async fn fetch_page_video(
 ) -> Result<ExecutionStatus> {
     if !should_run {
         return Ok(ExecutionStatus::Skipped);
+    }
+    if local_regular_file_exists(page_path).await {
+        return Ok(ExecutionStatus::Succeeded);
     }
     let bili_video = Video::new(cx.bili_client, video_model.bvid.as_str(), &cx.config.credential);
     let streams = bili_video
@@ -796,4 +1138,184 @@ async fn generate_nfo(nfo: NFO<'_>, nfo_path: PathBuf) -> Result<()> {
     }
     fs::write(nfo_path, nfo.generate_nfo().await?.as_bytes()).await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use bili_sync_migration::MigratorTrait;
+    use sea_orm::ActiveValue::Set;
+    use sea_orm::{Database, EntityTrait, IntoActiveModel};
+
+    use super::*;
+    use crate::config::PathSafeTemplate;
+    use crate::utils::status::STATUS_NOT_STARTED;
+
+    fn test_video(single_page: bool) -> video::Model {
+        video::Model {
+            id: 1,
+            name: "Test Video".to_owned(),
+            bvid: "BVTEST123".to_owned(),
+            single_page: Some(single_page),
+            should_download: true,
+            ..Default::default()
+        }
+    }
+
+    fn test_page(download_status: PageStatus) -> page::Model {
+        page::Model {
+            id: 1,
+            video_id: 1,
+            pid: 1,
+            name: "P1".to_owned(),
+            path: None,
+            download_status: download_status.into(),
+            ..Default::default()
+        }
+    }
+
+    fn test_template() -> handlebars::Handlebars<'static> {
+        let mut template = handlebars::Handlebars::new();
+        template.path_safe_register("page", "{{bvid}}").unwrap();
+        template
+    }
+
+    fn skip_optional_assets(config: &mut Config) {
+        config.skip_option.no_poster = true;
+        config.skip_option.no_video_nfo = true;
+        config.skip_option.no_upper = true;
+        config.skip_option.no_danmaku = true;
+        config.skip_option.no_subtitle = true;
+    }
+
+    fn temp_path(name: &str) -> PathBuf {
+        std::env::temp_dir().join(format!("bili-sync-{name}-{}", uuid::Uuid::new_v4()))
+    }
+
+    #[tokio::test]
+    async fn reconcile_page_status_marks_existing_local_video_as_completed() -> Result<()> {
+        let base_path = temp_path("existing-video");
+        fs::create_dir_all(&base_path).await?;
+        fs::write(base_path.join("BVTEST123.mp4"), b"existing video").await?;
+        let mut config = Config::default();
+        skip_optional_assets(&mut config);
+
+        let page = reconcile_page_status_from_local_files(
+            &test_video(true),
+            test_page(PageStatus::default()),
+            &base_path,
+            &test_template(),
+            &config,
+        )
+        .await?;
+
+        let status: [u32; 5] = PageStatus::from(*page.download_status.try_as_ref().unwrap()).into();
+        assert_eq!(status, [STATUS_OK, STATUS_OK, STATUS_OK, STATUS_OK, STATUS_OK]);
+        assert_eq!(
+            page.path,
+            Set(Some(
+                dunce::canonicalize(base_path.join("BVTEST123.mp4"))?
+                    .to_string_lossy()
+                    .to_string()
+            ))
+        );
+        fs::remove_dir_all(base_path).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn reconcile_page_status_resets_missing_local_video_to_pending() -> Result<()> {
+        let base_path = temp_path("missing-video");
+        fs::create_dir_all(&base_path).await?;
+        let mut config = Config::default();
+        skip_optional_assets(&mut config);
+
+        let page = reconcile_page_status_from_local_files(
+            &test_video(true),
+            test_page(PageStatus::from([
+                STATUS_OK, STATUS_OK, STATUS_OK, STATUS_OK, STATUS_OK,
+            ])),
+            &base_path,
+            &test_template(),
+            &config,
+        )
+        .await?;
+
+        let status: [u32; 5] = PageStatus::from(*page.download_status.try_as_ref().unwrap()).into();
+        assert_eq!(status, [STATUS_OK, STATUS_NOT_STARTED, STATUS_OK, STATUS_OK, STATUS_OK]);
+        fs::remove_dir_all(base_path).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn reconcile_page_status_preserves_failed_video_retry_count_when_local_file_is_missing() -> Result<()> {
+        let base_path = temp_path("failed-video");
+        fs::create_dir_all(&base_path).await?;
+        let mut config = Config::default();
+        skip_optional_assets(&mut config);
+
+        let page = reconcile_page_status_from_local_files(
+            &test_video(true),
+            test_page(PageStatus::from([STATUS_OK, 3, STATUS_OK, STATUS_OK, STATUS_OK])),
+            &base_path,
+            &test_template(),
+            &config,
+        )
+        .await?;
+
+        let status: [u32; 5] = PageStatus::from(*page.download_status.try_as_ref().unwrap()).into();
+        assert_eq!(status, [STATUS_OK, 3, STATUS_OK, STATUS_OK, STATUS_OK]);
+        fs::remove_dir_all(base_path).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn local_reconcile_filter_excludes_completed_videos() -> Result<()> {
+        let connection = Database::connect("sqlite::memory:").await?;
+        bili_sync_migration::Migrator::up(&connection, None).await?;
+
+        let mut completed_video = test_video(true);
+        completed_video.category = 2;
+        completed_video.download_status =
+            VideoStatus::from([STATUS_OK, STATUS_OK, STATUS_OK, STATUS_OK, STATUS_OK]).into();
+        video::Entity::insert(completed_video.into_active_model())
+            .exec(&connection)
+            .await?;
+        page::Entity::insert(
+            test_page(PageStatus::from([
+                STATUS_OK, STATUS_OK, STATUS_OK, STATUS_OK, STATUS_OK,
+            ]))
+            .into_active_model(),
+        )
+        .exec(&connection)
+        .await?;
+
+        let videos = filter_local_reconcile_video_pages(video::Column::Id.gte(0), &connection).await?;
+
+        assert!(videos.is_empty());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn reconcile_video_status_marks_video_completed_when_local_page_is_complete() -> Result<()> {
+        let base_path = temp_path("completed-video");
+        fs::create_dir_all(&base_path).await?;
+        fs::write(base_path.join("BVTEST123.mp4"), b"existing video").await?;
+        let mut config = Config::default();
+        skip_optional_assets(&mut config);
+
+        let (video, pages) = reconcile_video_pages_status_from_local_files(
+            test_video(true),
+            vec![test_page(PageStatus::default())],
+            &base_path,
+            &test_template(),
+            &config,
+        )
+        .await?;
+
+        let status: [u32; 5] = VideoStatus::from(*video.download_status.try_as_ref().unwrap()).into();
+        assert_eq!(status, [STATUS_OK, STATUS_OK, STATUS_OK, STATUS_OK, STATUS_OK]);
+        assert_eq!(pages.len(), 1);
+        fs::remove_dir_all(base_path).await?;
+        Ok(())
+    }
 }
