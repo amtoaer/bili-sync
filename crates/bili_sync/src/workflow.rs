@@ -16,10 +16,11 @@ use tokio::sync::Semaphore;
 use crate::adapter::{VideoSource, VideoSourceEnum};
 use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, PageInfo, Video, VideoInfo};
 use crate::config::{ARGS, Config, PathSafeTemplate};
-use crate::downloader::Downloader;
+use crate::downloader::{DownloadStatsScope, Downloader};
 use crate::error::ExecutionStatus;
 use crate::notifier::DownloadNotifyInfo;
 use crate::utils::download_context::DownloadContext;
+use crate::utils::download_stats::DownloadStatsManager;
 use crate::utils::format_arg::{page_format_args, video_format_args};
 use crate::utils::model::{
     create_pages, create_videos, filter_unfilled_videos, filter_unhandled_video_pages, update_pages_model,
@@ -239,6 +240,7 @@ pub async fn download_video_pages(
     cx: DownloadContext<'_>,
 ) -> Result<video::ActiveModel> {
     let _permit = semaphore.acquire().await.context("acquire semaphore failed")?;
+    let _video = DownloadStatsManager::get().track_video();
     let mut status = VideoStatus::from(video_model.download_status);
     let separate_status = status.should_run();
     // 未记录路径时填充，已经填充过路径时使用现有的
@@ -588,7 +590,12 @@ pub async fn fetch_page_poster(
         }
     };
     cx.downloader
-        .fetch(url, &poster_path, &cx.config.concurrent_limit.download)
+        .fetch(
+            url,
+            &poster_path,
+            &cx.config.concurrent_limit.download,
+            DownloadStatsScope::None,
+        )
         .await?;
     if let Some(fanart_path) = fanart_path {
         fs::copy(&poster_path, &fanart_path).await?;
@@ -606,6 +613,7 @@ pub async fn fetch_page_video(
     if !should_run {
         return Ok(ExecutionStatus::Skipped);
     }
+    let _page = DownloadStatsManager::get().track_page();
     let bili_video = Video::new(cx.bili_client, video_model.bvid.as_str(), &cx.config.credential);
     let streams = bili_video
         .get_page_analyzer(page_info)
@@ -618,6 +626,7 @@ pub async fn fetch_page_video(
                     &mix_stream.urls(cx.config.cdn_sorting),
                     page_path,
                     &cx.config.concurrent_limit.download,
+                    DownloadStatsScope::Media,
                 )
                 .await?
         }
@@ -630,6 +639,7 @@ pub async fn fetch_page_video(
                     &video_stream.urls(cx.config.cdn_sorting),
                     page_path,
                     &cx.config.concurrent_limit.download,
+                    DownloadStatsScope::Media,
                 )
                 .await?
         }
@@ -643,6 +653,7 @@ pub async fn fetch_page_video(
                     &audio_stream.urls(cx.config.cdn_sorting),
                     page_path,
                     &cx.config.concurrent_limit.download,
+                    DownloadStatsScope::Media,
                 )
                 .await?
         }
@@ -723,7 +734,12 @@ pub async fn fetch_video_poster(
         return Ok(ExecutionStatus::Skipped);
     }
     cx.downloader
-        .fetch(&video_model.cover, &poster_path, &cx.config.concurrent_limit.download)
+        .fetch(
+            &video_model.cover,
+            &poster_path,
+            &cx.config.concurrent_limit.download,
+            DownloadStatsScope::None,
+        )
         .await?;
     fs::copy(&poster_path, &fanart_path).await?;
     Ok(ExecutionStatus::Succeeded)
@@ -745,6 +761,7 @@ pub async fn fetch_upper_face(
                     upper.face,
                     &base_path.join("folder.jpg"),
                     &cx.config.concurrent_limit.download,
+                    DownloadStatsScope::None,
                 )
                 .await?;
             Ok::<(), anyhow::Error>(())

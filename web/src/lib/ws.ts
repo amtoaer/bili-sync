@@ -1,12 +1,13 @@
 import { toast } from 'svelte-sonner';
 import api from './api';
-import type { SysInfo, TaskStatus } from './types';
+import type { DownloadStats, SysInfo, TaskStatus } from './types';
 
 // 支持的事件类型
 export enum EventType {
 	Logs = 'logs',
 	Tasks = 'tasks',
-	SysInfo = 'sysInfo'
+	SysInfo = 'sysInfo',
+	DownloadStats = 'downloadStats'
 }
 
 // 服务器事件响应格式
@@ -14,6 +15,7 @@ interface ServerEvent {
 	logs?: string;
 	tasks?: TaskStatus;
 	sysInfo?: SysInfo;
+	downloadStats?: DownloadStats;
 }
 
 // 客户端事件请求格式
@@ -26,6 +28,7 @@ interface ClientEvent {
 type LogsCallback = (data: string) => void;
 type TasksCallback = (data: TaskStatus) => void;
 type SysInfoCallback = (data: SysInfo) => void;
+type DownloadStatsCallback = (data: DownloadStats) => void;
 
 export class WebSocketManager {
 	private static instance: WebSocketManager;
@@ -39,6 +42,7 @@ export class WebSocketManager {
 	private logsSubscribers: Set<LogsCallback> = new Set();
 	private tasksSubscribers: Set<TasksCallback> = new Set();
 	private sysInfoSubscribers: Set<SysInfoCallback> = new Set();
+	private downloadStatsSubscribers: Set<DownloadStatsCallback> = new Set();
 
 	private subscribedEvents: Set<EventType> = new Set();
 	private connectionPromise: Promise<void> | null = null;
@@ -111,6 +115,8 @@ export class WebSocketManager {
 				this.notifyTasksSubscribers(data.tasks);
 			} else if (data.sysInfo !== undefined) {
 				this.notifySysInfoSubscribers(data.sysInfo);
+			} else if (data.downloadStats !== undefined) {
+				this.notifyDownloadStatsSubscribers(data.downloadStats);
 			}
 		} catch (error) {
 			console.error('Failed to parse WebSocket message:', error, event.data);
@@ -223,6 +229,21 @@ export class WebSocketManager {
 		};
 	}
 
+	public subscribeToDownloadStats(callback: DownloadStatsCallback): () => void {
+		this.downloadStatsSubscribers.add(callback);
+
+		if (this.downloadStatsSubscribers.size === 1) {
+			this.subscribe(EventType.DownloadStats);
+		}
+
+		return () => {
+			this.downloadStatsSubscribers.delete(callback);
+			if (this.downloadStatsSubscribers.size === 0) {
+				this.unsubscribe(EventType.DownloadStats);
+			}
+		};
+	}
+
 	private notifyLogsSubscribers(data: string): void {
 		this.logsSubscribers.forEach((callback) => {
 			try {
@@ -249,6 +270,16 @@ export class WebSocketManager {
 				callback(data);
 			} catch (error) {
 				console.error('Error in sysInfo subscriber callback:', error);
+			}
+		});
+	}
+
+	private notifyDownloadStatsSubscribers(data: DownloadStats): void {
+		this.downloadStatsSubscribers.forEach((callback) => {
+			try {
+				callback(data);
+			} catch (error) {
+				console.error('Error in download stats subscriber callback:', error);
 			}
 		});
 	}

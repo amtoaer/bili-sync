@@ -28,6 +28,7 @@ use uuid::Uuid;
 
 use crate::api::response::SysInfo;
 use crate::task::{DownloadTaskManager, TaskStatus};
+use crate::utils::download_stats::{DownloadStats, DownloadStatsManager};
 
 static WEBSOCKET_HANDLER: LazyLock<WebSocketHandler> = LazyLock::new(WebSocketHandler::new);
 
@@ -46,6 +47,7 @@ enum EventType {
     Logs,
     Tasks,
     SysInfo,
+    DownloadStats,
 }
 
 #[derive(Deserialize)]
@@ -61,6 +63,7 @@ enum ServerEvent {
     Logs(String),
     Tasks(TaskStatus),
     SysInfo(SysInfo),
+    DownloadStats(DownloadStats),
 }
 
 struct WebSocketHandler {
@@ -104,7 +107,7 @@ impl WebSocketHandler {
         // 日志和任务状态的处理本身就是由 stream 驱动的，可以直接为每个 ws 连接维护独立的任务处理器
         // 系统信息是服务端轮询然后推送的，如果单独维护会导致每个连接都独立轮询系统信息，造成不必要的浪费
         // 因此采用了全局的订阅者管理，所有连接共享同一个系统信息轮询任务
-        let (mut log_cancel, mut task_cancel) = (None, None);
+        let (mut log_cancel, mut task_cancel, mut download_stats_cancel) = (None, None, None);
         while let Some(Ok(msg)) = receiver.next().await {
             let Message::Text(text) = msg else {
                 continue;
@@ -143,6 +146,16 @@ impl WebSocketHandler {
                 ClientEvent::Unsubscribe(EventType::SysInfo) => {
                     self.remove_sysinfo_subscriber(uuid);
                 }
+                ClientEvent::Subscribe(EventType::DownloadStats) => {
+                    if download_stats_cancel.is_none() {
+                        download_stats_cancel = Some(self.new_download_stats_handler(tx.clone()));
+                    }
+                }
+                ClientEvent::Unsubscribe(EventType::DownloadStats) => {
+                    if let Some(cancel) = download_stats_cancel.take() {
+                        cancel.cancel();
+                    }
+                }
             }
         }
         // 连接关闭，清除仍然残留的任务
@@ -150,6 +163,9 @@ impl WebSocketHandler {
             cancel.cancel();
         }
         if let Some(cancel) = task_cancel {
+            cancel.cancel();
+        }
+        if let Some(cancel) = download_stats_cancel {
             cancel.cancel();
         }
         self.remove_sysinfo_subscriber(uuid);
@@ -214,6 +230,27 @@ impl WebSocketHandler {
                 while let Some(event) = stream.next().await {
                     if let Err(e) = tx.send(event).await {
                         error!("Failed to send task status: {:?}", e);
+                        break;
+                    }
+                }
+            }
+            .with_cancellation_token_owned(cancel_token.clone()),
+        );
+        cancel_token
+    }
+
+    fn new_download_stats_handler(&self, tx: mpsc::Sender<ServerEvent>) -> CancellationToken {
+        let cancel_token = CancellationToken::new();
+        tokio::spawn(
+            async move {
+                let mut interval = tokio::time::interval(Duration::from_secs(2));
+                loop {
+                    interval.tick().await;
+                    if tx
+                        .send(ServerEvent::DownloadStats(DownloadStatsManager::get().snapshot()))
+                        .await
+                        .is_err()
+                    {
                         break;
                     }
                 }

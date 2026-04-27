@@ -6,13 +6,13 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Chart from '$lib/components/ui/chart/index.js';
 	import MyChartTooltip from '$lib/components/custom/my-chart-tooltip.svelte';
-	import { curveNatural } from 'd3-shape';
+	import { curveMonotoneX, curveNatural } from 'd3-shape';
 	import { BarChart, AreaChart } from 'layerchart';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
 	import { toast } from 'svelte-sonner';
 	import CloudDownloadIcon from '@lucide/svelte/icons/cloud-download';
 	import api from '$lib/api';
-	import type { DashBoardResponse, SysInfo, ApiError, TaskStatus } from '$lib/types';
+	import type { DashBoardResponse, DownloadStats, SysInfo, ApiError, TaskStatus } from '$lib/types';
 	import {
 		DatabaseIcon,
 		HeartIcon,
@@ -32,12 +32,15 @@
 	let dashboardData = $state<DashBoardResponse | null>(null);
 	let sysInfo = $state<SysInfo | null>(null);
 	let taskStatus = $state<TaskStatus | null>(null);
+	let downloadStats = $state<DownloadStats | null>(null);
 	let loading = $state(false);
 	let triggering = $state(false);
 	let memoryHistory = $state<Array<{ time: number; used: number; process: number }>>([]);
 	let cpuHistory = $state<Array<{ time: number; used: number; process: number }>>([]);
+	let downloadSpeedHistory = $state<Array<{ time: number; speed: number }>>([]);
 	let unsubscribeSysInfo: (() => void) | null = null;
 	let unsubscribeTasks: (() => void) | null = null;
+	let unsubscribeDownloadStats: (() => void) | null = null;
 
 	function formatBytes(bytes: number): string {
 		if (bytes === 0) return '0 B';
@@ -51,12 +54,34 @@
 		return `${cpu.toFixed(1)}%`;
 	}
 
+	function formatSpeed(bytesPerSecond: number): string {
+		return `${formatBytes(bytesPerSecond)}/s`;
+	}
+
+	function formatSpeedTick(bytesPerSecond: number, domainMax: number): string {
+		if (domainMax >= 1024 * 1024) {
+			return `${(bytesPerSecond / (1024 * 1024)).toFixed(1)} MB/s`;
+		}
+		if (domainMax >= 1024) {
+			return `${Math.round(bytesPerSecond / 1024)} KB/s`;
+		}
+		return `${Math.round(bytesPerSecond)} B/s`;
+	}
+
 	function formatTimestamp(timestamp: number): string {
 		return new Date(timestamp).toLocaleString('en-US', {
 			hour: '2-digit',
 			minute: '2-digit',
 			second: '2-digit',
 			hour12: true
+		});
+	}
+
+	function formatAxisTimestamp(timestamp: number): string {
+		return new Date(timestamp).toLocaleTimeString('zh-CN', {
+			hour: '2-digit',
+			minute: '2-digit',
+			second: '2-digit'
 		});
 	}
 
@@ -121,6 +146,13 @@
 		}
 	} satisfies Chart.ChartConfig;
 
+	const downloadSpeedChartConfig = {
+		speed: {
+			label: '下载速度',
+			color: 'var(--primary)'
+		}
+	} satisfies Chart.ChartConfig;
+
 	function pushSysInfo(data: SysInfo) {
 		memoryHistory = [
 			...memoryHistory.slice(-14),
@@ -140,8 +172,27 @@
 		];
 	}
 
+	function pushDownloadStats(data: DownloadStats) {
+		downloadSpeedHistory = [
+			...downloadSpeedHistory.slice(-14),
+			{
+				time: data.timestamp,
+				speed: data.current_speed_bytes_per_sec
+			}
+		];
+	}
+
 	const diskUsagePercent = $derived(
 		sysInfo ? ((sysInfo.total_disk - sysInfo.available_disk) / sysInfo.total_disk) * 100 : 0
+	);
+	const downloadSpeedDomainMax = $derived(
+		Math.max(
+			1024,
+			Math.ceil(
+				Math.max(...downloadSpeedHistory.map((point) => point.speed), downloadStats?.current_speed_bytes_per_sec ?? 0) *
+					1.1
+			)
+		)
 	);
 
 	onMount(() => {
@@ -154,6 +205,10 @@
 		unsubscribeTasks = api.subscribeToTasks((data: TaskStatus) => {
 			taskStatus = data;
 		});
+		unsubscribeDownloadStats = api.subscribeToDownloadStats((data: DownloadStats) => {
+			downloadStats = data;
+			pushDownloadStats(data);
+		});
 		loadDashboard();
 		return () => {
 			if (unsubscribeSysInfo) {
@@ -163,6 +218,10 @@
 			if (unsubscribeTasks) {
 				unsubscribeTasks();
 				unsubscribeTasks = null;
+			}
+			if (unsubscribeDownloadStats) {
+				unsubscribeDownloadStats();
+				unsubscribeDownloadStats = null;
 			}
 		};
 	});
@@ -396,6 +455,109 @@
 		</div>
 
 		<!-- 第三行：系统监控 -->
+		<div class="grid gap-4 md:grid-cols-3">
+			<Card class="md:col-span-1">
+				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+					<CardTitle class="text-sm font-medium">运行概览</CardTitle>
+					<CloudDownloadIcon class="text-muted-foreground h-4 w-4" />
+				</CardHeader>
+				<CardContent>
+					{#if downloadStats}
+						<div class="space-y-4">
+							<div>
+								<div class="text-muted-foreground text-xs">当前下载速度</div>
+								<div class="mt-1 text-2xl font-bold">
+									{formatSpeed(downloadStats.current_speed_bytes_per_sec)}
+								</div>
+							</div>
+							<div class="grid grid-cols-3 gap-3 text-center">
+								<div class="rounded-md border p-3">
+									<div class="text-lg font-semibold">{downloadStats.active_videos}</div>
+									<div class="text-muted-foreground mt-1 text-xs">视频</div>
+								</div>
+								<div class="rounded-md border p-3">
+									<div class="text-lg font-semibold">{downloadStats.active_pages}</div>
+									<div class="text-muted-foreground mt-1 text-xs">分页</div>
+								</div>
+								<div class="rounded-md border p-3">
+									<div class="text-lg font-semibold">{downloadStats.active_fragments}</div>
+									<div class="text-muted-foreground mt-1 text-xs">分片</div>
+								</div>
+							</div>
+							<div class="flex items-center justify-between border-t pt-3 text-sm">
+								<span class="text-muted-foreground">本轮累计下载</span>
+								<span class="font-medium">{formatBytes(downloadStats.task_downloaded_bytes)}</span>
+							</div>
+						</div>
+					{:else}
+						<div class="text-muted-foreground text-sm">等待数据...</div>
+					{/if}
+				</CardContent>
+			</Card>
+			<Card class="overflow-hidden md:col-span-2">
+				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+					<CardTitle class="text-sm font-medium">下载速度</CardTitle>
+					<DownloadIcon class="text-muted-foreground h-4 w-4" />
+				</CardHeader>
+				<CardContent>
+					{#if downloadSpeedHistory.length > 0}
+						<Chart.Container config={downloadSpeedChartConfig} class="h-[150px] w-full">
+							<AreaChart
+								data={downloadSpeedHistory}
+								x="time"
+								axis={true}
+								yDomain={[0, downloadSpeedDomainMax]}
+								padding={{
+									left: 72,
+									right: 12,
+									top: 8,
+									bottom: 28
+								}}
+								series={[
+									{
+										key: 'speed',
+										label: downloadSpeedChartConfig.speed.label,
+										color: downloadSpeedChartConfig.speed.color
+									}
+								]}
+								props={{
+									area: {
+										curve: curveMonotoneX,
+										line: { class: 'stroke-1' },
+										'fill-opacity': 0.4
+									},
+									xAxis: {
+										grid: false,
+										ticks: 4,
+										format: (value: number) => formatAxisTimestamp(value)
+									},
+									yAxis: {
+										grid: true,
+										ticks: 4,
+										format: (value: number) => formatSpeedTick(value, downloadSpeedDomainMax)
+									}
+								}}
+							>
+								{#snippet tooltip()}
+									<MyChartTooltip
+										labelFormatter={(timestamp: number) => {
+											return formatTimestamp(timestamp);
+										}}
+										valueFormatter={(v: number) => formatSpeed(v)}
+										indicator="line"
+									/>
+								{/snippet}
+							</AreaChart>
+						</Chart.Container>
+					{:else}
+						<div class="text-muted-foreground flex h-[150px] items-center justify-center text-sm">
+							等待数据...
+						</div>
+					{/if}
+				</CardContent>
+			</Card>
+		</div>
+
 		<div class="grid gap-4 md:grid-cols-2">
 			<!-- 内存使用情况 -->
 			<Card class="overflow-hidden">

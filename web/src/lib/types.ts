@@ -375,6 +375,15 @@ export interface TaskStatus {
 	next_run: Date | null;
 }
 
+export interface DownloadStats {
+	timestamp: number;
+	current_speed_bytes_per_sec: number;
+	task_downloaded_bytes: number;
+	active_videos: number;
+	active_pages: number;
+	active_fragments: number;
+}
+
 export interface UpdateVideoSourceResponse {
 	ruleDisplay: string;
 }

@@ -11,6 +11,7 @@ use tokio_cron_scheduler::{Job, JobScheduler};
 use crate::adapter::VideoSource;
 use crate::bilibili::{self, BiliClient, BiliError};
 use crate::config::{ARGS, Config, TEMPLATE, Trigger, VersionedConfig};
+use crate::utils::download_stats::DownloadStatsManager;
 use crate::utils::model::get_enabled_video_sources;
 use crate::utils::notify::error_and_notify;
 use crate::workflow::process_video_source;
@@ -276,6 +277,7 @@ impl DownloadTaskManager {
                     last_finish: None,
                     next_run: None,
                 });
+                DownloadStatsManager::get().reset_task();
                 info!("开始执行本轮视频下载任务..");
                 let mut config = VersionedConfig::get().snapshot();
                 match download_video(&cx.connection, &cx.bili_client, &mut config).await {

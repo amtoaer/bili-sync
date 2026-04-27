@@ -5,6 +5,7 @@ import type {
 	CollectionsResponse,
 	Config,
 	DashBoardResponse,
+	DownloadStats,
 	FavoritesResponse,
 	FullSyncVideoSourceRequest,
 	FullSyncVideoSourceResponse,
@@ -304,6 +305,9 @@ class ApiClient {
 	subscribeToTasks(onMessage: (data: TaskStatus) => void) {
 		return wsManager.subscribeToTasks(onMessage);
 	}
+	subscribeToDownloadStats(onMessage: (data: DownloadStats) => void) {
+		return wsManager.subscribeToDownloadStats(onMessage);
+	}
 }
 
 // 创建默认的 API 客户端实例
@@ -354,6 +358,9 @@ const api = {
 
 	subscribeToTasks: (onMessage: (data: TaskStatus) => void) =>
 		apiClient.subscribeToTasks(onMessage),
+
+	subscribeToDownloadStats: (onMessage: (data: DownloadStats) => void) =>
+		apiClient.subscribeToDownloadStats(onMessage),
 
 	setAuthToken: (token: string) => apiClient.setAuthToken(token),
 	getAuthToken: () => apiClient.getAuthToken(),

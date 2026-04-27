@@ -8,16 +8,29 @@ use async_tempfile::TempFile;
 use futures::TryStreamExt;
 use reqwest::{Method, StatusCode, header};
 use tokio::fs::{self};
-use tokio::io::{AsyncSeekExt, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeekExt, AsyncWrite, AsyncWriteExt};
 use tokio::process::Command;
 use tokio::task::JoinSet;
 use tokio_util::io::StreamReader;
 
 use crate::bilibili::{Client, ErrorForStatusExt};
 use crate::config::{ARGS, ConcurrentDownloadLimit};
+use crate::utils::download_stats::DownloadStatsManager;
 
 pub struct Downloader {
     client: Client,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DownloadStatsScope {
+    None,
+    Media,
+}
+
+impl DownloadStatsScope {
+    fn should_track_runtime(self) -> bool {
+        matches!(self, Self::Media)
+    }
 }
 
 impl Downloader {
@@ -28,9 +41,15 @@ impl Downloader {
         Self { client }
     }
 
-    pub async fn fetch(&self, url: &str, path: &Path, concurrent_download: &ConcurrentDownloadLimit) -> Result<()> {
+    pub async fn fetch(
+        &self,
+        url: &str,
+        path: &Path,
+        concurrent_download: &ConcurrentDownloadLimit,
+        stats_scope: DownloadStatsScope,
+    ) -> Result<()> {
         let mut temp_file = TempFile::new().await?;
-        self.fetch_internal(url, &mut temp_file, false, concurrent_download)
+        self.fetch_internal(url, &mut temp_file, false, concurrent_download, stats_scope)
             .await?;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).await?;
@@ -48,8 +67,11 @@ impl Downloader {
         urls: &[&str],
         path: &Path,
         concurrent_download: &ConcurrentDownloadLimit,
+        stats_scope: DownloadStatsScope,
     ) -> Result<()> {
-        let temp_file = self.multi_fetch_internal(urls, true, concurrent_download).await?;
+        let temp_file = self
+            .multi_fetch_internal(urls, true, concurrent_download, stats_scope)
+            .await?;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).await?;
         }
@@ -64,10 +86,11 @@ impl Downloader {
         audio_urls: &[&str],
         path: &Path,
         concurrent_download: &ConcurrentDownloadLimit,
+        stats_scope: DownloadStatsScope,
     ) -> Result<()> {
         let (video_temp_file, audio_temp_file) = tokio::try_join!(
-            self.multi_fetch_internal(video_urls, true, concurrent_download),
-            self.multi_fetch_internal(audio_urls, true, concurrent_download)
+            self.multi_fetch_internal(video_urls, true, concurrent_download, stats_scope),
+            self.multi_fetch_internal(audio_urls, true, concurrent_download, stats_scope)
         )?;
         let final_temp_file = TempFile::new().await?;
         let output = Command::new(ARGS.ffmpeg_path.as_deref().unwrap_or("ffmpeg"))
@@ -108,6 +131,7 @@ impl Downloader {
         urls: &[&str],
         is_stream: bool,
         concurrent_download: &ConcurrentDownloadLimit,
+        stats_scope: DownloadStatsScope,
     ) -> Result<TempFile> {
         if urls.is_empty() {
             bail!("no urls provided");
@@ -115,7 +139,7 @@ impl Downloader {
         let mut temp_file = TempFile::new().await?;
         for (idx, url) in urls.iter().enumerate() {
             match self
-                .fetch_internal(url, &mut temp_file, is_stream, concurrent_download)
+                .fetch_internal(url, &mut temp_file, is_stream, concurrent_download, stats_scope)
                 .await
             {
                 Ok(_) => return Ok(temp_file),
@@ -138,15 +162,20 @@ impl Downloader {
         file: &mut TempFile,
         is_stream: bool,
         concurrent_download: &ConcurrentDownloadLimit,
+        stats_scope: DownloadStatsScope,
     ) -> Result<()> {
         if concurrent_download.enable {
-            self.fetch_parallel(url, file, is_stream, concurrent_download).await
+            self.fetch_parallel(url, file, is_stream, concurrent_download, stats_scope)
+                .await
         } else {
-            self.fetch_serial(url, file).await
+            self.fetch_serial(url, file, stats_scope).await
         }
     }
 
-    async fn fetch_serial(&self, url: &str, file: &mut TempFile) -> Result<()> {
+    async fn fetch_serial(&self, url: &str, file: &mut TempFile, stats_scope: DownloadStatsScope) -> Result<()> {
+        let _fragment = stats_scope
+            .should_track_runtime()
+            .then(|| DownloadStatsManager::get().track_fragment());
         let resp = self
             .client
             .request(Method::GET, url, None)
@@ -155,7 +184,7 @@ impl Downloader {
             .error_for_status_ext()?;
         let expected = resp.header_content_length();
         let mut stream_reader = StreamReader::new(resp.bytes_stream().map_err(std::io::Error::other));
-        let received = tokio::io::copy(&mut stream_reader, file).await?;
+        let received = copy_counting(&mut stream_reader, file, stats_scope).await?;
         file.flush().await?;
         if let Some(expected) = expected {
             ensure!(
@@ -174,6 +203,7 @@ impl Downloader {
         file: &mut TempFile,
         is_stream: bool,
         concurrent_download: &ConcurrentDownloadLimit,
+        stats_scope: DownloadStatsScope,
     ) -> Result<()> {
         let (concurrency, threshold) = (concurrent_download.concurrency, concurrent_download.threshold);
         let file_size = if is_stream {
@@ -186,7 +216,7 @@ impl Downloader {
                 .await?
                 .error_for_status_ext()?;
             if resp.status() != StatusCode::PARTIAL_CONTENT {
-                return self.fetch_serial(url, file).await;
+                return self.fetch_serial(url, file, stats_scope).await;
             }
             resp.header_file_size()
         } else {
@@ -203,16 +233,16 @@ impl Downloader {
                 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Accept-Ranges#none
                 .is_none_or(|v| v.to_str().unwrap_or_default() == "none")
             {
-                return self.fetch_serial(url, file).await;
+                return self.fetch_serial(url, file, stats_scope).await;
             }
             resp.header_content_length()
         };
         let Some(file_size) = file_size else {
-            return self.fetch_serial(url, file).await;
+            return self.fetch_serial(url, file, stats_scope).await;
         };
         let chunk_size = file_size / concurrency as u64;
         if chunk_size < threshold {
-            return self.fetch_serial(url, file).await;
+            return self.fetch_serial(url, file, stats_scope).await;
         }
         file.set_len(file_size).await?;
         let mut tasks = JoinSet::new();
@@ -227,6 +257,9 @@ impl Downloader {
             let (url_clone, client_clone) = (url.clone(), self.client.clone());
             let mut file_clone = file.open_rw().await?;
             tasks.spawn(async move {
+                let _fragment = stats_scope
+                    .should_track_runtime()
+                    .then(|| DownloadStatsManager::get().track_fragment());
                 file_clone.seek(SeekFrom::Start(start)).await?;
                 let range_header = format!("bytes={}-{}", start, end);
                 let resp = client_clone
@@ -244,7 +277,7 @@ impl Downloader {
                     );
                 }
                 let mut stream_reader = StreamReader::new(resp.bytes_stream().map_err(std::io::Error::other));
-                let received = tokio::io::copy(&mut stream_reader, &mut file_clone).await?;
+                let received = copy_counting(&mut stream_reader, &mut file_clone, stats_scope).await?;
                 file_clone.flush().await?;
                 ensure!(
                     received == end - start + 1,
@@ -259,6 +292,26 @@ impl Downloader {
             res??;
         }
         Ok(())
+    }
+}
+
+async fn copy_counting<R, W>(reader: &mut R, writer: &mut W, stats_scope: DownloadStatsScope) -> std::io::Result<u64>
+where
+    R: AsyncRead + Unpin,
+    W: AsyncWrite + Unpin,
+{
+    let mut buffer = vec![0; 64 * 1024];
+    let mut received = 0;
+    loop {
+        let n = reader.read(&mut buffer).await?;
+        if n == 0 {
+            return Ok(received);
+        }
+        writer.write_all(&buffer[..n]).await?;
+        received += n as u64;
+        if stats_scope.should_track_runtime() {
+            DownloadStatsManager::get().record_bytes(n as u64);
+        }
     }
 }
 
@@ -297,10 +350,17 @@ mod tests {
 
     use anyhow::Result;
 
+    use super::DownloadStatsScope;
     use crate::bilibili::{BestStream, BiliClient, Video};
     use crate::config::VersionedConfig;
     use crate::database::setup_database;
     use crate::downloader::Downloader;
+
+    #[test]
+    fn media_scope_is_the_only_scope_that_tracks_runtime_stats() {
+        assert!(!DownloadStatsScope::None.should_track_runtime());
+        assert!(DownloadStatsScope::Media.should_track_runtime());
+    }
 
     #[ignore = "only for manual test"]
     #[tokio::test(flavor = "multi_thread")]
@@ -336,6 +396,7 @@ mod tests {
                 &audio.urls(true),
                 Path::new("./output.mp4"),
                 &config.concurrent_limit.download,
+                DownloadStatsScope::Media,
             )
             .await
             .expect("failed to download video");
