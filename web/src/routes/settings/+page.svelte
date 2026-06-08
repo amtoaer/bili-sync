@@ -796,7 +796,8 @@
 							<div class="space-y-1">
 								<Label for="ignore-common-errors">忽略常见错误</Label>
 								<p class="text-muted-foreground text-sm">
-									b 站接口频繁出现 -503 服务暂不可用，在通知器内通知容易刷屏，开启该选项以忽略此错误通知
+									b 站接口频繁出现 -503
+									服务暂不可用，在通知器内通知容易刷屏，开启该选项以忽略此错误通知
 								</p>
 							</div>
 							<Switch id="ignore-common-errors" bind:checked={formData.ignore_common_errors} />
