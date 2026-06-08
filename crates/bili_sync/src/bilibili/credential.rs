@@ -205,7 +205,7 @@ JNrRuoEUXpabUzGB8QIDAQAB
         let ts = chrono::Local::now().timestamp_millis() - 20000;
         let data = format!("refresh_{}", ts).into_bytes();
         let encrypted = key
-            .encrypt(&mut rand::rng(), Oaep::new::<Sha256>(), &data)
+            .encrypt(&mut rand::rng(), Oaep::<Sha256>::new(), &data)
             .expect("fail to encrypt");
         hex::encode(encrypted)
     }
