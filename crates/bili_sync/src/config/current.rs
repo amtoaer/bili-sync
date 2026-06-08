@@ -38,6 +38,8 @@ pub struct Config {
     pub page_name: String,
     #[serde(default)]
     pub notifiers: Option<Arc<Vec<Notifier>>>,
+    #[serde(default)]
+    pub ignore_common_errors: bool,
     #[serde(default = "default_favorite_path")]
     pub favorite_default_path: String,
     #[serde(default = "default_collection_path")]
@@ -124,6 +126,7 @@ impl Default for Config {
             video_name: "{{title}}".to_owned(),
             page_name: "{{bvid}}".to_owned(),
             notifiers: None,
+            ignore_common_errors: false,
             favorite_default_path: default_favorite_path(),
             collection_default_path: default_collection_path(),
             submission_default_path: default_submission_path(),

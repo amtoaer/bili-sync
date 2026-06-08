@@ -330,6 +330,7 @@ export interface Config {
 	video_name: string;
 	page_name: string;
 	notifiers: Notifier[] | null;
+	ignore_common_errors: boolean;
 	favorite_default_path: string;
 	collection_default_path: string;
 	submission_default_path: string;
