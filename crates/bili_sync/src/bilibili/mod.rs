@@ -60,10 +60,18 @@ impl Validate for serde_json::Value {
         let code = self["code"]
             .as_i64()
             .with_context(|| BiliError::InvalidResponse(self.to_string()))?;
+        let message = self["message"].as_str().map(ToOwned::to_owned);
         if code == -352 || !self["data"]["v_voucher"].is_null() {
             bail!(BiliError::RiskControlOccurred(self.to_string()));
         }
-        ensure!(code == 0, BiliError::ErrorResponse(code, self.to_string()));
+        ensure!(
+            code == 0,
+            BiliError::ErrorResponse {
+                code,
+                message,
+                response: self.to_string(),
+            }
+        );
         Ok(self)
     }
 }
