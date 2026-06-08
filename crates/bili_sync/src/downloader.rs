@@ -8,7 +8,7 @@ use async_tempfile::TempFile;
 use futures::TryStreamExt;
 use reqwest::{Method, StatusCode, header};
 use tokio::fs::{self};
-use tokio::io::{AsyncSeekExt, AsyncWriteExt};
+use tokio::io::{AsyncSeekExt, AsyncWriteExt, BufWriter};
 use tokio::process::Command;
 use tokio::task::JoinSet;
 use tokio_util::io::StreamReader;
@@ -155,8 +155,9 @@ impl Downloader {
             .error_for_status_ext()?;
         let expected = resp.header_content_length();
         let mut stream_reader = StreamReader::new(resp.bytes_stream().map_err(std::io::Error::other));
-        let received = tokio::io::copy(&mut stream_reader, file).await?;
-        file.flush().await?;
+        let mut file_writer = BufWriter::with_capacity(2 * 1024 * 1024, file);
+        let received = tokio::io::copy(&mut stream_reader, &mut file_writer).await?;
+        file_writer.flush().await?;
         if let Some(expected) = expected {
             ensure!(
                 received == expected,
@@ -244,8 +245,9 @@ impl Downloader {
                     );
                 }
                 let mut stream_reader = StreamReader::new(resp.bytes_stream().map_err(std::io::Error::other));
-                let received = tokio::io::copy(&mut stream_reader, &mut file_clone).await?;
-                file_clone.flush().await?;
+                let mut file_writer = BufWriter::with_capacity(2 * 1024 * 1024, file_clone);
+                let received = tokio::io::copy(&mut stream_reader, &mut file_writer).await?;
+                file_writer.flush().await?;
                 ensure!(
                     received == end - start + 1,
                     "downloaded bytes mismatch: expected {}, got {}",
