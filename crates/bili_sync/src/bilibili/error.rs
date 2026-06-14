@@ -27,13 +27,13 @@ impl BiliError {
     }
 
     pub fn is_common_error(&self) -> bool {
-        matches!(
-            self,
-            BiliError::ErrorResponse {
-                code: -503,
-                message,
-                ..
-            } if message.as_ref().is_some_and(|m| m == "服务暂不可用")
-        )
+        if let BiliError::ErrorResponse { code, message, .. } = self {
+            for pair in [(-503, "服务暂不可用"), (-504, "服务调用超时")] {
+                if *code == pair.0 && message.as_ref().is_some_and(|m| m == pair.1) {
+                    return true;
+                }
+            }
+        }
+        false
     }
 }
