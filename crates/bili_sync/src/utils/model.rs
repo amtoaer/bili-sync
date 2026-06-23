@@ -77,8 +77,16 @@ pub async fn create_videos(
 
 /// 尝试创建 Page Model，如果发生冲突则忽略
 pub async fn create_pages(pages_model: Vec<page::ActiveModel>, connection: &DatabaseTransaction) -> Result<()> {
-    for page_chunk in pages_model.chunks(200) {
-        page::Entity::insert_many(page_chunk.to_vec())
+    let mut pages = pages_model.into_iter();
+    loop {
+        // 这里 insert_many 要求 IntoIterator，vec 上调用 chunks 返回的类型不匹配，需要 to_vec 做 clone
+        // itertools 的 into_iter().chunks() 由于 !Send 也无法直接使用
+        // 暂时手写 take + collect 作为避免 clone 的折中方案
+        let page_chunk = pages.by_ref().take(200).collect::<Vec<_>>();
+        if page_chunk.is_empty() {
+            break;
+        }
+        page::Entity::insert_many(page_chunk)
             .on_conflict(
                 OnConflict::columns([page::Column::VideoId, page::Column::Pid])
                     .do_nothing()
