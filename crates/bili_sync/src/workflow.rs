@@ -103,7 +103,7 @@ pub async fn refresh_video_source<'a>(
             }
         })
         .filter_map(|(idx, res)| futures::future::ready(video_source.should_filter(idx, res, &latest_row_at)))
-        .chunks(10);
+        .chunks(30);
     let mut count = 0;
     while let Some(videos_info) = video_streams.next().await {
         count += videos_info.len();
@@ -168,7 +168,7 @@ pub async fn fetch_video_details(
         })
         .buffer_unordered(config.concurrent_limit.video)
         .filter_map(|res| futures::future::ready(res))
-        .chunks(10);
+        .chunks(15);
     while let Some(details) = tasks.next().await {
         let mut invalid_video_ids = Vec::new();
         let mut pages = Vec::new();
