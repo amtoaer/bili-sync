@@ -1,10 +1,11 @@
 use anyhow::{Context, Result, anyhow};
 use bili_sync_entity::*;
+use itertools::Itertools;
 use rand::seq::SliceRandom;
 use sea_orm::ActiveValue::Set;
-use sea_orm::DatabaseTransaction;
 use sea_orm::entity::prelude::*;
-use sea_orm::sea_query::{OnConflict, SimpleExpr};
+use sea_orm::sea_query::{Expr, OnConflict, SimpleExpr};
+use sea_orm::{ConnectionTrait, DatabaseTransaction, IdenStatic, Statement};
 
 use crate::adapter::{VideoSource, VideoSourceEnum};
 use crate::bilibili::VideoInfo;
@@ -76,8 +77,16 @@ pub async fn create_videos(
 
 /// 尝试创建 Page Model，如果发生冲突则忽略
 pub async fn create_pages(pages_model: Vec<page::ActiveModel>, connection: &DatabaseTransaction) -> Result<()> {
-    for page_chunk in pages_model.chunks(200) {
-        page::Entity::insert_many(page_chunk.to_vec())
+    let mut pages = pages_model.into_iter();
+    loop {
+        // 这里 insert_many 要求 IntoIterator，vec 上调用 chunks 返回的类型不匹配，需要 to_vec 做 clone
+        // itertools 的 into_iter().chunks() 由于 !Send 也无法直接使用
+        // 暂时手写 take + collect 作为避免 clone 的折中方案
+        let page_chunk = pages.by_ref().take(200).collect::<Vec<_>>();
+        if page_chunk.is_empty() {
+            break;
+        }
+        page::Entity::insert_many(page_chunk)
             .on_conflict(
                 OnConflict::columns([page::Column::VideoId, page::Column::Pid])
                     .do_nothing()
@@ -87,6 +96,90 @@ pub async fn create_pages(pages_model: Vec<page::ActiveModel>, connection: &Data
             .exec(connection)
             .await?;
     }
+    Ok(())
+}
+
+/// 更新视频 model 的详情字段
+pub async fn update_video_detail_models(
+    videos: Vec<video::ActiveModel>,
+    connection: &DatabaseTransaction,
+) -> Result<()> {
+    if videos.is_empty() {
+        return Ok(());
+    }
+    let columns = [
+        video::Column::Id,
+        video::Column::CollectionId,
+        video::Column::FavoriteId,
+        video::Column::WatchLaterId,
+        video::Column::SubmissionId,
+        video::Column::UpperId,
+        video::Column::UpperName,
+        video::Column::UpperFace,
+        video::Column::Staff,
+        video::Column::Name,
+        video::Column::Bvid,
+        video::Column::Intro,
+        video::Column::Cover,
+        video::Column::Ctime,
+        video::Column::Pubtime,
+        video::Column::Favtime,
+        video::Column::DownloadStatus,
+        video::Column::Valid,
+        video::Column::ShouldDownload,
+        video::Column::Tags,
+        video::Column::SinglePage,
+    ];
+    let row = format!("({})", std::iter::repeat_n("?", columns.len()).join(", "));
+    let rows = std::iter::repeat_n(row.as_str(), videos.len()).join(", ");
+    let mut values = Vec::with_capacity(videos.len() * columns.len());
+    for video in videos {
+        for column in columns {
+            values.push(
+                video
+                    .get(column)
+                    .into_value()
+                    .ok_or_else(|| anyhow!("video column {} is not set", column.as_str()))?,
+            );
+        }
+    }
+    let sql = format!(
+        "WITH tempdata({}) AS (VALUES {}) \
+        UPDATE video \
+        SET {} \
+        FROM tempdata \
+        WHERE video.id = tempdata.id",
+        columns.iter().map(IdenStatic::as_str).join(", "),
+        rows,
+        columns
+            .iter()
+            .skip(1)
+            .map(|column| {
+                let column = column.as_str();
+                format!("{} = tempdata.{}", column, column)
+            })
+            .join(", ")
+    );
+    connection
+        .execute(Statement::from_sql_and_values(
+            connection.get_database_backend(),
+            sql,
+            values,
+        ))
+        .await?;
+    Ok(())
+}
+
+/// 将视频标记为失效
+pub async fn set_video_models_invalid(video_ids: Vec<i32>, connection: &DatabaseTransaction) -> Result<()> {
+    if video_ids.is_empty() {
+        return Ok(());
+    }
+    video::Entity::update_many()
+        .filter(video::Column::Id.is_in(video_ids))
+        .col_expr(video::Column::Valid, Expr::value(false))
+        .exec(connection)
+        .await?;
     Ok(())
 }
 
