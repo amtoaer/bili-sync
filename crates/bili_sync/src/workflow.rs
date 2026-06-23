@@ -21,13 +21,18 @@ use crate::notifier::DownloadNotifyInfo;
 use crate::utils::download_context::DownloadContext;
 use crate::utils::format_arg::{page_format_args, video_format_args};
 use crate::utils::model::{
-    create_pages, create_videos, filter_unfilled_videos, filter_unhandled_video_pages, update_pages_model,
-    update_videos_model,
+    create_pages, create_videos, filter_unfilled_videos, filter_unhandled_video_pages, set_video_models_invalid,
+    update_pages_model, update_video_detail_models, update_videos_model,
 };
 use crate::utils::nfo::{NFO, ToNFO};
 use crate::utils::notify::notify;
 use crate::utils::rule::FieldEvaluatable;
 use crate::utils::status::{PageStatus, STATUS_OK, VideoStatus};
+
+enum VideoDetailUpdate {
+    Invalid(i32),
+    Detail(Vec<page::ActiveModel>, video::ActiveModel),
+}
 
 /// 完整地处理某个视频来源
 pub async fn process_video_source(
@@ -125,7 +130,7 @@ pub async fn fetch_video_details(
 ) -> Result<()> {
     video_source.log_fetch_video_start();
     let videos_model = filter_unfilled_videos(video_source.filter_expr(), connection).await?;
-    let tasks = stream::iter(videos_model)
+    let mut tasks = stream::iter(videos_model)
         .map(|video_model| async move {
             let video = Video::new(bili_client, video_model.bvid.as_str(), &config.credential);
             let info: Result<_> = async { Ok((video.get_tags().await?, video.get_view_info().await?)) }.await;
@@ -136,9 +141,9 @@ pub async fn fetch_video_details(
                         &video_model.bvid, &video_model.name, e
                     );
                     if let Some(BiliError::ErrorResponse { code: -404, .. }) = e.downcast_ref::<BiliError>() {
-                        let mut video_active_model: bili_sync_entity::video::ActiveModel = video_model.into();
-                        video_active_model.valid = Set(false);
-                        video_active_model.save(connection).await?;
+                        Some(VideoDetailUpdate::Invalid(video_model.id))
+                    } else {
+                        None
                     }
                 }
                 Ok((tags, mut view_info)) => {
@@ -157,16 +162,30 @@ pub async fn fetch_video_details(
                     video_active_model.single_page = Set(Some(pages.len() == 1));
                     video_active_model.tags = Set(Some(tags.into()));
                     video_active_model.should_download = Set(video_source.rule().evaluate(&video_active_model, &pages));
-                    let txn = connection.begin().await?;
-                    create_pages(pages, &txn).await?;
-                    video_active_model.save(&txn).await?;
-                    txn.commit().await?;
+                    Some(VideoDetailUpdate::Detail(pages, video_active_model))
                 }
-            };
-            Ok::<_, anyhow::Error>(())
+            }
         })
-        .buffer_unordered(config.concurrent_limit.video);
-    tasks.try_collect::<()>().await?;
+        .buffer_unordered(config.concurrent_limit.video)
+        .filter_map(|res| futures::future::ready(res))
+        .chunks(10);
+    while let Some(details) = tasks.next().await {
+        let mut invalid_video_ids = Vec::new();
+        let mut pages = Vec::new();
+        let mut videos = Vec::new();
+        details.into_iter().for_each(|detail| match detail {
+            VideoDetailUpdate::Invalid(video_id) => invalid_video_ids.push(video_id),
+            VideoDetailUpdate::Detail(video_pages, video) => {
+                pages.extend(video_pages);
+                videos.push(video);
+            }
+        });
+        let txn = connection.begin().await?;
+        update_video_detail_models(videos, &txn).await?;
+        set_video_models_invalid(invalid_video_ids, &txn).await?;
+        create_pages(pages, &txn).await?;
+        txn.commit().await?;
+    }
     video_source.log_fetch_video_end();
     Ok(())
 }
