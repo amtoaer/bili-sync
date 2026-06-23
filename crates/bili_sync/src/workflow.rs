@@ -29,6 +29,7 @@ use crate::utils::notify::notify;
 use crate::utils::rule::FieldEvaluatable;
 use crate::utils::status::{PageStatus, STATUS_OK, VideoStatus};
 
+#[allow(clippy::large_enum_variant)]
 enum VideoDetailUpdate {
     Invalid(i32),
     Detail(Vec<page::ActiveModel>, video::ActiveModel),
@@ -167,7 +168,7 @@ pub async fn fetch_video_details(
             }
         })
         .buffer_unordered(config.concurrent_limit.video)
-        .filter_map(|res| futures::future::ready(res))
+        .filter_map(futures::future::ready)
         .chunks(15);
     while let Some(details) = tasks.next().await {
         let mut invalid_video_ids = Vec::new();
