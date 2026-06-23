@@ -11,7 +11,6 @@ use sea_orm::ActiveValue::Set;
 use sea_orm::TransactionTrait;
 use sea_orm::entity::prelude::*;
 use tokio::fs;
-use tokio::sync::Semaphore;
 
 use crate::adapter::{VideoSource, VideoSourceEnum};
 use crate::bilibili::{BestStream, BiliClient, BiliError, Dimension, PageInfo, Video, VideoInfo};
