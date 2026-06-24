@@ -49,12 +49,13 @@ impl Client {
         let mut req = self.0.request(method, url);
         // 如果有 credential，会将其转换成 cookie 添加到请求的 header 中
         if let Some(credential) = credential {
-            req = req
-                .header(header::COOKIE, format!("SESSDATA={}", credential.sessdata))
-                .header(header::COOKIE, format!("bili_jct={}", credential.bili_jct))
-                .header(header::COOKIE, format!("buvid3={}", credential.buvid3))
-                .header(header::COOKIE, format!("DedeUserID={}", credential.dedeuserid))
-                .header(header::COOKIE, format!("ac_time_value={}", credential.ac_time_value));
+            req = req.header(
+                header::COOKIE,
+                format!(
+                    "buvid3={}; SESSDATA={}; bili_jct={}; DedeUserID={}",
+                    credential.buvid3, credential.sessdata, credential.bili_jct, credential.dedeuserid
+                ),
+            );
         }
         req
     }
