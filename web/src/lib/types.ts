@@ -48,9 +48,18 @@ export interface VideosResponse {
 
 export interface PageInfo {
 	id: number;
+	video_id: number;
 	pid: number;
 	name: string;
 	download_status: [number, number, number, number, number];
+	danmaku_last_synced_at: string | null;
+	/** 弹幕同步阶段：0=未开始 1=新鲜期 2=成熟期 3=老化期 4=冷冻 */
+	danmaku_sync_generation: number;
+	danmaku_cid_snapshot: number | null;
+}
+
+export interface RefreshDanmakuResponse {
+	refreshed: number;
 }
 
 export interface VideoResponse {
@@ -276,6 +285,23 @@ export interface DanmakuOption {
 	time_offset: number;
 }
 
+/**
+ * 弹幕增量更新策略（三段式）。
+ * - 新鲜期：发布 fresh_days 天内每 fresh_interval_hours 小时更新一次；
+ * - 成熟期：到 mature_days 之间每 mature_interval_days 天更新一次；
+ * - 老化期：到 cold_days 之间每 cold_interval_days 天更新一次；
+ * - 冷冻：超过 cold_days 后最后刷新一次，之后不再自动更新（手动触发仍可）。
+ */
+export interface DanmakuUpdatePolicy {
+	enabled: boolean;
+	fresh_days: number;
+	fresh_interval_hours: number;
+	mature_days: number;
+	mature_interval_days: number;
+	cold_days: number;
+	cold_interval_days: number;
+}
+
 export interface SkipOption {
 	no_poster: boolean;
 	no_video_nfo: boolean;
@@ -341,6 +367,7 @@ export interface Config {
 	time_format: string;
 	cdn_sorting: boolean;
 	try_upower_anyway: boolean;
+	danmaku_update_policy: DanmakuUpdatePolicy;
 	version: number;
 }
 

@@ -18,6 +18,9 @@ pub struct Model {
     pub image: Option<String>,
     pub download_status: u32,
     pub created_at: String,
+    pub danmaku_last_synced_at: Option<String>,
+    pub danmaku_sync_generation: u32,
+    pub danmaku_cid_snapshot: Option<i64>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -12,6 +12,7 @@ mod notifier;
 mod task;
 mod utils;
 mod workflow;
+mod workflow_danmaku;
 
 use std::collections::VecDeque;
 use std::fmt::Debug;

@@ -534,6 +534,9 @@ pub async fn download_page(
     );
     let results = [res_1.into(), res_2.into(), res_3.into(), res_4.into(), res_5.into()];
     status.update_status(&results);
+    // 弹幕子任务在本轮"现下载成功"时（仅 Succeeded，不算 Skipped/Failed），
+    // 用于稍后补写弹幕同步元数据。提前到 results 移动之前求值。
+    let danmaku_just_succeeded = matches!(results[3], ExecutionStatus::Succeeded);
     results
         .iter()
         .zip(["封面", "视频", "详情", "弹幕", "字幕"])
@@ -566,9 +569,27 @@ pub async fn download_page(
             bail!(e);
         }
     }
+    // 弹幕子任务在本轮"现下载成功"时（不是 Skipped），且策略已启用，才补写三个同步元数据字段。
+    //
+    // - 不写在 Skipped 路径：避免把"未启用 no_danmaku 跳过"也算作一次成功同步。
+    // - 不写在策略关闭路径：用户没有表达"持续追踪弹幕"的意图。如果这里无脑写入，
+    //   一旦用户后续启用策略，老视频会被 stage_for_age(allow_freeze=true) 直接打成 Frozen，
+    //   导致 refresh_danmaku_incremental 永远跳过它们，再也不会收到首次策略驱动的刷新。
     let mut page_active_model: page::ActiveModel = page_model.into();
     page_active_model.download_status = Set(status.into());
     page_active_model.path = Set(Some(video_path.to_string_lossy().to_string()));
+    if danmaku_just_succeeded && cx.config.danmaku_update_policy.enabled {
+        let now = chrono::Utc::now();
+        let stage = crate::utils::danmaku_schedule::stage_for_age(
+            &cx.config.danmaku_update_policy,
+            video_model.pubtime.and_utc(),
+            now,
+            /* allow_freeze */ true,
+        );
+        page_active_model.danmaku_last_synced_at = Set(Some(now.naive_utc().to_string()));
+        page_active_model.danmaku_sync_generation = Set(stage.as_generation());
+        page_active_model.danmaku_cid_snapshot = Set(Some(page_info.cid));
+    }
     Ok(page_active_model)
 }
 

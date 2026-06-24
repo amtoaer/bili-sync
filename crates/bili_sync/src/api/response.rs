@@ -93,6 +93,9 @@ pub struct PageInfo {
     pub name: String,
     #[serde(serialize_with = "serde_page_download_status")]
     pub download_status: u32,
+    pub danmaku_last_synced_at: Option<String>,
+    pub danmaku_sync_generation: u32,
+    pub danmaku_cid_snapshot: Option<i64>,
 }
 
 #[derive(Serialize, DerivePartialModel, FromQueryResult, Clone, Copy)]

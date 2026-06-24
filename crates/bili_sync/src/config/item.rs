@@ -82,6 +82,65 @@ impl Default for Trigger {
     }
 }
 
+/// 弹幕增量更新策略。
+///
+/// 采用三段式模型，符合弹幕密度随发布时间衰减的真实曲线：
+/// - 新鲜期：发布后 `fresh_days` 天内，每 `fresh_interval_hours` 小时刷新一次。
+/// - 成熟期：新鲜期结束到 `mature_days` 天之间，每 `mature_interval_days` 天刷新一次。
+/// - 老化期：成熟期结束到 `cold_days` 天之间，每 `cold_interval_days` 天刷新一次。
+/// - 冷冻：超过 `cold_days` 后触发最后一次更新并冻结，之后不再自动刷新（手动触发仍可）。
+///
+/// 默认关闭，保持向后兼容；启用后首次下载成功即视为第一次同步。
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct DanmakuUpdatePolicy {
+    pub enabled: bool,
+    pub fresh_days: u32,
+    pub fresh_interval_hours: u32,
+    pub mature_days: u32,
+    pub mature_interval_days: u32,
+    pub cold_days: u32,
+    pub cold_interval_days: u32,
+}
+
+impl Default for DanmakuUpdatePolicy {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            fresh_days: 3,
+            fresh_interval_hours: 6,
+            mature_days: 30,
+            mature_interval_days: 3,
+            cold_days: 180,
+            cold_interval_days: 30,
+        }
+    }
+}
+
+impl DanmakuUpdatePolicy {
+    /// 校验字段合法性：三段阈值需单调递增，时间间隔必须大于 0。
+    pub fn validate(&self) -> Result<(), &'static str> {
+        if !self.enabled {
+            return Ok(());
+        }
+        if self.fresh_days > self.mature_days {
+            return Err("fresh_days 不能大于 mature_days");
+        }
+        if self.mature_days > self.cold_days {
+            return Err("mature_days 不能大于 cold_days");
+        }
+        if self.fresh_interval_hours == 0 {
+            return Err("fresh_interval_hours 必须大于 0");
+        }
+        if self.mature_interval_days == 0 {
+            return Err("mature_interval_days 必须大于 0");
+        }
+        if self.cold_interval_days == 0 {
+            return Err("cold_interval_days 必须大于 0");
+        }
+        Ok(())
+    }
+}
+
 pub trait PathSafeTemplate {
     fn path_safe_register(&mut self, name: &'static str, template: impl Into<String>) -> Result<()>;
     fn path_safe_render(&self, name: &'static str, data: &serde_json::Value) -> Result<String>;

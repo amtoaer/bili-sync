@@ -14,6 +14,7 @@ use crate::config::{ARGS, Config, TEMPLATE, Trigger, VersionedConfig};
 use crate::utils::model::get_enabled_video_sources;
 use crate::utils::notify::error_and_notify;
 use crate::workflow::process_video_source;
+use crate::workflow_danmaku::refresh_danmaku_incremental;
 
 static INSTANCE: OnceCell<DownloadTaskManager> = OnceCell::const_new();
 
@@ -373,6 +374,14 @@ async fn download_video(
                 break;
             }
         }
+    }
+    // 主下载流程结束后，进行一次弹幕增量刷新扫描。策略未启用时内部直接返回，零开销。
+    if let Err(e) = refresh_danmaku_incremental(&bili_client, connection, config).await {
+        error_and_notify(
+            config,
+            &bili_client,
+            format!("弹幕增量更新遇到错误：{:#}", e),
+        );
     }
     Ok(())
 }

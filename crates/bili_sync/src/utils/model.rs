@@ -196,11 +196,20 @@ pub async fn update_videos_model(videos: Vec<video::ActiveModel>, connection: &D
     Ok(())
 }
 
-/// 更新视频页 model 的下载状态
+/// 更新视频页 model 的下载状态。
+///
+/// 弹幕同步的三个字段（`danmaku_last_synced_at` / `danmaku_sync_generation` / `danmaku_cid_snapshot`）
+/// 也在此处一并写回：首次下载完成后由 `download_page` 填值，避免被随后的弹幕增量扫描误判为"从未同步"。
 pub async fn update_pages_model(pages: Vec<page::ActiveModel>, connection: &DatabaseConnection) -> Result<()> {
     let query = page::Entity::insert_many(pages).on_conflict(
         OnConflict::column(page::Column::Id)
-            .update_columns([page::Column::DownloadStatus, page::Column::Path])
+            .update_columns([
+                page::Column::DownloadStatus,
+                page::Column::Path,
+                page::Column::DanmakuLastSyncedAt,
+                page::Column::DanmakuSyncGeneration,
+                page::Column::DanmakuCidSnapshot,
+            ])
             .to_owned(),
     );
     query.exec(connection).await?;
