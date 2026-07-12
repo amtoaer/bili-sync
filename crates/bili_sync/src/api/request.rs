@@ -2,7 +2,7 @@ use bili_sync_entity::rule::Rule;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-use crate::bilibili::CollectionType;
+use crate::bilibili::{CollectionType, FilterOption};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -138,6 +138,7 @@ pub struct UpdateVideoSourceRequest {
     pub path: String,
     pub enabled: bool,
     pub rule: Option<Rule>,
+    pub filter_option: Option<FilterOption>,
     pub use_dynamic_api: Option<bool>,
 }
 

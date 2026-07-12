@@ -16,6 +16,7 @@ pub struct Model {
     pub use_dynamic_api: bool,
     pub latest_row_at: DateTime,
     pub rule: Option<Rule>,
+    pub filter_option: Option<Json>,
     pub enabled: bool,
 }
 

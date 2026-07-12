@@ -1,7 +1,7 @@
 use sea_orm::DatabaseConnection;
 
 use crate::adapter::VideoSourceEnum;
-use crate::bilibili::BiliClient;
+use crate::bilibili::{BiliClient, FilterOption};
 use crate::config::Config;
 use crate::downloader::Downloader;
 
@@ -13,6 +13,7 @@ pub struct DownloadContext<'a> {
     pub connection: &'a DatabaseConnection,
     pub downloader: &'a Downloader,
     pub config: &'a Config,
+    pub filter_option: &'a FilterOption,
 }
 
 impl<'a> DownloadContext<'a> {
@@ -23,6 +24,7 @@ impl<'a> DownloadContext<'a> {
         connection: &'a DatabaseConnection,
         downloader: &'a Downloader,
         config: &'a Config,
+        filter_option: &'a FilterOption,
     ) -> Self {
         Self {
             bili_client,
@@ -31,6 +33,7 @@ impl<'a> DownloadContext<'a> {
             connection,
             downloader,
             config,
+            filter_option,
         }
     }
 }

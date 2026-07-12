@@ -13,6 +13,7 @@ pub struct Model {
     pub created_at: String,
     pub latest_row_at: DateTime,
     pub rule: Option<Rule>,
+    pub filter_option: Option<Json>,
     pub enabled: bool,
 }
 

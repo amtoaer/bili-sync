@@ -201,7 +201,21 @@ pub async fn download_unprocessed_videos(
 ) -> Result<DownloadNotifyInfo> {
     video_source.log_download_video_start();
     let downloader = Downloader::new(bili_client.client.clone());
-    let cx = DownloadContext::new(bili_client, video_source, template, connection, &downloader, config);
+    let source_filter_option = video_source
+        .filter_option()
+        .as_ref()
+        .map(|value| serde_json::from_value(value.clone()))
+        .transpose()?;
+    let filter_option = source_filter_option.as_ref().unwrap_or(&config.filter_option);
+    let cx = DownloadContext::new(
+        bili_client,
+        video_source,
+        template,
+        connection,
+        &downloader,
+        config,
+        filter_option,
+    );
     let unhandled_videos_pages = filter_unhandled_video_pages(video_source.filter_expr(), connection).await?;
     let mut assigned_upper_ids = HashSet::new();
     let tasks = stream::iter(unhandled_videos_pages)
@@ -617,7 +631,7 @@ pub async fn fetch_page_video(
     let streams = bili_video
         .get_page_analyzer(page_info)
         .await?
-        .best_stream(&cx.config.filter_option)?;
+        .best_stream(cx.filter_option)?;
     match streams {
         BestStream::Mixed(mix_stream) => {
             cx.downloader
