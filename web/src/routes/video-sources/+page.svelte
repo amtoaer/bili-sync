@@ -25,15 +25,23 @@
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { toast } from 'svelte-sonner';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
-	import type { ApiError, VideoSourceDetail, VideoSourcesDetailsResponse, Rule } from '$lib/types';
+	import type {
+		ApiError,
+		FilterOption,
+		VideoSourceDetail,
+		VideoSourcesDetailsResponse,
+		Rule
+	} from '$lib/types';
 	import api from '$lib/api';
 	import RuleEditor from '$lib/components/rule-editor.svelte';
 	import ListRestartIcon from '@lucide/svelte/icons/list-restart';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+	import FilterOptionEditor from '$lib/components/filter-option-editor.svelte';
 
 	let videoSourcesData: VideoSourcesDetailsResponse | null = null;
 	let loading = false;
 	let activeTab = 'favorites';
+	let globalFilterOption: FilterOption | null = null;
 
 	// 添加对话框状态
 	let showAddDialog = false;
@@ -46,6 +54,8 @@
 	let editingType = '';
 	let editingIdx: number = 0;
 	let saving = false;
+	let useCustomFilterOption = false;
+	let editFilterOption: FilterOption | null = null;
 
 	// 规则评估对话框状态
 	let showEvaluateDialog = false;
@@ -91,8 +101,12 @@
 	async function loadVideoSources() {
 		loading = true;
 		try {
-			const response = await api.getVideoSourcesDetails();
+			const [response, configResponse] = await Promise.all([
+				api.getVideoSourcesDetails(),
+				api.getConfig()
+			]);
 			videoSourcesData = response.data;
+			globalFilterOption = configResponse.data.filter_option;
 		} catch (error) {
 			toast.error('加载视频源失败', {
 				description: (error as ApiError).message
@@ -113,6 +127,8 @@
 			useDynamicApi: source.useDynamicApi,
 			rule: source.rule
 		};
+		useCustomFilterOption = source.filterOption !== null;
+		editFilterOption = structuredClone(source.filterOption ?? globalFilterOption!);
 		showEditDialog = true;
 	}
 
@@ -181,7 +197,8 @@
 				path: editForm.path,
 				enabled: editForm.enabled,
 				rule: editForm.rule,
-				useDynamicApi: editForm.useDynamicApi
+				useDynamicApi: editForm.useDynamicApi,
+				filterOption: useCustomFilterOption ? editFilterOption : null
 			});
 			// 更新本地数据
 			if (videoSourcesData && editingSource) {
@@ -194,6 +211,7 @@
 					enabled: editForm.enabled,
 					rule: editForm.rule,
 					useDynamicApi: editForm.useDynamicApi,
+					filterOption: useCustomFilterOption ? structuredClone(editFilterOption) : null,
 					ruleDisplay: response.data.ruleDisplay
 				};
 				videoSourcesData = { ...videoSourcesData };
@@ -588,6 +606,19 @@
 						</div>
 					</div>
 				{/if}
+
+				<div class="space-y-4">
+					<div class="flex items-center space-x-2">
+						<Switch bind:checked={useCustomFilterOption} />
+						<div>
+							<Label class="text-sm font-medium">使用自定义流过滤设置</Label>
+							<p class="text-muted-foreground text-sm">关闭时继承全局过滤设置</p>
+						</div>
+					</div>
+					{#if editFilterOption}
+						<FilterOptionEditor bind:value={editFilterOption} disabled={!useCustomFilterOption} />
+					{/if}
+				</div>
 
 				<!-- 规则编辑器 -->
 				<div>
