@@ -609,17 +609,6 @@
 				<!-- 通知设置 -->
 				<Tabs.Content value="notifiers" class="mt-6 space-y-6">
 					<div class="space-y-4">
-						<div class="flex items-center justify-between rounded-lg border p-4">
-							<div class="space-y-1">
-								<Label for="ignore-common-errors">忽略常见错误</Label>
-								<p class="text-muted-foreground text-sm">
-									b 站接口频繁出现 -503
-									服务暂不可用，在通知器内通知容易刷屏，开启该选项以忽略此错误通知
-								</p>
-							</div>
-							<Switch id="ignore-common-errors" bind:checked={formData.ignore_common_errors} />
-						</div>
-
 						<div class="flex items-center justify-between">
 							<div>
 								<h3 class="text-lg font-semibold">通知器管理</h3>
@@ -677,6 +666,19 @@
 								{/each}
 							</div>
 						{/if}
+					</div>
+
+					<Separator />
+
+					<div class="flex items-center justify-between rounded-lg border p-4">
+						<div class="space-y-1">
+							<Label for="ignore-common-errors">忽略常见错误</Label>
+							<p class="text-muted-foreground text-sm">
+								接口偶发 -503 服务暂不可用或 -504
+								服务调用超时，在通知器内容易刷屏，开启该选项以忽略此类错误通知
+							</p>
+						</div>
+						<Switch id="ignore-common-errors" bind:checked={formData.ignore_common_errors} />
 					</div>
 				</Tabs.Content>
 
