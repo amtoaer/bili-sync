@@ -6,7 +6,9 @@
 	import api from '$lib/api';
 	import SquareArrowOutUpRightIcon from '@lucide/svelte/icons/square-arrow-out-up-right';
 	import type { ApiError, VideoResponse, UpdateVideoStatusRequest } from '$lib/types';
-	import { RotateCcwIcon, SquarePenIcon, BrushCleaningIcon } from '@lucide/svelte/icons';
+	import BrushCleaningIcon from '@lucide/svelte/icons/brush-cleaning';
+	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
+	import SquarePenIcon from '@lucide/svelte/icons/square-pen';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
 	import { appStateStore, ToQuery } from '$lib/stores/filter';
 	import VideoCard from '$lib/components/video-card.svelte';

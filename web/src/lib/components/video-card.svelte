@@ -7,17 +7,15 @@
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import type { VideoInfo } from '$lib/types';
-	import {
-		RotateCcwIcon,
-		InfoIcon,
-		BrushCleaningIcon,
-		UserIcon,
-		SquareArrowOutUpRightIcon,
-		EllipsisIcon,
-		HeartIcon,
-		FolderIcon,
-		ClockIcon
-	} from '@lucide/svelte/icons';
+	import BrushCleaningIcon from '@lucide/svelte/icons/brush-cleaning';
+	import ClockIcon from '@lucide/svelte/icons/clock';
+	import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
+	import FolderIcon from '@lucide/svelte/icons/folder';
+	import HeartIcon from '@lucide/svelte/icons/heart';
+	import InfoIcon from '@lucide/svelte/icons/info';
+	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
+	import SquareArrowOutUpRightIcon from '@lucide/svelte/icons/square-arrow-out-up-right';
+	import UserIcon from '@lucide/svelte/icons/user';
 	import { goto } from '$app/navigation';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 

@@ -13,7 +13,8 @@
 	import QrLogin from '$lib/components/custom/qr-login.svelte';
 	import FilterOptionEditor from '$lib/components/filter-option-editor.svelte';
 	import NotifierDialog from './NotifierDialog.svelte';
-	import { InfoIcon, QrCodeIcon } from '@lucide/svelte/icons';
+	import InfoIcon from '@lucide/svelte/icons/info';
+	import QrCodeIcon from '@lucide/svelte/icons/qr-code';
 	import api from '$lib/api';
 	import { toast } from 'svelte-sonner';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';

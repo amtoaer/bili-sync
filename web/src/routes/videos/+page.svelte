@@ -3,7 +3,8 @@
 	import Pagination from '$lib/components/pagination.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import { SquarePenIcon, RotateCcwIcon } from '@lucide/svelte/icons';
+	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
+	import SquarePenIcon from '@lucide/svelte/icons/square-pen';
 	import api from '$lib/api';
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';

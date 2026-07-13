@@ -6,7 +6,9 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
-	import { PlusIcon, MinusIcon, XIcon } from '@lucide/svelte/icons';
+	import MinusIcon from '@lucide/svelte/icons/minus';
+	import PlusIcon from '@lucide/svelte/icons/plus';
+	import XIcon from '@lucide/svelte/icons/x';
 	import type { Rule, RuleTarget, Condition } from '$lib/types';
 	import { onMount } from 'svelte';
 

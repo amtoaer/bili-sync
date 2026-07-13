@@ -5,7 +5,8 @@
 	import { toast } from 'svelte-sonner';
 	import api from '$lib/api';
 	import type { Credential, ApiError } from '$lib/types';
-	import { RefreshCw, LoaderCircle } from '@lucide/svelte/icons';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
 	import QRCode from 'qrcode';
 
 	/**
