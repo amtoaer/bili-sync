@@ -1,11 +1,9 @@
 <script lang="ts">
-	import {
-		CircleCheckBigIcon,
-		TriangleAlertIcon,
-		SkipForwardIcon,
-		ChevronDownIcon,
-		TrashIcon
-	} from '@lucide/svelte/icons';
+	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
+	import CircleCheckBigIcon from '@lucide/svelte/icons/circle-check-big';
+	import SkipForwardIcon from '@lucide/svelte/icons/skip-forward';
+	import TrashIcon from '@lucide/svelte/icons/trash';
+	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { type ValidationFilterValue } from '$lib/stores/filter';

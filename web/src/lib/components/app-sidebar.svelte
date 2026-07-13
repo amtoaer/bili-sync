@@ -1,16 +1,14 @@
 <script lang="ts">
-	import {
-		DatabaseIcon,
-		FilePlayIcon,
-		BotIcon,
-		ChartPieIcon,
-		HeartIcon,
-		FoldersIcon,
-		UserIcon,
-		Settings2Icon,
-		SquareTerminalIcon,
-		PaletteIcon
-	} from '@lucide/svelte/icons';
+	import BotIcon from '@lucide/svelte/icons/bot';
+	import ChartPieIcon from '@lucide/svelte/icons/chart-pie';
+	import DatabaseIcon from '@lucide/svelte/icons/database';
+	import FilePlayIcon from '@lucide/svelte/icons/file-play';
+	import FoldersIcon from '@lucide/svelte/icons/folders';
+	import HeartIcon from '@lucide/svelte/icons/heart';
+	import PaletteIcon from '@lucide/svelte/icons/palette';
+	import Settings2Icon from '@lucide/svelte/icons/settings-2';
+	import SquareTerminalIcon from '@lucide/svelte/icons/square-terminal';
+	import UserIcon from '@lucide/svelte/icons/user';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { mode, toggleMode } from 'mode-watcher';
 	import type { ComponentProps } from 'svelte';

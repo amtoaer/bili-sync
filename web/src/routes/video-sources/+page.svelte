@@ -9,19 +9,17 @@
 	import * as Table from '$lib/components/ui/table/index.js';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
-	import {
-		SquarePenIcon,
-		FolderIcon,
-		HeartIcon,
-		UserIcon,
-		ClockIcon,
-		PlusIcon,
-		InfoIcon,
-		Trash2Icon,
-		CircleCheckBigIcon,
-		CircleXIcon,
-		RefreshCwIcon
-	} from '@lucide/svelte/icons';
+	import CircleCheckBigIcon from '@lucide/svelte/icons/circle-check-big';
+	import CircleXIcon from '@lucide/svelte/icons/circle-x';
+	import ClockIcon from '@lucide/svelte/icons/clock';
+	import FolderIcon from '@lucide/svelte/icons/folder';
+	import HeartIcon from '@lucide/svelte/icons/heart';
+	import InfoIcon from '@lucide/svelte/icons/info';
+	import PlusIcon from '@lucide/svelte/icons/plus';
+	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
+	import SquarePenIcon from '@lucide/svelte/icons/square-pen';
+	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import UserIcon from '@lucide/svelte/icons/user';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { toast } from 'svelte-sonner';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';

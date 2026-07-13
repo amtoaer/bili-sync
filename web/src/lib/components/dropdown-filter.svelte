@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { EllipsisIcon, TrashIcon } from '@lucide/svelte/icons';
+	import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
+	import TrashIcon from '@lucide/svelte/icons/trash';
 	import { tick } from 'svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import * as Command from '$lib/components/ui/command/index.js';
