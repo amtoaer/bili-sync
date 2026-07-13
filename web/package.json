@@ -20,7 +20,7 @@
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.20.0",
 		"globals": "^17.7.0",
-		"layerchart": "2.0.0-next.43",
+		"layerchart": "^2.0.1",
 		"mode-watcher": "^1.1.0",
 		"prettier": "^3.9.5",
 		"prettier-plugin-organize-imports": "^4.3.0",
