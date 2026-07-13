@@ -467,32 +467,32 @@ pub async fn download_page(
     let base_path = dunce::canonicalize(base_path).context("canonicalize base path failed")?;
     let (poster_path, video_path, nfo_path, danmaku_path, fanart_path, subtitle_path) = if is_single_page {
         (
-            base_path.join(format!("{}-poster.jpg", &base_name)),
-            base_path.join(format!("{}.mp4", &base_name)),
-            base_path.join(format!("{}.nfo", &base_name)),
-            base_path.join(format!("{}.zh-CN.default.ass", &base_name)),
-            Some(base_path.join(format!("{}-fanart.jpg", &base_name))),
-            base_path.join(format!("{}.srt", &base_name)),
+            base_path.join(format!("{}-poster.jpg", base_name)),
+            base_path.join(format!("{}.mp4", base_name)),
+            base_path.join(format!("{}.nfo", base_name)),
+            base_path.join(format!("{}.zh-CN.default.ass", base_name)),
+            Some(base_path.join(format!("{}-fanart.jpg", base_name))),
+            base_path.join(format!("{}.srt", base_name)),
         )
     } else {
         (
             base_path
                 .join("Season 1")
-                .join(format!("{} - S01E{:0>2}-thumb.jpg", &base_name, page_model.pid)),
+                .join(format!("{} - S01E{:0>2}-thumb.jpg", base_name, page_model.pid)),
             base_path
                 .join("Season 1")
-                .join(format!("{} - S01E{:0>2}.mp4", &base_name, page_model.pid)),
+                .join(format!("{} - S01E{:0>2}.mp4", base_name, page_model.pid)),
             base_path
                 .join("Season 1")
-                .join(format!("{} - S01E{:0>2}.nfo", &base_name, page_model.pid)),
+                .join(format!("{} - S01E{:0>2}.nfo", base_name, page_model.pid)),
             base_path
                 .join("Season 1")
-                .join(format!("{} - S01E{:0>2}.zh-CN.default.ass", &base_name, page_model.pid)),
+                .join(format!("{} - S01E{:0>2}.zh-CN.default.ass", base_name, page_model.pid)),
             // 对于多页视频，会在上一步 fetch_video_poster 中获取剧集的 fanart，无需在此处下载单集的
             None,
             base_path
                 .join("Season 1")
-                .join(format!("{} - S01E{:0>2}.srt", &base_name, page_model.pid)),
+                .join(format!("{} - S01E{:0>2}.srt", base_name, page_model.pid)),
         )
     };
     let dimension = match (page_model.width, page_model.height) {

@@ -15,8 +15,8 @@ publish = false
 bili_sync_entity = { path = "crates/bili_sync_entity" }
 bili_sync_migration = { path = "crates/bili_sync_migration" }
 
-anyhow = { version = "1.0.102", features = ["backtrace"] }
-arc-swap = { version = "1.9.1", features = ["serde"] }
+anyhow = { version = "1.0.103", features = ["backtrace"] }
+arc-swap = { version = "1.9.2", features = ["serde"] }
 async-stream = "0.3.6"
 async-tempfile = { version = "0.8.0", features = ["uuid"] }
 async-trait = "0.1.89"
@@ -36,18 +36,18 @@ enum_dispatch = "0.3.13"
 float-ord = "0.3.2"
 futures = "0.3.32"
 git2 = { version = "0.21.0", features = [], default-features = false }
-handlebars = "6.4.1"
+handlebars = "6.4.3"
 hex = "0.4.3"
 itertools = "0.14.0"
 leaky-bucket = "1.1.2"
-md5 = "0.8.0"
-memchr = "2.8.1"
+md5 = "0.8.1"
+memchr = "2.8.3"
 once_cell = "1.21.4"
 parking_lot = "0.12.5"
 prost = "0.14.4"
-quick-xml = { version = "0.40.1", features = ["async-tokio"] }
-rand = "0.10.1"
-regex = "1.12.3"
+quick-xml = { version = "0.41.0", features = ["async-tokio"] }
+rand = "0.10.2"
+regex = "1.13.0"
 reqwest = { version = "0.13.4", features = [
     "query",
     "form",
@@ -61,7 +61,7 @@ reqwest = { version = "0.13.4", features = [
 ], default-features = false }
 rsa = { version = "0.10.0-rc.18", features = ["sha2"] }
 rust-embed-for-web = { git = "https://github.com/amtoaer/rust-embed-for-web", tag = "v1.0.0" }
-rustls = { version = "0.23.40", default-features = false, features = ["ring"] }
+rustls = { version = "0.23.41", default-features = false, features = ["ring"] }
 sea-orm = { version = "1.1.20", features = [
     "macros",
     "runtime-tokio",
@@ -73,7 +73,7 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
 serde_urlencoded = "0.7.1"
 strum = { version = "0.28.0", features = ["derive"] }
-sysinfo = "0.39.3"
+sysinfo = "0.39.6"
 thiserror = "2.0.18"
 tokio = { version = "1.52.3", features = ["full"] }
 tokio-cron-scheduler = "0.15.1"
@@ -83,8 +83,8 @@ toml = "1.1.2"
 tower = "0.5.3"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["chrono", "json"] }
-ua_generator = { version = "0.5.65", default-features = false }
-uuid = { version = "1.23.2", features = ["v4"] }
+ua_generator = { version = "0.5.70", default-features = false }
+uuid = { version = "1.23.5", features = ["v4"] }
 validator = { version = "0.20.0", features = ["derive"] }
 
 [workspace.metadata.release]
