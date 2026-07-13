@@ -607,22 +607,21 @@
 					</div>
 				{/if}
 
-				<div class="space-y-4">
-					<div class="flex items-center space-x-2">
-						<Switch bind:checked={useCustomFilterOption} />
-						<div>
-							<Label class="text-sm font-medium">使用自定义流过滤设置</Label>
-							<p class="text-muted-foreground text-sm">关闭时继承全局过滤设置</p>
-						</div>
-					</div>
-					{#if editFilterOption}
-						<FilterOptionEditor bind:value={editFilterOption} disabled={!useCustomFilterOption} />
-					{/if}
-				</div>
-
 				<!-- 规则编辑器 -->
 				<div>
 					<RuleEditor rule={editForm.rule} onRuleChange={(rule) => (editForm.rule = rule)} />
+				</div>
+
+				<div class="space-y-4">
+					<div class="flex items-center space-x-2">
+						<Switch bind:checked={useCustomFilterOption} />
+						<Label class="text-sm font-medium">覆盖全局流设置</Label>
+					</div>
+					{#if editFilterOption}
+						<div class="border-muted ml-3 border-l-2 pl-6">
+							<FilterOptionEditor bind:value={editFilterOption} disabled={!useCustomFilterOption} />
+						</div>
+					{/if}
 				</div>
 			</div>
 			<div class="mt-8 flex justify-end gap-3">
