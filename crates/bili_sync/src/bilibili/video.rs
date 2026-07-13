@@ -205,7 +205,7 @@ impl<'a> Video<'a> {
         let mut res = self
             .client
             .client // 这里可以直接使用 inner_client，因为该请求不需要鉴权
-            .request(Method::GET, format!("https:{}", &info.subtitle_url).as_str(), None)
+            .request(Method::GET, format!("https:{}", info.subtitle_url).as_str(), None)
             .send()
             .await?
             .error_for_status_ext()?
