@@ -1,9 +1,4 @@
-macro_rules! regex {
-    ($re:literal $(,)?) => {{
-        static RE: once_cell::sync::OnceCell<regex::Regex> = once_cell::sync::OnceCell::new();
-        RE.get_or_init(|| regex::Regex::new($re).expect("invalid regex"))
-    }};
-}
+use regex::regex;
 
 pub fn filenamify<S: AsRef<str>>(input: S) -> String {
     let reserved = regex!("[<>:\"/\\\\|?*\u{0000}-\u{001F}\u{007F}\u{0080}-\u{009F}]+");
