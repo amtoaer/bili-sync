@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, ensure};
+use anyhow::{Context, Result, bail, ensure};
 use futures::TryStreamExt;
 use futures::stream::FuturesUnordered;
 use prost::Message;
@@ -101,12 +101,20 @@ impl<'a> Video<'a> {
             .json::<serde_json::Value>()
             .await?
             .validate()?;
-        Ok(res["data"]
+        res["data"]
             .as_array_mut()
             .context("tags is not an array")?
             .iter_mut()
-            .filter_map(|v| if let Value::String(s) = v.take() { Some(s) } else { None })
-            .collect())
+            .map(|v| {
+                if let Some(tag) = v.get_mut("tag_name")
+                    && let Value::String(s) = tag.take()
+                {
+                    Ok(s)
+                } else {
+                    bail!("tag_name is not a string");
+                }
+            })
+            .collect()
     }
 
     pub async fn get_danmaku_writer(&self, page: &'a PageInfo) -> Result<DanmakuWriter<'a>> {
