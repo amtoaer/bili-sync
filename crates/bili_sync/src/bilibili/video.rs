@@ -105,7 +105,13 @@ impl<'a> Video<'a> {
             .as_array_mut()
             .context("tags is not an array")?
             .iter_mut()
-            .filter_map(|v| if let Value::String(s) = v.take() { Some(s) } else { None })
+            .filter_map(|v| {
+                if let Value::String(s) = v["tag_name"].take() {
+                    Some(s)
+                } else {
+                    None
+                }
+            })
             .collect())
     }
 
