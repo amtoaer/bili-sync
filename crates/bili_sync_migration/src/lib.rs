@@ -12,6 +12,7 @@ mod m20250903_094454_add_rule_and_should_download;
 mod m20251009_123713_add_use_dynamic_api;
 mod m20260324_055217_add_staff;
 mod m20260712_123205_add_filter_option;
+mod m20260821_025000_mark_empty_tags_for_refetch;
 
 pub struct Migrator;
 
@@ -31,6 +32,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20251009_123713_add_use_dynamic_api::Migration),
             Box::new(m20260324_055217_add_staff::Migration),
             Box::new(m20260712_123205_add_filter_option::Migration),
+            Box::new(m20260821_025000_mark_empty_tags_for_refetch::Migration),
         ]
     }
 }

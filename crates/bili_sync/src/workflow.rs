@@ -219,7 +219,7 @@ pub async fn download_unprocessed_videos(
     let unhandled_videos_pages = filter_unhandled_video_pages(video_source.filter_expr(), connection).await?;
     let mut assigned_upper_ids = HashSet::new();
     let tasks = stream::iter(unhandled_videos_pages)
-        .map(|(video_model, pages_model)| {
+        .map(|(mut video_model, pages_model)| {
             // 这里按理说是可以直接拿到 assigned_uppers 的，但rust 会错误地认为它引用了 local variable
             // 导致编译出错，暂时先这样单独提取出一个 owned 的 upper id 列表，再在任务内部筛选
             let task_uids = video_model
@@ -227,7 +227,19 @@ pub async fn download_unprocessed_videos(
                 .map(|u| u.mid)
                 .filter(|uid| assigned_upper_ids.insert(*uid))
                 .collect::<Vec<_>>();
-            download_video_pages(video_model, pages_model, task_uids, cx)
+            async move {
+                // b 站接口调整导致一段时间内的 tag 被错误保存为 []，迁移文件会将当前的 [] 更新为 None
+                // 此处在下载前发现 None 的 tag 尝试重新填充以修复错误
+                if video_model.tags.is_none() {
+                    video_model.tags = Some(
+                        Video::new(cx.bili_client, video_model.bvid.as_str(), &cx.config.credential)
+                            .get_tags()
+                            .await?
+                            .into(),
+                    );
+                }
+                download_video_pages(video_model, pages_model, task_uids, cx).await
+            }
         })
         .buffer_unordered(config.concurrent_limit.video);
     let mut risk_control_related_error = None;
@@ -359,6 +371,7 @@ pub async fn download_video_pages(
         }
     }
     let mut video_active_model: video::ActiveModel = video_model.into();
+    video_active_model.tags.reset();
     video_active_model.download_status = Set(status.into());
     video_active_model.path = Set(base_path.to_string_lossy().to_string());
     Ok(video_active_model)
