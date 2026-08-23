@@ -12,6 +12,8 @@ export interface AppState {
 	} | null;
 	statusFilter: StatusFilterValue | null;
 	validationFilter: ValidationFilterValue | null;
+	createdFrom: string | null;
+	createdTo: string | null;
 }
 
 export const appStateStore = writable<AppState>({
@@ -19,11 +21,21 @@ export const appStateStore = writable<AppState>({
 	currentPage: 0,
 	videoSource: null,
 	statusFilter: null,
-	validationFilter: 'normal'
+	validationFilter: 'normal',
+	createdFrom: null,
+	createdTo: null
 });
 
 export const ToQuery = (state: AppState): string => {
-	const { query, videoSource, currentPage, statusFilter, validationFilter } = state;
+	const {
+		query,
+		videoSource,
+		currentPage,
+		statusFilter,
+		validationFilter,
+		createdFrom,
+		createdTo
+	} = state;
 	const params = new URLSearchParams();
 	if (currentPage > 0) {
 		params.set('page', String(currentPage));
@@ -40,6 +52,12 @@ export const ToQuery = (state: AppState): string => {
 	if (validationFilter) {
 		params.set('validation_filter', validationFilter);
 	}
+	if (createdFrom) {
+		params.set('created_from', createdFrom);
+	}
+	if (createdTo) {
+		params.set('created_to', createdTo);
+	}
 	const queryString = params.toString();
 	return queryString ? `videos?${queryString}` : 'videos';
 };
@@ -55,6 +73,8 @@ export const ToFilterParams = (
 	watch_later?: number;
 	status_filter?: Exclude<StatusFilterValue, null>;
 	validation_filter?: Exclude<ValidationFilterValue, null>;
+	created_from?: string;
+	created_to?: string;
 } => {
 	const params: {
 		query?: string;
@@ -64,6 +84,8 @@ export const ToFilterParams = (
 		watch_later?: number;
 		status_filter?: Exclude<StatusFilterValue, null>;
 		validation_filter?: Exclude<ValidationFilterValue, null>;
+		created_from?: string;
+		created_to?: string;
 	} = {};
 
 	if (state.query.trim()) {
@@ -80,6 +102,12 @@ export const ToFilterParams = (
 	if (state.validationFilter) {
 		params.validation_filter = state.validationFilter;
 	}
+	if (state.createdFrom) {
+		params.created_from = state.createdFrom;
+	}
+	if (state.createdTo) {
+		params.created_to = state.createdTo;
+	}
 	return params;
 };
 
@@ -89,7 +117,9 @@ export const hasActiveFilters = (state: AppState): boolean => {
 		state.query.trim() ||
 		state.videoSource ||
 		state.statusFilter ||
-		state.validationFilter
+		state.validationFilter ||
+		state.createdFrom ||
+		state.createdTo
 	);
 };
 
@@ -121,6 +151,14 @@ export const setValidationFilter = (validationFilter: ValidationFilterValue | nu
 	}));
 };
 
+export const setCreatedTimeFilter = (createdFrom: string | null, createdTo: string | null) => {
+	appStateStore.update((state) => ({
+		...state,
+		createdFrom,
+		createdTo
+	}));
+};
+
 export const resetCurrentPage = () => {
 	appStateStore.update((state) => ({
 		...state,
@@ -133,13 +171,17 @@ export const setAll = (
 	currentPage: number,
 	videoSource: { type: string; id: string } | null,
 	statusFilter: StatusFilterValue | null,
-	validationFilter: ValidationFilterValue | null = 'normal'
+	validationFilter: ValidationFilterValue | null = 'normal',
+	createdFrom: string | null = null,
+	createdTo: string | null = null
 ) => {
 	appStateStore.set({
 		query,
 		currentPage,
 		videoSource,
 		statusFilter,
-		validationFilter
+		validationFilter,
+		createdFrom,
+		createdTo
 	});
 };

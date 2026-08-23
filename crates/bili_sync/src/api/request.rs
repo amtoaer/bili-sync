@@ -1,4 +1,5 @@
 use bili_sync_entity::rule::Rule;
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -29,6 +30,8 @@ pub struct VideosRequest {
     pub query: Option<String>,
     pub status_filter: Option<StatusFilter>,
     pub validation_filter: Option<ValidationFilter>,
+    pub created_from: Option<NaiveDateTime>,
+    pub created_to: Option<NaiveDateTime>,
     pub page: Option<u64>,
     pub page_size: Option<u64>,
 }
@@ -48,6 +51,8 @@ pub struct ResetFilteredVideoStatusRequest {
     pub query: Option<String>,
     pub status_filter: Option<StatusFilter>,
     pub validation_filter: Option<ValidationFilter>,
+    pub created_from: Option<NaiveDateTime>,
+    pub created_to: Option<NaiveDateTime>,
     #[serde(default)]
     pub force: bool,
 }
@@ -86,6 +91,8 @@ pub struct UpdateFilteredVideoStatusRequest {
     pub query: Option<String>,
     pub status_filter: Option<StatusFilter>,
     pub validation_filter: Option<ValidationFilter>,
+    pub created_from: Option<NaiveDateTime>,
+    pub created_to: Option<NaiveDateTime>,
     #[serde(default)]
     #[validate(nested)]
     pub video_updates: Vec<StatusUpdate>,
