@@ -5,10 +5,12 @@ use axum::extract::{Extension, Path, Query};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use bili_sync_entity::*;
+use chrono::NaiveDateTime;
 use sea_orm::ActiveValue::Set;
+use sea_orm::sea_query::{Expr, ExprTrait};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, PaginatorTrait, QueryFilter,
-    QueryOrder, TransactionTrait, TryIntoModel,
+    QueryOrder, Select, TransactionTrait, TryIntoModel,
 };
 
 use crate::api::error::InnerApiError;
@@ -37,6 +39,26 @@ pub(super) fn router() -> Router {
         .route("/videos/{id}/update-status", post(update_video_status))
         .route("/videos/reset-status", post(reset_filtered_video_status))
         .route("/videos/update-status", post(update_filtered_video_status))
+}
+
+fn apply_created_at_filter(
+    mut query: Select<video::Entity>,
+    created_from: Option<NaiveDateTime>,
+    created_to: Option<NaiveDateTime>,
+) -> Select<video::Entity> {
+    if let Some(created_from) = created_from {
+        query = query.filter(
+            Expr::cust_with_expr("datetime(?, 'localtime')", Expr::col(video::Column::CreatedAt))
+                .gte(created_from.format("%Y-%m-%d %H:%M:%S").to_string()),
+        );
+    }
+    if let Some(created_to) = created_to {
+        query = query.filter(
+            Expr::cust_with_expr("datetime(?, 'localtime')", Expr::col(video::Column::CreatedAt))
+                .lte(created_to.format("%Y-%m-%d %H:%M:%S").to_string()),
+        );
+    }
+    query
 }
 
 /// 列出视频的基本信息，支持根据视频来源筛选、名称查找和分页
@@ -68,6 +90,7 @@ pub async fn get_videos(
     if let Some(validation_filter) = params.validation_filter {
         query = query.filter(validation_filter.to_video_query());
     }
+    query = apply_created_at_filter(query, params.created_from, params.created_to);
     let total_count = query.clone().count(&db).await?;
     let (page, page_size) = if let (Some(page), Some(page_size)) = (params.page, params.page_size) {
         (page, page_size)
@@ -240,6 +263,7 @@ pub async fn reset_filtered_video_status(
     if let Some(validation_filter) = request.validation_filter {
         query = query.filter(validation_filter.to_video_query());
     }
+    query = apply_created_at_filter(query, request.created_from, request.created_to);
     let all_videos = query.into_partial_model::<SimpleVideoInfo>().all(&db).await?;
     let all_pages = page::Entity::find()
         .filter(page::Column::VideoId.is_in(all_videos.iter().map(|v| v.id)))
@@ -379,6 +403,7 @@ pub async fn update_filtered_video_status(
     if let Some(validation_filter) = request.validation_filter {
         query = query.filter(validation_filter.to_video_query());
     }
+    query = apply_created_at_filter(query, request.created_from, request.created_to);
     let mut all_videos = query.into_partial_model::<SimpleVideoInfo>().all(&db).await?;
     let mut all_pages = page::Entity::find()
         .filter(page::Column::VideoId.is_in(all_videos.iter().map(|v| v.id)))

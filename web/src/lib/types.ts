@@ -11,6 +11,8 @@ export interface VideosRequest {
 	query?: string;
 	status_filter?: 'failed' | 'succeeded' | 'waiting';
 	validation_filter?: 'skipped' | 'invalid' | 'normal';
+	created_from?: string;
+	created_to?: string;
 	page?: number;
 	page_size?: number;
 }
@@ -124,6 +126,8 @@ export interface UpdateFilteredVideoStatusRequest {
 	query?: string;
 	status_filter?: 'failed' | 'succeeded' | 'waiting';
 	validation_filter?: 'skipped' | 'invalid' | 'normal';
+	created_from?: string;
+	created_to?: string;
 	video_updates?: StatusUpdate[];
 	page_updates?: StatusUpdate[];
 }
@@ -140,6 +144,8 @@ export interface ResetFilteredVideoStatusRequest {
 	query?: string;
 	status_filter?: 'failed' | 'succeeded' | 'waiting';
 	validation_filter?: 'skipped' | 'invalid' | 'normal';
+	created_from?: string;
+	created_to?: string;
 	force: boolean;
 }
 
