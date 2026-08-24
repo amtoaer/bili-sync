@@ -17,6 +17,7 @@ pub struct Model {
     pub path: Option<String>,
     pub image: Option<String>,
     pub download_status: u32,
+    pub danmaku_last_synced_at: Option<DateTime>,
     pub created_at: String,
 }
 

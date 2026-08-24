@@ -82,6 +82,57 @@ impl Default for Trigger {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub struct DanmakuUpdatePolicy {
+    pub enabled: bool,
+    pub milestones: Vec<DanmakuUpdateMilestone>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum DanmakuUpdateMilestone {
+    Once { at_days: u32 },
+    Periodic { until_days: u32, interval_hours: u32 },
+}
+
+impl DanmakuUpdateMilestone {
+    pub fn end_days(self) -> i64 {
+        i64::from(match self {
+            Self::Once { at_days } => at_days,
+            Self::Periodic { until_days, .. } => until_days,
+        })
+    }
+
+    pub fn start_hours(self) -> i64 {
+        match self {
+            DanmakuUpdateMilestone::Once { at_days } => at_days as i64 * 24,
+            DanmakuUpdateMilestone::Periodic {
+                until_days,
+                interval_hours,
+            } => i64::min(until_days as i64 * 24, interval_hours as i64),
+        }
+    }
+}
+
+impl DanmakuUpdatePolicy {
+    pub fn validate(&self) -> Result<(), &'static str> {
+        if !self.enabled {
+            return Ok(());
+        }
+        let mut previous_end_days = 0;
+        for milestone in &self.milestones {
+            if milestone.end_days() <= previous_end_days {
+                return Err("弹幕更新的里程碑天数必须大于 0 且严格递增");
+            }
+            if matches!(milestone, DanmakuUpdateMilestone::Periodic { interval_hours: 0, .. }) {
+                return Err("弹幕更新的刷新间隔必须大于 0");
+            }
+            previous_end_days = milestone.end_days();
+        }
+        Ok(())
+    }
+}
+
 pub trait PathSafeTemplate {
     fn path_safe_register(&mut self, name: &'static str, template: impl Into<String>) -> Result<()>;
     fn path_safe_render(&self, name: &'static str, data: &serde_json::Value) -> Result<String>;

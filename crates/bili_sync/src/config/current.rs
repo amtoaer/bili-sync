@@ -14,7 +14,7 @@ use crate::config::default::{
     default_auth_token, default_bind_address, default_collection_path, default_favorite_path, default_submission_path,
     default_time_format,
 };
-use crate::config::item::{ConcurrentLimit, NFOTimeType, SkipOption, Trigger};
+use crate::config::item::{ConcurrentLimit, DanmakuUpdatePolicy, NFOTimeType, SkipOption, Trigger};
 use crate::notifier::Notifier;
 use crate::utils::model::{load_db_config, save_db_config};
 
@@ -32,6 +32,8 @@ pub struct Config {
     pub credential: Credential,
     pub filter_option: FilterOption,
     pub danmaku_option: DanmakuOption,
+    #[serde(default)]
+    pub danmaku_update_policy: DanmakuUpdatePolicy,
     #[serde(default)]
     pub skip_option: SkipOption,
     pub video_name: String,
@@ -107,6 +109,9 @@ impl Config {
                 }
             }
         };
+        if let Err(error) = self.danmaku_update_policy.validate() {
+            errors.push(error);
+        }
         if !errors.is_empty() {
             bail!(errors.into_iter().map(|e| format!("- {}", e)).join("\n"));
         }
@@ -122,6 +127,7 @@ impl Default for Config {
             credential: Credential::default(),
             filter_option: FilterOption::default(),
             danmaku_option: DanmakuOption::default(),
+            danmaku_update_policy: DanmakuUpdatePolicy::default(),
             skip_option: SkipOption::default(),
             video_name: "{{title}}".to_owned(),
             page_name: "{{bvid}}".to_owned(),

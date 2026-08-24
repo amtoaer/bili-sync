@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use bili_sync_entity::{page, video};
 use bili_sync_migration::{ExprTrait, IntoCondition};
-use sea_orm::sea_query::Expr;
+use sea_orm::sea_query::{Expr, SimpleExpr};
 use sea_orm::{ColumnTrait, Condition};
 
 use crate::error::ExecutionStatus;
@@ -213,11 +213,27 @@ impl<const N: usize, C: ColumnTrait> StatusQueryBuilder<N, C> {
         Self { column }
     }
 
+    fn subtask_status(&self, offset: usize) -> SimpleExpr {
+        assert!(offset < N, "status offset should be less than status length");
+        Expr::col(self.column.as_column_ref())
+            .right_shift((offset * 3) as i32)
+            .bit_and(0b111)
+    }
+
+    pub fn subtask_succeeded(&self, offset: usize) -> SimpleExpr {
+        self.subtask_status(offset).eq(STATUS_OK)
+    }
+
+    pub fn reset_subtask(&self, offset: usize) -> SimpleExpr {
+        assert!(offset < N, "status offset should be less than status length");
+        Expr::col(self.column.as_column_ref()).bit_and(!(STATUS_COMPLETED | (0b111 << (offset * 3))))
+    }
+
     /// 完成状态：所有子任务的状态都是成功
     pub fn succeeded(&self) -> Condition {
         let mut condition = Condition::all();
-        for offset in 0..N as i32 {
-            condition = condition.add(Expr::col(self.column).right_shift(offset * 3).bit_and(7).eq(7))
+        for offset in 0..N {
+            condition = condition.add(self.subtask_succeeded(offset))
         }
         condition
     }
@@ -225,13 +241,8 @@ impl<const N: usize, C: ColumnTrait> StatusQueryBuilder<N, C> {
     /// 失败状态：存在任何失败的子任务
     pub fn failed(&self) -> Condition {
         let mut condition = Condition::any();
-        for offset in 0..N as i32 {
-            condition = condition.add(
-                Expr::col(self.column)
-                    .right_shift(offset * 3)
-                    .bit_and(7)
-                    .is_not_in([0, 7]),
-            )
+        for offset in 0..N {
+            condition = condition.add(self.subtask_status(offset).is_not_in([STATUS_NOT_STARTED, STATUS_OK]))
         }
         condition
     }
@@ -239,8 +250,8 @@ impl<const N: usize, C: ColumnTrait> StatusQueryBuilder<N, C> {
     /// 等待状态：所有子任务的状态都不是失败，且其中存在未开始
     pub fn waiting(&self) -> Condition {
         let mut condition = Condition::any();
-        for offset in 0..N as i32 {
-            condition = condition.add(Expr::col(self.column).right_shift(offset * 3).bit_and(7).eq(0))
+        for offset in 0..N {
+            condition = condition.add(self.subtask_status(offset).eq(STATUS_NOT_STARTED))
         }
         condition.and(self.failed().not()).into_condition()
     }
@@ -249,8 +260,21 @@ impl<const N: usize, C: ColumnTrait> StatusQueryBuilder<N, C> {
 #[cfg(test)]
 mod tests {
     use anyhow::anyhow;
+    use sea_orm::{DbBackend, EntityTrait, QueryFilter, QueryTrait};
 
     use super::*;
+
+    #[test]
+    fn test_subtask_succeeded_query() {
+        let query = page::Entity::find()
+            .filter(PageStatus::query_builder().subtask_succeeded(3))
+            .build(DbBackend::Sqlite)
+            .to_string();
+        assert!(
+            query.contains("((\"page\".\"download_status\" >> 9) & 7) = 7"),
+            "{query}"
+        );
+    }
 
     #[test]
     fn test_status_update() {
