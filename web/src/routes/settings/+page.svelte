@@ -713,8 +713,7 @@
 									{/if}
 									<Button
 										variant="outline"
-										disabled={!formData.danmaku_update_policy.enabled ||
-											formData.danmaku_update_policy.milestones.length === 1}
+										disabled={!formData.danmaku_update_policy.enabled}
 										onclick={() => removeDanmakuUpdateMilestone(index)}>删除</Button
 									>
 								</div>

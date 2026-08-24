@@ -62,7 +62,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn t(days: i64, hours: i64) -> DateTime<Utc> {
         Utc.timestamp_opt(0, 0).unwrap() + Duration::days(days) + Duration::hours(hours)
     }
