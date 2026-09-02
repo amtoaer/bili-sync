@@ -10,7 +10,7 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(Video::Table)
-                    .add_column(text_null(Video::Staff))
+                    .add_column(json_null(Video::Staff))
                     .to_owned(),
             )
             .await

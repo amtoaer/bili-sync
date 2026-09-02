@@ -11,7 +11,7 @@ use crate::api::wrapper::ApiResponse;
 use crate::config::VersionedConfig;
 
 mod config;
-mod dashboard;
+pub(crate) mod dashboard;
 mod login;
 mod me;
 mod task;

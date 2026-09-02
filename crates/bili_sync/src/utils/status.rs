@@ -162,6 +162,21 @@ impl<const N: usize, C> From<Status<N, C>> for u32 {
     }
 }
 
+/// 数据库实体中 download_status 列以 i64 存储（PostgreSQL 的 bigint），此处提供直连转换，
+/// 避免调用点散落 `as u32` / `as i64` 强转。状态位域的有效值域为 [0, 2^32)，
+/// 超出部分（正常情况下不存在）按 `as u32` 截断，与既有强转行为保持一致。
+impl<const N: usize, C> From<i64> for Status<N, C> {
+    fn from(status: i64) -> Self {
+        Status(status as u32, PhantomData)
+    }
+}
+
+impl<const N: usize, C> From<Status<N, C>> for i64 {
+    fn from(status: Status<N, C>) -> Self {
+        status.0 as i64
+    }
+}
+
 impl<const N: usize, C> From<Status<N, C>> for [u32; N] {
     fn from(status: Status<N, C>) -> Self {
         let mut result = [0; N];

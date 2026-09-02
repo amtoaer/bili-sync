@@ -1,5 +1,7 @@
 use sea_orm_migration::prelude::*;
 
+use crate::utc_now_default;
+
 #[derive(DeriveMigrationName)]
 pub struct Migration;
 
@@ -13,18 +15,18 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(
                         ColumnDef::new(Favorite::Id)
-                            .unsigned()
+                            .integer()
                             .not_null()
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(Favorite::FId).unique_key().unsigned().not_null())
+                    .col(ColumnDef::new(Favorite::FId).unique_key().big_unsigned().not_null())
                     .col(ColumnDef::new(Favorite::Name).string().not_null())
                     .col(ColumnDef::new(Favorite::Path).string().not_null())
                     .col(
                         ColumnDef::new(Favorite::CreatedAt)
                             .timestamp()
-                            .default(Expr::current_timestamp())
+                            .default(utc_now_default(manager))
                             .not_null(),
                     )
                     .to_owned(),
@@ -37,32 +39,32 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(
                         ColumnDef::new(Video::Id)
-                            .unsigned()
+                            .integer()
                             .not_null()
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(Video::FavoriteId).unsigned().not_null())
-                    .col(ColumnDef::new(Video::UpperId).unsigned().not_null())
+                    .col(ColumnDef::new(Video::FavoriteId).integer().not_null())
+                    .col(ColumnDef::new(Video::UpperId).big_unsigned().not_null())
                     .col(ColumnDef::new(Video::UpperName).string().not_null())
                     .col(ColumnDef::new(Video::UpperFace).string().not_null())
                     .col(ColumnDef::new(Video::Name).string().not_null())
                     .col(ColumnDef::new(Video::Path).string().not_null())
-                    .col(ColumnDef::new(Video::Category).small_unsigned().not_null())
+                    .col(ColumnDef::new(Video::Category).integer().not_null())
                     .col(ColumnDef::new(Video::Bvid).string().not_null())
                     .col(ColumnDef::new(Video::Intro).string().not_null())
                     .col(ColumnDef::new(Video::Cover).string().not_null())
                     .col(ColumnDef::new(Video::Ctime).timestamp().not_null())
                     .col(ColumnDef::new(Video::Pubtime).timestamp().not_null())
                     .col(ColumnDef::new(Video::Favtime).timestamp().not_null())
-                    .col(ColumnDef::new(Video::DownloadStatus).unsigned().not_null())
+                    .col(ColumnDef::new(Video::DownloadStatus).big_unsigned().not_null())
                     .col(ColumnDef::new(Video::Valid).boolean().not_null())
                     .col(ColumnDef::new(Video::Tags).json_binary())
                     .col(ColumnDef::new(Video::SinglePage).boolean())
                     .col(
                         ColumnDef::new(Video::CreatedAt)
                             .timestamp()
-                            .default(Expr::current_timestamp())
+                            .default(utc_now_default(manager))
                             .not_null(),
                     )
                     .to_owned(),
@@ -75,25 +77,25 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(
                         ColumnDef::new(Page::Id)
-                            .unsigned()
+                            .integer()
                             .not_null()
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(Page::VideoId).unsigned().not_null())
-                    .col(ColumnDef::new(Page::Cid).unsigned().not_null())
-                    .col(ColumnDef::new(Page::Pid).unsigned().not_null())
+                    .col(ColumnDef::new(Page::VideoId).integer().not_null())
+                    .col(ColumnDef::new(Page::Cid).big_unsigned().not_null())
+                    .col(ColumnDef::new(Page::Pid).integer().not_null())
                     .col(ColumnDef::new(Page::Name).string().not_null())
-                    .col(ColumnDef::new(Page::Width).unsigned())
-                    .col(ColumnDef::new(Page::Height).unsigned())
-                    .col(ColumnDef::new(Page::Duration).unsigned().not_null())
+                    .col(ColumnDef::new(Page::Width).integer())
+                    .col(ColumnDef::new(Page::Height).integer())
+                    .col(ColumnDef::new(Page::Duration).integer().not_null())
                     .col(ColumnDef::new(Page::Path).string())
                     .col(ColumnDef::new(Page::Image).string())
-                    .col(ColumnDef::new(Page::DownloadStatus).unsigned().not_null())
+                    .col(ColumnDef::new(Page::DownloadStatus).big_unsigned().not_null())
                     .col(
                         ColumnDef::new(Page::CreatedAt)
                             .timestamp()
-                            .default(Expr::current_timestamp())
+                            .default(utc_now_default(manager))
                             .not_null(),
                     )
                     .to_owned(),

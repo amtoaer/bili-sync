@@ -1,4 +1,16 @@
 pub use sea_orm_migration::prelude::*;
+use sea_orm_migration::sea_orm::DatabaseBackend;
+
+/// created_at 的数据库默认值：SQLite 的 CURRENT_TIMESTAMP 返回 UTC 文本；
+/// PostgreSQL 上 CURRENT_TIMESTAMP 是 timestamptz，写入 timestamp 列时按会话
+/// 时区转墙钟，需显式换算出 UTC 以保证两后端存储语义一致
+pub fn utc_now_default(manager: &SchemaManager) -> SimpleExpr {
+    if manager.get_database_backend() == DatabaseBackend::Postgres {
+        Expr::cust("(CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::timestamp")
+    } else {
+        Expr::current_timestamp().into()
+    }
+}
 
 mod m20240322_000001_create_table;
 mod m20240505_130850_add_collection;

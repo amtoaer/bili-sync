@@ -19,7 +19,7 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(WatchLater::Table)
-                    .add_column(text_null(WatchLater::Rule))
+                    .add_column(json_null(WatchLater::Rule))
                     .to_owned(),
             )
             .await?;
@@ -27,7 +27,7 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(Submission::Table)
-                    .add_column(text_null(Submission::Rule))
+                    .add_column(json_null(Submission::Rule))
                     .to_owned(),
             )
             .await?;
@@ -35,7 +35,7 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(Favorite::Table)
-                    .add_column(text_null(Favorite::Rule))
+                    .add_column(json_null(Favorite::Rule))
                     .to_owned(),
             )
             .await?;
@@ -43,7 +43,7 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(Collection::Table)
-                    .add_column(text_null(Collection::Rule))
+                    .add_column(json_null(Collection::Rule))
                     .to_owned(),
             )
             .await

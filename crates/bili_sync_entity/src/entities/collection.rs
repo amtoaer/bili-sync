@@ -14,7 +14,7 @@ pub struct Model {
     pub name: String,
     pub r#type: i32,
     pub path: String,
-    pub created_at: String,
+    pub created_at: DateTime,
     pub latest_row_at: DateTime,
     pub rule: Option<Rule>,
     pub filter_option: Option<Json>,

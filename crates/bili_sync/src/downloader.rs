@@ -301,13 +301,13 @@ mod tests {
 
     use crate::bilibili::{BestStream, BiliClient, Video};
     use crate::config::VersionedConfig;
-    use crate::database::setup_database;
+    use crate::database::{database_url, setup_database};
     use crate::downloader::Downloader;
 
     #[ignore = "only for manual test"]
     #[tokio::test(flavor = "multi_thread")]
     async fn test_parse_and_download_video() -> Result<()> {
-        VersionedConfig::init_for_test(&setup_database(Path::new("./test.sqlite")).await?).await?;
+        VersionedConfig::init_for_test(&setup_database(&database_url(Path::new("./test.sqlite"))).await?).await?;
         let config = VersionedConfig::get().read();
         let client = BiliClient::new();
         let video = Video::new(&client, "BV1QJmaYKEv4", &config.credential);

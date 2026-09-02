@@ -1,5 +1,6 @@
 use sea_orm_migration::prelude::*;
 use sea_orm_migration::schema::*;
+use sea_orm_migration::sea_orm::DatabaseBackend;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -41,22 +42,28 @@ impl MigrationTrait for Migration {
             )
             .await?;
         // 手动写 SQL 更新这四张表的 latest 字段到当前取值
+        // IFNULL 为 SQLite 专用函数，PostgreSQL 使用等价的 COALESCE
         let db = manager.get_connection();
-        db.execute_unprepared(
-            "UPDATE favorite SET latest_row_at = (SELECT IFNULL(MAX(favtime), '1970-01-01 00:00:00') FROM video WHERE favorite_id = favorite.id)",
-        )
+        let null_func = match manager.get_database_backend() {
+            DatabaseBackend::Sqlite => "IFNULL",
+            DatabaseBackend::Postgres => "COALESCE",
+            _ => unreachable!(),
+        };
+        db.execute_unprepared(&format!(
+            "UPDATE favorite SET latest_row_at = (SELECT {null_func}(MAX(favtime), '1970-01-01 00:00:00') FROM video WHERE favorite_id = favorite.id)",
+        ))
         .await?;
-        db.execute_unprepared(
-            "UPDATE collection SET latest_row_at = (SELECT IFNULL(MAX(pubtime), '1970-01-01 00:00:00') FROM video WHERE collection_id = collection.id)",
-        )
+        db.execute_unprepared(&format!(
+            "UPDATE collection SET latest_row_at = (SELECT {null_func}(MAX(pubtime), '1970-01-01 00:00:00') FROM video WHERE collection_id = collection.id)",
+        ))
         .await?;
-        db.execute_unprepared(
-            "UPDATE watch_later SET latest_row_at = (SELECT IFNULL(MAX(favtime), '1970-01-01 00:00:00') FROM video WHERE watch_later_id = watch_later.id)",
-        )
+        db.execute_unprepared(&format!(
+            "UPDATE watch_later SET latest_row_at = (SELECT {null_func}(MAX(favtime), '1970-01-01 00:00:00') FROM video WHERE watch_later_id = watch_later.id)",
+        ))
         .await?;
-        db.execute_unprepared(
-            "UPDATE submission SET latest_row_at = (SELECT IFNULL(MAX(ctime), '1970-01-01 00:00:00') FROM video WHERE submission_id = submission.id)",
-        )
+        db.execute_unprepared(&format!(
+            "UPDATE submission SET latest_row_at = (SELECT {null_func}(MAX(ctime), '1970-01-01 00:00:00') FROM video WHERE submission_id = submission.id)",
+        ))
         .await?;
         Ok(())
     }

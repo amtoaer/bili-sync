@@ -11,13 +11,13 @@ pub struct Model {
     pub cid: i64,
     pub pid: i32,
     pub name: String,
-    pub width: Option<u32>,
-    pub height: Option<u32>,
-    pub duration: u32,
+    pub width: Option<i32>,
+    pub height: Option<i32>,
+    pub duration: i32,
     pub path: Option<String>,
     pub image: Option<String>,
-    pub download_status: u32,
-    pub created_at: String,
+    pub download_status: i64,
+    pub created_at: DateTime,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

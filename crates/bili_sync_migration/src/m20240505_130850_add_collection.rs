@@ -1,4 +1,7 @@
 use sea_orm_migration::prelude::*;
+use sea_orm_migration::sea_orm::DatabaseBackend;
+
+use crate::utc_now_default;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -14,20 +17,20 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(
                         ColumnDef::new(Collection::Id)
-                            .unsigned()
+                            .integer()
                             .not_null()
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(Collection::SId).unsigned().not_null())
-                    .col(ColumnDef::new(Collection::MId).unsigned().not_null())
+                    .col(ColumnDef::new(Collection::SId).big_unsigned().not_null())
+                    .col(ColumnDef::new(Collection::MId).big_unsigned().not_null())
                     .col(ColumnDef::new(Collection::Name).string().not_null())
-                    .col(ColumnDef::new(Collection::Type).small_unsigned().not_null())
+                    .col(ColumnDef::new(Collection::Type).unsigned().not_null())
                     .col(ColumnDef::new(Collection::Path).string().not_null())
                     .col(
                         ColumnDef::new(Collection::CreatedAt)
                             .timestamp()
-                            .default(Expr::current_timestamp())
+                            .default(utc_now_default(manager))
                             .not_null(),
                     )
                     .to_owned(),
@@ -87,9 +90,18 @@ impl MigrationTrait for Migration {
                     .to_owned(),
             )
             .await?;
-        // 在唯一索引中，NULL 不等于 NULL，所以需要使用 ifnull 函数排除空的情况
-        db.execute_unprepared("CREATE UNIQUE INDEX `idx_video_cid_fid_bvid` ON `video` (ifnull(`collection_id`, -1), ifnull(`favorite_id`, -1), `bvid`)")
-            .await?;
+        // 在唯一索引中，NULL 不等于 NULL，所以需要使用 ifnull/COALESCE 函数排除空的情况
+        match manager.get_database_backend() {
+            DatabaseBackend::Sqlite => {
+                db.execute_unprepared("CREATE UNIQUE INDEX `idx_video_cid_fid_bvid` ON `video` (ifnull(`collection_id`, -1), ifnull(`favorite_id`, -1), `bvid`)")
+                    .await?;
+            }
+            DatabaseBackend::Postgres => {
+                db.execute_unprepared("CREATE UNIQUE INDEX idx_video_cid_fid_bvid ON video (COALESCE(collection_id, -1), COALESCE(favorite_id, -1), bvid)")
+                    .await?;
+            }
+            _ => unreachable!(),
+        }
         Ok(())
     }
 

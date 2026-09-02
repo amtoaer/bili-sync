@@ -5,7 +5,7 @@ use rand::seq::SliceRandom;
 use sea_orm::ActiveValue::Set;
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::{Expr, OnConflict, SimpleExpr};
-use sea_orm::{ConnectionTrait, DatabaseTransaction, IdenStatic, Statement};
+use sea_orm::{ConnectionTrait, DatabaseBackend, DatabaseTransaction, IdenStatic, Statement};
 
 use crate::adapter::{VideoSource, VideoSourceEnum};
 use crate::bilibili::VideoInfo;
@@ -40,7 +40,7 @@ pub async fn filter_unhandled_video_pages(
         .filter(
             video::Column::Valid
                 .eq(true)
-                .and(video::Column::DownloadStatus.lt(STATUS_COMPLETED))
+                .and(video::Column::DownloadStatus.lt(i64::from(STATUS_COMPLETED)))
                 .and(video::Column::Category.eq(2))
                 .and(video::Column::SinglePage.is_not_null())
                 .and(video::Column::ShouldDownload.eq(true))
@@ -130,9 +130,29 @@ pub async fn update_video_detail_models(
         video::Column::Tags,
         video::Column::SinglePage,
     ];
-    let row = format!("({})", std::iter::repeat_n("?", columns.len()).join(", "));
-    let rows = std::iter::repeat_n(row.as_str(), videos.len()).join(", ");
-    let mut values = Vec::with_capacity(videos.len() * columns.len());
+    let video_count = videos.len();
+    // SQLite 使用 ? 占位符；PostgreSQL 使用 $n 占位符，且需要为 VALUES 各列显式标注类型
+    let rows = match connection.get_database_backend() {
+        DatabaseBackend::Sqlite => {
+            let row = format!("({})", std::iter::repeat_n("?", columns.len()).join(", "));
+            std::iter::repeat_n(row.as_str(), video_count).join(", ")
+        }
+        DatabaseBackend::Postgres => (0..video_count)
+            .map(|row_index| {
+                let offset = row_index * columns.len();
+                let row = columns
+                    .iter()
+                    .enumerate()
+                    .map(|(i, column)| format!("${}::{}", offset + i + 1, pg_param_type(*column)))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("({row})")
+            })
+            .collect::<Vec<_>>()
+            .join(", "),
+        _ => unreachable!(),
+    };
+    let mut values = Vec::with_capacity(video_count * columns.len());
     for video in videos {
         for column in columns {
             values.push(
@@ -144,19 +164,18 @@ pub async fn update_video_detail_models(
         }
     }
     let sql = format!(
-        "WITH tempdata({}) AS (VALUES {}) \
+        "WITH tempdata({}) AS (VALUES {rows}) \
         UPDATE video \
         SET {} \
         FROM tempdata \
         WHERE video.id = tempdata.id",
         columns.iter().map(IdenStatic::as_str).join(", "),
-        rows,
         columns
             .iter()
             .skip(1)
             .map(|column| {
                 let column = column.as_str();
-                format!("{} = tempdata.{}", column, column)
+                format!("{column} = tempdata.{column}")
             })
             .join(", ")
     );
@@ -168,6 +187,26 @@ pub async fn update_video_detail_models(
         ))
         .await?;
     Ok(())
+}
+
+/// PostgreSQL 批量更新的 VALUES 子句需要为每个占位符显式标注类型。
+/// 按列名派生而不是维护与 columns 平行的类型数组：未来往 columns 中新增列时，
+/// PG 路径会在这里直接 panic（fail-fast），而不是让占位符与绑定值静默错位。
+fn pg_param_type(column: video::Column) -> &'static str {
+    use video::Column;
+    match column {
+        Column::Id | Column::CollectionId | Column::FavoriteId | Column::WatchLaterId | Column::SubmissionId => "int",
+        Column::UpperId => "bigint",
+        Column::UpperName | Column::UpperFace => "text",
+        Column::Staff => "json", // 与迁移中 json_null 定义的列类型保持一致
+        Column::Name | Column::Bvid | Column::Intro | Column::Cover => "text",
+        Column::Ctime | Column::Pubtime | Column::Favtime => "timestamp",
+        Column::DownloadStatus => "bigint",
+        Column::Valid | Column::ShouldDownload => "bool",
+        Column::Tags => "jsonb",
+        Column::SinglePage => "bool",
+        _ => unreachable!("列 {} 不参与批量更新，新增列时请在此补充 PG 参数类型", column.as_str()),
+    }
 }
 
 /// 将视频标记为失效

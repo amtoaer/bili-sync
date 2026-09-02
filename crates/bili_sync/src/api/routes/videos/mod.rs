@@ -9,8 +9,8 @@ use chrono::NaiveDateTime;
 use sea_orm::ActiveValue::Set;
 use sea_orm::sea_query::{Expr, ExprTrait};
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, PaginatorTrait, QueryFilter,
-    QueryOrder, Select, TransactionTrait, TryIntoModel,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection, EntityTrait, IntoActiveModel,
+    PaginatorTrait, QueryFilter, QueryOrder, Select, TransactionTrait, TryIntoModel,
 };
 
 use crate::api::error::InnerApiError;
@@ -26,6 +26,7 @@ use crate::api::response::{
 };
 use crate::api::wrapper::{ApiError, ApiResponse, ValidatedJson};
 use crate::utils::status::{PageStatus, VideoStatus};
+use crate::utils::time::local_to_utc;
 
 pub(super) fn router() -> Router {
     Router::new()
@@ -42,21 +43,34 @@ pub(super) fn router() -> Router {
 }
 
 fn apply_created_at_filter(
+    db: &DatabaseConnection,
     mut query: Select<video::Entity>,
     created_from: Option<NaiveDateTime>,
     created_to: Option<NaiveDateTime>,
 ) -> Select<video::Entity> {
+    // 两种后端均以 UTC 存储 created_at。SQLite 在 SQL 内用 datetime(?, 'localtime')
+    // 转换到本地时间；PostgreSQL 在应用侧按服务器本地时区换算参数后直接比较，语义一致
+    // （SQLite 按查询时刻的当前偏移换算，PG 按目标日期的历史偏移换算，DST 过渡窗口内
+    // 两后端边界可能相差至多 1 小时，PG 侧更精确）
     if let Some(created_from) = created_from {
-        query = query.filter(
-            Expr::cust_with_expr("datetime(?, 'localtime')", Expr::col(video::Column::CreatedAt))
-                .gte(created_from.format("%Y-%m-%d %H:%M:%S").to_string()),
-        );
+        query = match db.get_database_backend() {
+            DatabaseBackend::Sqlite => query.filter(
+                Expr::cust_with_expr("datetime(?, 'localtime')", Expr::col(video::Column::CreatedAt))
+                    .gte(created_from.format("%Y-%m-%d %H:%M:%S").to_string()),
+            ),
+            DatabaseBackend::Postgres => query.filter(video::Column::CreatedAt.gte(local_to_utc(created_from, false))),
+            _ => unreachable!(),
+        };
     }
     if let Some(created_to) = created_to {
-        query = query.filter(
-            Expr::cust_with_expr("datetime(?, 'localtime')", Expr::col(video::Column::CreatedAt))
-                .lte(created_to.format("%Y-%m-%d %H:%M:%S").to_string()),
-        );
+        query = match db.get_database_backend() {
+            DatabaseBackend::Sqlite => query.filter(
+                Expr::cust_with_expr("datetime(?, 'localtime')", Expr::col(video::Column::CreatedAt))
+                    .lte(created_to.format("%Y-%m-%d %H:%M:%S").to_string()),
+            ),
+            DatabaseBackend::Postgres => query.filter(video::Column::CreatedAt.lte(local_to_utc(created_to, true))),
+            _ => unreachable!(),
+        };
     }
     query
 }
@@ -90,7 +104,7 @@ pub async fn get_videos(
     if let Some(validation_filter) = params.validation_filter {
         query = query.filter(validation_filter.to_video_query());
     }
-    query = apply_created_at_filter(query, params.created_from, params.created_to);
+    query = apply_created_at_filter(&db, query, params.created_from, params.created_to);
     let total_count = query.clone().count(&db).await?;
     let (page, page_size) = if let (Some(page), Some(page_size)) = (params.page, params.page_size) {
         (page, page_size)
@@ -150,7 +164,7 @@ pub async fn reset_video_status(
         .filter_map(|mut page_info| {
             let mut page_status = PageStatus::from(page_info.download_status);
             if (request.force && page_status.force_reset_failed()) || page_status.reset_failed() {
-                page_info.download_status = page_status.into();
+                page_info.download_status = i64::from(page_status);
                 Some(page_info)
             } else {
                 None
@@ -164,7 +178,7 @@ pub async fn reset_video_status(
         video_resetted = true;
     }
     let resetted_videos_info = if video_resetted {
-        video_info.download_status = video_status.into();
+        video_info.download_status = i64::from(video_status);
         vec![&video_info]
     } else {
         vec![]
@@ -263,7 +277,7 @@ pub async fn reset_filtered_video_status(
     if let Some(validation_filter) = request.validation_filter {
         query = query.filter(validation_filter.to_video_query());
     }
-    query = apply_created_at_filter(query, request.created_from, request.created_to);
+    query = apply_created_at_filter(&db, query, request.created_from, request.created_to);
     let all_videos = query.into_partial_model::<SimpleVideoInfo>().all(&db).await?;
     let all_pages = page::Entity::find()
         .filter(page::Column::VideoId.is_in(all_videos.iter().map(|v| v.id)))
@@ -275,7 +289,7 @@ pub async fn reset_filtered_video_status(
         .filter_map(|mut page_info| {
             let mut page_status = PageStatus::from(page_info.download_status);
             if (request.force && page_status.force_reset_failed()) || page_status.reset_failed() {
-                page_info.download_status = page_status.into();
+                page_info.download_status = i64::from(page_status);
                 Some(page_info)
             } else {
                 None
@@ -294,7 +308,7 @@ pub async fn reset_filtered_video_status(
                 video_resetted = true;
             }
             if video_resetted {
-                video_info.download_status = video_status.into();
+                video_info.download_status = i64::from(video_status);
                 Some(video_info)
             } else {
                 None
@@ -340,7 +354,7 @@ pub async fn update_video_status(
     for update in &request.video_updates {
         video_status.set(update.status_index, update.status_value);
     }
-    video_info.download_status = video_status.into();
+    video_info.download_status = i64::from(video_status);
     let mut updated_pages_info = Vec::new();
     let mut page_id_map = pages_info
         .iter_mut()
@@ -352,7 +366,7 @@ pub async fn update_video_status(
             for update in &page_update.updates {
                 page_status.set(update.status_index, update.status_value);
             }
-            page_info.download_status = page_status.into();
+            page_info.download_status = i64::from(page_status);
             updated_pages_info.push(page_info);
         }
     }
@@ -403,7 +417,7 @@ pub async fn update_filtered_video_status(
     if let Some(validation_filter) = request.validation_filter {
         query = query.filter(validation_filter.to_video_query());
     }
-    query = apply_created_at_filter(query, request.created_from, request.created_to);
+    query = apply_created_at_filter(&db, query, request.created_from, request.created_to);
     let mut all_videos = query.into_partial_model::<SimpleVideoInfo>().all(&db).await?;
     let mut all_pages = page::Entity::find()
         .filter(page::Column::VideoId.is_in(all_videos.iter().map(|v| v.id)))
@@ -415,14 +429,14 @@ pub async fn update_filtered_video_status(
         for update in &request.video_updates {
             video_status.set(update.status_index, update.status_value);
         }
-        video_info.download_status = video_status.into();
+        video_info.download_status = i64::from(video_status);
     }
     for page_info in all_pages.iter_mut() {
         let mut page_status = PageStatus::from(page_info.download_status);
         for update in &request.page_updates {
             page_status.set(update.status_index, update.status_value);
         }
-        page_info.download_status = page_status.into();
+        page_info.download_status = i64::from(page_status);
     }
     let has_video_updates = !all_videos.is_empty();
     let has_page_updates = !all_pages.is_empty();

@@ -372,7 +372,7 @@ pub async fn download_video_pages(
     }
     let mut video_active_model: video::ActiveModel = video_model.into();
     video_active_model.tags.reset();
-    video_active_model.download_status = Set(status.into());
+    video_active_model.download_status = Set(i64::from(status));
     video_active_model.path = Set(base_path.to_string_lossy().to_string());
     Ok(video_active_model)
 }
@@ -510,15 +510,15 @@ pub async fn download_page(
     };
     let dimension = match (page_model.width, page_model.height) {
         (Some(width), Some(height)) => Some(Dimension {
-            width,
-            height,
+            width: width as u32,
+            height: height as u32,
             rotate: 0,
         }),
         _ => None,
     };
     let page_info = PageInfo {
         cid: page_model.cid,
-        duration: page_model.duration,
+        duration: page_model.duration as u32,
         dimension,
         ..Default::default()
     };
@@ -594,7 +594,7 @@ pub async fn download_page(
         }
     }
     let mut page_active_model: page::ActiveModel = page_model.into();
-    page_active_model.download_status = Set(status.into());
+    page_active_model.download_status = Set(i64::from(status));
     page_active_model.path = Set(Some(video_path.to_string_lossy().to_string()));
     Ok(page_active_model)
 }

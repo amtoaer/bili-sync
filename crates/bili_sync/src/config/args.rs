@@ -23,6 +23,9 @@ pub struct Args {
 
     #[arg(short, long, env = "BILI_SYNC_FFMPEG_PATH")]
     pub ffmpeg_path: Option<String>,
+
+    #[arg(long, env = "BILI_SYNC_DATABASE_URL", help = "数据库连接串，支持 sqlite:// 与 postgres://")]
+    pub database_url: Option<String>,
 }
 
 mod built_info {

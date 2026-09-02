@@ -28,12 +28,12 @@ pub struct Model {
     pub ctime: DateTime,
     pub pubtime: DateTime,
     pub favtime: DateTime,
-    pub download_status: u32,
+    pub download_status: i64,
     pub valid: bool,
     pub should_download: bool,
     pub tags: Option<StringVec>,
     pub single_page: Option<bool>,
-    pub created_at: String,
+    pub created_at: DateTime,
 }
 
 impl Model {

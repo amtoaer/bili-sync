@@ -202,31 +202,49 @@ pub async fn update_video_source(
     Extension(db): Extension<DatabaseConnection>,
     ValidatedJson(request): ValidatedJson<UpdateVideoSourceRequest>,
 ) -> Result<ApiResponse<UpdateVideoSourceResponse>, ApiError> {
-    let rule_display = request.rule.as_ref().map(|rule| rule.to_string());
-    let filter_option = request.filter_option.map(serde_json::to_value).transpose()?;
+    let filter_option = request
+        .filter_option
+        .as_ref()
+        .map(|opt| opt.as_ref().map(serde_json::to_value).transpose())
+        .transpose()?; // Option<Option<Value>>，外层区分是否提供，内层为实际值
     let active_model = match source_type.as_str() {
         "collections" => collection::Entity::find_by_id(id).one(&db).await?.map(|model| {
             let mut active_model: collection::ActiveModel = model.into();
             active_model.path = Set(request.path);
             active_model.enabled = Set(request.enabled);
-            active_model.rule = Set(request.rule);
-            active_model.filter_option = Set(filter_option);
+            // rule/filter_option 仅在请求中提供时更新：提供 null 表示清空，缺失表示不更新
+            if let Some(rule) = request.rule {
+                active_model.rule = Set(rule);
+            }
+            if let Some(filter_option) = filter_option {
+                active_model.filter_option = Set(filter_option);
+            }
             _ActiveModel::Collection(active_model)
         }),
         "favorites" => favorite::Entity::find_by_id(id).one(&db).await?.map(|model| {
             let mut active_model: favorite::ActiveModel = model.into();
             active_model.path = Set(request.path);
             active_model.enabled = Set(request.enabled);
-            active_model.rule = Set(request.rule);
-            active_model.filter_option = Set(filter_option);
+            // rule/filter_option 仅在请求中提供时更新：提供 null 表示清空，缺失表示不更新
+            if let Some(rule) = request.rule {
+                active_model.rule = Set(rule);
+            }
+            if let Some(filter_option) = filter_option {
+                active_model.filter_option = Set(filter_option);
+            }
             _ActiveModel::Favorite(active_model)
         }),
         "submissions" => submission::Entity::find_by_id(id).one(&db).await?.map(|model| {
             let mut active_model: submission::ActiveModel = model.into();
             active_model.path = Set(request.path);
             active_model.enabled = Set(request.enabled);
-            active_model.rule = Set(request.rule);
-            active_model.filter_option = Set(filter_option);
+            // rule/filter_option 仅在请求中提供时更新：提供 null 表示清空，缺失表示不更新
+            if let Some(rule) = request.rule {
+                active_model.rule = Set(rule);
+            }
+            if let Some(filter_option) = filter_option {
+                active_model.filter_option = Set(filter_option);
+            }
             if let Some(use_dynamic_api) = request.use_dynamic_api {
                 active_model.use_dynamic_api = Set(use_dynamic_api);
             }
@@ -240,8 +258,13 @@ pub async fn update_video_source(
                 let mut active_model: watch_later::ActiveModel = model.into();
                 active_model.path = Set(request.path);
                 active_model.enabled = Set(request.enabled);
-                active_model.rule = Set(request.rule);
-                active_model.filter_option = Set(filter_option);
+                // rule/filter_option 仅在请求中提供时更新：提供 null 表示清空，缺失表示不更新
+                if let Some(rule) = request.rule {
+                    active_model.rule = Set(rule);
+                }
+                if let Some(filter_option) = filter_option {
+                    active_model.filter_option = Set(filter_option);
+                }
                 Some(_ActiveModel::WatchLater(active_model))
             }
             None => {
@@ -252,8 +275,8 @@ pub async fn update_video_source(
                     Some(_ActiveModel::WatchLater(watch_later::ActiveModel {
                         path: Set(request.path),
                         enabled: Set(request.enabled),
-                        rule: Set(request.rule),
-                        filter_option: Set(filter_option),
+                        rule: Set(request.rule.flatten()),
+                        filter_option: Set(filter_option.flatten()),
                         ..Default::default()
                     }))
                 }
@@ -264,8 +287,22 @@ pub async fn update_video_source(
     let Some(active_model) = active_model else {
         return Err(InnerApiError::NotFound(id).into());
     };
+    // rule_display 从待持久化的 active_model 计算：请求未携带 rule 时沿用模型中的已有
+    // 规则，直接取请求值会把「缺失=不更新」误报成「规则已清空」
+    let rule_display = active_model_rule(&active_model).map(|rule| rule.to_string());
     active_model.save(&db).await?;
     Ok(ApiResponse::ok(UpdateVideoSourceResponse { rule_display }))
+}
+
+/// 取出视频源 ActiveModel 的 rule 字段（已包含请求中的更新）：模型转 ActiveModel 时
+/// 所有字段均为 Set，请求未携带 rule 时即为原有规则，与 save 后回查数据库结果一致
+fn active_model_rule(active_model: &_ActiveModel) -> Option<&Rule> {
+    match active_model {
+        _ActiveModel::Collection(am) => am.rule.as_ref().as_ref(),
+        _ActiveModel::Favorite(am) => am.rule.as_ref().as_ref(),
+        _ActiveModel::Submission(am) => am.rule.as_ref().as_ref(),
+        _ActiveModel::WatchLater(am) => am.rule.as_ref().as_ref(),
+    }
 }
 
 pub async fn remove_video_source(

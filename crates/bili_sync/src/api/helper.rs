@@ -35,33 +35,33 @@ impl ValidationFilter {
 }
 
 pub trait VideoRecord {
-    fn as_id_status_tuple(&self) -> (i32, u32);
+    fn as_id_status_tuple(&self) -> (i32, i64);
 }
 
 pub trait PageRecord {
-    fn as_id_status_tuple(&self) -> (i32, u32);
+    fn as_id_status_tuple(&self) -> (i32, i64);
 }
 
 impl VideoRecord for VideoInfo {
-    fn as_id_status_tuple(&self) -> (i32, u32) {
+    fn as_id_status_tuple(&self) -> (i32, i64) {
         (self.id, self.download_status)
     }
 }
 
 impl VideoRecord for SimpleVideoInfo {
-    fn as_id_status_tuple(&self) -> (i32, u32) {
+    fn as_id_status_tuple(&self) -> (i32, i64) {
         (self.id, self.download_status)
     }
 }
 
 impl PageRecord for PageInfo {
-    fn as_id_status_tuple(&self) -> (i32, u32) {
+    fn as_id_status_tuple(&self) -> (i32, i64) {
         (self.id, self.download_status)
     }
 }
 
 impl PageRecord for SimplePageInfo {
-    fn as_id_status_tuple(&self) -> (i32, u32) {
+    fn as_id_status_tuple(&self) -> (i32, i64) {
         (self.id, self.download_status)
     }
 }
@@ -110,7 +110,7 @@ where
 
 async fn execute_video_update_batch(
     txn: &DatabaseTransaction,
-    videos: impl Iterator<Item = (i32, u32)>,
+    videos: impl Iterator<Item = (i32, i64)>,
 ) -> Result<(), sea_orm::DbErr> {
     let values = videos.map(|v| format!("({}, {})", v.0, v.1)).join(", ");
     if values.is_empty() {
@@ -130,7 +130,7 @@ async fn execute_video_update_batch(
 
 async fn execute_page_update_batch(
     txn: &DatabaseTransaction,
-    pages: impl Iterator<Item = (i32, u32)>,
+    pages: impl Iterator<Item = (i32, i64)>,
 ) -> Result<(), sea_orm::DbErr> {
     let values = pages.map(|p| format!("({}, {})", p.0, p.1)).join(", ");
     if values.is_empty() {

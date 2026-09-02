@@ -1,5 +1,7 @@
 use sea_orm_migration::prelude::*;
 
+use crate::utc_now_default;
+
 #[derive(DeriveMigrationName)]
 pub struct Migration;
 
@@ -22,7 +24,7 @@ impl MigrationTrait for Migration {
                     .col(
                         ColumnDef::new(Config::CreatedAt)
                             .timestamp()
-                            .default(Expr::current_timestamp())
+                            .default(utc_now_default(manager))
                             .not_null(),
                     )
                     .to_owned(),

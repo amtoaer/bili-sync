@@ -232,13 +232,13 @@ mod tests {
     use super::*;
     use crate::bilibili::credential::WbiImg;
     use crate::config::VersionedConfig;
-    use crate::database::setup_database;
+    use crate::database::{database_url, setup_database};
     use crate::utils::init_logger;
 
     #[ignore = "only for manual test"]
     #[tokio::test]
     async fn test_video_info_type() -> Result<()> {
-        VersionedConfig::init_for_test(&setup_database(Path::new("./test.sqlite")).await?).await?;
+        VersionedConfig::init_for_test(&setup_database(&database_url(Path::new("./test.sqlite"))).await?).await?;
         let credential = &VersionedConfig::get().read().credential;
         init_logger("None,bili_sync=debug", None);
         let bili_client = BiliClient::new();
@@ -312,7 +312,7 @@ mod tests {
     #[ignore = "only for manual test"]
     #[tokio::test]
     async fn test_subtitle_parse() -> Result<()> {
-        VersionedConfig::init_for_test(&setup_database(Path::new("./test.sqlite")).await?).await?;
+        VersionedConfig::init_for_test(&setup_database(&database_url(Path::new("./test.sqlite"))).await?).await?;
         let credential = &VersionedConfig::get().read().credential;
         let bili_client = BiliClient::new();
         let mixin_key = bili_client
@@ -338,7 +338,7 @@ mod tests {
     #[ignore = "only for manual test"]
     #[tokio::test]
     async fn test_upower_parse() -> Result<()> {
-        VersionedConfig::init_for_test(&setup_database(Path::new("./test.sqlite")).await?).await?;
+        VersionedConfig::init_for_test(&setup_database(&database_url(Path::new("./test.sqlite"))).await?).await?;
         let credential = &VersionedConfig::get().read().credential;
         let bili_client = BiliClient::new();
         let mixin_key = bili_client
@@ -371,7 +371,7 @@ mod tests {
     #[ignore = "only for manual test"]
     #[tokio::test]
     async fn test_ep_parse() -> Result<()> {
-        VersionedConfig::init_for_test(&setup_database(Path::new("./test.sqlite")).await?).await?;
+        VersionedConfig::init_for_test(&setup_database(&database_url(Path::new("./test.sqlite"))).await?).await?;
         let credential = &VersionedConfig::get().read().credential;
         let bili_client = BiliClient::new();
         let mixin_key = bili_client

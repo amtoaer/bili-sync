@@ -77,7 +77,7 @@ pub struct VideoInfo {
     pub valid: bool,
     pub should_download: bool,
     #[serde(serialize_with = "serde_video_download_status")]
-    pub download_status: u32,
+    pub download_status: i64,
     pub collection_id: Option<i32>,
     pub favorite_id: Option<i32>,
     pub submission_id: Option<i32>,
@@ -92,14 +92,14 @@ pub struct PageInfo {
     pub pid: i32,
     pub name: String,
     #[serde(serialize_with = "serde_page_download_status")]
-    pub download_status: u32,
+    pub download_status: i64,
 }
 
 #[derive(Serialize, DerivePartialModel, FromQueryResult, Clone, Copy)]
 #[sea_orm(entity = "video::Entity")]
 pub struct SimpleVideoInfo {
     pub id: i32,
-    pub download_status: u32,
+    pub download_status: i64,
 }
 
 #[derive(Serialize, DerivePartialModel, FromQueryResult, Clone, Copy)]
@@ -107,10 +107,10 @@ pub struct SimpleVideoInfo {
 pub struct SimplePageInfo {
     pub id: i32,
     pub video_id: i32,
-    pub download_status: u32,
+    pub download_status: i64,
 }
 
-fn serde_video_download_status<S>(status: &u32, serializer: S) -> Result<S::Ok, S::Error>
+fn serde_video_download_status<S>(status: &i64, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
@@ -118,7 +118,7 @@ where
     status.serialize(serializer)
 }
 
-fn serde_page_download_status<S>(status: &u32, serializer: S) -> Result<S::Ok, S::Error>
+fn serde_page_download_status<S>(status: &i64, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
@@ -180,7 +180,7 @@ pub struct VideoSourcesDetailsResponse {
     pub watch_later: Vec<VideoSourceDetail>,
 }
 
-#[derive(Serialize, FromQueryResult)]
+#[derive(Debug, Serialize, FromQueryResult)]
 pub struct DayCountPair {
     pub day: String,
     pub cnt: i64,

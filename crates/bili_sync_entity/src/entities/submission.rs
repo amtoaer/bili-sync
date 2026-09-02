@@ -12,7 +12,7 @@ pub struct Model {
     pub upper_id: i64,
     pub upper_name: String,
     pub path: String,
-    pub created_at: String,
+    pub created_at: DateTime,
     pub use_dynamic_api: bool,
     pub latest_row_at: DateTime,
     pub rule: Option<Rule>,

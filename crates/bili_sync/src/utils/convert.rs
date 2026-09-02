@@ -202,9 +202,9 @@ impl PageInfo {
         let (width, height) = match &self.dimension {
             Some(d) => {
                 if d.rotate == 0 {
-                    (Some(d.width), Some(d.height))
+                    (Some(d.width as i32), Some(d.height as i32))
                 } else {
-                    (Some(d.height), Some(d.width))
+                    (Some(d.height as i32), Some(d.width as i32))
                 }
             }
             None => (None, None),
@@ -216,7 +216,7 @@ impl PageInfo {
             name: Set(self.name),
             width: Set(width),
             height: Set(height),
-            duration: Set(self.duration),
+            duration: Set(self.duration as i32),
             image: Set(self.first_frame),
             download_status: Set(0),
             ..Default::default()

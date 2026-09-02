@@ -13,7 +13,7 @@ pub struct Model {
     pub f_id: i64,
     pub name: String,
     pub path: String,
-    pub created_at: String,
+    pub created_at: DateTime,
     pub latest_row_at: DateTime,
     pub rule: Option<Rule>,
     pub filter_option: Option<Json>,
