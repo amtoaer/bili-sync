@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use bili_sync_entity::video;
 
 use crate::utils::status::{STATUS_OK, VideoStatus};
@@ -24,12 +26,12 @@ impl DownloadNotifyInfo {
         }
     }
 
-    pub fn record(&mut self, models: &[video::ActiveModel]) {
+    pub fn record(&mut self, models: &[video::ActiveModel], excluded_video_ids: &HashSet<i32>) {
         let success_models = models
             .iter()
             .filter(|m| {
                 let sub_task_status: [u32; 5] = VideoStatus::from(*m.download_status.as_ref()).into();
-                sub_task_status.into_iter().all(|s| s == STATUS_OK)
+                !excluded_video_ids.contains(m.id.as_ref()) && sub_task_status.into_iter().all(|s| s == STATUS_OK)
             })
             .collect::<Vec<_>>();
         match self {

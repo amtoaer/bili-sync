@@ -59,13 +59,20 @@ pub async fn process_video_source(
     // 单独请求视频详情接口，获取视频的详情信息与所有的分页，写入数据库
     fetch_video_details(bili_client, &video_source, connection, config).await?;
     // 根据弹幕更新规则清空弹幕任务的标记位，允许后续任务覆盖
-    prepare_danmaku_updates(&video_source, connection, config).await?;
+    let danmaku_update_video_ids = prepare_danmaku_updates(&video_source, connection, config).await?;
     if ARGS.scan_only {
         warn!("已开启仅扫描模式，跳过视频下载..");
     } else {
         // 从数据库中查找所有未下载的视频与分页，下载并处理
-        let download_notify_info =
-            download_unprocessed_videos(bili_client, &video_source, connection, template, config).await?;
+        let download_notify_info = download_unprocessed_videos(
+            bili_client,
+            &video_source,
+            connection,
+            template,
+            config,
+            &danmaku_update_video_ids,
+        )
+        .await?;
         if download_notify_info.should_notify() {
             notify(config, bili_client, download_notify_info);
         }
@@ -205,6 +212,7 @@ pub async fn download_unprocessed_videos(
     connection: &DatabaseConnection,
     template: &handlebars::Handlebars<'_>,
     config: &Config,
+    danmaku_update_video_ids: &HashSet<i32>,
 ) -> Result<DownloadNotifyInfo> {
     video_source.log_download_video_start();
     let downloader = Downloader::new(bili_client.client.clone());
@@ -267,7 +275,7 @@ pub async fn download_unprocessed_videos(
         .chunks(10);
     let mut download_notify_info = DownloadNotifyInfo::new(video_source.display_name().into());
     while let Some(models) = stream.next().await {
-        download_notify_info.record(&models);
+        download_notify_info.record(&models, danmaku_update_video_ids);
         update_videos_model(models, connection).await?;
     }
     if let Some(e) = risk_control_related_error {
@@ -281,12 +289,12 @@ async fn prepare_danmaku_updates(
     video_source: &VideoSourceEnum,
     connection: &DatabaseConnection,
     config: &Config,
-) -> Result<()> {
+) -> Result<HashSet<i32>> {
     if !config.danmaku_update_policy.enabled
         || config.danmaku_update_policy.milestones.is_empty()
         || config.skip_option.no_danmaku
     {
-        return Ok(());
+        return Ok(HashSet::new());
     }
     let now = chrono::Utc::now();
     // safety: milestones are checked to be non-empty
@@ -341,7 +349,7 @@ async fn prepare_danmaku_updates(
         }
     }
     if due_page_ids.is_empty() {
-        return Ok(());
+        return Ok(HashSet::new());
     }
     let (reset_video_count, reset_page_count) = (due_video_ids.len(), due_page_ids.len());
     let txn = connection.begin().await?;
@@ -358,7 +366,7 @@ async fn prepare_danmaku_updates(
             video::Column::DownloadStatus,
             VideoStatus::query_builder().reset_subtask(VIDEO_PAGE_STATUS_OFFSET),
         )
-        .filter(video::Column::Id.is_in(due_video_ids))
+        .filter(video::Column::Id.is_in(due_video_ids.iter().copied()))
         .exec(&txn)
         .await?;
     txn.commit().await?;
@@ -368,7 +376,7 @@ async fn prepare_danmaku_updates(
             reset_video_count, reset_page_count
         );
     }
-    Ok(())
+    Ok(due_video_ids.into_iter().collect())
 }
 
 pub async fn download_video_pages(
