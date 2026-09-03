@@ -6,7 +6,7 @@
 		useChart,
 		type TooltipPayload
 	} from '../ui/chart/chart-utils.js';
-	import { getChartContext, Tooltip as TooltipPrimitive } from 'layerchart';
+	import { Tooltip as TooltipPrimitive, type ChartState } from 'layerchart';
 	import type { Snippet } from 'svelte';
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -20,6 +20,7 @@
 	}
 
 	let {
+		context,
 		ref = $bindable(null),
 		class: className,
 		hideLabel = false,
@@ -35,6 +36,7 @@
 		color,
 		...restProps
 	}: WithoutChildren<WithElementRef<HTMLAttributes<HTMLDivElement>>> & {
+		context: ChartState;
 		hideLabel?: boolean;
 		label?: string;
 		indicator?: 'line' | 'dot' | 'dashed';
@@ -61,17 +63,16 @@
 	} = $props();
 
 	const chart = useChart();
-	const chartCtx = getChartContext();
 	const visibleSeries = $derived(
-		chartCtx.tooltip.series.filter((series: TooltipPayload) => series.value !== undefined)
+		context.tooltip.series.filter((series: TooltipPayload) => series.value !== undefined)
 	);
 
 	const formattedLabel = $derived.by(() => {
 		if (hideLabel || !visibleSeries.length) return null;
 
 		const [item] = visibleSeries;
-		const tooltipData = chartCtx.tooltip.data;
-		const dataLabel = tooltipData != null ? chartCtx.x(tooltipData) : undefined;
+		const tooltipData = context.tooltip.data;
+		const dataLabel = tooltipData != null ? context.x(tooltipData) : undefined;
 		const key = labelKey ?? item?.label ?? item?.key ?? 'value';
 
 		const itemConfig = getPayloadConfigFromPayload(chart.config, item, key, tooltipData);
@@ -103,7 +104,7 @@
 	{/if}
 {/snippet}
 
-<TooltipPrimitive.Root variant="none">
+<TooltipPrimitive.Root {context} variant="none">
 	<div
 		bind:this={ref}
 		class={cn(
@@ -122,7 +123,7 @@
 					chart.config,
 					item,
 					key,
-					chartCtx.tooltip.data
+					context.tooltip.data
 				)}
 				{@const indicatorColor = color || item.config?.color || item.color}
 				<div
