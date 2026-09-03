@@ -18,7 +18,7 @@
 	import api from '$lib/api';
 	import { toast } from 'svelte-sonner';
 	import { setBreadcrumb } from '$lib/stores/breadcrumb';
-	import type { Config, ApiError, Notifier, Credential } from '$lib/types';
+	import type { Config, ApiError, Notifier, Credential, DanmakuUpdateMilestone } from '$lib/types';
 
 	let frontendToken = ''; // 前端认证token
 	let config: Config | null = null;
@@ -175,6 +175,42 @@
 		} finally {
 			saving = false;
 		}
+	}
+
+	function addDanmakuUpdateMilestone() {
+		if (!formData) return;
+		const milestones = formData.danmaku_update_policy.milestones;
+		const last = milestones[milestones.length - 1];
+		formData.danmaku_update_policy.milestones = [
+			...milestones,
+			{
+				type: 'once',
+				at_days: last ? danmakuUpdateMilestoneEndDays(last) + 30 : 3
+			}
+		];
+	}
+
+	function danmakuUpdateMilestoneEndDays(milestone: DanmakuUpdateMilestone) {
+		return milestone.type === 'once' ? milestone.at_days : milestone.until_days;
+	}
+
+	function changeDanmakuUpdateMilestoneType(index: number, type: 'once' | 'periodic') {
+		if (!formData) return;
+		const milestones = [...formData.danmaku_update_policy.milestones];
+		const current = milestones[index];
+		const endDays = danmakuUpdateMilestoneEndDays(current);
+		milestones[index] =
+			type === 'once'
+				? { type, at_days: endDays }
+				: { type, until_days: endDays, interval_hours: 24 };
+		formData.danmaku_update_policy.milestones = milestones;
+	}
+
+	function removeDanmakuUpdateMilestone(index: number) {
+		if (!formData) return;
+		formData.danmaku_update_policy.milestones = formData.danmaku_update_policy.milestones.filter(
+			(_, milestoneIndex) => milestoneIndex !== index
+		);
 	}
 
 	function handleQrLoginSuccess(credential: Credential) {
@@ -452,6 +488,91 @@
 				<!-- 过滤规则 -->
 				<Tabs.Content value="filter" class="mt-6 space-y-6">
 					<FilterOptionEditor bind:value={formData.filter_option} />
+
+					<Separator />
+
+					<div class="space-y-4">
+						<div class="flex items-center justify-between">
+							<div class="space-y-1">
+								<Label for="danmaku-update-enabled">弹幕自动更新</Label>
+								<p class="text-muted-foreground text-sm">
+									例如：希望第 3 天更新一次，之后每 7 天更新一次直到第 30 天，可添加“单次：3
+									天”和“周期：截止 30 天，间隔 168 小时”。所有时间均从视频发布时间起算
+								</p>
+							</div>
+							<Switch
+								id="danmaku-update-enabled"
+								bind:checked={formData.danmaku_update_policy.enabled}
+							/>
+						</div>
+
+						<div class="space-y-3">
+							{#each formData.danmaku_update_policy.milestones as milestone, index (index)}
+								<div class="grid grid-cols-1 items-end gap-3 md:grid-cols-[9rem_1fr_1fr_auto]">
+									<div class="space-y-2">
+										<Label for={`danmaku-milestone-type-${index}`}>类型</Label>
+										<select
+											id={`danmaku-milestone-type-${index}`}
+											class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+											disabled={!formData.danmaku_update_policy.enabled}
+											value={milestone.type}
+											onchange={(event) =>
+												changeDanmakuUpdateMilestoneType(
+													index,
+													event.currentTarget.value as 'once' | 'periodic'
+												)}
+										>
+											<option value="once">单次</option>
+											<option value="periodic">周期</option>
+										</select>
+									</div>
+									{#if milestone.type === 'once'}
+										<div class="space-y-2 md:col-span-2">
+											<Label for={`danmaku-milestone-at-${index}`}>发布时间后第几天</Label>
+											<Input
+												id={`danmaku-milestone-at-${index}`}
+												type="number"
+												min="1"
+												disabled={!formData.danmaku_update_policy.enabled}
+												bind:value={milestone.at_days}
+											/>
+										</div>
+									{:else}
+										<div class="space-y-2">
+											<Label for={`danmaku-milestone-until-${index}`}>截止天数</Label>
+											<Input
+												id={`danmaku-milestone-until-${index}`}
+												type="number"
+												min="1"
+												disabled={!formData.danmaku_update_policy.enabled}
+												bind:value={milestone.until_days}
+											/>
+										</div>
+										<div class="space-y-2">
+											<Label for={`danmaku-milestone-interval-${index}`}>刷新间隔（小时）</Label>
+											<Input
+												id={`danmaku-milestone-interval-${index}`}
+												type="number"
+												min="1"
+												disabled={!formData.danmaku_update_policy.enabled}
+												bind:value={milestone.interval_hours}
+											/>
+										</div>
+									{/if}
+									<Button
+										variant="outline"
+										disabled={!formData.danmaku_update_policy.enabled}
+										onclick={() => removeDanmakuUpdateMilestone(index)}>删除</Button
+									>
+								</div>
+							{/each}
+							<Button
+								variant="outline"
+								disabled={!formData.danmaku_update_policy.enabled}
+								onclick={addDanmakuUpdateMilestone}>添加里程碑</Button
+							>
+						</div>
+					</div>
 
 					<Separator />
 

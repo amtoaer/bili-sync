@@ -196,11 +196,15 @@ pub async fn update_videos_model(videos: Vec<video::ActiveModel>, connection: &D
     Ok(())
 }
 
-/// 更新视频页 model 的下载状态
+/// 更新视频页 model 的下载状态、路径和弹幕同步时间
 pub async fn update_pages_model(pages: Vec<page::ActiveModel>, connection: &DatabaseConnection) -> Result<()> {
     let query = page::Entity::insert_many(pages).on_conflict(
         OnConflict::column(page::Column::Id)
-            .update_columns([page::Column::DownloadStatus, page::Column::Path])
+            .update_columns([
+                page::Column::DownloadStatus,
+                page::Column::Path,
+                page::Column::DanmakuLastSyncedAt,
+            ])
             .to_owned(),
     );
     query.exec(connection).await?;
