@@ -29,9 +29,7 @@ pub fn init_logger(log_level: &str, log_writer: Option<LogHelper>) {
         log.with(
             fmt::layer()
                 .with_ansi(false)
-                .with_timer(tracing_subscriber::fmt::time::ChronoLocal::new(
-                    "%b %d %H:%M:%S".to_owned(),
-                ))
+                .with_timer(tracing_subscriber::fmt::time::ChronoLocal::new("%+".to_owned()))
                 .json()
                 .flatten_event(true)
                 .with_writer(writer),
