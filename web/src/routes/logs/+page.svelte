@@ -43,6 +43,22 @@
 		};
 	});
 
+	function formatTimestamp(timestamp: string): string {
+		if (!/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(timestamp)) return timestamp;
+
+		const date = new Date(timestamp);
+		if (Number.isNaN(date.getTime())) return timestamp;
+
+		return date.toLocaleString('en-US', {
+			month: '2-digit',
+			day: '2-digit',
+			hour: '2-digit',
+			minute: '2-digit',
+			second: '2-digit',
+			hour12: true
+		});
+	}
+
 	function getLevelColor(level: string) {
 		switch (level) {
 			case 'ERROR':
@@ -68,7 +84,7 @@
 				: 'bg-background'}"
 		>
 			<span class="text-muted-foreground w-32 shrink-0">
-				{log.timestamp}
+				{formatTimestamp(log.timestamp)}
 			</span>
 			<Badge
 				class="w-16 shrink-0 justify-center {getLevelColor(log.level)} bg-primary/90 font-semibold"
