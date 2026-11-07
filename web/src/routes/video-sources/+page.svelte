@@ -36,6 +36,7 @@
 	import ListRestartIcon from '@lucide/svelte/icons/list-restart';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import FilterOptionEditor from '$lib/components/filter-option-editor.svelte';
+	import BangumiPreview from '$lib/components/bangumi-preview.svelte';
 
 	let videoSourcesData: VideoSourcesDetailsResponse | null = null;
 	let loading = false;
@@ -779,7 +780,7 @@
 
 	<!-- 添加对话框 -->
 	<Dialog.Root bind:open={showAddDialog}>
-		<Dialog.Content>
+		<Dialog.Content class="max-h-[90dvh] overflow-y-auto">
 			<Dialog.Title class="text-lg font-semibold">
 				{#if addDialogType === 'bangumi'}
 					添加番剧
@@ -807,6 +808,11 @@
 								支持 ep32367、ss1733 或完整播放链接。
 							</p>
 						</div>
+						<BangumiPreview
+							url={bangumiForm.url}
+							active={showAddDialog}
+							wholeSeason={isSeasonLink || bangumiForm.whole_season}
+						/>
 						<div class="flex items-center gap-2">
 							<Checkbox
 								id="bangumi-whole-season"

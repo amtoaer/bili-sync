@@ -140,6 +140,11 @@ pub struct InsertBangumiRequest {
     pub path: String,
 }
 
+#[derive(Deserialize)]
+pub struct BangumiPreviewRequest {
+    pub url: String,
+}
+
 #[derive(Deserialize, Validate)]
 pub struct InsertSubmissionRequest {
     pub upper_id: i64,

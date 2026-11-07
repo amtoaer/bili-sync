@@ -18,8 +18,8 @@ use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QuerySelect, QueryTr
 use crate::adapter::{_ActiveModel, VideoSource as _, VideoSourceEnum};
 use crate::api::error::InnerApiError;
 use crate::api::request::{
-    DefaultPathRequest, FullSyncVideoSourceRequest, InsertBangumiRequest, InsertCollectionRequest,
-    InsertFavoriteRequest, InsertSubmissionRequest, UpdateVideoSourceRequest,
+    BangumiPreviewRequest, DefaultPathRequest, FullSyncVideoSourceRequest, InsertBangumiRequest,
+    InsertCollectionRequest, InsertFavoriteRequest, InsertSubmissionRequest, UpdateVideoSourceRequest,
 };
 use crate::api::response::{
     FullSyncVideoSourceResponse, UpdateVideoSourceResponse, VideoSource, VideoSourceDetail,
@@ -27,7 +27,8 @@ use crate::api::response::{
 };
 use crate::api::wrapper::{ApiError, ApiResponse, ValidatedJson};
 use crate::bilibili::{
-    Bangumi, BangumiTarget, BiliClient, Collection, CollectionItem, CollectionType, FavoriteList, Submission,
+    Bangumi, BangumiPreview, BangumiTarget, BiliClient, Collection, CollectionItem, CollectionType, FavoriteList,
+    Submission,
 };
 use crate::config::{PathSafeTemplate, TEMPLATE, VersionedConfig};
 use crate::utils::rule::FieldEvaluatable;
@@ -49,6 +50,7 @@ pub(super) fn router() -> Router {
         .route("/video-sources/favorites", post(insert_favorite))
         .route("/video-sources/collections", post(insert_collection))
         .route("/video-sources/bangumi", post(insert_bangumi))
+        .route("/video-sources/bangumi/preview", get(get_bangumi_preview))
         .route("/video-sources/submissions", post(insert_submission))
 }
 
@@ -521,6 +523,22 @@ pub async fn insert_collection(
     Ok(ApiResponse::ok(true))
 }
 
+/// 查询番剧信息，仅作添加前预览，不创建视频源或下载任务。
+pub async fn get_bangumi_preview(
+    Query(request): Query<BangumiPreviewRequest>,
+    Extension(bili_client): Extension<Arc<BiliClient>>,
+) -> Result<ApiResponse<BangumiPreview>, ApiError> {
+    let target: BangumiTarget = request
+        .url
+        .parse()
+        .map_err(|error: anyhow::Error| InnerApiError::BadRequest(error.to_string()))?;
+    let credential = &VersionedConfig::get().read().credential;
+    let preview = Bangumi::new(bili_client.as_ref(), credential)
+        .get_preview(target)
+        .await?;
+    Ok(ApiResponse::ok(preview))
+}
+
 /// 新增番剧单集或整季订阅；和其他视频源一样，新增后由用户启用。
 pub async fn insert_bangumi(
     Extension(db): Extension<DatabaseConnection>,
@@ -592,6 +610,23 @@ mod tests {
     use super::*;
     use bili_sync_migration::{Migrator, MigratorTrait};
     use sea_orm::Database;
+
+    #[tokio::test]
+    async fn bangumi_preview_rejects_invalid_input_before_requesting_upstream() {
+        use axum::response::IntoResponse;
+        let _ = router();
+        let result = get_bangumi_preview(
+            Query(BangumiPreviewRequest {
+                url: "https://example.com/bangumi/play/ep32367".to_owned(),
+            }),
+            Extension(Arc::new(BiliClient::new())),
+        )
+        .await;
+        let Err(error) = result else {
+            panic!("invalid target was accepted")
+        };
+        assert_eq!(error.into_response().status(), axum::http::StatusCode::BAD_REQUEST);
+    }
 
     #[tokio::test]
     async fn bangumi_migration_preserves_existing_video() -> Result<()> {

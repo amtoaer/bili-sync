@@ -1,6 +1,7 @@
 import type {
 	ApiError,
 	ApiResponse,
+	BangumiPreview,
 	ClearAndResetVideoResponse,
 	CollectionsResponse,
 	Config,
@@ -236,6 +237,10 @@ class ApiClient {
 		return this.post<boolean>('/video-sources/bangumi', request);
 	}
 
+	async getBangumiPreview(url: string): Promise<ApiResponse<BangumiPreview>> {
+		return this.get<BangumiPreview>('/video-sources/bangumi/preview', { url });
+	}
+
 	async insertSubmission(request: InsertSubmissionRequest): Promise<ApiResponse<boolean>> {
 		return this.post<boolean>('/video-sources/submissions', request);
 	}
@@ -336,6 +341,7 @@ const api = {
 	insertFavorite: (request: InsertFavoriteRequest) => apiClient.insertFavorite(request),
 	insertCollection: (request: InsertCollectionRequest) => apiClient.insertCollection(request),
 	insertBangumi: (request: InsertBangumiRequest) => apiClient.insertBangumi(request),
+	getBangumiPreview: (url: string) => apiClient.getBangumiPreview(url),
 	insertSubmission: (request: InsertSubmissionRequest) => apiClient.insertSubmission(request),
 	getVideoSourcesDetails: () => apiClient.getVideoSourcesDetails(),
 	updateVideoSource: (type: string, id: number, request: UpdateVideoSourceRequest) =>

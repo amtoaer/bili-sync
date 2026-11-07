@@ -4,7 +4,7 @@ use std::sync::Arc;
 pub use analyzer::{BestStream, FilterOption};
 use anyhow::{Context, Result, bail, ensure};
 use arc_swap::ArcSwapOption;
-pub use bangumi::{Bangumi, BangumiTarget};
+pub use bangumi::{Bangumi, BangumiPreview, BangumiTarget};
 use bili_sync_entity::upper_vec::Upper;
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};

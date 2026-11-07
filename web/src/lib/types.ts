@@ -210,6 +210,22 @@ export interface InsertBangumiRequest {
 	whole_season: boolean;
 }
 
+export interface BangumiPreview {
+	seasonId: number;
+	title: string;
+	cover: string;
+	description: string;
+	totalEpisodes: number | null;
+	publishedEpisodes: number;
+	views: number | null;
+	followers: number | null;
+	followText: string | null;
+	rating: number | null;
+	status: string | null;
+	episode: { id: number; title: string; longTitle: string } | null;
+	url: string;
+}
+
 export interface InsertSubmissionRequest {
 	upper_id: number;
 	path: string;

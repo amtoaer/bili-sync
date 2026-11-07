@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail, ensure};
 use bili_sync_entity::upper_vec::Upper;
 use chrono::{DateTime, Utc};
 use reqwest::{Method, Url};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::analyzer::PageAnalyzer;
@@ -76,6 +76,114 @@ pub struct BangumiSeason {
     up_info: Option<BangumiUpper>,
     #[serde(default)]
     section: Vec<BangumiSection>,
+    total: Option<u32>,
+    stat: Option<BangumiStat>,
+    rating: Option<BangumiRating>,
+    new_ep: Option<BangumiUpdate>,
+    // Count before appending a directly requested extra episode to the download list.
+    #[serde(skip)]
+    published_episodes: usize,
+}
+
+#[derive(Debug, Deserialize)]
+struct BangumiStat {
+    views: Option<u64>,
+    favorites: Option<u64>,
+    follow_text: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct BangumiRating {
+    score: Option<f64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct BangumiUpdate {
+    desc: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BangumiPreview {
+    pub season_id: i64,
+    pub title: String,
+    pub cover: String,
+    pub description: String,
+    pub total_episodes: Option<u32>,
+    pub published_episodes: usize,
+    pub views: Option<u64>,
+    pub followers: Option<u64>,
+    pub follow_text: Option<String>,
+    pub rating: Option<f64>,
+    pub status: Option<String>,
+    pub episode: Option<BangumiPreviewEpisode>,
+    pub url: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BangumiPreviewEpisode {
+    pub id: i64,
+    pub title: String,
+    pub long_title: String,
+}
+
+impl BangumiSeason {
+    fn preview(&self, target: BangumiTarget) -> Result<BangumiPreview> {
+        let (episode, url) = match target {
+            BangumiTarget::Episode(id) => {
+                let episode = self
+                    .episodes
+                    .iter()
+                    .find(|episode| episode.id == id)
+                    .context("番剧分集不存在或已下架")?;
+                (
+                    Some(BangumiPreviewEpisode {
+                        id: episode.id,
+                        title: episode.title.clone(),
+                        long_title: episode.long_title.clone(),
+                    }),
+                    format!("https://www.bilibili.com/bangumi/play/ep{id}"),
+                )
+            }
+            BangumiTarget::Season(id) => (None, format!("https://www.bilibili.com/bangumi/play/ss{id}")),
+        };
+        let cover = if self.cover.starts_with("//") {
+            format!("https:{}", self.cover)
+        } else {
+            self.cover.replacen("http://", "https://", 1)
+        };
+        let cover = Url::parse(&cover)
+            .ok()
+            .filter(|url| url.scheme() == "https" && url.host_str().is_some())
+            .map(|url| url.to_string())
+            .unwrap_or_default();
+        Ok(BangumiPreview {
+            season_id: self.season_id,
+            title: self.title.clone(),
+            cover,
+            description: self.evaluate.clone(),
+            // 连载番剧 total=0 表示总集数尚未确定，并不代表该季没有分集。
+            total_episodes: self.total.filter(|total| *total > 0),
+            published_episodes: self.published_episodes,
+            views: self.stat.as_ref().and_then(|stat| stat.views),
+            followers: self.stat.as_ref().and_then(|stat| stat.favorites),
+            follow_text: self
+                .stat
+                .as_ref()
+                .and_then(|stat| stat.follow_text.clone())
+                .filter(|text| !text.trim().is_empty()),
+            rating: self.rating.as_ref().and_then(|rating| rating.score),
+            status: self
+                .new_ep
+                .as_ref()
+                .and_then(|update| update.desc.as_ref())
+                .filter(|description| !description.trim().is_empty())
+                .cloned(),
+            episode,
+            url,
+        })
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -108,6 +216,8 @@ pub struct BangumiEpisode {
     pub duration: u64,
     #[serde(default)]
     pub pub_time: i64,
+    #[serde(default)]
+    section_type: i32,
 }
 
 impl BangumiEpisode {
@@ -179,6 +289,10 @@ impl<'a> Bangumi<'a> {
         Self { client, credential }
     }
 
+    pub async fn get_preview(&self, target: BangumiTarget) -> Result<BangumiPreview> {
+        self.get_season(target).await?.preview(target)
+    }
+
     pub async fn get_season(&self, target: BangumiTarget) -> Result<BangumiSeason> {
         let query = match target {
             BangumiTarget::Episode(id) => ("ep_id", id),
@@ -241,6 +355,13 @@ fn parse_season(response: Value, target: BangumiTarget) -> Result<BangumiSeason>
     if let BangumiTarget::Season(id) = target {
         ensure!(season.season_id == id, "番剧接口返回的季编号与请求不一致");
     }
+    season.published_episodes = season
+        .episodes
+        .iter()
+        .filter(|episode| episode.id > 0 && episode.cid > 0 && !episode.bvid.is_empty() && episode.section_type != 1)
+        .map(|episode| episode.id)
+        .collect::<std::collections::HashSet<_>>()
+        .len();
     if let BangumiTarget::Episode(id) = target {
         // 整季只包含正片；直接指定花絮 EP 时仍可单独下载。
         if !season.episodes.iter().any(|ep| ep.id == id) {
@@ -361,6 +482,108 @@ mod tests {
             "id": 32367, "ep_id": 32367, "bvid": "BV1Rs411f7ZM", "cid": 34474885773_i64,
             "title": "8", "long_title": "深山", "duration": 417666, "pub_time": 1378868400
         }]}})
+    }
+
+    #[test]
+    fn preview_exposes_season_stats_and_selected_episode() {
+        let mut response = season_response();
+        response["result"]["cover"] = json!("//i0.hdslb.com/bfs/bangumi/cover.png");
+        response["result"]["evaluate"] = json!("番剧简介");
+        response["result"]["total"] = json!(0);
+        response["result"]["stat"] =
+            json!({"views": 1002161540_u64, "favorites": 8853571, "follow_text": "981.9万系列追番"});
+        response["result"]["rating"] = json!({"score": 9.9});
+        response["result"]["new_ep"] = json!({"desc": "每周五12:00更新1集"});
+        let preview = parse_season(response, BangumiTarget::Episode(32367))
+            .unwrap()
+            .preview(BangumiTarget::Episode(32367))
+            .unwrap();
+        let preview = serde_json::to_value(preview).unwrap();
+        assert_eq!(preview["seasonId"], 1733);
+        assert_eq!(preview["title"], "罗小黑战记");
+        assert_eq!(preview["cover"], "https://i0.hdslb.com/bfs/bangumi/cover.png");
+        assert_eq!(preview["description"], "番剧简介");
+        assert_eq!(preview["views"], 1002161540_u64);
+        assert_eq!(preview["followers"], 8853571);
+        assert_eq!(preview["followText"], "981.9万系列追番");
+        assert_eq!(preview["rating"], 9.9);
+        assert_eq!(preview["status"], "每周五12:00更新1集");
+        assert!(preview["totalEpisodes"].is_null());
+        assert_eq!(preview["publishedEpisodes"], 1);
+        assert_eq!(preview["episode"]["id"], 32367);
+        assert_eq!(preview["episode"]["longTitle"], "深山");
+        assert_eq!(preview["url"], "https://www.bilibili.com/bangumi/play/ep32367");
+    }
+
+    #[test]
+    fn preview_distinguishes_missing_statistics_from_zero() {
+        let preview = parse_season(season_response(), BangumiTarget::Season(1733))
+            .unwrap()
+            .preview(BangumiTarget::Season(1733))
+            .unwrap();
+        assert_eq!(preview.views, None);
+        assert_eq!(preview.followers, None);
+        assert_eq!(preview.rating, None);
+        assert_eq!(preview.total_episodes, None);
+        assert!(preview.episode.is_none());
+        assert!(preview.cover.is_empty());
+        assert_eq!(preview.url, "https://www.bilibili.com/bangumi/play/ss1733");
+
+        let mut response = season_response();
+        response["result"]["stat"] = json!({"views": 0, "favorites": 0, "follow_text": ""});
+        response["result"]["new_ep"] = json!({"desc": " "});
+        response["result"]["cover"] = json!("javascript:alert(1)");
+        let preview = parse_season(response, BangumiTarget::Season(1733))
+            .unwrap()
+            .preview(BangumiTarget::Season(1733))
+            .unwrap();
+        assert_eq!(preview.views, Some(0));
+        assert_eq!(preview.followers, Some(0));
+        assert_eq!(preview.follow_text, None);
+        assert_eq!(preview.status, None);
+        assert!(preview.cover.is_empty());
+    }
+
+    #[test]
+    fn preview_counts_published_main_list_without_trailers_or_duplicate_extras() {
+        let mut response = season_response();
+        let episode = response["result"]["episodes"][0].clone();
+        let mut trailer = episode.clone();
+        trailer["id"] = json!(7340794);
+        trailer["section_type"] = json!(1);
+        let mut future = episode.clone();
+        future["id"] = json!(999999);
+        future["cid"] = json!(0);
+        let mut extra = episode.clone();
+        extra["id"] = json!(394759);
+        response["result"]["episodes"] = json!([episode, episode, trailer, future]);
+        response["result"]["section"] = json!([{"episodes": [extra]}]);
+        response["result"]["total"] = json!(12);
+        let preview = parse_season(response, BangumiTarget::Episode(394759))
+            .unwrap()
+            .preview(BangumiTarget::Episode(394759))
+            .unwrap();
+        assert_eq!(preview.total_episodes, Some(12));
+        assert_eq!(preview.published_episodes, 1);
+        assert_eq!(preview.episode.unwrap().id, 394759);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires Bilibili network access; reads preview metadata only"]
+    async fn live_bangumi_preview_ep32367() -> Result<()> {
+        let client = BiliClient::new();
+        let credential = Credential::default();
+        let preview = Bangumi::new(&client, &credential)
+            .get_preview(BangumiTarget::Episode(32367))
+            .await?;
+        assert_eq!(preview.season_id, 1733);
+        assert_eq!(preview.title, "罗小黑战记");
+        assert!(preview.cover.starts_with("https://"));
+        assert!(preview.views.is_some_and(|views| views > 0));
+        assert!(preview.followers.is_some_and(|followers| followers > 0));
+        assert!(preview.published_episodes > 0);
+        assert_eq!(preview.episode.unwrap().long_title, "深山");
+        Ok(())
     }
 
     #[test]
