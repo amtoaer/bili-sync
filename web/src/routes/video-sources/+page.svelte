@@ -43,7 +43,7 @@
 
 	// 添加对话框状态
 	let showAddDialog = false;
-	let addDialogType: 'favorites' | 'collections' | 'submissions' = 'favorites';
+	let addDialogType: 'favorites' | 'collections' | 'submissions' | 'bangumi' = 'favorites';
 	let adding = false;
 
 	// 编辑对话框状态
@@ -87,10 +87,15 @@
 	let favoriteForm = { fid: '', path: '' };
 	let collectionForm = { sid: '', mid: '', collection_type: '2', path: '' }; // 默认为合集
 	let submissionForm = { upper_id: '', path: '' };
+	let bangumiForm = { url: '', path: '', whole_season: false };
+	$: isSeasonLink =
+		/^(?:https?:\/\/(?:(?:www|m)\.)?bilibili\.com\/bangumi\/play\/)?ss\d+(?:[/?#].*)?$/.test(
+			bangumiForm.url.trim()
+		);
 
 	const TAB_CONFIG = {
 		favorites: { label: '收藏夹', icon: HeartIcon },
-		collections: { label: '合集 / 列表', icon: FolderIcon },
+		collections: { label: '合集 / 番剧', icon: FolderIcon },
 		submissions: { label: '用户投稿', icon: UserIcon },
 		watch_later: { label: '稍后再看', icon: ClockIcon }
 	} as const;
@@ -278,12 +283,13 @@
 	}
 
 	// 打开添加对话框
-	function openAddDialog(type: 'favorites' | 'collections' | 'submissions') {
+	function openAddDialog(type: 'favorites' | 'collections' | 'submissions' | 'bangumi') {
 		addDialogType = type;
 		// 重置表单
 		favoriteForm = { fid: '', path: '' };
 		collectionForm = { sid: '', mid: '', collection_type: '2', path: '' };
 		submissionForm = { upper_id: '', path: '' };
+		bangumiForm = { url: '', path: '', whole_season: false };
 		showAddDialog = true;
 	}
 
@@ -292,6 +298,18 @@
 		adding = true;
 		try {
 			switch (addDialogType) {
+				case 'bangumi':
+					if (!bangumiForm.url.trim() || !bangumiForm.path.trim()) {
+						toast.error('请填写番剧链接和下载路径');
+						return;
+					}
+					await api.insertBangumi({
+						url: bangumiForm.url.trim(),
+						path: bangumiForm.path.trim(),
+						whole_season: isSeasonLink || bangumiForm.whole_season
+					});
+					activeTab = 'collections';
+					break;
 				case 'favorites':
 					if (!favoriteForm.fid || !favoriteForm.path.trim()) {
 						toast.error('请填写完整的收藏夹信息');
@@ -326,7 +344,9 @@
 					break;
 			}
 
-			toast.success('添加成功');
+			toast.success('添加成功', {
+				description: '请编辑此视频源并启用，然后在首页执行下载或等待定时任务。'
+			});
 			showAddDialog = false;
 			loadVideoSources(); // 重新加载数据
 		} catch (error) {
@@ -350,6 +370,12 @@
 </svelte:head>
 
 <div class="space-y-6">
+	<div class="flex justify-end">
+		<Button onclick={() => openAddDialog('bangumi')} class="flex items-center gap-2">
+			<PlusIcon class="h-4 w-4" />
+			添加番剧
+		</Button>
+	</div>
 	{#if loading}
 		<div class="flex items-center justify-center py-12">
 			<div class="text-muted-foreground">加载中...</div>
@@ -358,7 +384,7 @@
 		<Tabs.Root bind:value={activeTab} class="w-full">
 			<Tabs.List class="grid w-full grid-cols-4">
 				{#each Object.entries(TAB_CONFIG) as [key, config] (key)}
-					<Tabs.Trigger value={key} class="relative">
+					<Tabs.Trigger value={key} class="relative text-xs sm:text-sm">
 						{config.label}
 					</Tabs.Trigger>
 				{/each}
@@ -391,7 +417,23 @@
 								<Table.Body>
 									{#each sources as source, index (index)}
 										<Table.Row>
-											<Table.Cell class="font-medium">{source.name}</Table.Cell>
+											<Table.Cell class="font-medium">
+												{#if source.sourceUrl}
+													<a
+														href={source.sourceUrl}
+														target="_blank"
+														rel="noopener noreferrer"
+														class="hover:underline">{source.name}</a
+													>
+												{:else}
+													{source.name}
+												{/if}
+												{#if source.collectionType === 3 || source.collectionType === 4}
+													<Badge variant="secondary" class="mt-1"
+														>{source.collectionType === 3 ? '番剧 · 整季' : '番剧 · 单集'}</Badge
+													>
+												{/if}
+											</Table.Cell>
 											<Table.Cell>
 												<div
 													class="bg-secondary hover:bg-secondary/80 flex w-fit cursor-text items-center gap-2 rounded-md px-2.5 py-1.5 transition-colors"
@@ -531,7 +573,7 @@
 								{#if key === 'favorites'}
 									还没有添加任何收藏夹订阅
 								{:else if key === 'collections'}
-									还没有添加任何合集或列表订阅
+									还没有添加任何合集、列表或番剧订阅
 								{:else if key === 'submissions'}
 									还没有添加任何用户投稿订阅
 								{:else}
@@ -729,7 +771,9 @@
 	<Dialog.Root bind:open={showAddDialog}>
 		<Dialog.Content>
 			<Dialog.Title class="text-lg font-semibold">
-				{#if addDialogType === 'favorites'}
+				{#if addDialogType === 'bangumi'}
+					添加番剧
+				{:else if addDialogType === 'favorites'}
 					添加收藏夹
 				{:else if addDialogType === 'collections'}
 					添加合集
@@ -738,7 +782,39 @@
 				{/if}
 			</Dialog.Title>
 			<div class="mt-4">
-				{#if addDialogType === 'favorites'}
+				{#if addDialogType === 'bangumi'}
+					<div class="space-y-4">
+						<div>
+							<Label for="bangumi-url" class="text-sm font-medium">番剧链接或编号</Label>
+							<Input
+								id="bangumi-url"
+								bind:value={bangumiForm.url}
+								placeholder="https://www.bilibili.com/bangumi/play/ep32367"
+								class="mt-1"
+								disabled={adding}
+							/>
+							<p class="text-muted-foreground mt-2 text-xs">
+								支持 ep32367、ss1733 或完整播放链接。
+							</p>
+						</div>
+						<div class="flex items-center gap-2">
+							<Checkbox
+								id="bangumi-whole-season"
+								checked={isSeasonLink || bangumiForm.whole_season}
+								onCheckedChange={(checked) => (bangumiForm.whole_season = checked === true)}
+								disabled={isSeasonLink || adding}
+							/>
+							<Label for="bangumi-whole-season">下载整季并持续同步新集</Label>
+						</div>
+						<p class="text-muted-foreground text-xs">
+							{isSeasonLink
+								? 'ss 链接对应整季，将下载该季全部正片。'
+								: bangumiForm.whole_season
+									? '将下载此集所属季的全部正片，并在后续扫描中添加新集。'
+									: '仅下载链接指定的这一集。'}
+						</p>
+					</div>
+				{:else if addDialogType === 'favorites'}
 					<div class="space-y-4">
 						<div>
 							<Label for="fid" class="text-sm font-medium">收藏夹ID (fid)</Label>
@@ -810,7 +886,19 @@
 				{/if}
 				<div class="mt-4">
 					<Label for="path" class="text-sm font-medium">下载路径</Label>
-					{#if addDialogType === 'favorites'}
+					{#if addDialogType === 'bangumi'}
+						<Input
+							id="path"
+							type="text"
+							bind:value={bangumiForm.path}
+							placeholder="例如：F:\Videos\罗小黑战记 或 /videos/罗小黑战记"
+							class="mt-1"
+							disabled={adding}
+						/>
+						<p class="text-muted-foreground mt-2 text-xs">
+							填写运行 bili-sync 的设备上的保存路径。画质及账号沿用现有设置。
+						</p>
+					{:else if addDialogType === 'favorites'}
 						<Input
 							id="path"
 							type="text"

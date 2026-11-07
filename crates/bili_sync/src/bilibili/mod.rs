@@ -4,6 +4,7 @@ use std::sync::Arc;
 pub use analyzer::{BestStream, FilterOption};
 use anyhow::{Context, Result, bail, ensure};
 use arc_swap::ArcSwapOption;
+pub use bangumi::{Bangumi, BangumiTarget};
 use bili_sync_entity::upper_vec::Upper;
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
@@ -22,6 +23,7 @@ pub use video::{Dimension, PageInfo, Video};
 pub use watch_later::WatchLater;
 
 mod analyzer;
+mod bangumi;
 mod client;
 mod collection;
 mod credential;

@@ -59,6 +59,7 @@ export default defineConfig({
 						link: "/collection",
 					},
 					{ text: "获取用户投稿信息", link: "/submission" },
+					{ text: "下载番剧（动漫）", link: "/bangumi" },
 				],
 			},
 			{

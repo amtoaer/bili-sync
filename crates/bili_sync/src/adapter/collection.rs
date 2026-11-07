@@ -61,9 +61,10 @@ impl VideoSource for collection::Model {
         video_info: Result<VideoInfo, anyhow::Error>,
         latest_row_at: &chrono::DateTime<Utc>,
     ) -> Option<VideoInfo> {
-        // 由于 collection 的视频无固定时间顺序，should_take 无法提前中断拉取，因此 should_filter 环节需要进行额外过滤
+        // 普通合集按时间过滤；番剧可能补发旧集或缺少发布时间，始终全量扫描并由数据库去重。
         if let Ok(video_info) = video_info
-            && video_info.release_datetime() > latest_row_at
+            && (CollectionType::from_expected(self.r#type).is_bangumi()
+                || video_info.release_datetime() > latest_row_at)
         {
             return Some(video_info);
         }

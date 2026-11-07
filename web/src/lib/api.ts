@@ -9,6 +9,7 @@ import type {
 	FullSyncVideoSourceRequest,
 	FullSyncVideoSourceResponse,
 	QrcodeGenerateResponse as GenerateQrcodeResponse,
+	InsertBangumiRequest,
 	InsertCollectionRequest,
 	InsertFavoriteRequest,
 	InsertSubmissionRequest,
@@ -231,6 +232,10 @@ class ApiClient {
 		return this.post<boolean>('/video-sources/collections', request);
 	}
 
+	async insertBangumi(request: InsertBangumiRequest): Promise<ApiResponse<boolean>> {
+		return this.post<boolean>('/video-sources/bangumi', request);
+	}
+
 	async insertSubmission(request: InsertSubmissionRequest): Promise<ApiResponse<boolean>> {
 		return this.post<boolean>('/video-sources/submissions', request);
 	}
@@ -330,6 +335,7 @@ const api = {
 		apiClient.getFollowedUppers(pageNum, pageSize, name),
 	insertFavorite: (request: InsertFavoriteRequest) => apiClient.insertFavorite(request),
 	insertCollection: (request: InsertCollectionRequest) => apiClient.insertCollection(request),
+	insertBangumi: (request: InsertBangumiRequest) => apiClient.insertBangumi(request),
 	insertSubmission: (request: InsertSubmissionRequest) => apiClient.insertSubmission(request),
 	getVideoSourcesDetails: () => apiClient.getVideoSourcesDetails(),
 	updateVideoSource: (type: string, id: number, request: UpdateVideoSourceRequest) =>

@@ -268,14 +268,20 @@ impl PageAnalyzer {
                 .pointer_mut("/dash/flac/audio")
                 .and_then(|f| f.as_object_mut())
         {
-            let (Some(url), Some(quality)) = (flac["baseUrl"].as_str(), flac["id"].as_u64()) else {
+            let (Some(url), Some(quality)) = (
+                flac.get("baseUrl").and_then(serde_json::Value::as_str),
+                flac.get("id").and_then(serde_json::Value::as_u64),
+            ) else {
                 bail!("invalid flac stream, flac content: {:?}", flac);
             };
             let quality = AudioQuality::from_repr(quality as usize).context("invalid flac stream quality")?;
             if quality >= filter_option.audio_min_quality && quality <= filter_option.audio_max_quality {
                 streams.push(Stream::DashAudio {
                     url: url.to_string(),
-                    backup_url: serde_json::from_value(flac["backupUrl"].take()).unwrap_or_default(),
+                    backup_url: flac
+                        .remove("backupUrl")
+                        .and_then(|v| serde_json::from_value(v).ok())
+                        .unwrap_or_default(),
                     quality,
                 });
             }
@@ -286,14 +292,20 @@ impl PageAnalyzer {
                 .pointer_mut("/dash/dolby/audio/0")
                 .and_then(|a| a.as_object_mut())
         {
-            let (Some(url), Some(quality)) = (dolby_audio["baseUrl"].as_str(), dolby_audio["id"].as_u64()) else {
+            let (Some(url), Some(quality)) = (
+                dolby_audio.get("baseUrl").and_then(serde_json::Value::as_str),
+                dolby_audio.get("id").and_then(serde_json::Value::as_u64),
+            ) else {
                 bail!("invalid dolby audio stream");
             };
             let quality = AudioQuality::from_repr(quality as usize).context("invalid dolby audio stream quality")?;
             if quality >= filter_option.audio_min_quality && quality <= filter_option.audio_max_quality {
                 streams.push(Stream::DashAudio {
                     url: url.to_string(),
-                    backup_url: serde_json::from_value(dolby_audio["backupUrl"].take()).unwrap_or_default(),
+                    backup_url: dolby_audio
+                        .remove("backupUrl")
+                        .and_then(|v| serde_json::from_value(v).ok())
+                        .unwrap_or_default(),
                     quality,
                 });
             }

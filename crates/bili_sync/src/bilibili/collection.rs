@@ -1,19 +1,21 @@
 use std::fmt::{Display, Formatter};
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, anyhow, bail};
 use async_stream::try_stream;
 use futures::Stream;
 use reqwest::Method;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::bilibili::{BiliClient, Credential, ErrorForStatusExt, Validate, VideoInfo};
+use crate::bilibili::{Bangumi, BangumiTarget, BiliClient, Credential, ErrorForStatusExt, Validate, VideoInfo};
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug, Default, Copy)]
 pub enum CollectionType {
     Series,
     #[default]
     Season,
+    BangumiSeason,
+    BangumiEpisode,
 }
 
 impl<'de> serde::Deserialize<'de> for CollectionType {
@@ -31,6 +33,8 @@ impl From<CollectionType> for i32 {
         match v {
             CollectionType::Series => 1,
             CollectionType::Season => 2,
+            CollectionType::BangumiSeason => 3,
+            CollectionType::BangumiEpisode => 4,
         }
     }
 }
@@ -42,12 +46,18 @@ impl TryFrom<i32> for CollectionType {
         match v {
             1 => Ok(CollectionType::Series),
             2 => Ok(CollectionType::Season),
+            3 => Ok(CollectionType::BangumiSeason),
+            4 => Ok(CollectionType::BangumiEpisode),
             v => Err(anyhow!("got invalid collection type {}", v)),
         }
     }
 }
 
 impl CollectionType {
+    pub fn is_bangumi(self) -> bool {
+        matches!(self, Self::BangumiSeason | Self::BangumiEpisode)
+    }
+
     pub fn from_expected(v: i32) -> Self {
         Self::try_from(v).expect("invalid collection type")
     }
@@ -58,6 +68,8 @@ impl Display for CollectionType {
         let s = match self {
             CollectionType::Series => "列表",
             CollectionType::Season => "合集",
+            CollectionType::BangumiSeason => "番剧整季",
+            CollectionType::BangumiEpisode => "番剧单集",
         };
         write!(f, "{}", s)
     }
@@ -121,12 +133,45 @@ impl<'a> Collection<'a> {
     }
 
     pub async fn get_info(&self) -> Result<CollectionInfo> {
+        if self.collection.collection_type.is_bangumi() {
+            let target = self.bangumi_target()?;
+            let season = Bangumi::new(self.client, self.credential).get_season(target).await?;
+            let name = match target {
+                BangumiTarget::Season(_) => season.title,
+                BangumiTarget::Episode(id) => {
+                    let episode = season
+                        .episodes
+                        .iter()
+                        .find(|episode| episode.id == id)
+                        .context("番剧中未找到指定分集")?;
+                    format!("{} - {} {}", season.title, episode.title, episode.long_title)
+                        .trim()
+                        .to_owned()
+                }
+            };
+            return Ok(CollectionInfo {
+                name,
+                mid: 0,
+                sid: self.collection.sid.parse()?,
+                collection_type: self.collection.collection_type,
+            });
+        }
         let meta = match self.collection.collection_type {
             // 没有找到专门获取 Season 信息的接口，所以直接获取第一页，从里面取 meta 信息
             CollectionType::Season => self.get_videos(1).await?["data"]["meta"].take(),
             CollectionType::Series => self.get_series_info().await?["data"]["meta"].take(),
+            CollectionType::BangumiSeason | CollectionType::BangumiEpisode => unreachable!(),
         };
         Ok(serde_json::from_value(meta)?)
+    }
+
+    fn bangumi_target(&self) -> Result<BangumiTarget> {
+        let id = self.collection.sid.parse()?;
+        match self.collection.collection_type {
+            CollectionType::BangumiSeason => Ok(BangumiTarget::Season(id)),
+            CollectionType::BangumiEpisode => Ok(BangumiTarget::Episode(id)),
+            _ => bail!("该视频源不是番剧"),
+        }
     }
 
     async fn get_series_info(&self) -> Result<Value> {
@@ -175,6 +220,7 @@ impl<'a> Collection<'a> {
                     ("sort_reverse", "true"),
                     ("page_size", "30"),
                 ]),
+            CollectionType::BangumiSeason | CollectionType::BangumiEpisode => bail!("番剧不使用投稿分页接口"),
         };
         req.send()
             .await?
@@ -186,6 +232,27 @@ impl<'a> Collection<'a> {
 
     pub fn into_video_stream(self) -> impl Stream<Item = Result<VideoInfo>> + 'a {
         try_stream! {
+            if self.collection.collection_type.is_bangumi() {
+                let target = self.bangumi_target()?;
+                let season = Bangumi::new(self.client, self.credential).get_season(target).await?;
+                let episodes = season.episodes.iter().filter(|episode| match target {
+                    BangumiTarget::Season(_) => true,
+                    BangumiTarget::Episode(id) => episode.id == id,
+                }).collect::<Vec<_>>();
+                if episodes.is_empty() {
+                    Err(anyhow!("番剧中没有可下载的分集"))?;
+                }
+                for episode in episodes {
+                    // 连载中的整季可能提前列出尚未发布的集数；后续全量扫描会补上。
+                    // 单集明确指定的目标仍应报错，避免把未发布内容当作已完成。
+                    if matches!(target, BangumiTarget::Season(_))
+                        && (episode.cid <= 0 || episode.bvid.is_empty()) {
+                        continue;
+                    }
+                    yield episode.to_video_info(&season)?;
+                }
+                return;
+            }
             let mut page = 1;
             loop {
                 let mut videos = self.get_videos(page).await.with_context(|| {
@@ -218,6 +285,7 @@ impl<'a> Collection<'a> {
                 let fields = match self.collection.collection_type {
                     CollectionType::Series => ["num", "size", "total"],
                     CollectionType::Season => ["page_num", "page_size", "total"],
+                    CollectionType::BangumiSeason | CollectionType::BangumiEpisode => unreachable!(),
                 };
                 let values = fields
                     .iter()

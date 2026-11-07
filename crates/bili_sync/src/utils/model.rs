@@ -119,6 +119,7 @@ pub async fn update_video_detail_models(
         video::Column::Staff,
         video::Column::Name,
         video::Column::Bvid,
+        video::Column::EpId,
         video::Column::Intro,
         video::Column::Cover,
         video::Column::Ctime,
@@ -265,4 +266,102 @@ pub async fn save_db_config(config: &Config, connection: &DatabaseConnection) ->
         .await
         .context("Failed to save config to database")?;
     Ok(())
+}
+
+#[cfg(test)]
+mod bangumi_tests {
+    use super::*;
+    use bili_sync_migration::{Migrator, MigratorTrait};
+    use sea_orm::{Database, TransactionTrait};
+    use serde_json::json;
+
+    fn episode() -> VideoInfo {
+        serde_json::from_value(json!({
+            "title": "罗小黑战记 第8话 深山", "bvid": "BV1Rs411f7ZM", "desc": "简介",
+            "pic": "https://example.com/cover.jpg", "owner": {"mid": 1, "name": "作者", "face": ""},
+            "ctime": 1378868400, "pubdate": 1378868400, "state": 0,
+            "is_upower_exclusive": false, "is_upower_play": false,
+            "redirect_url": "https://www.bilibili.com/bangumi/play/ep32367",
+            "pages": [{"cid": 34474885773_i64, "page": 1, "part": "第8话 深山", "duration": 418}]
+        }))
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn bangumi_scan_persists_episode_and_deduplicates() -> Result<()> {
+        let db = Database::connect("sqlite::memory:").await?;
+        Migrator::up(&db, None).await?;
+        let source: VideoSourceEnum = collection::ActiveModel {
+            s_id: Set(32367),
+            m_id: Set(0),
+            r#type: Set(4),
+            name: Set("罗小黑战记".into()),
+            path: Set("downloads".into()),
+            enabled: Set(true),
+            ..Default::default()
+        }
+        .insert(&db)
+        .await?
+        .into();
+        assert_eq!(episode().release_datetime().timestamp(), 1378868400);
+        for _ in 0..2 {
+            create_videos(vec![episode()], &source, &db).await?;
+        }
+        let videos = filter_unfilled_videos(source.filter_expr(), &db).await?;
+        assert_eq!(videos.len(), 1);
+        assert_eq!(videos[0].ep_id, Some(32367));
+        assert!(videos[0].valid);
+        let mut info = episode();
+        let VideoInfo::Detail { pages, .. } = &mut info else {
+            unreachable!()
+        };
+        let pages = std::mem::take(pages)
+            .into_iter()
+            .map(|p| p.into_active_model(videos[0].id))
+            .collect();
+        let mut model = info.into_detail_model(videos[0].clone(), false);
+        model.single_page = Set(Some(true));
+        model.should_download = Set(true);
+        let txn = db.begin().await?;
+        create_pages(pages, &txn).await?;
+        update_video_detail_models(vec![model], &txn).await?;
+        txn.commit().await?;
+        let pending = filter_unhandled_video_pages(source.filter_expr(), &db).await?;
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].0.ep_id, Some(32367));
+        assert_eq!(pending[0].1[0].cid, 34474885773);
+        assert_eq!(pending[0].1[0].duration, 418);
+        assert!(filter_unfilled_videos(source.filter_expr(), &db).await?.is_empty());
+        // The nullable migration preserves ordinary video behavior.
+        let mut ordinary = episode();
+        if let VideoInfo::Detail { redirect_url, .. } = &mut ordinary {
+            *redirect_url = None;
+        }
+        let ordinary = ordinary.into_detail_model(Default::default(), false);
+        assert_eq!(ordinary.ep_id, Set(None));
+        assert_eq!(ordinary.valid, Set(true));
+        db.close().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore = "requires Bilibili network access; fetches metadata and stream URLs only"]
+    async fn live_bangumi_ep32367() -> Result<()> {
+        use crate::bilibili::{BestStream, BiliClient, Video};
+        let config = Config::default();
+        let client = BiliClient::new();
+        let video = Video::new(&client, "BV1Rs411f7ZM", &config.credential).with_episode(Some(32367));
+        let info = video.get_view_info().await?;
+        let VideoInfo::Detail { pages, title, .. } = info else {
+            unreachable!()
+        };
+        assert!(title.contains("深山"));
+        assert_eq!(pages.len(), 1);
+        let stream = video
+            .get_page_analyzer(&pages[0])
+            .await?
+            .best_stream(&config.filter_option)?;
+        assert!(matches!(stream, BestStream::VideoAudio { audio: Some(_), .. }));
+        Ok(())
+    }
 }

@@ -9,12 +9,13 @@ use crate::bilibili::analyzer::PageAnalyzer;
 use crate::bilibili::client::BiliClient;
 use crate::bilibili::danmaku::{DanmakuElem, DanmakuWriter, DmSegMobileReply};
 use crate::bilibili::subtitle::{SubTitle, SubTitleBody, SubTitleInfo, SubTitlesInfo};
-use crate::bilibili::{Credential, ErrorForStatusExt, MIXIN_KEY, Validate, VideoInfo, WbiSign};
+use crate::bilibili::{Bangumi, BangumiTarget, Credential, ErrorForStatusExt, MIXIN_KEY, Validate, VideoInfo, WbiSign};
 
 pub struct Video<'a> {
     client: &'a BiliClient,
     pub bvid: &'a str,
     credential: &'a Credential,
+    ep_id: Option<i64>,
 }
 
 #[derive(Debug, serde::Deserialize, Default)]
@@ -41,11 +42,22 @@ impl<'a> Video<'a> {
             client,
             bvid,
             credential,
+            ep_id: None,
         }
+    }
+
+    pub fn with_episode(mut self, ep_id: Option<i64>) -> Self {
+        self.ep_id = ep_id;
+        self
     }
 
     /// 直接调用视频信息接口获取详细的视频信息，视频信息中包含了视频的分页信息
     pub async fn get_view_info(&self) -> Result<VideoInfo> {
+        if let Some(ep_id) = self.ep_id {
+            return Bangumi::new(self.client, self.credential)
+                .get_episode_detail(ep_id)
+                .await;
+        }
         let mut res = self
             .client
             .request(
@@ -62,7 +74,18 @@ impl<'a> Video<'a> {
             .json::<serde_json::Value>()
             .await?
             .validate()?;
-        Ok(serde_json::from_value(res["data"].take())?)
+        let info: VideoInfo = serde_json::from_value(res["data"].take())?;
+        if let VideoInfo::Detail {
+            redirect_url: Some(url),
+            ..
+        } = &info
+            && let Ok(BangumiTarget::Episode(ep_id)) = url.parse()
+        {
+            return Bangumi::new(self.client, self.credential)
+                .get_episode_detail(ep_id)
+                .await;
+        }
+        Ok(info)
     }
 
     #[cfg(test)]
@@ -86,6 +109,9 @@ impl<'a> Video<'a> {
     }
 
     pub async fn get_tags(&self) -> Result<Vec<String>> {
+        if self.ep_id.is_some() {
+            return Ok(vec![]);
+        }
         let mut res = self
             .client
             .request(
@@ -154,6 +180,11 @@ impl<'a> Video<'a> {
     }
 
     pub async fn get_page_analyzer(&self, page: &PageInfo) -> Result<PageAnalyzer> {
+        if let Some(ep_id) = self.ep_id {
+            return Bangumi::new(self.client, self.credential)
+                .get_page_analyzer(ep_id, page.cid)
+                .await;
+        }
         let mut res = self
             .client
             .request(
@@ -181,12 +212,16 @@ impl<'a> Video<'a> {
     }
 
     pub async fn get_subtitles(&self, page: &PageInfo) -> Result<Vec<SubTitle>> {
-        let mut res = self
+        let mut request = self
             .client
             .request(Method::GET, "https://api.bilibili.com/x/player/wbi/v2", self.credential)
             .await
             .query(&[("bvid", self.bvid)])
-            .query(&[("cid", page.cid)])
+            .query(&[("cid", page.cid)]);
+        if let Some(ep_id) = self.ep_id {
+            request = request.query(&[("ep_id", ep_id)]);
+        }
+        let mut res = request
             .wbi_sign(MIXIN_KEY.load().as_deref())?
             .send()
             .await?

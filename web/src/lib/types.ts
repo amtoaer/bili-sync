@@ -204,6 +204,12 @@ export interface InsertCollectionRequest {
 	path: string;
 }
 
+export interface InsertBangumiRequest {
+	url: string;
+	path: string;
+	whole_season: boolean;
+}
+
 export interface InsertSubmissionRequest {
 	upper_id: number;
 	path: string;
@@ -232,6 +238,8 @@ export interface VideoSourceDetail {
 	useDynamicApi: boolean | null;
 	enabled: boolean;
 	latestRowAt: string | null;
+	collectionType?: number | null;
+	sourceUrl?: string | null;
 }
 
 export interface VideoSourcesDetailsResponse {

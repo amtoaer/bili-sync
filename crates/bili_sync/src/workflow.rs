@@ -147,7 +147,8 @@ pub async fn fetch_video_details(
     let videos_model = filter_unfilled_videos(video_source.filter_expr(), connection).await?;
     let mut tasks = stream::iter(videos_model)
         .map(|video_model| async move {
-            let video = Video::new(bili_client, video_model.bvid.as_str(), &config.credential);
+            let video =
+                Video::new(bili_client, video_model.bvid.as_str(), &config.credential).with_episode(video_model.ep_id);
             let info: Result<_> = async { Ok((video.get_tags().await?, video.get_view_info().await?)) }.await;
             match info {
                 Err(e) => {
@@ -248,6 +249,7 @@ pub async fn download_unprocessed_videos(
                 if video_model.tags.is_none() {
                     video_model.tags = Some(
                         Video::new(cx.bili_client, video_model.bvid.as_str(), &cx.config.credential)
+                            .with_episode(video_model.ep_id)
                             .get_tags()
                             .await?
                             .into(),
@@ -753,7 +755,8 @@ pub async fn fetch_page_video(
     if !should_run {
         return Ok(ExecutionStatus::Skipped);
     }
-    let bili_video = Video::new(cx.bili_client, video_model.bvid.as_str(), &cx.config.credential);
+    let bili_video =
+        Video::new(cx.bili_client, video_model.bvid.as_str(), &cx.config.credential).with_episode(video_model.ep_id);
     let streams = bili_video
         .get_page_analyzer(page_info)
         .await?
@@ -826,7 +829,8 @@ pub async fn fetch_page_subtitle(
     if !should_run {
         return Ok(ExecutionStatus::Skipped);
     }
-    let bili_video = Video::new(cx.bili_client, video_model.bvid.as_str(), &cx.config.credential);
+    let bili_video =
+        Video::new(cx.bili_client, video_model.bvid.as_str(), &cx.config.credential).with_episode(video_model.ep_id);
     let subtitles = bili_video.get_subtitles(page_info).await?;
     let tasks = subtitles
         .into_iter()

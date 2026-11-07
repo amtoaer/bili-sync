@@ -132,6 +132,15 @@ pub struct InsertCollectionRequest {
 }
 
 #[derive(Deserialize, Validate)]
+pub struct InsertBangumiRequest {
+    pub url: String,
+    #[serde(default)]
+    pub whole_season: bool,
+    #[validate(custom(function = "crate::utils::validation::validate_path"))]
+    pub path: String,
+}
+
+#[derive(Deserialize, Validate)]
 pub struct InsertSubmissionRequest {
     pub upper_id: i64,
     #[validate(custom(function = "crate::utils::validation::validate_path"))]

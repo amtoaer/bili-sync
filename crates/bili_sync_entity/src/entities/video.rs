@@ -23,6 +23,7 @@ pub struct Model {
     pub path: String,
     pub category: i32,
     pub bvid: String,
+    pub ep_id: Option<i64>,
     pub intro: String,
     pub cover: String,
     pub ctime: DateTime,

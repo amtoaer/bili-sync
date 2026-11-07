@@ -18,15 +18,17 @@ use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QuerySelect, QueryTr
 use crate::adapter::{_ActiveModel, VideoSource as _, VideoSourceEnum};
 use crate::api::error::InnerApiError;
 use crate::api::request::{
-    DefaultPathRequest, FullSyncVideoSourceRequest, InsertCollectionRequest, InsertFavoriteRequest,
-    InsertSubmissionRequest, UpdateVideoSourceRequest,
+    DefaultPathRequest, FullSyncVideoSourceRequest, InsertBangumiRequest, InsertCollectionRequest,
+    InsertFavoriteRequest, InsertSubmissionRequest, UpdateVideoSourceRequest,
 };
 use crate::api::response::{
     FullSyncVideoSourceResponse, UpdateVideoSourceResponse, VideoSource, VideoSourceDetail,
     VideoSourcesDetailsResponse, VideoSourcesResponse,
 };
 use crate::api::wrapper::{ApiError, ApiResponse, ValidatedJson};
-use crate::bilibili::{BiliClient, Collection, CollectionItem, FavoriteList, Submission};
+use crate::bilibili::{
+    Bangumi, BangumiTarget, BiliClient, Collection, CollectionItem, CollectionType, FavoriteList, Submission,
+};
 use crate::config::{PathSafeTemplate, TEMPLATE, VersionedConfig};
 use crate::utils::rule::FieldEvaluatable;
 
@@ -46,6 +48,7 @@ pub(super) fn router() -> Router {
         .route("/video-sources/{type}/{id}/full-sync", post(full_sync_video_source))
         .route("/video-sources/favorites", post(insert_favorite))
         .route("/video-sources/collections", post(insert_collection))
+        .route("/video-sources/bangumi", post(insert_bangumi))
         .route("/video-sources/submissions", post(insert_submission))
 }
 
@@ -108,6 +111,8 @@ pub async fn get_video_sources_details(
                 collection::Column::Enabled,
                 collection::Column::LatestRowAt
             ])
+            .column_as(collection::Column::Type, "collection_type")
+            .column_as(Expr::cust("CASE type WHEN 3 THEN 'https://www.bilibili.com/bangumi/play/ss' || s_id WHEN 4 THEN 'https://www.bilibili.com/bangumi/play/ep' || s_id END"), "source_url")
             .into_model::<VideoSourceDetail>()
             .all(&db),
         favorite::Entity::find()
@@ -156,6 +161,8 @@ pub async fn get_video_sources_details(
             id: 1,
             name: "稍后再看".to_string(),
             path: String::new(),
+            collection_type: None,
+            source_url: None,
             rule: None,
             filter_option: None,
             rule_display: None,
@@ -186,7 +193,7 @@ pub async fn get_video_sources_default_path(
 ) -> Result<ApiResponse<String>, ApiError> {
     let template_name = match source_type.as_str() {
         "favorites" => "favorite_default_path",
-        "collections" => "collection_default_path",
+        "collections" | "bangumi" => "collection_default_path",
         "submissions" => "submission_default_path",
         _ => return Err(InnerApiError::BadRequest("Invalid video source type".to_string()).into()),
     };
@@ -485,6 +492,9 @@ pub async fn insert_collection(
     Extension(bili_client): Extension<Arc<BiliClient>>,
     ValidatedJson(request): ValidatedJson<InsertCollectionRequest>,
 ) -> Result<ApiResponse<bool>, ApiError> {
+    if request.collection_type.is_bangumi() {
+        return Err(InnerApiError::BadRequest("请通过番剧入口添加 ep/ss 链接".to_string()).into());
+    }
     let credential = &VersionedConfig::get().read().credential;
     let collection = Collection::new(
         bili_client.as_ref(),
@@ -511,6 +521,51 @@ pub async fn insert_collection(
     Ok(ApiResponse::ok(true))
 }
 
+/// 新增番剧单集或整季订阅；和其他视频源一样，新增后由用户启用。
+pub async fn insert_bangumi(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(bili_client): Extension<Arc<BiliClient>>,
+    ValidatedJson(request): ValidatedJson<InsertBangumiRequest>,
+) -> Result<ApiResponse<bool>, ApiError> {
+    let target: BangumiTarget = request
+        .url
+        .parse()
+        .map_err(|e: anyhow::Error| InnerApiError::BadRequest(e.to_string()))?;
+    let credential = &VersionedConfig::get().read().credential;
+    let season = Bangumi::new(bili_client.as_ref(), credential)
+        .get_season(target)
+        .await?;
+    let (sid, collection_type, name) = match target {
+        BangumiTarget::Season(_) => (season.season_id, CollectionType::BangumiSeason, season.title),
+        BangumiTarget::Episode(_) if request.whole_season => {
+            (season.season_id, CollectionType::BangumiSeason, season.title)
+        }
+        BangumiTarget::Episode(id) => {
+            let episode = season
+                .episodes
+                .iter()
+                .find(|episode| episode.id == id)
+                .context("番剧中未找到指定分集")?;
+            let name = format!("{} - {} {}", season.title, episode.title, episode.long_title)
+                .trim()
+                .to_owned();
+            (id, CollectionType::BangumiEpisode, name)
+        }
+    };
+    collection::Entity::insert(collection::ActiveModel {
+        s_id: Set(sid),
+        m_id: Set(0),
+        r#type: Set(collection_type.into()),
+        name: Set(name),
+        path: Set(request.path),
+        enabled: Set(false),
+        ..Default::default()
+    })
+    .exec(&db)
+    .await?;
+    Ok(ApiResponse::ok(true))
+}
+
 /// 新增投稿订阅
 pub async fn insert_submission(
     Extension(db): Extension<DatabaseConnection>,
@@ -530,4 +585,105 @@ pub async fn insert_submission(
     .exec(&db)
     .await?;
     Ok(ApiResponse::ok(true))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bili_sync_migration::{Migrator, MigratorTrait};
+    use sea_orm::Database;
+
+    #[tokio::test]
+    async fn bangumi_migration_preserves_existing_video() -> Result<()> {
+        use sea_orm::ActiveValue::NotSet;
+        use sea_orm::IntoActiveModel;
+
+        let db = Database::connect("sqlite::memory:").await?;
+        // Build the previous schema, including an ordinary video saved before ep_id existed.
+        let previous_migrations = Migrator::migrations().len() as u32 - 1;
+        Migrator::up(&db, Some(previous_migrations)).await?;
+        let old_video = video::ActiveModel {
+            id: NotSet,
+            ep_id: NotSet,
+            created_at: NotSet,
+            bvid: Set("BV1ExistingVideo".to_owned()),
+            name: Set("已下载的普通视频".to_owned()),
+            path: Set("/downloads/existing".to_owned()),
+            download_status: Set(123),
+            valid: Set(true),
+            ..video::Model::default().into_active_model()
+        };
+        let inserted = video::Entity::insert(old_video).exec(&db).await?;
+        Migrator::up(&db, None).await?;
+        let upgraded = video::Entity::find_by_id(inserted.last_insert_id)
+            .one(&db)
+            .await?
+            .unwrap();
+        assert_eq!(upgraded.ep_id, None);
+        assert_eq!(upgraded.bvid, "BV1ExistingVideo");
+        assert_eq!(upgraded.name, "已下载的普通视频");
+        assert_eq!(upgraded.path, "/downloads/existing");
+        assert_eq!(upgraded.download_status, 123);
+        assert!(upgraded.valid);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn bangumi_sources_use_collection_management() -> Result<()> {
+        let db = Database::connect("sqlite::memory:").await?;
+        Migrator::up(&db, None).await?;
+        for (sid, kind, name) in [
+            (32367, CollectionType::BangumiEpisode, "番剧单集"),
+            (1733, CollectionType::BangumiSeason, "番剧整季"),
+            (1, CollectionType::Season, "普通合集"),
+        ] {
+            collection::ActiveModel {
+                s_id: Set(sid),
+                m_id: Set(0),
+                r#type: Set(kind.into()),
+                name: Set(name.to_owned()),
+                path: Set("/downloads/bangumi".to_owned()),
+                enabled: Set(false),
+                ..Default::default()
+            }
+            .insert(&db)
+            .await?;
+        }
+        let result = get_video_sources_details(Extension(db.clone()))
+            .await
+            .map_err(|_| anyhow::anyhow!("获取番剧视频源失败"))?;
+        let result = serde_json::to_value(result)?;
+        let sources = result["data"]["collections"].as_array().unwrap();
+        let episode = sources.iter().find(|source| source["collectionType"] == 4).unwrap();
+        assert_eq!(episode["sourceUrl"], "https://www.bilibili.com/bangumi/play/ep32367");
+        let season = sources.iter().find(|source| source["collectionType"] == 3).unwrap();
+        assert_eq!(season["sourceUrl"], "https://www.bilibili.com/bangumi/play/ss1733");
+        let regular = sources.iter().find(|source| source["collectionType"] == 2).unwrap();
+        assert!(regular["sourceUrl"].is_null());
+        assert!(result["data"]["watch_later"][0]["collectionType"].is_null());
+
+        let id = episode["id"].as_i64().unwrap() as i32;
+        update_video_source(
+            Path(("collections".to_owned(), id)),
+            Extension(db.clone()),
+            ValidatedJson(UpdateVideoSourceRequest {
+                path: "/downloads/updated".to_owned(),
+                enabled: true,
+                rule: None,
+                filter_option: None,
+                use_dynamic_api: None,
+            }),
+        )
+        .await
+        .map_err(|_| anyhow::anyhow!("更新番剧视频源失败"))?;
+        let updated = collection::Entity::find_by_id(id).one(&db).await?.unwrap();
+        assert!(updated.enabled);
+        assert_eq!(updated.path, "/downloads/updated");
+        assert_eq!(updated.r#type, 4);
+        remove_video_source(Path(("collections".to_owned(), id)), Extension(db.clone()))
+            .await
+            .map_err(|_| anyhow::anyhow!("删除番剧视频源失败"))?;
+        assert!(collection::Entity::find_by_id(id).one(&db).await?.is_none());
+        Ok(())
+    }
 }

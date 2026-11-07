@@ -2,7 +2,7 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use sea_orm::ActiveValue::{NotSet, Set};
 use sea_orm::IntoActiveModel;
 
-use crate::bilibili::{PageInfo, VideoInfo};
+use crate::bilibili::{BangumiTarget, PageInfo, VideoInfo};
 
 impl VideoInfo {
     /// 在检测视频更新时，通过该方法将 VideoInfo 转换为简单的 ActiveModel，此处仅填充一些简单信息，后续会使用详情覆盖
@@ -114,7 +114,14 @@ impl VideoInfo {
                 valid: Set(true),
                 ..default
             },
-            VideoInfo::Detail { .. } => unreachable!(),
+            detail @ VideoInfo::Detail { .. } => {
+                let mut model = detail.into_detail_model(Default::default(), false);
+                model.id = NotSet;
+                model.created_at = NotSet;
+                model.should_download = NotSet;
+                model.category = Set(2);
+                model
+            }
         }
     }
 
@@ -158,11 +165,11 @@ impl VideoInfo {
                 // is_upower_exclusive 和 is_upower_play 相等有两种情况：
                 //  1. 都为 true，表示视频是充电专享但是已经充过电，有权观看
                 //  2. 都为 false，表示视频是非充电视频
-                // redirect_url 仅在视频为番剧、影视、纪录片等特殊视频时才会有值，如果为空说明是普通视频
-                // 仅在三种条件都满足时，才认为视频是可下载的
+                // 番剧分集转入 PGC 下载流程，其实际播放权限由 playurl 接口检查。
                 valid: Set(state == 0
                     && (try_upower_anyway || (is_upower_exclusive == is_upower_play))
-                    && redirect_url.is_none()),
+                    && (redirect_url.is_none() || episode_id(redirect_url.as_deref()).is_some())),
+                ep_id: Set(episode_id(redirect_url.as_deref())),
                 upper_id: Set(upper.mid),
                 upper_name: Set(upper.name),
                 upper_face: Set(upper.face),
@@ -180,8 +187,8 @@ impl VideoInfo {
             | VideoInfo::Favorite { fav_time: time, .. }
             | VideoInfo::WatchLater { fav_time: time, .. }
             | VideoInfo::Submission { ctime: time, .. }
-            | VideoInfo::Dynamic { pubtime: time, .. } => time,
-            VideoInfo::Detail { .. } => unreachable!(),
+            | VideoInfo::Dynamic { pubtime: time, .. }
+            | VideoInfo::Detail { pubtime: time, .. } => time,
         }
     }
 
@@ -194,6 +201,13 @@ impl VideoInfo {
             | VideoInfo::Dynamic { bvid, .. }
             | VideoInfo::Detail { bvid, .. } => bvid,
         }
+    }
+}
+
+fn episode_id(redirect_url: Option<&str>) -> Option<i64> {
+    match redirect_url?.parse::<BangumiTarget>().ok()? {
+        BangumiTarget::Episode(id) => Some(id),
+        BangumiTarget::Season(_) => None,
     }
 }
 

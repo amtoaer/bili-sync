@@ -212,6 +212,8 @@ pub struct SysInfo {
 pub struct VideoSourceDetail {
     pub id: i32,
     pub name: String,
+    pub collection_type: Option<i32>,
+    pub source_url: Option<String>,
     pub path: String,
     pub rule: Option<Rule>,
     pub filter_option: Option<serde_json::Value>,
