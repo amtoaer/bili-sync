@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, ensure};
 use reqwest::{Method, Url};
 
+use super::bangumi::{BangumiPublish, BangumiRating};
 use crate::bilibili::{BiliClient, Credential, ErrorForStatusExt, Validate};
 
 pub struct Me<'a> {
@@ -174,6 +175,8 @@ pub struct FollowedBangumiItem {
     pub total_count: Option<i64>,
     pub new_ep: Option<FollowedBangumiEpisode>,
     pub progress: Option<String>,
+    pub publish: Option<BangumiPublish>,
+    pub rating: Option<BangumiRating>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -217,6 +220,8 @@ mod tests {
         let data = parse_followed_bangumi(json!({"code":0,"data":{"total":2,"list":[
             {"season_id":40551,"title":"奶龙","cover":"http://i0.hdslb.com/cover.png",
              "total_count":150,"season_status":13,"badge":"大会员",
+             "publish":{"pub_time_show":"2022年1月1日", "pub_time":"2022-01-01 00:00:01"},
+             "rating":{"score":9.8},
              "new_ep":{"index_show":"更新至第248话"},"progress":"看到第1话"},
             {"season_id":1733,"title":"罗小黑战记","cover":"//i0.hdslb.com/cover.png",
              "total_count":0,"new_ep":{"index_show":" "},"progress":""}
@@ -229,11 +234,22 @@ mod tests {
         assert_eq!(list[0].total_count, Some(150));
         assert_eq!(list[0].progress.as_deref(), Some("看到第1话"));
         assert_eq!(
+            list[0]
+                .publish
+                .as_ref()
+                .and_then(BangumiPublish::display_time)
+                .as_deref(),
+            Some("2022年1月1日")
+        );
+        assert_eq!(list[0].rating.as_ref().and_then(BangumiRating::value), Some(9.8));
+        assert_eq!(
             list[0].new_ep.as_ref().unwrap().index_show.as_deref(),
             Some("更新至第248话")
         );
         assert_eq!(list[1].total_count, None);
         assert_eq!(list[1].progress, None);
+        assert!(list[1].publish.is_none());
+        assert!(list[1].rating.is_none());
         assert_eq!(list[1].cover, "https://i0.hdslb.com/cover.png");
         assert_eq!(list[1].new_ep.as_ref().unwrap().index_show, None);
     }
@@ -274,6 +290,7 @@ mod tests {
             assert!(item.season_id > 0);
             assert!(!item.title.is_empty());
             assert!(item.cover.is_empty() || item.cover.starts_with("https://"));
+            assert!(item.publish.as_ref().and_then(BangumiPublish::display_time).is_some());
         }
         Ok(())
     }

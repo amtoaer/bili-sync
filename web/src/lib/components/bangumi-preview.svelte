@@ -76,19 +76,93 @@
 	}
 </script>
 
-{#if active && url.trim()}
-	<div aria-live="polite" aria-busy={loading}>
-		{#if loading}
+{#if active}
+	<section
+		class="bg-muted/30 space-y-3 rounded-lg border p-3"
+		aria-label="番剧信息预览"
+		aria-live="polite"
+		aria-busy={loading}
+	>
+		<div class="flex items-start gap-3">
 			<div
-				class="bg-muted/40 text-muted-foreground flex items-center gap-2 rounded-lg border p-4 text-sm"
-				role="status"
+				class="bg-muted flex aspect-[3/4] w-20 shrink-0 items-center justify-center overflow-hidden rounded-md sm:w-24"
 			>
-				<LoaderCircleIcon class="size-4 shrink-0 animate-spin" />
-				正在获取番剧信息…
+				{#if preview?.cover && !posterFailed}
+					<img
+						src={preview.cover}
+						alt={preview.title + '海报'}
+						referrerpolicy="no-referrer"
+						class="h-full w-full object-cover"
+						onerror={() => (posterFailed = true)}
+					/>
+				{:else}
+					<div class="text-muted-foreground flex flex-col items-center gap-1.5 text-xs">
+						<ImageIcon class="size-6" />
+						暂无海报
+					</div>
+				{/if}
 			</div>
+			<div class="min-w-0 flex-1 space-y-2">
+				{#if preview}
+					<a
+						href={preview.url}
+						target="_blank"
+						rel="noopener noreferrer"
+						class="text-sm leading-snug font-semibold break-words hover:underline sm:text-base"
+						>{preview.title || '暂无名称'}</a
+					>
+				{:else}
+					<p class="text-muted-foreground text-sm font-semibold">番剧信息待获取</p>
+				{/if}
+				<p class="text-muted-foreground text-xs leading-relaxed break-words">
+					开播时间：{preview?.pubTime || '暂无信息'}
+				</p>
+				<p class="text-muted-foreground text-xs">
+					评分：{preview?.rating?.toLocaleString('zh-CN', { maximumFractionDigits: 1 }) ??
+						'暂无评分'}
+				</p>
+				{#if preview?.status}
+					<Badge variant="secondary" class="max-w-full whitespace-normal">{preview.status}</Badge>
+				{/if}
+				<p class="text-muted-foreground text-xs leading-relaxed">
+					{#if preview}
+						{#if preview.totalEpisodes !== null}共 {preview.totalEpisodes} 集 ·
+						{:else}总集数待定 ·
+						{/if}已上架 {preview.publishedEpisodes} 集
+					{:else}
+						集数：暂无信息
+					{/if}
+				</p>
+				{#if preview?.episode}
+					<p class="text-xs leading-relaxed break-words">
+						<span class="text-muted-foreground">{wholeSeason ? '链接对应：' : '下载单集：'}</span
+						>{episodeTitle(preview.episode)}
+					</p>
+				{/if}
+			</div>
+		</div>
+		<dl class="grid grid-cols-2 gap-3 border-t pt-3">
+			<div>
+				<dt class="text-muted-foreground text-xs">全季累计播放</dt>
+				<dd class="mt-1 text-sm font-semibold tabular-nums">
+					{formatCount(preview?.views ?? null)}
+				</dd>
+			</div>
+			<div>
+				<dt class="text-muted-foreground text-xs">本季追番</dt>
+				<dd class="mt-1 text-sm font-semibold tabular-nums">
+					{formatCount(preview?.followers ?? null)}
+				</dd>
+			</div>
+		</dl>
+		{#if loading}
+			<p class="text-muted-foreground flex items-center gap-2 text-xs" role="status">
+				<LoaderCircleIcon class="size-3.5 shrink-0 animate-spin" />
+				正在获取番剧信息…
+			</p>
 		{:else if error}
 			<div
-				class="border-destructive/30 bg-destructive/5 space-y-2 rounded-lg border p-3"
+				class="border-destructive/30 bg-destructive/5 space-y-2 rounded-md border p-3"
 				role="alert"
 			>
 				<p class="text-destructive text-sm font-medium">无法获取番剧信息</p>
@@ -97,83 +171,21 @@
 					<RefreshCwIcon class="size-3.5" />重试
 				</Button>
 			</div>
-		{:else if preview}
-			<section class="bg-muted/30 space-y-3 rounded-lg border p-3" aria-label="番剧信息预览">
-				<div class="flex items-start gap-3">
-					<div
-						class="bg-muted flex aspect-[3/4] w-20 shrink-0 items-center justify-center overflow-hidden rounded-md sm:w-24"
-					>
-						{#if preview.cover && !posterFailed}
-							<img
-								src={preview.cover}
-								alt={`${preview.title}海报`}
-								referrerpolicy="no-referrer"
-								class="h-full w-full object-cover"
-								onerror={() => (posterFailed = true)}
-							/>
-						{:else}
-							<div class="text-muted-foreground flex flex-col items-center gap-1.5 text-xs">
-								<ImageIcon class="size-6" />
-								暂无海报
-							</div>
-						{/if}
-					</div>
-					<div class="min-w-0 flex-1 space-y-2">
-						<a
-							href={preview.url}
-							target="_blank"
-							rel="noopener noreferrer"
-							class="text-sm leading-snug font-semibold break-words hover:underline sm:text-base"
-							>{preview.title}</a
-						>
-						<div class="flex flex-wrap gap-1.5">
-							{#if preview.status}<Badge variant="secondary" class="max-w-full whitespace-normal"
-									>{preview.status}</Badge
-								>{/if}
-							{#if preview.rating !== null}<Badge variant="secondary"
-									>评分 {preview.rating.toLocaleString('zh-CN', {
-										maximumFractionDigits: 1
-									})}</Badge
-								>{/if}
-						</div>
-						<p class="text-muted-foreground text-xs leading-relaxed">
-							{#if preview.totalEpisodes !== null}共 {preview.totalEpisodes} 集 ·
-							{:else}总集数待定 ·
-							{/if}已上架 {preview.publishedEpisodes} 集
-						</p>
-						{#if preview.episode}
-							<p class="text-xs leading-relaxed break-words">
-								<span class="text-muted-foreground"
-									>{wholeSeason ? '链接对应：' : '下载单集：'}</span
-								>{episodeTitle(preview.episode)}
-							</p>
-						{/if}
-					</div>
-				</div>
-				<dl class="grid grid-cols-2 gap-3 border-t pt-3">
-					<div>
-						<dt class="text-muted-foreground text-xs">全季累计播放</dt>
-						<dd class="mt-1 text-sm font-semibold tabular-nums">{formatCount(preview.views)}</dd>
-					</div>
-					<div>
-						<dt class="text-muted-foreground text-xs">本季追番</dt>
-						<dd class="mt-1 text-sm font-semibold tabular-nums">
-							{formatCount(preview.followers)}
-						</dd>
-					</div>
-				</dl>
-				{#if preview.followText}<p class="text-muted-foreground text-xs">
-						{preview.followText}
-					</p>{/if}
-				{#if preview.description}<p
-						class="text-muted-foreground line-clamp-3 text-xs leading-relaxed break-words"
-					>
-						{preview.description}
-					</p>{/if}
-				<p class="text-muted-foreground text-[11px]">
-					统计来自 B 站；播放量为全季累计，本季追番与系列追番分别统计。
-				</p>
-			</section>
+		{:else if !preview}
+			<p class="text-muted-foreground text-xs">在下方输入番剧链接或编号，即可查看番剧信息。</p>
 		{/if}
-	</div>
+		{#if preview}
+			{#if preview.followText}
+				<p class="text-muted-foreground text-xs">{preview.followText}</p>
+			{/if}
+			{#if preview.description}
+				<p class="text-muted-foreground line-clamp-3 text-xs leading-relaxed break-words">
+					{preview.description}
+				</p>
+			{/if}
+			<p class="text-muted-foreground text-[11px]">
+				统计来自 B 站；播放量为全季累计，本季追番与系列追番分别统计。
+			</p>
+		{/if}
+	</section>
 {/if}

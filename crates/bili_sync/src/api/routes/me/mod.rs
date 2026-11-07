@@ -208,6 +208,8 @@ pub async fn get_followed_bangumi(
             media_count: item.total_count,
             update: item.new_ep.and_then(|episode| episode.index_show),
             progress: item.progress,
+            pub_time: item.publish.as_ref().and_then(|publish| publish.display_time()),
+            rating: item.rating.as_ref().and_then(|rating| rating.value()),
         })
         .collect();
     Ok(ApiResponse::ok(BangumiResponse {

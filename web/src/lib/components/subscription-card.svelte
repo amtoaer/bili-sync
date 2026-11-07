@@ -232,6 +232,14 @@
 				{/if}
 
 				<!-- 计数信息 -->
+				{#if item.type === 'bangumi' && !disabled}
+					<p class="text-muted-foreground text-xs leading-relaxed break-words">
+						开播时间：{item.pub_time || '暂无信息'}
+					</p>
+					<p class="text-muted-foreground text-xs">
+						评分：{item.rating?.toLocaleString('zh-CN', { maximumFractionDigits: 1 }) ?? '暂无评分'}
+					</p>
+				{/if}
 				{#if count !== null && !disabled}
 					<div class="text-muted-foreground flex items-center gap-1 text-sm">
 						<VideoIcon class="h-3 w-3 shrink-0" />

@@ -160,6 +160,8 @@ pub enum Followed {
         media_count: Option<i64>,
         update: Option<String>,
         progress: Option<String>,
+        pub_time: Option<String>,
+        rating: Option<f64>,
         invalid: bool,
         subscribed: bool,
     },

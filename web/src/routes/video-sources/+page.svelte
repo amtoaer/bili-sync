@@ -795,6 +795,11 @@
 			<div class="mt-4">
 				{#if addDialogType === 'bangumi'}
 					<div class="space-y-4">
+						<BangumiPreview
+							url={bangumiForm.url}
+							active={showAddDialog}
+							wholeSeason={isSeasonLink || bangumiForm.whole_season}
+						/>
 						<div>
 							<Label for="bangumi-url" class="text-sm font-medium">番剧链接或编号</Label>
 							<Input
@@ -808,11 +813,6 @@
 								支持 ep32367、ss1733 或完整播放链接。
 							</p>
 						</div>
-						<BangumiPreview
-							url={bangumiForm.url}
-							active={showAddDialog}
-							wholeSeason={isSeasonLink || bangumiForm.whole_season}
-						/>
 						<div class="flex items-center gap-2">
 							<Checkbox
 								id="bangumi-whole-season"

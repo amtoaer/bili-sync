@@ -79,6 +79,7 @@ pub struct BangumiSeason {
     total: Option<u32>,
     stat: Option<BangumiStat>,
     rating: Option<BangumiRating>,
+    publish: Option<BangumiPublish>,
     new_ep: Option<BangumiUpdate>,
     // Count before appending a directly requested extra episode to the download list.
     #[serde(skip)]
@@ -93,8 +94,33 @@ struct BangumiStat {
 }
 
 #[derive(Debug, Deserialize)]
-struct BangumiRating {
+pub struct BangumiRating {
     score: Option<f64>,
+}
+
+impl BangumiRating {
+    pub fn value(&self) -> Option<f64> {
+        self.score
+            .filter(|score| score.is_finite() && (0.0..=10.0).contains(score))
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BangumiPublish {
+    pub_time_show: Option<String>,
+    pub_time: Option<String>,
+}
+
+impl BangumiPublish {
+    /// B 站提供的是开播当地时间文案，保留原文，不按浏览器时区换算。
+    pub fn display_time(&self) -> Option<String> {
+        [self.pub_time_show.as_deref(), self.pub_time.as_deref()]
+            .into_iter()
+            .flatten()
+            .map(str::trim)
+            .find(|text| !text.starts_with("0000") && text.chars().any(|c| matches!(c, '1'..='9')))
+            .map(str::to_owned)
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -115,6 +141,7 @@ pub struct BangumiPreview {
     pub followers: Option<u64>,
     pub follow_text: Option<String>,
     pub rating: Option<f64>,
+    pub pub_time: Option<String>,
     pub status: Option<String>,
     pub episode: Option<BangumiPreviewEpisode>,
     pub url: String,
@@ -173,7 +200,8 @@ impl BangumiSeason {
                 .as_ref()
                 .and_then(|stat| stat.follow_text.clone())
                 .filter(|text| !text.trim().is_empty()),
-            rating: self.rating.as_ref().and_then(|rating| rating.score),
+            rating: self.rating.as_ref().and_then(BangumiRating::value),
+            pub_time: self.publish.as_ref().and_then(BangumiPublish::display_time),
             status: self
                 .new_ep
                 .as_ref()
@@ -493,6 +521,9 @@ mod tests {
         response["result"]["stat"] =
             json!({"views": 1002161540_u64, "favorites": 8853571, "follow_text": "981.9万系列追番"});
         response["result"]["rating"] = json!({"score": 9.9});
+        response["result"]["publish"] = json!({
+            "pub_time_show": "2011年03月17日00:00", "pub_time": "2011-03-17 00:00:00"
+        });
         response["result"]["new_ep"] = json!({"desc": "每周五12:00更新1集"});
         let preview = parse_season(response, BangumiTarget::Episode(32367))
             .unwrap()
@@ -507,6 +538,7 @@ mod tests {
         assert_eq!(preview["followers"], 8853571);
         assert_eq!(preview["followText"], "981.9万系列追番");
         assert_eq!(preview["rating"], 9.9);
+        assert_eq!(preview["pubTime"], "2011年03月17日00:00");
         assert_eq!(preview["status"], "每周五12:00更新1集");
         assert!(preview["totalEpisodes"].is_null());
         assert_eq!(preview["publishedEpisodes"], 1);
@@ -524,6 +556,7 @@ mod tests {
         assert_eq!(preview.views, None);
         assert_eq!(preview.followers, None);
         assert_eq!(preview.rating, None);
+        assert_eq!(preview.pub_time, None);
         assert_eq!(preview.total_episodes, None);
         assert!(preview.episode.is_none());
         assert!(preview.cover.is_empty());
@@ -542,6 +575,39 @@ mod tests {
         assert_eq!(preview.follow_text, None);
         assert_eq!(preview.status, None);
         assert!(preview.cover.is_empty());
+    }
+
+    #[test]
+    fn publish_time_falls_back_and_unknown_values_remain_missing() {
+        for (publish, expected) in [
+            (
+                json!({"pub_time_show":" 2025年5月23日 ", "pub_time":"2025-05-23 11:00:00"}),
+                Some("2025年5月23日"),
+            ),
+            (
+                json!({"pub_time_show":" ", "pub_time":"2025-05-23 11:00:00"}),
+                Some("2025-05-23 11:00:00"),
+            ),
+            (
+                json!({"pub_time_show":"0000年00月00日", "pub_time":"2025-05-23 11:00:00"}),
+                Some("2025-05-23 11:00:00"),
+            ),
+            (json!({"pub_time_show":"待定", "pub_time":"0000-00-00 00:00:00"}), None),
+            (json!({"pub_time_show":"", "pub_time":null}), None),
+            (json!({}), None),
+        ] {
+            let publish: BangumiPublish = serde_json::from_value(publish).unwrap();
+            assert_eq!(publish.display_time().as_deref(), expected);
+        }
+        for (score, expected) in [
+            (Some(9.8), Some(9.8)),
+            (Some(0.0), Some(0.0)),
+            (None, None),
+            (Some(-1.0), None),
+            (Some(10.1), None),
+        ] {
+            assert_eq!(BangumiRating { score }.value(), expected);
+        }
     }
 
     #[test]
@@ -582,6 +648,7 @@ mod tests {
         assert!(preview.views.is_some_and(|views| views > 0));
         assert!(preview.followers.is_some_and(|followers| followers > 0));
         assert!(preview.published_episodes > 0);
+        assert!(preview.pub_time.is_some_and(|time| !time.is_empty()));
         assert_eq!(preview.episode.unwrap().long_title, "深山");
         Ok(())
     }

@@ -188,6 +188,13 @@
 							<span class="text-sm">{itemTitle}</span>
 						</div>
 						{#if item?.type === 'bangumi'}
+							<p class="text-muted-foreground text-sm break-words">
+								开播时间：{item.pub_time || '暂无信息'}
+							</p>
+							<p class="text-muted-foreground text-sm">
+								评分：{item.rating?.toLocaleString('zh-CN', { maximumFractionDigits: 1 }) ??
+									'暂无评分'}
+							</p>
 							<p class="text-muted-foreground text-sm">下载范围：整季，并持续同步新集。</p>
 							<p class="text-muted-foreground text-sm">
 								{item.media_count === null ? '总集数待定' : `共 ${item.media_count} 集`}

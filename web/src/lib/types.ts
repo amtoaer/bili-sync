@@ -158,6 +158,8 @@ export type Followed =
 			media_count: number | null;
 			update: string | null;
 			progress: string | null;
+			pub_time: string | null;
+			rating: number | null;
 			invalid: boolean;
 			subscribed: boolean;
 	  }
@@ -237,6 +239,7 @@ export interface BangumiPreview {
 	followers: number | null;
 	followText: string | null;
 	rating: number | null;
+	pubTime: string | null;
 	status: string | null;
 	episode: { id: number; title: string; longTitle: string } | null;
 	url: string;
