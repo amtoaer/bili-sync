@@ -12,6 +12,7 @@
 	import CircleCheckBigIcon from '@lucide/svelte/icons/circle-check-big';
 	import CircleXIcon from '@lucide/svelte/icons/circle-x';
 	import ClockIcon from '@lucide/svelte/icons/clock';
+	import ClapperboardIcon from '@lucide/svelte/icons/clapperboard';
 	import FolderIcon from '@lucide/svelte/icons/folder';
 	import HeartIcon from '@lucide/svelte/icons/heart';
 	import InfoIcon from '@lucide/svelte/icons/info';
@@ -50,7 +51,6 @@
 	let showEditDialog = false;
 	let editingSource: VideoSourceDetail | null = null;
 	let editingType = '';
-	let editingIdx: number = 0;
 	let saving = false;
 	let useCustomFilterOption = false;
 	let editFilterOption: FilterOption | null = null;
@@ -65,7 +65,6 @@
 	let showRemoveDialog = false;
 	let removeSource: VideoSourceDetail | null = null;
 	let removeType = '';
-	let removeIdx: number = 0;
 	let removing = false;
 
 	// 全量更新对话框状态
@@ -94,10 +93,11 @@
 		);
 
 	const TAB_CONFIG = {
-		favorites: { label: '收藏夹', icon: HeartIcon },
-		collections: { label: '合集 / 番剧', icon: FolderIcon },
-		submissions: { label: '用户投稿', icon: UserIcon },
-		watch_later: { label: '稍后再看', icon: ClockIcon }
+		favorites: { label: '收藏夹', icon: HeartIcon, sourceType: 'favorites' },
+		collections: { label: '合集', icon: FolderIcon, sourceType: 'collections' },
+		bangumi: { label: '番剧', icon: ClapperboardIcon, sourceType: 'collections' },
+		submissions: { label: '用户投稿', icon: UserIcon, sourceType: 'submissions' },
+		watch_later: { label: '稍后再看', icon: ClockIcon, sourceType: 'watch_later' }
 	} as const;
 
 	// 数据加载
@@ -120,10 +120,9 @@
 	}
 
 	// 打开编辑对话框
-	function openEditDialog(type: string, source: VideoSourceDetail, idx: number) {
+	function openEditDialog(type: string, source: VideoSourceDetail) {
 		editingSource = source;
 		editingType = type;
-		editingIdx = idx;
 		editForm = {
 			path: source.path,
 			enabled: source.enabled,
@@ -141,10 +140,9 @@
 		showEvaluateDialog = true;
 	}
 
-	function openRemoveDialog(type: string, source: VideoSourceDetail, idx: number) {
+	function openRemoveDialog(type: string, source: VideoSourceDetail) {
 		removeSource = source;
 		removeType = type;
-		removeIdx = idx;
 		showRemoveDialog = true;
 	}
 
@@ -208,16 +206,22 @@
 				const sources = videoSourcesData[
 					editingType as keyof VideoSourcesDetailsResponse
 				] as VideoSourceDetail[];
-				sources[editingIdx] = {
-					...sources[editingIdx],
-					path: editForm.path,
-					enabled: editForm.enabled,
-					rule: editForm.rule,
-					useDynamicApi: editForm.useDynamicApi,
-					filterOption: useCustomFilterOption ? structuredClone(editFilterOption) : null,
-					ruleDisplay: response.data.ruleDisplay
+				videoSourcesData = {
+					...videoSourcesData,
+					[editingType]: sources.map((source) =>
+						source.id === editingSource!.id
+							? {
+									...source,
+									path: editForm.path,
+									enabled: editForm.enabled,
+									rule: editForm.rule,
+									useDynamicApi: editForm.useDynamicApi,
+									filterOption: useCustomFilterOption ? structuredClone(editFilterOption) : null,
+									ruleDisplay: response.data.ruleDisplay
+								}
+							: source
+					)
 				};
-				videoSourcesData = { ...videoSourcesData };
 			}
 			showEditDialog = false;
 			toast.success('保存成功');
@@ -260,8 +264,10 @@
 					const sources = videoSourcesData[
 						removeType as keyof VideoSourcesDetailsResponse
 					] as VideoSourceDetail[];
-					sources.splice(removeIdx, 1);
-					videoSourcesData = { ...videoSourcesData };
+					videoSourcesData = {
+						...videoSourcesData,
+						[removeType]: sources.filter((source) => source.id !== removeSource!.id)
+					};
 				}
 				showRemoveDialog = false;
 				toast.success('删除视频源成功');
@@ -277,9 +283,17 @@
 		}
 	}
 
-	function getSourcesForTab(tabValue: string): VideoSourceDetail[] {
-		if (!videoSourcesData) return [];
-		return videoSourcesData[tabValue as keyof VideoSourcesDetailsResponse] as VideoSourceDetail[];
+	function getSourcesForTab(
+		data: VideoSourcesDetailsResponse,
+		tabValue: string
+	): VideoSourceDetail[] {
+		if (tabValue === 'collections' || tabValue === 'bangumi') {
+			return data.collections.filter((source) => {
+				const isBangumi = source.collectionType === 3 || source.collectionType === 4;
+				return tabValue === 'bangumi' ? isBangumi : !isBangumi;
+			});
+		}
+		return data[tabValue as keyof VideoSourcesDetailsResponse];
 	}
 
 	// 打开添加对话框
@@ -308,7 +322,7 @@
 						path: bangumiForm.path.trim(),
 						whole_season: isSeasonLink || bangumiForm.whole_season
 					});
-					activeTab = 'collections';
+					activeTab = 'bangumi';
 					break;
 				case 'favorites':
 					if (!favoriteForm.fid || !favoriteForm.path.trim()) {
@@ -370,19 +384,13 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div class="flex justify-end">
-		<Button onclick={() => openAddDialog('bangumi')} class="flex items-center gap-2">
-			<PlusIcon class="h-4 w-4" />
-			添加番剧
-		</Button>
-	</div>
 	{#if loading}
 		<div class="flex items-center justify-center py-12">
 			<div class="text-muted-foreground">加载中...</div>
 		</div>
 	{:else if videoSourcesData}
 		<Tabs.Root bind:value={activeTab} class="w-full">
-			<Tabs.List class="grid w-full grid-cols-4">
+			<Tabs.List class="grid w-full grid-cols-5">
 				{#each Object.entries(TAB_CONFIG) as [key, config] (key)}
 					<Tabs.Trigger value={key} class="relative text-xs sm:text-sm">
 						{config.label}
@@ -390,14 +398,14 @@
 				{/each}
 			</Tabs.List>
 			{#each Object.entries(TAB_CONFIG) as [key, config] (key)}
-				{@const sources = getSourcesForTab(key)}
+				{@const sources = getSourcesForTab(videoSourcesData, key)}
 				<Tabs.Content value={key} class="mt-6">
 					<div class="mb-4 flex items-center justify-between">
 						<div></div>
-						{#if key === 'favorites' || key === 'collections' || key === 'submissions'}
+						{#if key === 'favorites' || key === 'collections' || key === 'bangumi' || key === 'submissions'}
 							<Button size="sm" onclick={() => openAddDialog(key)} class="flex items-center gap-2">
 								<PlusIcon class="h-4 w-4" />
-								手动添加
+								{key === 'bangumi' ? '添加番剧' : '手动添加'}
 							</Button>
 						{/if}
 					</div>
@@ -415,7 +423,7 @@
 									</Table.Row>
 								</Table.Header>
 								<Table.Body>
-									{#each sources as source, index (index)}
+									{#each sources as source (source.id)}
 										<Table.Row>
 											<Table.Cell class="font-medium">
 												{#if source.sourceUrl}
@@ -502,7 +510,7 @@
 														<Button
 															size="sm"
 															variant="outline"
-															onclick={() => openEditDialog(key, source, index)}
+															onclick={() => openEditDialog(config.sourceType, source)}
 															class="h-8 w-8 p-0"
 														>
 															<SquarePenIcon class="h-3 w-3" />
@@ -517,7 +525,7 @@
 														<Button
 															size="sm"
 															variant="outline"
-															onclick={() => openEvaluateRules(key, source)}
+															onclick={() => openEvaluateRules(config.sourceType, source)}
 															class="h-8 w-8 p-0"
 														>
 															<ListRestartIcon class="h-3 w-3" />
@@ -532,7 +540,7 @@
 														<Button
 															size="sm"
 															variant="outline"
-															onclick={() => openFullSyncDialog(key, source)}
+															onclick={() => openFullSyncDialog(config.sourceType, source)}
 															class="h-8 w-8 p-0"
 														>
 															<RefreshCwIcon class="h-3 w-3" />
@@ -548,7 +556,7 @@
 															<Button
 																size="sm"
 																variant="outline"
-																onclick={() => openRemoveDialog(key, source, index)}
+																onclick={() => openRemoveDialog(config.sourceType, source)}
 																class="h-8 w-8 p-0"
 															>
 																<Trash2Icon class="h-3 w-3" />
@@ -573,17 +581,19 @@
 								{#if key === 'favorites'}
 									还没有添加任何收藏夹订阅
 								{:else if key === 'collections'}
-									还没有添加任何合集、列表或番剧订阅
+									还没有添加任何合集或列表订阅
+								{:else if key === 'bangumi'}
+									还没有添加任何番剧订阅
 								{:else if key === 'submissions'}
 									还没有添加任何用户投稿订阅
 								{:else}
 									还没有添加稍后再看订阅
 								{/if}
 							</p>
-							{#if key === 'favorites' || key === 'collections' || key === 'submissions'}
+							{#if key === 'favorites' || key === 'collections' || key === 'bangumi' || key === 'submissions'}
 								<Button onclick={() => openAddDialog(key)} class="flex items-center gap-2">
 									<PlusIcon class="h-4 w-4" />
-									手动添加
+									{key === 'bangumi' ? '添加番剧' : '手动添加'}
 								</Button>
 							{/if}
 						</div>
