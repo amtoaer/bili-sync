@@ -4,6 +4,7 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import SubscriptionDialog from './subscription-dialog.svelte';
 	import CheckIcon from '@lucide/svelte/icons/check';
+	import ClapperboardIcon from '@lucide/svelte/icons/clapperboard';
 	import FolderIcon from '@lucide/svelte/icons/folder';
 	import HeartIcon from '@lucide/svelte/icons/heart';
 	import PlusIcon from '@lucide/svelte/icons/plus';
@@ -12,10 +13,16 @@
 	import XIcon from '@lucide/svelte/icons/x';
 	import type { Followed } from '$lib/types';
 
-	export let item: Followed;
-	export let onSubscriptionSuccess: (() => void) | null = null;
+	let {
+		item,
+		onSubscriptionSuccess = null
+	}: {
+		item: Followed;
+		onSubscriptionSuccess?: (() => void) | null;
+	} = $props();
 
-	let dialogOpen = false;
+	let dialogOpen = $state(false);
+	let failedImage = $state('');
 
 	function getIcon() {
 		switch (item.type) {
@@ -23,6 +30,8 @@
 				return HeartIcon;
 			case 'collection':
 				return FolderIcon;
+			case 'bangumi':
+				return ClapperboardIcon;
 			case 'upper':
 				return UserIcon;
 			default:
@@ -36,6 +45,8 @@
 				return '收藏夹';
 			case 'collection':
 				return '合集';
+			case 'bangumi':
+				return '番剧';
 			case 'upper':
 				return 'UP 主';
 			default:
@@ -45,6 +56,7 @@
 
 	function getTitle(): string {
 		switch (item.type) {
+			case 'bangumi':
 			case 'favorite':
 			case 'collection':
 				return item.title;
@@ -67,6 +79,8 @@
 
 	function getDescription(): string {
 		switch (item.type) {
+			case 'bangumi':
+				return item.update || '';
 			case 'upper':
 				return item.sign || '';
 			default:
@@ -76,6 +90,7 @@
 
 	function isDisabled(): boolean {
 		switch (item.type) {
+			case 'bangumi':
 			case 'collection':
 			case 'upper':
 			case 'favorite':
@@ -87,6 +102,8 @@
 
 	function getDisabledReason(): string {
 		switch (item.type) {
+			case 'bangumi':
+			case 'favorite':
 			case 'collection':
 				return '已失效';
 			case 'upper':
@@ -98,6 +115,7 @@
 
 	function getCount(): number | null {
 		switch (item.type) {
+			case 'bangumi':
 			case 'favorite':
 			case 'collection':
 				return item.media_count;
@@ -108,6 +126,8 @@
 
 	function getAvatarUrl(): string {
 		switch (item.type) {
+			case 'bangumi':
+				return item.cover;
 			case 'upper':
 				return item.face;
 			default:
@@ -116,29 +136,29 @@
 	}
 
 	function handleSubscribe() {
-		if (!disabled) {
+		if (!disabled && !subscribed) {
 			dialogOpen = true;
 		}
 	}
 
 	function handleSubscriptionSuccess() {
 		// 更新本地状态
-		item.subscribed = true;
+		item = { ...item, subscribed: true };
 		if (onSubscriptionSuccess) {
 			onSubscriptionSuccess();
 		}
 	}
 
-	const Icon = getIcon();
-	const typeLabel = getTypeLabel();
-	const title = getTitle();
-	const subtitle = getSubtitle();
-	const description = getDescription();
-	const count = getCount();
-	const avatarUrl = getAvatarUrl();
-	const subscribed = item.subscribed;
-	const disabled = isDisabled();
-	const disabledReason = getDisabledReason();
+	const Icon = $derived(getIcon());
+	const typeLabel = $derived(getTypeLabel());
+	const title = $derived(getTitle());
+	const subtitle = $derived(getSubtitle());
+	const description = $derived(getDescription());
+	const count = $derived(getCount());
+	const avatarUrl = $derived(getAvatarUrl());
+	const subscribed = $derived(item.subscribed);
+	const disabled = $derived(isDisabled());
+	const disabledReason = $derived(getDisabledReason());
 </script>
 
 <Card
@@ -150,19 +170,27 @@
 		<div class="flex items-start gap-3">
 			<!-- 头像或图标 - 简化设计 -->
 			<div
-				class="bg-accent/50 flex h-10 w-10 shrink-0 items-center justify-center rounded-full {disabled
-					? 'opacity-50'
-					: ''}"
+				class="bg-accent/50 flex shrink-0 items-center justify-center overflow-hidden {item.type ===
+				'bangumi'
+					? 'aspect-[3/4] w-20 rounded-md'
+					: 'h-10 w-10 rounded-full'} {disabled ? 'opacity-50' : ''}"
 			>
-				{#if avatarUrl && item.type === 'upper'}
+				{#if avatarUrl && failedImage !== avatarUrl}
 					<img
 						src={avatarUrl}
 						alt={title}
-						class="h-full w-full rounded-full object-cover {disabled ? 'grayscale' : ''}"
+						class="h-full w-full object-cover {item.type === 'upper'
+							? 'rounded-full'
+							: ''} {disabled ? 'grayscale' : ''}"
 						loading="lazy"
+						referrerpolicy="no-referrer"
+						onerror={() => (failedImage = avatarUrl)}
 					/>
 				{:else}
-					<Icon class="text-muted-foreground h-5 w-5" />
+					<div class="text-muted-foreground flex flex-col items-center gap-2">
+						<Icon class="h-5 w-5" />
+						{#if item.type === 'bangumi'}<span class="text-xs">暂无海报</span>{/if}
+					</div>
 				{/if}
 			</div>
 
@@ -175,7 +203,14 @@
 							: ''}"
 						{title}
 					>
-						{title}
+						{#if item.type === 'bangumi'}
+							<a
+								href={`https://www.bilibili.com/bangumi/play/ss${item.season_id}`}
+								target="_blank"
+								rel="noopener noreferrer"
+								class="hover:underline">{title}</a
+							>
+						{:else}{title}{/if}
 					</CardTitle>
 
 					<!-- 状态标记 -->
@@ -200,8 +235,15 @@
 				{#if count !== null && !disabled}
 					<div class="text-muted-foreground flex items-center gap-1 text-sm">
 						<VideoIcon class="h-3 w-3 shrink-0" />
-						<span class="truncate">视频数：{count}</span>
+						<span class="truncate">{item.type === 'bangumi' ? '总集数' : '视频数'}：{count}</span>
 					</div>
+				{:else if item.type === 'bangumi' && !disabled}
+					<p class="text-muted-foreground text-sm">总集数待定</p>
+				{/if}
+				{#if item.type === 'bangumi' && item.progress && !disabled}
+					<p class="text-muted-foreground line-clamp-2 text-xs" title={item.progress}>
+						{item.progress}
+					</p>
 				{/if}
 
 				<!-- 描述信息 -->

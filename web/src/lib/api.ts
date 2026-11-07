@@ -7,6 +7,7 @@ import type {
 	Config,
 	DashBoardResponse,
 	FavoritesResponse,
+	FollowedBangumiResponse,
 	FullSyncVideoSourceRequest,
 	FullSyncVideoSourceResponse,
 	QrcodeGenerateResponse as GenerateQrcodeResponse,
@@ -212,6 +213,16 @@ class ApiClient {
 		return this.get<CollectionsResponse>('/me/collections', params as Record<string, unknown>);
 	}
 
+	async getFollowedBangumi(
+		pageNum = 1,
+		pageSize = 20
+	): Promise<ApiResponse<FollowedBangumiResponse>> {
+		return this.get<FollowedBangumiResponse>('/me/bangumi', {
+			page_num: pageNum,
+			page_size: pageSize
+		});
+	}
+
 	async getFollowedUppers(
 		pageNum?: number,
 		pageSize?: number,
@@ -334,6 +345,8 @@ const api = {
 	updateFilteredVideoStatus: (request: UpdateFilteredVideoStatusRequest) =>
 		apiClient.updateFilteredVideoStatus(request),
 	getCreatedFavorites: () => apiClient.getCreatedFavorites(),
+	getFollowedBangumi: (pageNum?: number, pageSize?: number) =>
+		apiClient.getFollowedBangumi(pageNum, pageSize),
 	getFollowedCollections: (pageNum?: number, pageSize?: number) =>
 		apiClient.getFollowedCollections(pageNum, pageSize),
 	getFollowedUppers: (pageNum?: number, pageSize?: number, name?: string) =>

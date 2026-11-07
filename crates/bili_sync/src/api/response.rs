@@ -153,6 +153,16 @@ pub enum Followed {
         invalid: bool,
         subscribed: bool,
     },
+    Bangumi {
+        season_id: i64,
+        title: String,
+        cover: String,
+        media_count: Option<i64>,
+        update: Option<String>,
+        progress: Option<String>,
+        invalid: bool,
+        subscribed: bool,
+    },
 }
 
 #[derive(Serialize)]
@@ -163,6 +173,12 @@ pub struct FavoritesResponse {
 #[derive(Serialize)]
 pub struct CollectionsResponse {
     pub collections: Vec<Followed>,
+    pub total: i64,
+}
+
+#[derive(Serialize)]
+pub struct BangumiResponse {
+    pub bangumi: Vec<Followed>,
     pub total: i64,
 }
 

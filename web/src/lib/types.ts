@@ -151,6 +151,17 @@ export interface ResetFilteredVideoStatusRequest {
 
 export type Followed =
 	| {
+			type: 'bangumi';
+			season_id: number;
+			title: string;
+			cover: string;
+			media_count: number | null;
+			update: string | null;
+			progress: string | null;
+			invalid: boolean;
+			subscribed: boolean;
+	  }
+	| {
 			type: 'favorite';
 			title: string;
 			media_count: number;
@@ -187,8 +198,13 @@ export interface CollectionsResponse {
 	total: number;
 }
 
+export interface FollowedBangumiResponse {
+	bangumi: Extract<Followed, { type: 'bangumi' }>[];
+	total: number;
+}
+
 export interface UppersResponse {
-	uppers: Followed[];
+	uppers: Extract<Followed, { type: 'upper' }>[];
 	total: number;
 }
 

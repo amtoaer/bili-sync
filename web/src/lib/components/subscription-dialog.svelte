@@ -30,19 +30,17 @@
 
 	let customPath = $state('');
 	let loading = $state(false);
-
-	// 根据类型和 item 生成默认路径
-	async function generateDefaultPath(): Promise<string> {
-		if (!item || !itemTitle) return '';
-		// 根据 item.type 映射到对应的 API 类型
-		const apiType =
-			item.type === 'favorite'
-				? 'favorites'
-				: item.type === 'collection'
-					? 'collections'
-					: 'submissions';
-		return (await api.getDefaultPath(apiType, itemTitle)).data;
-	}
+	let pathEdited = $state(false);
+	const pathType = $derived(
+		item
+			? {
+					favorite: 'favorites',
+					collection: 'collections',
+					bangumi: 'bangumi',
+					upper: 'submissions'
+				}[item.type]
+			: ''
+	);
 
 	function getTypeLabel(): string {
 		if (!item) return '';
@@ -52,6 +50,8 @@
 				return '收藏夹';
 			case 'collection':
 				return '合集';
+			case 'bangumi':
+				return '番剧';
 			case 'upper':
 				return 'UP 主';
 			default:
@@ -65,6 +65,7 @@
 		switch (item.type) {
 			case 'favorite':
 			case 'collection':
+			case 'bangumi':
 				return item.title;
 			case 'upper':
 				return item.uname;
@@ -74,13 +75,21 @@
 	}
 
 	async function handleSubscribe() {
-		if (!item || !customPath.trim()) return;
+		if (loading || !item || !customPath.trim()) return;
 
 		loading = true;
 		try {
 			let response;
 
 			switch (item.type) {
+				case 'bangumi': {
+					response = await api.insertBangumi({
+						url: `ss${item.season_id}`,
+						whole_season: true,
+						path: customPath.trim()
+					});
+					break;
+				}
 				case 'favorite': {
 					const request: InsertFavoriteRequest = {
 						fid: item.fid,
@@ -110,7 +119,10 @@
 
 			if (response && response.data) {
 				toast.success('订阅成功', {
-					description: `已订阅${getTypeLabel()}「${getItemTitle()}」到路径「${customPath.trim()}」`
+					description:
+						item.type === 'bangumi'
+							? `已添加「${getItemTitle()}」，请前往「视频源 → 番剧」启用。`
+							: `已订阅${getTypeLabel()}「${getItemTitle()}」到路径「${customPath.trim()}」`
 				});
 				open = false;
 				if (onSuccess) {
@@ -132,22 +144,28 @@
 	}
 
 	$effect(() => {
-		if (open && item) {
-			generateDefaultPath()
-				.then((path) => {
-					customPath = path;
-				})
-				.catch((error) => {
-					toast.error('获取默认路径失败', {
-						description: (error as ApiError).message
-					});
-					customPath = '';
+		if (!open || !pathType || !itemTitle) return;
+		let cancelled = false;
+		customPath = '';
+		pathEdited = false;
+		api
+			.getDefaultPath(pathType, itemTitle)
+			.then((response) => {
+				if (!cancelled && !pathEdited) customPath = response.data;
+			})
+			.catch((error) => {
+				if (cancelled) return;
+				toast.error('获取默认路径失败，请手动填写', {
+					description: (error as ApiError).message
 				});
-		}
+			});
+		return () => {
+			cancelled = true;
+		};
 	});
 
-	const typeLabel = getTypeLabel();
-	const itemTitle = getItemTitle();
+	const typeLabel = $derived(getTypeLabel());
+	const itemTitle = $derived(getItemTitle());
 </script>
 
 <Sheet bind:open>
@@ -169,15 +187,21 @@
 							<span class="text-muted-foreground text-sm font-medium">{typeLabel}名称：</span>
 							<span class="text-sm">{itemTitle}</span>
 						</div>
-						{#if item!.type !== 'upper'}
+						{#if item?.type === 'bangumi'}
+							<p class="text-muted-foreground text-sm">下载范围：整季，并持续同步新集。</p>
+							<p class="text-muted-foreground text-sm">
+								{item.media_count === null ? '总集数待定' : `共 ${item.media_count} 集`}
+							</p>
+							<p class="text-muted-foreground text-sm">添加后，请前往「视频源 → 番剧」启用。</p>
+						{:else if item && item.type !== 'upper'}
 							<div class="flex items-center gap-2">
 								<span class="text-muted-foreground text-sm font-medium">视频数量：</span>
-								<span class="text-sm">{item!.media_count} 条</span>
+								<span class="text-sm">{item.media_count} 条</span>
 							</div>
-						{:else if item!.sign}
+						{:else if item?.type === 'upper' && item.sign}
 							<div class="flex items-start gap-2">
 								<span class="text-muted-foreground text-sm font-medium">个人简介：</span>
-								<span class="text-muted-foreground text-sm">{item!.sign}</span>
+								<span class="text-muted-foreground text-sm">{item.sign}</span>
 							</div>
 						{/if}
 					</div>
@@ -193,6 +217,7 @@
 						type="text"
 						placeholder="请输入保存路径，例如：/home/我的收藏"
 						bind:value={customPath}
+						oninput={() => (pathEdited = true)}
 						disabled={loading}
 						class="w-full"
 					/>

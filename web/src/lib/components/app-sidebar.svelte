@@ -1,6 +1,7 @@
 <script lang="ts">
 	import BotIcon from '@lucide/svelte/icons/bot';
 	import ChartPieIcon from '@lucide/svelte/icons/chart-pie';
+	import ClapperboardIcon from '@lucide/svelte/icons/clapperboard';
 	import DatabaseIcon from '@lucide/svelte/icons/database';
 	import FilePlayIcon from '@lucide/svelte/icons/file-play';
 	import FoldersIcon from '@lucide/svelte/icons/folders';
@@ -62,6 +63,11 @@
 						title: '我创建的收藏夹',
 						icon: HeartIcon,
 						href: '/me/favorites'
+					},
+					{
+						title: '我订阅的番剧',
+						icon: ClapperboardIcon,
+						href: '/me/bangumi'
 					},
 					{
 						title: '我追的合集 / 收藏夹',

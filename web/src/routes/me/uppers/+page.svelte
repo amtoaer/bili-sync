@@ -8,7 +8,7 @@
 	import api from '$lib/api';
 	import type { Followed, ApiError } from '$lib/types';
 
-	let uppers: Followed[] = [];
+	let uppers: Extract<Followed, { type: 'upper' }>[] = [];
 	let totalCount = 0;
 	let currentPage = 0;
 	let loading = false;

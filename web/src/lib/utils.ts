@@ -7,6 +7,8 @@ export function getFollowedKey(followed: Followed): number {
 		return followed.fid;
 	} else if (followed.type == 'collection') {
 		return followed.sid;
+	} else if (followed.type == 'bangumi') {
+		return followed.season_id;
 	} else {
 		return followed.mid;
 	}

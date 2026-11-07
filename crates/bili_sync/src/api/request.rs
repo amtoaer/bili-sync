@@ -107,6 +107,14 @@ pub struct FollowedCollectionsRequest {
     pub page_size: Option<i32>,
 }
 
+#[derive(Deserialize, Validate)]
+pub struct FollowedBangumiRequest {
+    #[validate(range(min = 1))]
+    pub page_num: Option<i32>,
+    #[validate(range(min = 1, max = 50))]
+    pub page_size: Option<i32>,
+}
+
 #[derive(Deserialize)]
 pub struct FollowedUppersRequest {
     pub page_num: Option<i32>,

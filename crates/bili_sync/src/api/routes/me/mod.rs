@@ -8,16 +8,19 @@ use axum::routing::get;
 use bili_sync_entity::*;
 use itertools::{Either, Itertools};
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect};
+use validator::Validate;
 
-use crate::api::request::{FollowedCollectionsRequest, FollowedUppersRequest};
-use crate::api::response::{CollectionsResponse, FavoritesResponse, Followed, UppersResponse};
+use crate::api::error::InnerApiError;
+use crate::api::request::{FollowedBangumiRequest, FollowedCollectionsRequest, FollowedUppersRequest};
+use crate::api::response::{BangumiResponse, CollectionsResponse, FavoritesResponse, Followed, UppersResponse};
 use crate::api::wrapper::{ApiError, ApiResponse};
-use crate::bilibili::{BiliClient, Me};
+use crate::bilibili::{BiliClient, CollectionType, Me};
 use crate::config::VersionedConfig;
 
 pub(super) fn router() -> Router {
     Router::new()
         .route("/me/favorites", get(get_created_favorites))
+        .route("/me/bangumi", get(get_followed_bangumi))
         .route("/me/collections", get(get_followed_collections))
         .route("/me/uppers", get(get_followed_uppers))
 }
@@ -98,17 +101,7 @@ pub async fn get_followed_collections(
                         .collect(),
                 )
             },
-            async {
-                Ok(collection::Entity::find()
-                    .select_only()
-                    .column(collection::Column::SId)
-                    .filter(collection::Column::SId.is_in(bili_sids))
-                    .into_tuple()
-                    .all(&db)
-                    .await?
-                    .into_iter()
-                    .collect())
-            }
+            subscribed_collection_ids(&db, bili_sids, CollectionType::Season)
         )?;
         collection_list
             .into_iter()
@@ -186,4 +179,125 @@ pub async fn get_followed_uppers(
         uppers,
         total: bili_uppers.total,
     }))
+}
+
+/// 获取当前用户在 B 站追番的列表，订阅状态仅表示 bili-sync 中的整季视频源。
+pub async fn get_followed_bangumi(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(bili_client): Extension<Arc<BiliClient>>,
+    Query(params): Query<FollowedBangumiRequest>,
+) -> Result<ApiResponse<BangumiResponse>, ApiError> {
+    params
+        .validate()
+        .map_err(|error| InnerApiError::BadRequest(error.to_string()))?;
+    let credential = &VersionedConfig::get().read().credential;
+    let followed = Me::new(bili_client.as_ref(), credential)
+        .get_followed_bangumi(params.page_num.unwrap_or(1), params.page_size.unwrap_or(20))
+        .await?;
+    let list = followed.list.unwrap_or_default();
+    let season_ids = list.iter().map(|item| item.season_id).collect();
+    let subscribed = subscribed_collection_ids(&db, season_ids, CollectionType::BangumiSeason).await?;
+    let bangumi = list
+        .into_iter()
+        .map(|item| Followed::Bangumi {
+            season_id: item.season_id,
+            invalid: item.season_id <= 0 || item.title.trim().is_empty(),
+            subscribed: subscribed.contains(&item.season_id),
+            title: item.title,
+            cover: item.cover,
+            media_count: item.total_count,
+            update: item.new_ep.and_then(|episode| episode.index_show),
+            progress: item.progress,
+        })
+        .collect();
+    Ok(ApiResponse::ok(BangumiResponse {
+        bangumi,
+        total: followed.total,
+    }))
+}
+
+async fn subscribed_collection_ids(
+    db: &DatabaseConnection,
+    ids: Vec<i64>,
+    kind: CollectionType,
+) -> Result<HashSet<i64>> {
+    Ok(collection::Entity::find()
+        .select_only()
+        .column(collection::Column::SId)
+        .filter(collection::Column::SId.is_in(ids))
+        .filter(collection::Column::Type.eq(i32::from(kind)))
+        .into_tuple()
+        .all(db)
+        .await?
+        .into_iter()
+        .collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::response::IntoResponse;
+    use bili_sync_migration::{Migrator, MigratorTrait};
+    use sea_orm::{ActiveModelTrait, Database, Set};
+
+    #[tokio::test]
+    async fn followed_bangumi_rejects_invalid_pagination_before_upstream() -> Result<()> {
+        let db = Database::connect("sqlite::memory:").await?;
+        for (page_num, page_size) in [(0, 20), (-1, 20), (1, 0), (1, 51)] {
+            let result = get_followed_bangumi(
+                Extension(db.clone()),
+                Extension(Arc::new(BiliClient::new())),
+                Query(FollowedBangumiRequest {
+                    page_num: Some(page_num),
+                    page_size: Some(page_size),
+                }),
+            )
+            .await;
+            let Err(error) = result else {
+                panic!("invalid pagination was accepted")
+            };
+            assert_eq!(error.into_response().status(), axum::http::StatusCode::BAD_REQUEST);
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn followed_subscription_flags_distinguish_collections_seasons_and_episodes() -> Result<()> {
+        let db = Database::connect("sqlite::memory:").await?;
+        Migrator::up(&db, None).await?;
+        for (id, kind) in [
+            (10, CollectionType::Season),
+            (20, CollectionType::BangumiEpisode),
+            (30, CollectionType::BangumiSeason),
+            (40, CollectionType::Season),
+            (40, CollectionType::BangumiSeason),
+        ] {
+            collection::ActiveModel {
+                s_id: Set(id),
+                m_id: Set(0),
+                r#type: Set(kind.into()),
+                name: Set("测试源".to_owned()),
+                path: Set("/downloads".to_owned()),
+                enabled: Set(false),
+                ..Default::default()
+            }
+            .insert(&db)
+            .await?;
+        }
+        let ids = vec![10, 20, 30, 40];
+        assert_eq!(
+            subscribed_collection_ids(&db, ids.clone(), CollectionType::BangumiSeason).await?,
+            HashSet::from([30, 40])
+        );
+        assert_eq!(
+            subscribed_collection_ids(&db, ids, CollectionType::Season).await?,
+            HashSet::from([10, 40])
+        );
+        assert!(
+            subscribed_collection_ids(&db, vec![], CollectionType::BangumiSeason)
+                .await?
+                .is_empty()
+        );
+        Ok(())
+    }
 }
